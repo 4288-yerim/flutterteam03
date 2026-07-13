@@ -1,5 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../theme.dart';
+import '../auth/welcome_screen.dart';
 import '../main_navigation_shell.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -36,13 +38,18 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _goNext() async {
-    // 로고 애니메이션 + 최소 노출 시간
     await Future.delayed(const Duration(milliseconds: 2400));
     if (!mounted) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    final nextScreen = user == null
+        ? const WelcomeScreen()
+        : const MainNavigationShell();
+
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (_, __, ___) => const MainNavigationShell(),
+        pageBuilder: (_, __, ___) => nextScreen,
         transitionsBuilder: (_, animation, __, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -58,7 +65,6 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    // 다크/라이트 모드에 맞는 색상을 현재 테마에서 가져옴
     final colors = Theme.of(context).extension<AppColors>()!;
 
     return Scaffold(
@@ -105,11 +111,11 @@ class _SplashScreenState extends State<SplashScreen>
             FadeTransition(
               opacity: _opacity,
               child: const Text(
-                'D-Day 스터디 플래너',
+                '따자!',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
@@ -122,7 +128,6 @@ class _SplashScreenState extends State<SplashScreen>
   }
 }
 
-/// 하단에서 통통 튀는 로딩 도트 3개
 class _LoadingDots extends StatefulWidget {
   const _LoadingDots();
 

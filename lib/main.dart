@@ -26,7 +26,7 @@ class MyApp extends StatelessWidget {
       theme: lightTheme,
       darkTheme: darkTheme,
       themeMode: ThemeMode.system, // 시스템 다크모드 설정을 따라감
-      home: const SplashScreen(),
+      home: SplashScreen(),
     );
   }
 }
