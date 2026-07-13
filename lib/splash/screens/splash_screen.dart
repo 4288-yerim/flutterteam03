@@ -1,8 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../auth/screens/welcome_screen.dart';
+import '../../main_page.dart';
 import '../../theme.dart';
-import '../auth/welcome_screen.dart';
-import '../main_navigation_shell.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -44,7 +44,7 @@ class _SplashScreenState extends State<SplashScreen>
     final user = FirebaseAuth.instance.currentUser;
     final nextScreen = user == null
         ? const WelcomeScreen()
-        : const MainNavigationShell();
+        : const MainPage();
 
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
