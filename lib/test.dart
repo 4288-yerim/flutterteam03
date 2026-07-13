@@ -1,8 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutterteam03/widgets/app_bottom_bar.dart';
+import 'package:flutterteam03/widgets/app_button.dart';
+import 'package:flutterteam03/widgets/app_main_background.dart';
+import 'package:flutterteam03/widgets/app_top_bar.dart';
 import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'widgets/app_background.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +35,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   final TextEditingController _name = TextEditingController(); // 이름 입력 컨트롤러
   final TextEditingController _age = TextEditingController(); // 나이 입력 컨트롤러
+  int _currentIndex = 0;
 
   // Firestore에 사용자 추가하는 함수
   void _addUser() async {
@@ -85,47 +91,70 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-        appBar: AppBar(title: Text("firestore")),
-        body: Center(
-          child: Padding(
-            padding: EdgeInsets.all(20),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center, // 위젯 중앙 정렬
-              children: [
-                // 이름 입력 필드
-                TextField(
-                  controller: _name,
-                  decoration: InputDecoration(
-                    labelText: "이름",
-                    border: OutlineInputBorder(),
+        extendBodyBehindAppBar: true,
+        appBar: AppTopBar(title: "firestore",),
+        extendBody: true,
+        bottomNavigationBar: AppBottomBar(
+          currentIndex: _currentIndex,
+          onTap: (i) => setState(() => _currentIndex = i),
+        ),
+        body: AppBackground(
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center, // 위젯 중앙 정렬
+                children: [
+                  // 이름 입력 필드
+                  TextField(
+                    controller: _name,
+                    decoration: InputDecoration(
+                      labelText: "이름",
+                      border: OutlineInputBorder(),
+                    ),
                   ),
-                ),
-                SizedBox(height: 20),
-                // 나이 입력 필드
-                TextField(
-                  controller: _age,
-                  decoration: InputDecoration(
-                    labelText: "나이",
-                    border: OutlineInputBorder(),
+                  SizedBox(height: 20),
+                  // 나이 입력 필드
+                  TextField(
+                    controller: _age,
+                    decoration: InputDecoration(
+                      labelText: "나이",
+                      border: OutlineInputBorder(),
+                    ),
                   ),
-                ),
-                SizedBox(height: 20),
-                // 사용자 추가 버튼
-                ElevatedButton(
-                  onPressed: _addUser, // 버튼 클릭 시 사용자 추가 함수 호출
-                  child: Text("사용자 추가!"),
-                ),
-                SizedBox(height: 20),
-                // 사용자 수정 버튼
-                ElevatedButton(
-                  onPressed: _updateUser, // 버튼 클릭 시 사용자 수정 함수 호출
-                  child: Text("사용자 수정!"),
-                ),
-                SizedBox(height: 20),
-                // 사용자 목록 표시
-                Expanded(child: _listUser()),
-              ],
+                  SizedBox(height: 20),
+                  // 사용자 추가 버튼
+                  AppButton(
+                    onPressed: _addUser, // 버튼 클릭 시 사용자 추가 함수 호출
+                    text: "사용자 추가!",
+                    type: AppButtonType.primaryPink,
+                  ),
+                  SizedBox(height: 20),
+                  // 사용자 수정 버튼
+                  AppButton(
+                    onPressed: (){}, // 버튼 클릭 시 사용자 수정 함수 호출
+                    text: "사용자 수정!",
+                    type: AppButtonType.outlinePink,
+                  ),
+                  SizedBox(height: 20),
+                  AppButton(
+                    onPressed:(){}, // 버튼 클릭 시 사용자 수정 함수 호출
+                    text: "사용자 보기!",
+                    type: AppButtonType.primaryBlue,
+                  ),
+                  SizedBox(height: 20),
+                  AppButton(
+                    onPressed: (){}, // 버튼 클릭 시 사용자 수정 함수 호출
+                    text: "사용자 삭제!",
+                    type: AppButtonType.gray,
+                  ),
+                  SizedBox(height: 20),
+                  // 사용자 목록 표시
+                  Expanded(child: _listUser()),
+                ],
+              ),
             ),
+
           ),
         ),
       ),
