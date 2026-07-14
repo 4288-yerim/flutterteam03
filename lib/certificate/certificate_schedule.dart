@@ -3,6 +3,7 @@ import 'package:table_calendar/table_calendar.dart';
 
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
+import 'certificate_search.dart';
 
 class CertificateSchedulePage extends StatefulWidget {
   const CertificateSchedulePage({super.key});
@@ -114,6 +115,24 @@ class _CertificateSchedulePageState
             size: 21,
           ),
         ),
+        actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CertificateSearchPage(),
+                ),
+              );
+            },
+            icon: const Icon(
+              Icons.search_rounded,
+              color: _darkText,
+              size: 27,
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: AppMainBackground(
         child: Column(
