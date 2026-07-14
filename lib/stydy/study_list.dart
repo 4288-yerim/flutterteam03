@@ -8,7 +8,7 @@ import '../widgets/app_bottom_bar.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
-import 'study_create.dart';
+import 'study_add.dart';
 
 /// 스터디 목록 페이지만 단독 실행
 Future<void> main() async {
