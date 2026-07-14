@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutterteam03/mypage/screens/mypage_screen.dart';
+import 'package:flutterteam03/stydy/study_list.dart';
 import '../widgets/app_bottom_bar.dart';
 import 'ai/ai_main.dart';
 import 'home/home.dart';
@@ -38,10 +40,10 @@ class _MainPageState extends State<MainPage> {
         index: _currentIndex,
         children: const [
           HomePage(),
-          _TemporaryPage(title: '스터디'),
+          StudyListApp(),
           AiPage(),
           _TemporaryPage(title: '커뮤니티'),
-          _TemporaryPage(title: '마이페이지'),
+          MyPageScreen(),
         ],
       ),
       bottomNavigationBar: AppBottomBar(

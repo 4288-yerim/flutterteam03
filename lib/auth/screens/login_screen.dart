@@ -1,10 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../main_page.dart';
 import '../../theme.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_top_bar.dart';
-import '../main_navigation_shell.dart';
 import 'reset_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -101,7 +101,7 @@ class _LoginScreenState extends State<LoginScreen>
       );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => MainNavigationShell()),
+        MaterialPageRoute(builder: (_) => MainPage()),
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
