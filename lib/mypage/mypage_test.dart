@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-
 import 'screens/mypage_screen.dart';
+import 'state_view_test_screen.dart';
 
 void main() {
   runApp(const MyPageTestApp());
@@ -13,7 +13,7 @@ class MyPageTestApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: MyPageScreen(),
+        home: const StateViewTestScreen(),
     );
   }
 }
