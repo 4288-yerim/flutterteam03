@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../widgets/app_card.dart';
 
+
 class MyPageSummaryCard extends StatelessWidget {
   final int studyMinutes;
   final int studyGroupCount;
@@ -51,7 +52,7 @@ class MyPageSummaryCard extends StatelessWidget {
           Expanded(
             child: _SummaryItem(
               icon: Icons.article_outlined,
-              title: '작성 글',
+              title: '내가 쓴 글',
               value: '$postCount개',
               onTap: onPostTap,
             ),
