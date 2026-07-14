@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
-import '../widgets/app_bottom_bar.dart';
 import '../certificate/certificate_schedule.dart';
 
 class HomePage extends StatefulWidget {
@@ -12,6 +14,111 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+
+  int _currentDdayIndex = 0;
+
+  String _nickname = '';
+  bool _isNicknameLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNickname();
+  }
+
+  Future<void> _loadNickname() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user == null) {
+        if (!mounted) return;
+
+        setState(() {
+          _nickname = '사용자';
+          _isNicknameLoading = false;
+        });
+
+        return;
+      }
+
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('uid', isEqualTo: user.uid)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        if (!mounted) return;
+
+        setState(() {
+          _nickname = '사용자';
+          _isNicknameLoading = false;
+        });
+
+        return;
+      }
+
+      final userDocument = querySnapshot.docs.first;
+      final data = userDocument.data();
+      final nickname = data['nickname'];
+
+      if (!mounted) return;
+
+      setState(() {
+        if (nickname is String && nickname.trim().isNotEmpty) {
+          _nickname = nickname.trim();
+        } else {
+          _nickname = '사용자';
+        }
+
+        _isNicknameLoading = false;
+      });
+    } catch (error) {
+      debugPrint('닉네임 불러오기 실패: $error');
+
+      if (!mounted) return;
+
+      setState(() {
+        _nickname = '사용자';
+        _isNicknameLoading = false;
+      });
+    }
+  }
+
+// 추후 Firestore의 찜한 자격증 데이터로 교체
+  final List<HomeCertificateDday> _favoriteCertificates = [
+    HomeCertificateDday(
+      certificateName: '정보처리기사 필기',
+      examDate: DateTime(2026, 8, 11),
+    ),
+    HomeCertificateDday(
+      certificateName: 'SQLD',
+      examDate: DateTime(2026, 8, 25),
+    ),
+    HomeCertificateDday(
+      certificateName: '빅데이터분석기사 필기',
+      examDate: DateTime(2026, 10, 17),
+    ),
+  ];
+
+  List<HomeCertificateDday> get _sortedFavoriteCertificates {
+    final today = DateUtils.dateOnly(DateTime.now());
+
+    final certificates = _favoriteCertificates
+    // 시험이 끝난 자격증을 카드에서 제외
+        .where(
+          (certificate) =>
+      !DateUtils.dateOnly(certificate.examDate).isBefore(today),
+    )
+        .toList();
+
+    // 시험 날짜가 빠른 순서대로 정렬
+    certificates.sort(
+          (a, b) => a.examDate.compareTo(b.examDate),
+    );
+
+    return certificates;
+  }
 
   // 추후 Firestore 데이터로 교체
   final List<HomeTodo> _todos = const [
@@ -46,7 +153,9 @@ class _HomePageState extends State<HomePage> {
 
       appBar: AppTopBar(
         centerTitle: false,
-        title: '안녕하세요, 00님!',
+        title: _isNicknameLoading
+            ? '안녕하세요!'
+            : '안녕하세요, $_nickname님!',
         actions: [
           IconButton(
             onPressed: _onNotificationPressed,
@@ -82,12 +191,18 @@ class _HomePageState extends State<HomePage> {
 
             const SizedBox(height: 14),
 
-            const _DdayCard(
-              category: 'D-Day',
-              certificateName: '정보처리기사 필기',
-              dDay: 'D-28',
-              examDate: '2025. 07. 20 (일)',
-            ),
+            if (_sortedFavoriteCertificates.isNotEmpty)
+              _DdayCardSlider(
+                certificates: _sortedFavoriteCertificates,
+                currentIndex: _currentDdayIndex,
+                onPageChanged: (index) {
+                  setState(() {
+                    _currentDdayIndex = index;
+                  });
+                },
+              )
+            else
+              const _EmptyDdayCard(),
 
             const SizedBox(height: 28),
 
@@ -124,19 +239,118 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
+class _DdayCardSlider extends StatelessWidget {
+  final List<HomeCertificateDday> certificates;
+  final int currentIndex;
+  final ValueChanged<int> onPageChanged;
+
+  const _DdayCardSlider({
+    required this.certificates,
+    required this.currentIndex,
+    required this.onPageChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 250,
+          child: PageView.builder(
+            itemCount: certificates.length,
+            onPageChanged: onPageChanged,
+            itemBuilder: (context, index) {
+              final certificate = certificates[index];
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: _DdayCard(
+                  category: 'D-Day',
+                  certificateName: certificate.certificateName,
+                  examDate: certificate.examDate,
+                ),
+              );
+            },
+          ),
+        ),
+
+        if (certificates.length > 1) ...[
+          const SizedBox(height: 12),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              certificates.length,
+                  (index) {
+                final isSelected = currentIndex == index;
+
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: isSelected ? 18 : 7,
+                  height: 7,
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? const Color(0xFFF06F91)
+                        : const Color(0xFFE8D8DD),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 /// 자격증 D-Day 카드
 class _DdayCard extends StatelessWidget {
   final String category;
   final String certificateName;
-  final String dDay;
-  final String examDate;
+  final DateTime examDate;
 
   const _DdayCard({
     required this.category,
     required this.certificateName,
-    required this.dDay,
     required this.examDate,
   });
+
+  String _calculateDday() {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final targetDate = DateUtils.dateOnly(examDate);
+
+    final difference = targetDate.difference(today).inDays;
+
+    if (difference == 0) {
+      return 'D-Day';
+    }
+
+    if (difference > 0) {
+      return 'D-$difference';
+    }
+
+    return 'D+${difference.abs()}';
+  }
+
+  String _formatExamDate() {
+    const weekdays = [
+      '월',
+      '화',
+      '수',
+      '목',
+      '금',
+      '토',
+      '일',
+    ];
+
+    final weekday = weekdays[examDate.weekday - 1];
+    final month = examDate.month.toString().padLeft(2, '0');
+    final day = examDate.day.toString().padLeft(2, '0');
+
+    return '${examDate.year}. $month. $day ($weekday)';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -170,6 +384,8 @@ class _DdayCard extends StatelessWidget {
 
           Text(
             certificateName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Color(0xFF2E292B),
               fontSize: 23,
@@ -178,14 +394,14 @@ class _DdayCard extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 22),
+          const Spacer(),
 
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: Text(
-                  dDay,
+                  _calculateDday(),
                   style: const TextStyle(
                     color: Color(0xFFEA668A),
                     fontSize: 58,
@@ -206,7 +422,7 @@ class _DdayCard extends StatelessWidget {
           const SizedBox(height: 14),
 
           Text(
-            examDate,
+            _formatExamDate(),
             style: const TextStyle(
               color: Color(0xFFEA668A),
               fontSize: 17,
@@ -603,3 +819,56 @@ class _CertificateScheduleButton extends StatelessWidget {
   }
 }
 
+class HomeCertificateDday {
+  final String certificateName;
+  final DateTime examDate;
+
+  const HomeCertificateDday({
+    required this.certificateName,
+    required this.examDate,
+  });
+}
+
+class _EmptyDdayCard extends StatelessWidget {
+  const _EmptyDdayCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: 220,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: const Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.bookmark_border_rounded,
+            size: 42,
+            color: Color(0xFFF06F91),
+          ),
+          SizedBox(height: 12),
+          Text(
+            '찜한 자격증이 없습니다.',
+            style: TextStyle(
+              color: Color(0xFF302C2E),
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          SizedBox(height: 6),
+          Text(
+            '관심 있는 자격증을 찜해보세요.',
+            style: TextStyle(
+              color: Color(0xFF817B7D),
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
