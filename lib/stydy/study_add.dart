@@ -10,18 +10,21 @@ class StudyCreatePage extends StatefulWidget {
   const StudyCreatePage({super.key});
 
   @override
-  State<StudyCreatePage> createState() => _StudyCreatePageState();
+  State<StudyCreatePage> createState() =>
+      _StudyCreatePageState();
 }
 
 class _StudyCreatePageState extends State<StudyCreatePage> {
   // 입력값 확인용 키
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _formKey =
+  GlobalKey<FormState>();
 
   // 입력창 컨트롤러
   final TextEditingController _groupNameController =
   TextEditingController();
 
-  final TextEditingController _certificateNameController =
+  final TextEditingController
+  _certificateNameController =
   TextEditingController();
 
   final TextEditingController _descriptionController =
@@ -50,15 +53,15 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
 
   /// Firestore에 스터디 저장
   Future<void> _saveStudy() async {
-    // 입력값 검사
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    // 중복 클릭 방지
     if (_isSaving) {
       return;
     }
+
+    FocusScope.of(context).unfocus();
 
     setState(() {
       _isSaving = true;
@@ -71,43 +74,90 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
         throw Exception('로그인 정보가 없습니다.');
       }
 
-      await FirebaseFirestore.instance
+      final String ownerNickname =
+      user.displayName?.trim().isNotEmpty == true
+          ? user.displayName!.trim()
+          : '익명 사용자';
+
+      // 스터디 문서를 먼저 직접 생성
+      final studyDocument = FirebaseFirestore.instance
           .collection('studyGroups')
-          .add({
-        // 스터디 기본 정보
-        'groupName': _groupNameController.text.trim(),
-        'description': _descriptionController.text.trim(),
+          .doc();
 
-        // 방장 정보
-        'ownerUid': user.uid,
-        'ownerNickname': user.displayName ?? '익명 사용자',
+      // 스터디와 방장 멤버 정보를 한꺼번에 저장
+      final batch = FirebaseFirestore.instance.batch();
 
-        // 자격증 정보
-        'certificateId': '',
-        'certificateName':
-        _certificateNameController.text.trim().isEmpty
-            ? '공통 스터디'
-            : _certificateNameController.text.trim(),
+      batch.set(
+        studyDocument,
+        {
+          // 스터디 기본 정보
+          'groupName':
+          _groupNameController.text.trim(),
+          'description':
+          _descriptionController.text.trim(),
 
-        // 인원 정보
-        'maxMemberCount': _maxMemberCount,
-        'currentMemberCount': 1,
+          // 방장 정보
+          'ownerUid': user.uid,
+          'ownerNickname': ownerNickname,
 
-        // 공개 및 승인 설정
-        'isPublic': _isPublic,
-        'joinApprovalRequired': _joinApprovalRequired,
+          // 자격증 정보
+          'certificateId': '',
+          'certificateName':
+          _certificateNameController.text
+              .trim()
+              .isEmpty
+              ? '공통 스터디'
+              : _certificateNameController.text
+              .trim(),
 
-        // 추후 연결할 값
-        'inviteCode': '',
-        'chatId': '',
+          // 인원 정보
+          'maxMemberCount': _maxMemberCount,
+          'currentMemberCount': 1,
 
-        // 모집 상태
-        'status': 'RECRUITING',
+          // 공개 및 승인 설정
+          'isPublic': _isPublic,
+          'joinApprovalRequired':
+          _joinApprovalRequired,
 
-        // 생성 및 수정 시간
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+          // 추후 연결할 값
+          'inviteCode': '',
+          'chatId': '',
+
+          // 모집 상태
+          'status': 'RECRUITING',
+
+          // 생성 및 수정 시간
+          'createdAt':
+          FieldValue.serverTimestamp(),
+          'updatedAt':
+          FieldValue.serverTimestamp(),
+        },
+      );
+
+      // 방장을 스터디 멤버로 저장
+      final ownerMemberDocument = studyDocument
+          .collection('members')
+          .doc(user.uid);
+
+      batch.set(
+        ownerMemberDocument,
+        {
+          'uid': user.uid,
+          'nickname': ownerNickname,
+          'role': 'OWNER',
+          'status': 'ACTIVE',
+
+          // 공부시간은 분 단위로 저장
+          'totalStudyMinutes': 0,
+
+          'joinedAt':
+          FieldValue.serverTimestamp(),
+          'updatedAt':
+          FieldValue.serverTimestamp(),
+        },
+      );
+
+      await batch.commit();
 
       if (!mounted) {
         return;
@@ -119,16 +169,19 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
         ),
       );
 
-      // 목록 화면으로 돌아가기
       Navigator.pop(context, true);
     } catch (error) {
+      debugPrint('스터디 등록 오류: $error');
+
       if (!mounted) {
         return;
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('스터디 등록 실패: $error'),
+          content: Text(
+            '스터디 등록 실패: $error',
+          ),
         ),
       );
     } finally {
@@ -143,6 +196,8 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
+
       appBar: AppTopBar(
         title: '스터디 만들기',
         centerTitle: false,
@@ -150,22 +205,21 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
 
       body: AppMainBackground(
         applySafeArea: false,
-
         child: SafeArea(
           child: SingleChildScrollView(
+            keyboardDismissBehavior:
+            ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.fromLTRB(
               20,
               25,
               20,
               40,
             ),
-
             child: Form(
               key: _formKey,
-
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-
+                crossAxisAlignment:
+                CrossAxisAlignment.start,
                 children: [
                   const Text(
                     '새로운 스터디를 만들어보세요',
@@ -189,14 +243,15 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
 
                   AppCard(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-
+                      crossAxisAlignment:
+                      CrossAxisAlignment.start,
                       children: [
                         const Text(
                           '기본 정보',
                           style: TextStyle(
                             fontSize: 17,
-                            fontWeight: FontWeight.bold,
+                            fontWeight:
+                            FontWeight.bold,
                           ),
                         ),
 
@@ -204,20 +259,25 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
 
                         // 스터디 이름
                         TextFormField(
-                          controller: _groupNameController,
-
+                          controller:
+                          _groupNameController,
+                          textInputAction:
+                          TextInputAction.next,
                           decoration: InputDecoration(
                             labelText: '스터디 이름',
-                            hintText: '예: 정보처리기사 실기 스터디',
+                            hintText:
+                            '예: 정보처리기사 실기 스터디',
                             prefixIcon: const Icon(
                               Icons.groups_outlined,
                             ),
-                            border: OutlineInputBorder(
+                            border:
+                            OutlineInputBorder(
                               borderRadius:
-                              BorderRadius.circular(14),
+                              BorderRadius.circular(
+                                14,
+                              ),
                             ),
                           ),
-
                           validator: (value) {
                             if (value == null ||
                                 value.trim().isEmpty) {
@@ -238,16 +298,21 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                         TextFormField(
                           controller:
                           _certificateNameController,
-
+                          textInputAction:
+                          TextInputAction.next,
                           decoration: InputDecoration(
                             labelText: '자격증 이름',
                             hintText: '예: 정보처리기사',
                             prefixIcon: const Icon(
-                              Icons.workspace_premium_outlined,
+                              Icons
+                                  .workspace_premium_outlined,
                             ),
-                            border: OutlineInputBorder(
+                            border:
+                            OutlineInputBorder(
                               borderRadius:
-                              BorderRadius.circular(14),
+                              BorderRadius.circular(
+                                14,
+                              ),
                             ),
                           ),
                         ),
@@ -256,20 +321,25 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
 
                         // 스터디 소개
                         TextFormField(
-                          controller: _descriptionController,
+                          controller:
+                          _descriptionController,
                           maxLines: 4,
                           maxLength: 200,
-
+                          textInputAction:
+                          TextInputAction.newline,
                           decoration: InputDecoration(
                             labelText: '스터디 소개',
-                            hintText: '스터디 목표와 진행 방법을 입력해주세요.',
+                            hintText:
+                            '스터디 목표와 진행 방법을 입력해주세요.',
                             alignLabelWithHint: true,
-                            border: OutlineInputBorder(
+                            border:
+                            OutlineInputBorder(
                               borderRadius:
-                              BorderRadius.circular(14),
+                              BorderRadius.circular(
+                                14,
+                              ),
                             ),
                           ),
-
                           validator: (value) {
                             if (value == null ||
                                 value.trim().isEmpty) {
@@ -287,14 +357,15 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
 
                   AppCard(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-
+                      crossAxisAlignment:
+                      CrossAxisAlignment.start,
                       children: [
                         const Text(
                           '스터디 설정',
                           style: TextStyle(
                             fontSize: 17,
-                            fontWeight: FontWeight.bold,
+                            fontWeight:
+                            FontWeight.bold,
                           ),
                         ),
 
@@ -304,7 +375,8 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                           '최대 인원',
                           style: TextStyle(
                             fontSize: 15,
-                            fontWeight: FontWeight.w600,
+                            fontWeight:
+                            FontWeight.w600,
                           ),
                         ),
 
@@ -313,7 +385,8 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                         Row(
                           children: [
                             IconButton(
-                              onPressed: _maxMemberCount > 2
+                              onPressed:
+                              _maxMemberCount > 2
                                   ? () {
                                 setState(() {
                                   _maxMemberCount--;
@@ -321,36 +394,48 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                               }
                                   : null,
                               icon: const Icon(
-                                Icons.remove_circle_outline,
+                                Icons
+                                    .remove_circle_outline,
                               ),
                             ),
 
-                            Container(
-                              width: 90,
-                              padding:
-                              const EdgeInsets.symmetric(
-                                vertical: 12,
-                              ),
-                              alignment: Alignment.center,
+                            const SizedBox(width: 8),
 
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF0ECFF),
-                                borderRadius:
-                                BorderRadius.circular(12),
-                              ),
-
-                              child: Text(
-                                '$_maxMemberCount명',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF6F58C9),
+                            Expanded(
+                              child: Container(
+                                height: 56,
+                                alignment:
+                                Alignment.center,
+                                decoration:
+                                BoxDecoration(
+                                  color: const Color(
+                                    0xFFF0ECFF,
+                                  ),
+                                  borderRadius:
+                                  BorderRadius.circular(
+                                    14,
+                                  ),
+                                ),
+                                child: Text(
+                                  '$_maxMemberCount명',
+                                  style:
+                                  const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight:
+                                    FontWeight.bold,
+                                    color: Color(
+                                      0xFF6F58C9,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
 
+                            const SizedBox(width: 8),
+
                             IconButton(
-                              onPressed: _maxMemberCount < 30
+                              onPressed:
+                              _maxMemberCount < 30
                                   ? () {
                                 setState(() {
                                   _maxMemberCount++;
@@ -358,42 +443,47 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                               }
                                   : null,
                               icon: const Icon(
-                                Icons.add_circle_outline,
-                              ),
-                            ),
-
-                            const Spacer(),
-
-                            const Text(
-                              '최소 2명 · 최대 30명',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF858994),
+                                Icons
+                                    .add_circle_outline,
                               ),
                             ),
                           ],
                         ),
 
+                        const SizedBox(height: 9),
+
+                        const Align(
+                          alignment:
+                          Alignment.centerRight,
+                          child: Text(
+                            '최소 2명 · 최대 30명',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(
+                                0xFF858994,
+                              ),
+                            ),
+                          ),
+                        ),
+
                         const Divider(height: 35),
 
                         SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-
+                          contentPadding:
+                          EdgeInsets.zero,
                           title: const Text(
                             '공개 스터디',
                             style: TextStyle(
-                              fontWeight: FontWeight.w600,
+                              fontWeight:
+                              FontWeight.w600,
                             ),
                           ),
-
                           subtitle: Text(
                             _isPublic
                                 ? '다른 사용자가 검색하고 확인할 수 있습니다.'
                                 : '초대받은 사용자만 확인할 수 있습니다.',
                           ),
-
                           value: _isPublic,
-
                           onChanged: (value) {
                             setState(() {
                               _isPublic = value;
@@ -404,26 +494,26 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                         const Divider(height: 1),
 
                         SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-
+                          contentPadding:
+                          EdgeInsets.zero,
                           title: const Text(
                             '참여 승인 필요',
                             style: TextStyle(
-                              fontWeight: FontWeight.w600,
+                              fontWeight:
+                              FontWeight.w600,
                             ),
                           ),
-
                           subtitle: Text(
                             _joinApprovalRequired
                                 ? '방장이 승인해야 참여할 수 있습니다.'
                                 : '신청하면 바로 참여할 수 있습니다.',
                           ),
-
-                          value: _joinApprovalRequired,
-
+                          value:
+                          _joinApprovalRequired,
                           onChanged: (value) {
                             setState(() {
-                              _joinApprovalRequired = value;
+                              _joinApprovalRequired =
+                                  value;
                             });
                           },
                         ),
@@ -436,27 +526,24 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                   SizedBox(
                     width: double.infinity,
                     height: 54,
-
                     child: ElevatedButton(
                       onPressed:
                       _isSaving ? null : _saveStudy,
-
                       style: ElevatedButton.styleFrom(
                         backgroundColor:
                         const Color(0xFF8068D8),
                         foregroundColor: Colors.white,
-
                         shape: RoundedRectangleBorder(
                           borderRadius:
                           BorderRadius.circular(15),
                         ),
                       ),
-
                       child: _isSaving
                           ? const SizedBox(
                         width: 22,
                         height: 22,
-                        child: CircularProgressIndicator(
+                        child:
+                        CircularProgressIndicator(
                           strokeWidth: 2,
                           color: Colors.white,
                         ),
@@ -465,7 +552,8 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                         '스터디 만들기',
                         style: TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontWeight:
+                          FontWeight.bold,
                         ),
                       ),
                     ),
