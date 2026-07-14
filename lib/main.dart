@@ -24,7 +24,7 @@ Future<void> main() async {
     urlScheme: 'naver' + dotenv.env['NAVER_CLIENT_ID']!,
     clientId: dotenv.env['NAVER_CLIENT_ID']!,
     clientSecret: dotenv.env['NAVER_CLIENT_SECRET']!,
-    clientName: '따자',
+    clientName: '따iT',
   );
   runApp(const MyApp());
 }

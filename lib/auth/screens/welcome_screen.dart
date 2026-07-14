@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutterteam03/auth/screens/signup_screen.dart';
 import 'terms_agreement_screen.dart';
-import '../../widgets/app_background.dart';
-import '../../widgets/app_button.dart';
+import '../../theme.dart';
 import '../../widgets/loading_overlay.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../main_page.dart';
+
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -17,20 +17,66 @@ class WelcomeScreen extends StatefulWidget {
   State<WelcomeScreen> createState() => _WelcomeScreenState();
 }
 
-class _WelcomeScreenState extends State<WelcomeScreen> {
+class _WelcomeScreenState extends State<WelcomeScreen>
+    with TickerProviderStateMixin {
   bool _isLoading = false;
+
+  late final AnimationController _entryController;
+
+  @override
+  void initState() {
+    super.initState();
+    _entryController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    );
+    _entryController.forward();
+  }
+
+  @override
+  void dispose() {
+    _entryController.dispose();
+    super.dispose();
+  }
+
+  // 0~1 구간 중 start~end 사이에서 등장하는 fade+slide 애니메이션
+  Widget _stagger({
+    required double start,
+    required double end,
+    required Widget child,
+    double slideFrom = 22,
+  }) {
+    final curved = CurvedAnimation(
+      parent: _entryController,
+      curve: Interval(start, end, curve: Curves.easeOutCubic),
+    );
+    return AnimatedBuilder(
+      animation: curved,
+      builder: (context, _) {
+        return Opacity(
+          opacity: curved.value.clamp(0.0, 1.0),
+          child: Transform.translate(
+            offset: Offset(0, (1 - curved.value) * slideFrom),
+            child: child,
+          ),
+        );
+      },
+      child: child,
+    );
+  }
 
   void _handleAuthResult(
       BuildContext context,
       AuthResult? result,
       String provider,
-      ) {    if (result == null || !context.mounted) return;
+      ) {
+    if (result == null || !context.mounted) return;
 
     if (result.isNewUser) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => TermsAgreementScreen(
-            onAgree: (termsContext) async {
+            onAgree: (termsContext, agreements) async {
               final user = FirebaseAuth.instance.currentUser;
               if (user != null) {
                 await FirebaseFirestore.instance
@@ -44,6 +90,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   'status': 'ACTIVE',
                   'loginFailCount': 0,
                   'reportCount': 0,
+                  'termsAgreed': agreements['terms'] ?? false,
+                  'privacyAgreed': agreements['privacy'] ?? false,
+                  'marketingAgreed': agreements['marketing'] ?? false,
                   'createdAt': FieldValue.serverTimestamp(),
                   'updatedAt': FieldValue.serverTimestamp(),
                 }, SetOptions(merge: true));
@@ -84,42 +133,33 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<AppColors>()!;
+
     return Stack(
       children: [
         Scaffold(
-          body: AppBackground(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                children: [
-                  // 상단: 앱 소개 영역
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '따자!',
-                          style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800),
-                        ),
-                        SizedBox(height: 12),
-                        Text(
-                          '목표를 세우고, 함께 공부하고,\n자격증 합격까지 따자!',
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: Color(0xFF9AA0AC),
-                            height: 1.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+          body: SafeArea(
+            child: Column(
+              children: [
+                // 이미지: 최상단, 좌우 패딩 없이 꽉 차게
+                _stagger(
+                  start: 0.0,
+                  end: 0.55,
+                  slideFrom: 0,
+                  child: _HeroIllustration(colors: colors),
+                ),
 
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 40),
-                    child: Column(
-                      children: [
-                        _SocialButton(
+                const Spacer(),
+
+                // 하단: 로그인 버튼 영역 (순차 등장) - 여기는 패딩 유지
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(28, 0, 28, 36),
+                  child: Column(
+                    children: [
+                      _stagger(
+                        start: 0.45,
+                        end: 0.80,
+                        child: _SocialButton(
                           text: '카카오로 계속하기',
                           backgroundColor: const Color(0xFFFEE500),
                           textColor: const Color(0xFF1A1A1A),
@@ -128,25 +168,33 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             width: 22,
                             height: 22,
                           ),
-                          onPressed: () =>
-                              _handleSocialLogin(AuthService.signInWithKakao, 'KAKAO'),
+                          onPressed: () => _handleSocialLogin(
+                              AuthService.signInWithKakao, 'KAKAO'),
                         ),
-                        const SizedBox(height: 12),
-                        _SocialButton(
+                      ),
+                      const SizedBox(height: 12),
+                      _stagger(
+                        start: 0.52,
+                        end: 0.87,
+                        child: _SocialButton(
                           text: 'Google로 계속하기',
                           backgroundColor: Colors.white,
                           textColor: const Color(0xFF1A1A1A),
-                          borderColor: const Color(0xFFE0E0E0),
+                          borderColor: const Color(0xFFE5E7EB),
                           icon: Image.asset(
                             'assets/icons/googleIcon.png',
                             width: 22,
                             height: 22,
                           ),
-                          onPressed: () =>
-                              _handleSocialLogin(AuthService.signInWithGoogle, 'GOOGLE'),
+                          onPressed: () => _handleSocialLogin(
+                              AuthService.signInWithGoogle, 'GOOGLE'),
                         ),
-                        const SizedBox(height: 12),
-                        _SocialButton(
+                      ),
+                      const SizedBox(height: 12),
+                      _stagger(
+                        start: 0.59,
+                        end: 0.94,
+                        child: _SocialButton(
                           text: '네이버로 계속하기',
                           backgroundColor: const Color(0xFF03C75A),
                           textColor: Colors.white,
@@ -155,52 +203,100 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             backgroundColor: Colors.white,
                             textColor: const Color(0xFF03C75A),
                           ),
-                          onPressed: () =>
-                              _handleSocialLogin(AuthService.signInWithNaver, 'NAVER'),
+                          onPressed: () => _handleSocialLogin(
+                              AuthService.signInWithNaver, 'NAVER'),
                         ),
-                        const SizedBox(height: 12),
-                        AppButton(
-                          text: '따자 시작하기',
-                          type: AppButtonType.outlinePink,
-                          onPressed: () {
+                      ),
+
+                      const SizedBox(height: 24),
+                      _stagger(
+                        start: 0.65,
+                        end: 1.0,
+                        child: _OrDivider(colors: colors),
+                      ),
+                      const SizedBox(height: 24),
+
+                      _stagger(
+                        start: 0.70,
+                        end: 1.0,
+                        child: GestureDetector(
+                          onTap: () {
                             Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => SignupScreen()),
+                              MaterialPageRoute(
+                                  builder: (_) => SignupScreen()),
                             );
                           },
+                          child: Container(
+                            width: double.infinity,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: colors.pinkStart,
+                                width: 1.4,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Image.asset(
+                                  'assets/images/textLogo.png',
+                                  height: 20,
+                                ),
+                                const SizedBox(width: 2),
+                                Text(
+                                  '시작하기',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: colors.pinkStart,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: 24),
-                        Row(
+                      ),
+                      const SizedBox(height: 22),
+                      _stagger(
+                        start: 0.75,
+                        end: 1.0,
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text(
+                            Text(
                               '이메일 회원이신가요? ',
-                              style: TextStyle(fontSize: 14, color: Color(0xFF9AA0AC)),
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: colors.textSecondary,
+                              ),
                             ),
                             GestureDetector(
                               onTap: () {
                                 Navigator.of(context).push(
-                                  MaterialPageRoute(builder: (_) => LoginScreen()),
+                                  MaterialPageRoute(
+                                      builder: (_) => LoginScreen()),
                                 );
                               },
-                              child: const Text(
+                              child: Text(
                                 '로그인',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Color(0xFF1A1A1A),
+                                  fontWeight: FontWeight.w700,
+                                  color: colors.textPrimary,
                                   decoration: TextDecoration.underline,
-                                  decorationColor: Color(0xFF1A1A1A),
+                                  decorationColor: colors.textPrimary,
                                   decorationThickness: 1.5,
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 14),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -210,7 +306,34 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 }
 
-class _SocialButton extends StatelessWidget {
+class _OrDivider extends StatelessWidget {
+  final AppColors colors;
+
+  const _OrDivider({required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(child: Divider(color: colors.textSecondary.withOpacity(0.2))),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            '또는',
+            style: TextStyle(
+              fontSize: 12.5,
+              color: colors.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        Expanded(child: Divider(color: colors.textSecondary.withOpacity(0.2))),
+      ],
+    );
+  }
+}
+
+class _SocialButton extends StatefulWidget {
   final String text;
   final Color backgroundColor;
   final Color textColor;
@@ -228,37 +351,58 @@ class _SocialButton extends StatelessWidget {
   });
 
   @override
+  State<_SocialButton> createState() => _SocialButtonState();
+}
+
+class _SocialButtonState extends State<_SocialButton> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTapCancel: () => setState(() => _pressed = false),
+      onTap: widget.onPressed,
+      child: AnimatedScale(
+        scale: _pressed ? 0.97 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeOut,
+        child: Container(
+          width: double.infinity,
+          height: 56,
+          decoration: BoxDecoration(
+            color: widget.backgroundColor,
             borderRadius: BorderRadius.circular(16),
-            side: borderColor != null
-                ? BorderSide(color: borderColor!, width: 1.5)
-                : BorderSide.none,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            icon,
-            const SizedBox(width: 8),
-            Text(
-              text,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: textColor,
+            border: widget.borderColor != null
+                ? Border.all(color: widget.borderColor!, width: 1.4)
+                : null,
+            boxShadow: widget.borderColor != null
+                ? []
+                : [
+              BoxShadow(
+                color: widget.backgroundColor.withOpacity(0.28),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
               ),
-            ),
-          ],
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              widget.icon,
+              const SizedBox(width: 8),
+              Text(
+                widget.text,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: widget.textColor,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -286,6 +430,40 @@ class _BadgeIcon extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: textColor),
+      ),
+    );
+  }
+}
+
+class _HeroIllustration extends StatelessWidget {
+  final AppColors colors;
+
+  const _HeroIllustration({required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    return ShaderMask(
+      shaderCallback: (bounds) {
+        return const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.transparent,
+            Colors.white,
+            Colors.white,
+            Colors.transparent,
+          ],
+          stops: [0.0, 0.12, 0.88, 1.0],
+        ).createShader(bounds);
+      },
+      blendMode: BlendMode.dstIn,
+      child: SizedBox(
+        width: double.infinity,
+        child: Image.asset(
+          'assets/images/welcome.png',
+          width: double.infinity,
+          fit: BoxFit.fitWidth,
+        ),
       ),
     );
   }

@@ -4,7 +4,8 @@ import '../../widgets/app_button.dart';
 import '../../widgets/loading_overlay.dart';
 
 class TermsAgreementScreen extends StatefulWidget {
-  final Future<void> Function(BuildContext context) onAgree;
+  final Future<void> Function(
+      BuildContext context, Map<String, bool> agreements) onAgree;
 
   const TermsAgreementScreen({super.key, required this.onAgree});
 
@@ -13,12 +14,14 @@ class TermsAgreementScreen extends StatefulWidget {
 }
 
 class _TermsItem {
+  final String key;
   final String title;
   final bool required;
   bool checked;
   final String content;
 
   _TermsItem({
+    required this.key,
     required this.title,
     required this.required,
     this.checked = false,
@@ -29,6 +32,7 @@ class _TermsItem {
 class _TermsAgreementScreenState extends State<TermsAgreementScreen> {
   final List<_TermsItem> _items = [
     _TermsItem(
+      key: 'age',
       title: '만 14세 이상입니다',
       required: true,
       content: '본 서비스는 만 14세 미만 아동의 개인정보 보호를 위하여, 만 14세 이상인 이용자만 가입 및 이용이 가능합니다.\n\n'
@@ -36,6 +40,7 @@ class _TermsAgreementScreenState extends State<TermsAgreementScreen> {
           '만약 허위로 체크할 경우, 관련 법령에 따라 서비스 이용이 제한되거나 계정이 삭제될 수 있습니다.',
     ),
     _TermsItem(
+      key: 'terms',
       title: '이용약관 동의',
       required: true,
       content: '[따자 서비스 이용약관]\n\n'
@@ -48,6 +53,7 @@ class _TermsAgreementScreenState extends State<TermsAgreementScreen> {
           '본 약관은 서비스를 이용하고자 하는 모든 이용자에 대하여 그 효력을 발생합니다. 회사는 합리적인 사유가 있을 경우 관련 법령을 위배하지 않는 범위에서 본 약관을 개정할 수 있습니다.',
     ),
     _TermsItem(
+      key: 'privacy',
       title: '개인정보 처리방침 동의',
       required: true,
       content: '[개인정보 처리방침]\n\n'
@@ -62,6 +68,7 @@ class _TermsAgreementScreenState extends State<TermsAgreementScreen> {
           '- 회원 탈퇴 시까지 또는 법령에 따른 보관 기간까지 이용자의 개인정보를 보유합니다.',
     ),
     _TermsItem(
+      key: 'marketing',
       title: '마케팅 정보 수신 동의',
       required: false,
       content: '[마케팅 정보 수신 동의]\n\n'
@@ -181,17 +188,32 @@ class _TermsAgreementScreenState extends State<TermsAgreementScreen> {
                     ),
                     Padding(
                       padding: const EdgeInsets.only(bottom: 24, top: 8),
-                      child: AppButton(
-                        text: '동의하고 시작하기',
-                        type: AppButtonType.primaryPink,
-                        onPressed: _canProceed
-                            ? () async {
-                          setState(() => _isLoading = true);
-                          await widget.onAgree(context);
-                          if (!mounted) return;
-                          setState(() => _isLoading = false);
-                        }
-                            : null,
+                      child: Theme(
+                        data: Theme.of(context).copyWith(
+                          elevatedButtonTheme: ElevatedButtonThemeData(
+                            style: ElevatedButton.styleFrom(
+                              disabledBackgroundColor: const Color(0xFFF3F4F7),
+                              disabledForegroundColor: const Color(0xFF9AA0AC),
+                            ),
+                          ),
+                        ),
+                        child: AppButton(
+                          text: '동의하고 시작하기',
+                          type: _canProceed
+                              ? AppButtonType.primaryPink
+                              : AppButtonType.gray,
+                          onPressed: _canProceed
+                              ? () async {
+                            setState(() => _isLoading = true);
+                            final agreements = {
+                              for (final item in _items) item.key: item.checked,
+                            };
+                            await widget.onAgree(context, agreements);
+                            if (!mounted) return;
+                            setState(() => _isLoading = false);
+                          }
+                              : null,
+                        ),
                       ),
                     ),
                   ],

@@ -1,5 +1,7 @@
 import 'dart:math' as math;
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../theme.dart';
 
 class LoadingOverlay extends StatefulWidget {
   const LoadingOverlay({super.key});
@@ -9,66 +11,123 @@ class LoadingOverlay extends StatefulWidget {
 }
 
 class _LoadingOverlayState extends State<LoadingOverlay>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+    with TickerProviderStateMixin {
+  late final AnimationController _orbitController;
+  late final AnimationController _entryController;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _orbitController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 1600),
     )..repeat();
+
+    _entryController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    )..forward();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _orbitController.dispose();
+    _entryController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<AppColors>();
+    final pinkStart = colors?.pinkStart ?? const Color(0xFFFF7E9C);
+    final pinkEnd = colors?.pinkEnd ?? const Color(0xFFFF5C8A);
+
     return Material(
-      color: Colors.black.withOpacity(0.25),
-      child: Center(
-        child: Container(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.15),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
+      type: MaterialType.transparency,
+      child: Stack(
+        children: [
+          // 흐림 처리된 반투명 배경
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+              child: Container(color: Colors.black.withOpacity(0.18)),
+            ),
           ),
-          child: AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              // 0~1 값을 좌우 파동(사인 곡선)으로 변환
-              final dx = math.sin(_controller.value * 2 * math.pi) * 14;
-              return Align(
-                alignment: Alignment.center,
-                child: Transform.translate(
-                  offset: Offset(dx, 0),
-                  child: child,
+          Center(
+            child: ScaleTransition(
+              scale: CurvedAnimation(
+                parent: _entryController,
+                curve: Curves.easeOutBack,
+              ),
+              child: FadeTransition(
+                opacity: _entryController,
+                child: Container(
+                  width: 96,
+                  height: 96,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.92),
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: [
+                      BoxShadow(
+                        color: pinkStart.withOpacity(0.25),
+                        blurRadius: 28,
+                        offset: const Offset(0, 12),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: SizedBox(
+                      width: 54,
+                      height: 54,
+                      child: AnimatedBuilder(
+                        animation: _orbitController,
+                        builder: (context, _) {
+                          return Stack(
+                            alignment: Alignment.center,
+                            children: List.generate(3, (i) {
+                              final phase = i * (2 * math.pi / 3);
+                              final t =
+                                  _orbitController.value * 2 * math.pi + phase;
+                              const radius = 16.0;
+                              final dx = radius * math.cos(t);
+                              final dy = radius * math.sin(t);
+
+                              // 궤도를 따라 크기/투명도가 파동처럼 변함
+                              final pulse =
+                                  (math.sin(t - phase * 0) + 1) / 2; // 0~1
+                              final scale = 0.55 + pulse * 0.65;
+                              final opacity = 0.45 + pulse * 0.55;
+
+                              return Transform.translate(
+                                offset: Offset(dx, dy),
+                                child: Opacity(
+                                  opacity: opacity,
+                                  child: Transform.scale(
+                                    scale: scale,
+                                    child: Container(
+                                      width: 12,
+                                      height: 12,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        gradient: LinearGradient(
+                                          colors: [pinkStart, pinkEnd],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
                 ),
-              );
-            },
-            child: Container(
-              width: 10,
-              height: 10,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFF7E9C), // 앱 포인트 컬러로 교체 가능
-                shape: BoxShape.circle,
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

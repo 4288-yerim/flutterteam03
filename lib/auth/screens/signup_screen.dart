@@ -1,11 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutterteam03/main_page.dart';
 import '../../theme.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_top_bar.dart';
+import '../../widgets/loading_overlay.dart';
+import 'email_verification_screen.dart';
 
 enum _PasswordStrength { none, weak, medium, strong }
 
@@ -17,7 +18,7 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _passwordConfirmController = TextEditingController();
@@ -30,6 +31,9 @@ class _SignupScreenState extends State<SignupScreen>
   late final AnimationController _entryController;
   late final Animation<double> _fadeAnim;
   late final Animation<Offset> _slideAnim;
+  late final Animation<double> _logoScale;
+
+  late final AnimationController _breatheController;
 
   static final _emailRegex = RegExp(r'^[\w\.-]+@([\w-]+\.)+[\w-]{2,4}$');
 
@@ -42,13 +46,24 @@ class _SignupScreenState extends State<SignupScreen>
 
     _entryController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 550),
+      duration: const Duration(milliseconds: 700),
     );
     _fadeAnim = CurvedAnimation(parent: _entryController, curve: Curves.easeOut);
     _slideAnim = Tween<Offset>(
       begin: const Offset(0, 0.06),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic));
+    _logoScale = Tween<double>(begin: 0.6, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _entryController,
+        curve: const Interval(0.0, 0.6, curve: Curves.elasticOut),
+      ),
+    );
+
+    _breatheController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat(reverse: true);
 
     _entryController.forward();
   }
@@ -71,9 +86,9 @@ class _SignupScreenState extends State<SignupScreen>
     _passwordController.dispose();
     _passwordConfirmController.dispose();
     _entryController.dispose();
+    _breatheController.dispose();
     super.dispose();
   }
-
 
   String? get _emailFormatError {
     final text = _emailController.text.trim();
@@ -129,9 +144,7 @@ class _SignupScreenState extends State<SignupScreen>
           _passwordConfirmController.text.isNotEmpty &&
           _confirmError == null;
 
-
   Future<void> _signup() async {
-    FirebaseFirestore fs = FirebaseFirestore.instance;
     setState(() => _isLoading = true);
     try {
       final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
@@ -139,24 +152,19 @@ class _SignupScreenState extends State<SignupScreen>
         password: _passwordController.text.trim(),
       );
 
-      await fs.collection('users').add({
-        'uid': credential.user?.uid,
-        'email': _emailController.text.trim(),
-        'loginProvider': 'PASSWORD',
-        'role': 'USER',
-        'status': 'ACTIVE',
-        'loginFailCount': 0,
-        'reportCount': 0,
-        // 'termsAgreed': _termsAgreed,
-        // 'privacyAgreed': _privacyAgreed,
-        // 'marketingAgreed': _marketingAgreed,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      // 추가된 줄: 인증 메일을 한국어로 보내도록 설정
+      await FirebaseAuth.instance.setLanguageCode('ko');
+
+      // 이메일 인증 메일 발송
+      await credential.user?.sendEmailVerification();
 
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => MainPage()),
+        MaterialPageRoute(
+          builder: (_) => EmailVerificationScreen(
+            email: _emailController.text.trim(),
+          ),
+        ),
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -256,19 +264,23 @@ class _SignupScreenState extends State<SignupScreen>
     required String label,
     required String hint,
     required TextEditingController controller,
+    required IconData icon,
   }) {
     return InputDecoration(
       labelText: label,
       hintText: hint,
-      border: _border(colors.textSecondary.withOpacity(0.3)),
-      enabledBorder: _border(colors.textSecondary.withOpacity(0.3)),
+      filled: true,
+      fillColor: colors.background,
+      prefixIcon: Icon(icon, color: colors.textSecondary, size: 20),
+      border: _border(colors.textSecondary.withOpacity(0.25)),
+      enabledBorder: _border(colors.textSecondary.withOpacity(0.25)),
       focusedBorder: _border(colors.pinkStart, width: 2),
       errorBorder: _border(errorColor),
       focusedErrorBorder: _border(errorColor, width: 2),
       suffixIcon: controller.text.isEmpty
           ? null
           : IconButton(
-        icon: Icon(Icons.close, color: colors.textSecondary),
+        icon: Icon(Icons.close, color: colors.textSecondary, size: 18),
         onPressed: () => controller.clear(),
       ),
     );
@@ -311,11 +323,12 @@ class _SignupScreenState extends State<SignupScreen>
         children: [
           for (var i = 0; i < 3; i++)
             Expanded(
-              child: Container(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
                 margin: EdgeInsets.only(right: i < 2 ? 6 : 0),
                 height: 4,
                 decoration: BoxDecoration(
-                  color: i < filledBars ? activeColor : colors.textSecondary.withOpacity(0.2),
+                  color: i < filledBars ? activeColor : colors.textSecondary.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -326,6 +339,63 @@ class _SignupScreenState extends State<SignupScreen>
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: activeColor),
           ),
         ],
+      ),
+    );
+  }
+
+  // 상단 로고: 은은한 글로우 + 등장 시 팝 + 계속되는 숨쉬기 애니메이션
+  Widget _logoHeader(AppColors colors) {
+    return AnimatedBuilder(
+      animation: _entryController,
+      builder: (context, child) {
+        return Transform.scale(scale: _logoScale.value, child: child);
+      },
+      child: AnimatedBuilder(
+        animation: _breatheController,
+        builder: (context, child) {
+          final scale = 1.0 + _breatheController.value * 0.05;
+          return Transform.scale(scale: scale, child: child);
+        },
+        child: SizedBox(
+          width: 96,
+          height: 96,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // 은은한 글로우
+              Container(
+                width: 96,
+                height: 96,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      colors.pinkStart.withOpacity(0.22),
+                      colors.pinkStart.withOpacity(0.0),
+                    ],
+                  ),
+                ),
+              ),
+              Container(
+                width: 68,
+                height: 68,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colors.background,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: colors.pinkStart.withOpacity(0.18),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Image.asset('assets/splash/logo.png'),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -360,8 +430,15 @@ class _SignupScreenState extends State<SignupScreen>
                           position: _slideAnim,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.center,
-                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisAlignment: MainAxisAlignment.start,
                             children: [
+                              _logoHeader(colors),
+                              SizedBox(height: 8),
+                              Image.asset(
+                                'assets/images/textLogo.png',
+                                height: 22,
+                              ),
+                              SizedBox(height: 20),
                               Text(
                                 '회원가입',
                                 style: TextStyle(
@@ -375,7 +452,7 @@ class _SignupScreenState extends State<SignupScreen>
                                 '이메일로 계정을 만들어보세요',
                                 style: TextStyle(fontSize: 14, color: colors.textSecondary),
                               ),
-                              SizedBox(height: 40),
+                              SizedBox(height: 36),
                               TextField(
                                 controller: _emailController,
                                 keyboardType: TextInputType.emailAddress,
@@ -385,6 +462,7 @@ class _SignupScreenState extends State<SignupScreen>
                                   label: '이메일',
                                   hint: 'example@gmail.com',
                                   controller: _emailController,
+                                  icon: Icons.mail_outline_rounded,
                                 ),
                               ),
                               if (_emailDisplayError != null) ...[
@@ -408,6 +486,7 @@ class _SignupScreenState extends State<SignupScreen>
                                   label: '비밀번호',
                                   hint: '8자 이상 비밀번호',
                                   controller: _passwordController,
+                                  icon: Icons.lock_outline_rounded,
                                 ),
                               ),
                               _strengthMeter(colors, errorColor),
@@ -432,6 +511,7 @@ class _SignupScreenState extends State<SignupScreen>
                                   label: '비밀번호 확인',
                                   hint: '비밀번호를 다시 입력해주세요',
                                   controller: _passwordConfirmController,
+                                  icon: Icons.lock_person_outlined,
                                 ),
                               ),
                               if (_confirmError != null) ...[
@@ -441,6 +521,22 @@ class _SignupScreenState extends State<SignupScreen>
                                   child: Text(
                                     _confirmError!,
                                     style: TextStyle(color: errorColor, fontSize: 12),
+                                  ),
+                                ),
+                              ] else if (_passwordConfirmController.text.isNotEmpty) ...[
+                                SizedBox(height: 6),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.check_circle, size: 14, color: colors.pinkStart),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        '비밀번호가 일치해요',
+                                        style: TextStyle(color: colors.pinkStart, fontSize: 12),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
@@ -463,15 +559,7 @@ class _SignupScreenState extends State<SignupScreen>
               },
             ),
           ),
-          if (_isLoading)
-            Positioned.fill(
-              child: Container(
-                color: colors.textPrimary.withOpacity(0.12),
-                child: Center(
-                  child: CircularProgressIndicator(color: colors.pinkStart),
-                ),
-              ),
-            ),
+          if (_isLoading) const LoadingOverlay(),
         ],
       ),
     );
