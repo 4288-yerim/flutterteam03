@@ -111,12 +111,14 @@ class AuthService {
       final bool isLogin = await NaverLoginSDK.login();
       if (!isLogin) return null; // 로그인 취소/실패
 
-      // 액세스 토큰 조회
       final String accessToken = await NaverLoginSDK.getAccessToken();
 
-      // 프로필 조회 (NaverLoginProfile로 파싱)
-      final profileResponse = await NaverLoginSDK.profile();
-      final profile = NaverLoginProfile.fromJson(response: profileResponse);
+      // profile()이 nullable을 반환하므로 ? 로 받고 null 체크
+      final NaverLoginProfile? profile = await NaverLoginSDK.profile();
+      if (profile == null) {
+        debugPrint('네이버 프로필 조회 실패: profile이 null');
+        return null;
+      }
 
       final tokenResult = await _exchangeForFirebaseCustomToken(
         provider: 'naver',

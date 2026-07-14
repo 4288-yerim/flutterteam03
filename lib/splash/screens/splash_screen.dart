@@ -12,10 +12,15 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _controller;
-  late final Animation<double> _scale;
-  late final Animation<double> _opacity;
+  late final Animation<double> _logoScale;
+  late final Animation<double> _logoOpacity;
+  late final Animation<double> _wordmarkOpacity;
+  late final Animation<Offset> _wordmarkSlide;
+  late final Animation<double> _dotsOpacity;
+
+  late final AnimationController _breatheController;
 
   @override
   void initState() {
@@ -23,15 +28,44 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 1400),
     );
 
-    _scale = Tween<double>(begin: 0.7, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.elasticOut),
+    _logoScale = Tween<double>(begin: 0.7, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.55, curve: Curves.elasticOut),
+      ),
     );
-    _opacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: const Interval(0, 0.5)),
+    _logoOpacity = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.0, 0.35, curve: Curves.easeOut),
     );
+
+    _wordmarkOpacity = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.35, 0.7, curve: Curves.easeOut),
+    );
+    _wordmarkSlide = Tween<Offset>(
+      begin: const Offset(0, 0.25),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.35, 0.75, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    _dotsOpacity = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.7, 1.0, curve: Curves.easeOut),
+    );
+
+    // 배경 블롭 은은하게 숨쉬는 애니메이션
+    _breatheController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat(reverse: true);
 
     _controller.forward();
     _goNext();
@@ -60,6 +94,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void dispose() {
     _controller.dispose();
+    _breatheController.dispose();
     super.dispose();
   }
 
@@ -78,50 +113,166 @@ class _SplashScreenState extends State<SplashScreen>
             colors: [colors.pinkStart, colors.pinkEnd],
           ),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Stack(
           children: [
-            AnimatedBuilder(
-              animation: _controller,
-              builder: (context, child) {
-                return Opacity(
-                  opacity: _opacity.value,
-                  child: Transform.scale(scale: _scale.value, child: child),
-                );
-              },
-              child: Container(
-                width: 140,
-                height: 140,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(32),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x33000000),
-                      blurRadius: 24,
-                      offset: Offset(0, 12),
+            // 배경 장식 원 (은은하게 숨쉬기)
+            _BackgroundBlob(
+              controller: _breatheController,
+              alignment: const Alignment(-1.3, -1.0),
+              size: 220,
+            ),
+            _BackgroundBlob(
+              controller: _breatheController,
+              alignment: const Alignment(1.3, 1.1),
+              size: 260,
+              reverse: true,
+            ),
+
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // 로고: 흰 카드 없이 은은한 글로우 위에 배치
+                  AnimatedBuilder(
+                    animation: _controller,
+                    builder: (context, child) {
+                      return Opacity(
+                        opacity: _logoOpacity.value,
+                        child: Transform.scale(
+                          scale: _logoScale.value,
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: AnimatedBuilder(
+                      animation: _breatheController,
+                      builder: (context, child) {
+                        final scale = 1.0 + _breatheController.value * 0.04;
+                        return Transform.scale(scale: scale, child: child);
+                      },
+                      child: SizedBox(
+                        width: 168,
+                        height: 168,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // 은은한 글로우 링
+                            Container(
+                              width: 168,
+                              height: 168,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: RadialGradient(
+                                  colors: [
+                                    Colors.white.withOpacity(0.22),
+                                    Colors.white.withOpacity(0.0),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            // 로고 카드 (반투명 유리 느낌)
+                            Container(
+                              width: 116,
+                              height: 116,
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.14),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.35),
+                                  width: 1.2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.12),
+                                    blurRadius: 24,
+                                    offset: const Offset(0, 10),
+                                  ),
+                                ],
+                              ),
+                              child: Image.asset('assets/splash/logo.png'),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ],
-                ),
-                child: Image.asset('assets/splash/logo.png'),
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  // 워드마크: 텍스트로고 이미지
+                  SlideTransition(
+                    position: _wordmarkSlide,
+                    child: FadeTransition(
+                      opacity: _wordmarkOpacity,
+                      child: Image.asset(
+                        'assets/images/textLogo.png',
+                        height: 34,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  FadeTransition(
+                    opacity: _wordmarkOpacity,
+                    child: Text(
+                      '목표를 세우고, 함께 공부하고',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.85),
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 48),
+
+                  FadeTransition(
+                    opacity: _dotsOpacity,
+                    child: const _LoadingDots(),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 24),
-            FadeTransition(
-              opacity: _opacity,
-              child: const Text(
-                '따자!',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            const SizedBox(height: 40),
-            const _LoadingDots(),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BackgroundBlob extends StatelessWidget {
+  final AnimationController controller;
+  final Alignment alignment;
+  final double size;
+  final bool reverse;
+
+  const _BackgroundBlob({
+    required this.controller,
+    required this.alignment,
+    required this.size,
+    this.reverse = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: alignment,
+      child: AnimatedBuilder(
+        animation: controller,
+        builder: (context, child) {
+          final t = reverse ? 1 - controller.value : controller.value;
+          final scale = 1.0 + t * 0.12;
+          return Transform.scale(scale: scale, child: child);
+        },
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white.withOpacity(0.08),
+          ),
         ),
       ),
     );
