@@ -3,12 +3,15 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutterteam03/widgets/app_state_views.dart';
 
 import '../widgets/app_card.dart';
 import '../widgets/app_main_background.dart';
 import 'study_chat.dart';
 import 'study_edit.dart';
 import 'study_quiz.dart';
+import 'study_room.dart';
+import 'study_timer.dart';
 
 class StudyDetailPage extends StatelessWidget {
   final String studyId;
@@ -451,6 +454,787 @@ class StudyDetailPage extends StatelessWidget {
               ],
             );
           },
+        );
+      },
+    );
+  }
+
+  /// 참여 신청 승인
+  Future<void> _approveJoinRequest(
+      BuildContext context,
+      String memberUid,
+      ) async {
+    DocumentReference<Map<String, dynamic>> groupDocument =
+    FirebaseFirestore.instance
+        .collection('studyGroups')
+        .doc(studyId);
+
+    DocumentReference<Map<String, dynamic>> memberDocument =
+    groupDocument
+        .collection('members')
+        .doc(memberUid);
+
+    try {
+      DocumentSnapshot<Map<String, dynamic>> groupSnapshot =
+      await groupDocument.get();
+
+      DocumentSnapshot<Map<String, dynamic>> memberSnapshot =
+      await memberDocument.get();
+
+      if (groupSnapshot.exists == false ||
+          memberSnapshot.exists == false) {
+        _showMessage(
+          context,
+          '참여 신청 정보를 찾을 수 없습니다.',
+        );
+        return;
+      }
+
+      Map<String, dynamic> groupData =
+          groupSnapshot.data() ?? {};
+
+      Map<String, dynamic> memberData =
+          memberSnapshot.data() ?? {};
+
+      String memberStatus =
+          memberData['status']?.toString() ?? '';
+
+      if (memberStatus != 'PENDING') {
+        _showMessage(
+          context,
+          '이미 처리된 참여 신청입니다.',
+        );
+        return;
+      }
+
+      int currentMemberCount = _getInt(
+        groupData,
+        'currentMemberCount',
+      );
+
+      int maxMemberCount = _getInt(
+        groupData,
+        'maxMemberCount',
+      );
+
+      if (maxMemberCount > 0 &&
+          currentMemberCount >= maxMemberCount) {
+        _showMessage(
+          context,
+          '모집 인원이 모두 찼습니다.',
+        );
+        return;
+      }
+
+      int newMemberCount = currentMemberCount + 1;
+      String nextStatus = 'RECRUITING';
+
+      if (maxMemberCount > 0 &&
+          newMemberCount >= maxMemberCount) {
+        nextStatus = 'CLOSED';
+      }
+
+      await memberDocument.update({
+        'status': 'ACTIVE',
+        'joinedAt': FieldValue.serverTimestamp(),
+        'approvedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      await groupDocument.update({
+        'currentMemberCount': newMemberCount,
+        'status': nextStatus,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      _showMessage(
+        context,
+        '참여 신청을 승인했습니다.',
+      );
+    } catch (error) {
+      debugPrint(
+        '참여 신청 승인 오류: $error',
+      );
+
+      _showMessage(
+        context,
+        '참여 신청을 승인하지 못했습니다.',
+      );
+    }
+  }
+
+  /// 참여 신청 거절
+  Future<void> _rejectJoinRequest(
+      BuildContext context,
+      String memberUid,
+      ) async {
+    DocumentReference<Map<String, dynamic>> memberDocument =
+    FirebaseFirestore.instance
+        .collection('studyGroups')
+        .doc(studyId)
+        .collection('members')
+        .doc(memberUid);
+
+    try {
+      DocumentSnapshot<Map<String, dynamic>> memberSnapshot =
+      await memberDocument.get();
+
+      if (memberSnapshot.exists == false) {
+        _showMessage(
+          context,
+          '참여 신청 정보를 찾을 수 없습니다.',
+        );
+        return;
+      }
+
+      Map<String, dynamic> memberData =
+          memberSnapshot.data() ?? {};
+
+      String memberStatus =
+          memberData['status']?.toString() ?? '';
+
+      if (memberStatus != 'PENDING') {
+        _showMessage(
+          context,
+          '이미 처리된 참여 신청입니다.',
+        );
+        return;
+      }
+
+      await memberDocument.update({
+        'status': 'REJECTED',
+        'rejectedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      _showMessage(
+        context,
+        '참여 신청을 거절했습니다.',
+      );
+    } catch (error) {
+      debugPrint(
+        '참여 신청 거절 오류: $error',
+      );
+
+      _showMessage(
+        context,
+        '참여 신청을 거절하지 못했습니다.',
+      );
+    }
+  }
+
+  /// 참여 신청 관리 창
+  void _openJoinRequestManagement(
+      BuildContext context,
+      ) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (bottomSheetContext) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.75,
+          decoration: BoxDecoration(
+            color: Color(0xFFFAF9FD),
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(26),
+            ),
+          ),
+          child: Column(
+            children: [
+              SizedBox(height: 11),
+
+              Container(
+                width: 42,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Color(0xFFD8D5DE),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  18,
+                  12,
+                  14,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: Color(0xFFF0ECFF),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(
+                        Icons.how_to_reg_outlined,
+                        color: Color(0xFF8068D8),
+                      ),
+                    ),
+
+                    SizedBox(width: 13),
+
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '참여 신청 관리',
+                            style: TextStyle(
+                              fontSize: 19,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            '참여 신청을 승인하거나 거절합니다.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF858994),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    IconButton(
+                      onPressed: () {
+                        Navigator.pop(bottomSheetContext);
+                      },
+                      icon: Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+
+              Divider(height: 1),
+
+              Expanded(
+                child: StreamBuilder<
+                    QuerySnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance
+                      .collection('studyGroups')
+                      .doc(studyId)
+                      .collection('members')
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      return AppLoadingView(
+                        message: '참여 신청 목록을 불러오는 중입니다.',
+                      );
+                    }
+
+                    if (snapshot.hasError) {
+                      return AppErrorView(
+                        message: '참여 신청 목록을 불러오지 못했습니다.',
+                        description: '잠시 후 다시 시도해 주세요.',
+                      );
+                    }
+
+                    List<
+                        QueryDocumentSnapshot<
+                            Map<String, dynamic>>>
+                    requestList = [];
+
+                    if (snapshot.data != null) {
+                      for (int i = 0;
+                      i < snapshot.data!.docs.length;
+                      i++) {
+                        QueryDocumentSnapshot<
+                            Map<String, dynamic>>
+                        memberDocument =
+                        snapshot.data!.docs[i];
+
+                        String status = memberDocument
+                            .data()['status']
+                            ?.toString() ??
+                            '';
+
+                        if (status == 'PENDING') {
+                          requestList.add(memberDocument);
+                        }
+                      }
+                    }
+
+                    if (requestList.isEmpty) {
+                      return AppEmptyView(
+                        message: '대기 중인 참여 신청이 없습니다.',
+                        description: '새로운 신청이 들어오면 이곳에 표시됩니다.',
+                      );
+                    }
+
+                    return ListView.builder(
+                      padding: EdgeInsets.fromLTRB(
+                        18,
+                        16,
+                        18,
+                        30,
+                      ),
+                      itemCount: requestList.length,
+                      itemBuilder: (context, index) {
+                        QueryDocumentSnapshot<
+                            Map<String, dynamic>>
+                        memberDocument =
+                        requestList[index];
+
+                        Map<String, dynamic> memberData =
+                        memberDocument.data();
+
+                        String nickname =
+                            memberData['nickname']?.toString() ??
+                                '신청자';
+
+                        return Container(
+                          margin: EdgeInsets.only(bottom: 12),
+                          padding: EdgeInsets.all(15),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: Color(0xFFECEAF0),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                backgroundColor: Color(0xFFF0ECFF),
+                                child: Icon(
+                                  Icons.person_outline,
+                                  color: Color(0xFF8068D8),
+                                ),
+                              ),
+
+                              SizedBox(width: 12),
+
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      nickname,
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      '참여 승인 대기 중',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF858994),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              OutlinedButton(
+                                onPressed: () {
+                                  _rejectJoinRequest(
+                                    context,
+                                    memberDocument.id,
+                                  );
+                                },
+                                child: Text('거절'),
+                              ),
+
+                              SizedBox(width: 7),
+
+                              ElevatedButton(
+                                onPressed: () {
+                                  _approveJoinRequest(
+                                    context,
+                                    memberDocument.id,
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Color(0xFF8068D8),
+                                  foregroundColor: Colors.white,
+                                ),
+                                child: Text('승인'),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// 방장에게 참여 신청 수 표시
+  Widget _buildJoinRequestArea(
+      BuildContext context,
+      Map<String, dynamic> currentStudyData,
+      ) {
+    if (_isOwner(currentStudyData) == false) {
+      return SizedBox();
+    }
+
+    return StreamBuilder<
+        QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('studyGroups')
+          .doc(studyId)
+          .collection('members')
+          .snapshots(),
+      builder: (context, snapshot) {
+        int pendingCount = 0;
+
+        if (snapshot.data != null) {
+          for (int i = 0;
+          i < snapshot.data!.docs.length;
+          i++) {
+            Map<String, dynamic> memberData =
+            snapshot.data!.docs[i].data();
+
+            String status =
+                memberData['status']?.toString() ?? '';
+
+            if (status == 'PENDING') {
+              pendingCount++;
+            }
+          }
+        }
+
+        String description =
+            '대기 중인 참여 신청이 없습니다.';
+
+        if (pendingCount > 0) {
+          description =
+          '승인 또는 거절할 신청이 있습니다.';
+        }
+
+        return _buildMenuButton(
+          icon: Icons.how_to_reg_outlined,
+          title: '참여 신청 관리 ($pendingCount명)',
+          description: description,
+          onTap: () {
+            _openJoinRequestManagement(context);
+          },
+        );
+      },
+    );
+  }
+
+
+  /// 그룹원 목록 화면
+  Future<void> _openMemberList(
+      BuildContext context,
+      Map<String, dynamic> currentStudyData,
+      ) async {
+    try {
+      await _ensureOwnerMember(currentStudyData);
+    } catch (error) {
+      debugPrint('방장 멤버 정보 생성 오류: $error');
+    }
+
+    if (!context.mounted) {
+      return;
+    }
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (bottomSheetContext) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.72,
+          decoration: BoxDecoration(
+            color: Color(0xFFFAF9FD),
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(26),
+            ),
+          ),
+          child: Column(
+            children: [
+              SizedBox(height: 11),
+
+              Container(
+                width: 42,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Color(0xFFD8D5DE),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+
+              Padding(
+                padding: EdgeInsets.fromLTRB(20, 18, 12, 14),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: Color(0xFFF0ECFF),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(
+                        Icons.groups_outlined,
+                        color: Color(0xFF8068D8),
+                      ),
+                    ),
+
+                    SizedBox(width: 13),
+
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '그룹원 목록',
+                            style: TextStyle(
+                              fontSize: 19,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            '현재 활동 중인 그룹원을 확인합니다.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF858994),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    IconButton(
+                      onPressed: () {
+                        Navigator.pop(bottomSheetContext);
+                      },
+                      icon: Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+
+              Divider(height: 1),
+
+              Expanded(
+                child: StreamBuilder<
+                    QuerySnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance
+                      .collection('studyGroups')
+                      .doc(studyId)
+                      .collection('members')
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      return AppLoadingView(
+                        message: '그룹원 목록을 불러오는 중입니다.',
+                      );
+                    }
+
+                    if (snapshot.hasError) {
+                      debugPrint(
+                        '그룹원 목록 조회 오류: ${snapshot.error}',
+                      );
+
+                      return AppErrorView(
+                        message: '그룹원 목록을 불러오지 못했습니다.',
+                        description: '잠시 후 다시 시도해 주세요.',
+                      );
+                    }
+
+                    List<
+                        QueryDocumentSnapshot<
+                            Map<String, dynamic>>>
+                    ownerList = [];
+
+                    List<
+                        QueryDocumentSnapshot<
+                            Map<String, dynamic>>>
+                    normalMemberList = [];
+
+                    if (snapshot.data != null) {
+                      for (int i = 0;
+                      i < snapshot.data!.docs.length;
+                      i++) {
+                        QueryDocumentSnapshot<
+                            Map<String, dynamic>>
+                        memberDocument =
+                        snapshot.data!.docs[i];
+
+                        Map<String, dynamic> memberData =
+                        memberDocument.data();
+
+                        String status =
+                            memberData['status']?.toString() ?? '';
+
+                        String role =
+                            memberData['role']?.toString() ?? 'MEMBER';
+
+                        if (status == 'ACTIVE') {
+                          if (role == 'OWNER') {
+                            ownerList.add(memberDocument);
+                          } else {
+                            normalMemberList.add(memberDocument);
+                          }
+                        }
+                      }
+                    }
+
+                    List<
+                        QueryDocumentSnapshot<
+                            Map<String, dynamic>>>
+                    memberList = [];
+
+                    memberList.addAll(ownerList);
+                    memberList.addAll(normalMemberList);
+
+                    if (memberList.isEmpty) {
+                      return AppEmptyView(
+                        message: '등록된 그룹원이 없습니다.',
+                        description: '새로운 그룹원이 참여하면 이곳에 표시됩니다.',
+                      );
+                    }
+
+                    return ListView.builder(
+                      padding: EdgeInsets.fromLTRB(18, 16, 18, 30),
+                      itemCount: memberList.length,
+                      itemBuilder: (context, index) {
+                        QueryDocumentSnapshot<
+                            Map<String, dynamic>>
+                        memberDocument = memberList[index];
+
+                        Map<String, dynamic> memberData =
+                        memberDocument.data();
+
+                        String nickname =
+                            memberData['nickname']?.toString() ??
+                                '스터디원';
+
+                        String role =
+                            memberData['role']?.toString() ?? 'MEMBER';
+
+                        int totalStudyMinutes = _getInt(
+                          memberData,
+                          'totalStudyMinutes',
+                        );
+
+                        bool isOwner = role == 'OWNER';
+
+                        String firstLetter = '?';
+
+                        if (nickname.isNotEmpty) {
+                          firstLetter = nickname[0].toUpperCase();
+                        }
+
+                        return Container(
+                          margin: EdgeInsets.only(bottom: 11),
+                          padding: EdgeInsets.all(15),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: Color(0xFFECEAF0),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 46,
+                                height: 46,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: Color(0xFFF0ECFF),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Text(
+                                  firstLetter,
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF6F58C9),
+                                  ),
+                                ),
+                              ),
+
+                              SizedBox(width: 13),
+
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            nickname,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+
+                                        Visibility(
+                                          visible: isOwner,
+                                          child: Container(
+                                            margin: EdgeInsets.only(left: 7),
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 3,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Color(0xFFFFE7EE),
+                                              borderRadius:
+                                              BorderRadius.circular(11),
+                                            ),
+                                            child: Text(
+                                              '방장',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: Color(0xFFD85F82),
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+
+                                    SizedBox(height: 5),
+
+                                    Text(
+                                      '누적 공부시간 '
+                                          '${_formatStudyTime(totalStudyMinutes)}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xFF92969F),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -1392,6 +2176,647 @@ class StudyDetailPage extends StatelessWidget {
     );
   }
 
+  /// 스터디 참여 처리
+  Future<void> _joinStudy(
+      BuildContext context,
+      Map<String, dynamic> currentStudyData,
+      ) async {
+    FirebaseAuth auth = FirebaseAuth.instance;
+    User? currentUser = auth.currentUser;
+
+    if (currentUser == null) {
+      _showMessage(
+        context,
+        '로그인 정보가 없습니다.',
+      );
+      return;
+    }
+
+    if (_isOwner(currentStudyData)) {
+      _showMessage(
+        context,
+        '방장은 이미 스터디에 참여 중입니다.',
+      );
+      return;
+    }
+
+    DocumentReference<Map<String, dynamic>> groupDocument =
+    FirebaseFirestore.instance
+        .collection('studyGroups')
+        .doc(studyId);
+
+    DocumentReference<Map<String, dynamic>> memberDocument =
+    groupDocument
+        .collection('members')
+        .doc(currentUser.uid);
+
+    try {
+      DocumentSnapshot<Map<String, dynamic>> groupSnapshot =
+      await groupDocument.get();
+
+      if (groupSnapshot.exists == false) {
+        _showMessage(
+          context,
+          '스터디 정보를 찾을 수 없습니다.',
+        );
+        return;
+      }
+
+      Map<String, dynamic> groupData =
+          groupSnapshot.data() ?? {};
+
+      String groupStatus =
+          groupData['status']?.toString() ??
+              'RECRUITING';
+
+      int currentMemberCount = _getInt(
+        groupData,
+        'currentMemberCount',
+      );
+
+      int maxMemberCount = _getInt(
+        groupData,
+        'maxMemberCount',
+      );
+
+      if (groupStatus == 'COMPLETED') {
+        _showMessage(
+          context,
+          '종료된 스터디에는 참여할 수 없습니다.',
+        );
+        return;
+      }
+
+      if (groupStatus == 'CLOSED') {
+        _showMessage(
+          context,
+          '모집이 완료된 스터디입니다.',
+        );
+        return;
+      }
+
+      if (maxMemberCount > 0 &&
+          currentMemberCount >= maxMemberCount) {
+        _showMessage(
+          context,
+          '모집 인원이 모두 찼습니다.',
+        );
+        return;
+      }
+
+      DocumentSnapshot<Map<String, dynamic>> memberSnapshot =
+      await memberDocument.get();
+
+      int totalStudyMinutes = 0;
+
+      if (memberSnapshot.exists) {
+        Map<String, dynamic> oldMemberData =
+            memberSnapshot.data() ?? {};
+
+        String oldStatus =
+            oldMemberData['status']?.toString() ?? '';
+
+        totalStudyMinutes = _getInt(
+          oldMemberData,
+          'totalStudyMinutes',
+        );
+
+        if (oldStatus == 'ACTIVE') {
+          _showMessage(
+            context,
+            '이미 참여 중인 스터디입니다.',
+          );
+          return;
+        }
+
+        if (oldStatus == 'PENDING') {
+          _showMessage(
+            context,
+            '이미 참여 승인을 기다리고 있습니다.',
+          );
+          return;
+        }
+
+        if (oldStatus == 'BANNED') {
+          _showMessage(
+            context,
+            '이 스터디에는 참여할 수 없습니다.',
+          );
+          return;
+        }
+      }
+
+      bool joinApprovalRequired = true;
+
+      if (groupData['joinApprovalRequired'] is bool) {
+        joinApprovalRequired =
+        groupData['joinApprovalRequired'];
+      }
+
+      String nickname = '사용자';
+
+      if (currentUser.displayName != null &&
+          currentUser.displayName!.trim().isNotEmpty) {
+        nickname = currentUser.displayName!.trim();
+      }
+
+      if (joinApprovalRequired) {
+        await memberDocument.set(
+          {
+            'uid': currentUser.uid,
+            'nickname': nickname,
+            'role': 'MEMBER',
+            'status': 'PENDING',
+            'totalStudyMinutes': totalStudyMinutes,
+            'requestedAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(
+            merge: true,
+          ),
+        );
+
+        if (!context.mounted) {
+          return;
+        }
+
+        _showMessage(
+          context,
+          '참여 신청을 보냈습니다.',
+        );
+        return;
+      }
+
+      int newMemberCount = currentMemberCount + 1;
+      String nextStatus = 'RECRUITING';
+
+      if (maxMemberCount > 0 &&
+          newMemberCount >= maxMemberCount) {
+        nextStatus = 'CLOSED';
+      }
+
+      await memberDocument.set(
+        {
+          'uid': currentUser.uid,
+          'nickname': nickname,
+          'role': 'MEMBER',
+          'status': 'ACTIVE',
+          'totalStudyMinutes': totalStudyMinutes,
+          'joinedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(
+          merge: true,
+        ),
+      );
+
+      await groupDocument.update({
+        'currentMemberCount': newMemberCount,
+        'status': nextStatus,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (!context.mounted) {
+        return;
+      }
+
+      _showMessage(
+        context,
+        '스터디에 참여했습니다.',
+      );
+    } catch (error) {
+      debugPrint(
+        '스터디 참여 오류: $error',
+      );
+
+      if (!context.mounted) {
+        return;
+      }
+
+      _showMessage(
+        context,
+        '스터디에 참여하지 못했습니다.',
+      );
+    }
+  }
+
+  /// 참여 상태와 참여 버튼
+  Widget _buildJoinArea(
+      BuildContext context,
+      Map<String, dynamic> currentStudyData,
+      ) {
+    User? currentUser =
+        FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      return AppCard(
+        child: Text(
+          '로그인 후 스터디에 참여할 수 있습니다.',
+        ),
+      );
+    }
+
+    if (_isOwner(currentStudyData)) {
+      return SizedBox();
+    }
+
+    Stream<DocumentSnapshot<Map<String, dynamic>>> memberStream =
+    FirebaseFirestore.instance
+        .collection('studyGroups')
+        .doc(studyId)
+        .collection('members')
+        .doc(currentUser.uid)
+        .snapshots();
+
+    return StreamBuilder<
+        DocumentSnapshot<Map<String, dynamic>>>(
+      stream: memberStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState ==
+            ConnectionState.waiting) {
+          return Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+
+        String memberStatus = '';
+
+        if (snapshot.data != null &&
+            snapshot.data!.exists) {
+          Map<String, dynamic> memberData =
+              snapshot.data!.data() ?? {};
+
+          memberStatus =
+              memberData['status']?.toString() ?? '';
+        }
+
+        if (memberStatus == 'ACTIVE') {
+          return AppCard(
+            child: Row(
+              children: [
+                Icon(
+                  Icons.check_circle_outline,
+                  color: Color(0xFF3F9C72),
+                ),
+                SizedBox(width: 10),
+                Text(
+                  '참여 중인 스터디입니다.',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        if (memberStatus == 'PENDING') {
+          return AppCard(
+            child: Row(
+              children: [
+                Icon(
+                  Icons.schedule_outlined,
+                  color: Color(0xFFC58B18),
+                ),
+                SizedBox(width: 10),
+                Text(
+                  '방장의 참여 승인을 기다리고 있습니다.',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        if (memberStatus == 'BANNED') {
+          return AppCard(
+            child: Row(
+              children: [
+                Icon(
+                  Icons.block,
+                  color: Colors.red,
+                ),
+                SizedBox(width: 10),
+                Text(
+                  '이 스터디에는 참여할 수 없습니다.',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        bool joinApprovalRequired = true;
+
+        if (currentStudyData['joinApprovalRequired']
+        is bool) {
+          joinApprovalRequired =
+          currentStudyData['joinApprovalRequired'];
+        }
+
+        String buttonText = '바로 참여하기';
+
+        if (joinApprovalRequired) {
+          buttonText = '참여 신청하기';
+        }
+
+        return SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton(
+            onPressed: () {
+              _joinStudy(
+                context,
+                currentStudyData,
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFF8068D8),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            child: Text(
+              buttonText,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+
+  /// 참여 중인 그룹원에게 스터디방 입장 버튼 표시
+  Widget _buildStudyRoomArea(
+      BuildContext context,
+      Map<String, dynamic> currentStudyData,
+      ) {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      return SizedBox();
+    }
+
+    String groupName =
+        currentStudyData['groupName']?.toString() ?? '스터디';
+
+    Widget roomButton = SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: ElevatedButton.icon(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) {
+                return StudyRoomPage(
+                  studyId: studyId,
+                  groupName: groupName,
+                );
+              },
+            ),
+          );
+        },
+        icon: Icon(Icons.meeting_room_outlined),
+        label: Text(
+          '스터디방 들어가기',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Color(0xFF8068D8),
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      ),
+    );
+
+    if (_isOwner(currentStudyData)) {
+      return roomButton;
+    }
+
+    return StreamBuilder<
+        DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('studyGroups')
+          .doc(studyId)
+          .collection('members')
+          .doc(currentUser.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        String memberStatus = '';
+
+        if (snapshot.data != null &&
+            snapshot.data!.exists) {
+          Map<String, dynamic> memberData =
+              snapshot.data!.data() ?? {};
+
+          memberStatus =
+              memberData['status']?.toString() ?? '';
+        }
+
+        if (memberStatus == 'ACTIVE') {
+          return roomButton;
+        }
+
+        return SizedBox();
+      },
+    );
+  }
+
+  /// 방장 또는 참여 중인 그룹원에게 관리 메뉴 표시
+  Widget _buildStudyManageArea(
+      BuildContext context,
+      Map<String, dynamic> currentStudyData,
+      String groupName,
+      ) {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      return SizedBox();
+    }
+
+    if (_isOwner(currentStudyData)) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '스터디 관리',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          SizedBox(height: 12),
+
+          _buildMenuButton(
+            icon: Icons.person_add_alt_outlined,
+            title: '그룹원 초대',
+            description: '아이디 또는 이메일로 그룹원을 초대해요.',
+            onTap: () {
+              _showInviteDialog(
+                context,
+                groupName,
+              );
+            },
+          ),
+
+          SizedBox(height: 12),
+
+          _buildMenuButton(
+            icon: Icons.report_outlined,
+            title: '그룹원 신고',
+            description: '문제가 있는 그룹원을 신고해요.',
+            onTap: () {
+              _showReportDialog(
+                context,
+                groupName,
+              );
+            },
+          ),
+        ],
+      );
+    }
+
+    return StreamBuilder<
+        DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('studyGroups')
+          .doc(studyId)
+          .collection('members')
+          .doc(currentUser.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        String memberStatus = '';
+
+        if (snapshot.data != null &&
+            snapshot.data!.exists) {
+          Map<String, dynamic> memberData =
+              snapshot.data!.data() ?? {};
+
+          memberStatus =
+              memberData['status']?.toString() ?? '';
+        }
+
+        if (memberStatus != 'ACTIVE') {
+          return SizedBox();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '스터디 관리',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            SizedBox(height: 12),
+
+            _buildMenuButton(
+              icon: Icons.report_outlined,
+              title: '그룹원 신고',
+              description: '문제가 있는 그룹원을 신고해요.',
+              onTap: () {
+                _showReportDialog(
+                  context,
+                  groupName,
+                );
+              },
+            ),
+
+            SizedBox(height: 12),
+
+            _buildMenuButton(
+              icon: Icons.logout,
+              title: '스터디 나가기',
+              description: '현재 스터디에서 나가요.',
+              onTap: () {
+                _showLeaveDialog(context);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// 참여 중인 사용자에게만 스터디 나가기 표시
+  Widget _buildLeaveArea(
+      BuildContext context,
+      Map<String, dynamic> currentStudyData,
+      ) {
+    User? currentUser =
+        FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      return SizedBox();
+    }
+
+    if (_isOwner(currentStudyData)) {
+      return SizedBox();
+    }
+
+    return StreamBuilder<
+        DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('studyGroups')
+          .doc(studyId)
+          .collection('members')
+          .doc(currentUser.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState ==
+            ConnectionState.waiting) {
+          return SizedBox();
+        }
+
+        String memberStatus = '';
+
+        if (snapshot.data != null &&
+            snapshot.data!.exists) {
+          Map<String, dynamic> memberData =
+              snapshot.data!.data() ?? {};
+
+          memberStatus =
+              memberData['status']?.toString() ?? '';
+        }
+
+        if (memberStatus != 'ACTIVE') {
+          return SizedBox();
+        }
+
+        return Column(
+          children: [
+            SizedBox(height: 12),
+            _buildMenuButton(
+              icon: Icons.logout,
+              title: '스터디 나가기',
+              description: '현재 스터디에서 나가요.',
+              onTap: () {
+                _showLeaveDialog(context);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   /// 그룹원 초대 창
   void _showInviteDialog(
       BuildContext context,
@@ -1588,9 +3013,7 @@ class StudyDetailPage extends StatelessWidget {
           },
         );
       },
-    ).whenComplete(() {
-      inviteController.dispose();
-    });
+    );
   }
 
   /// 컬렉션 안의 문서들을 나누어 삭제
@@ -1809,86 +3232,349 @@ class StudyDetailPage extends StatelessWidget {
     );
   }
 
-  /// 그룹원 신고
-  void _showReportDialog(
-      BuildContext context,
-      ) {
-    String selectedReason =
-        '부적절한 언행';
+  /// 그룹원 신고 저장
+  Future<void> _saveMemberReport({
+    required String groupName,
+    required String reportedUid,
+    required String reportedNickname,
+    required String reason,
+    required String detail,
+  }) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
 
-    showDialog<void>(
+    if (currentUser == null) {
+      throw Exception('로그인 정보가 없습니다.');
+    }
+
+    if (currentUser.uid == reportedUid) {
+      throw Exception('본인은 신고할 수 없습니다.');
+    }
+
+    String reporterNickname = '사용자';
+
+    if (currentUser.displayName != null &&
+        currentUser.displayName!.trim().isNotEmpty) {
+      reporterNickname = currentUser.displayName!.trim();
+    }
+
+    await FirebaseFirestore.instance
+        .collection('studyReports')
+        .add({
+      'groupId': studyId,
+      'groupName': groupName,
+      'reporterUid': currentUser.uid,
+      'reporterNickname': reporterNickname,
+      'reportedUid': reportedUid,
+      'reportedNickname': reportedNickname,
+      'reason': reason,
+      'detail': detail,
+      'status': 'PENDING',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// 그룹원 신고 창
+  Future<void> _showReportDialog(
+      BuildContext context,
+      String groupName,
+      ) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      _showMessage(
+        context,
+        '로그인 정보가 없습니다.',
+      );
+      return;
+    }
+
+    QuerySnapshot<Map<String, dynamic>> memberSnapshot;
+
+    try {
+      memberSnapshot = await FirebaseFirestore.instance
+          .collection('studyGroups')
+          .doc(studyId)
+          .collection('members')
+          .get();
+    } catch (error) {
+      debugPrint('신고할 그룹원 조회 오류: $error');
+
+      if (context.mounted) {
+        _showMessage(
+          context,
+          '그룹원 목록을 불러오지 못했습니다.',
+        );
+      }
+      return;
+    }
+
+    List<QueryDocumentSnapshot<Map<String, dynamic>>>
+    memberList = [];
+
+    for (int i = 0; i < memberSnapshot.docs.length; i++) {
+      QueryDocumentSnapshot<Map<String, dynamic>> memberDocument =
+      memberSnapshot.docs[i];
+
+      Map<String, dynamic> memberData = memberDocument.data();
+
+      String status =
+          memberData['status']?.toString() ?? '';
+
+      if (status == 'ACTIVE' &&
+          memberDocument.id != currentUser.uid) {
+        memberList.add(memberDocument);
+      }
+    }
+
+    if (memberList.isEmpty) {
+      if (context.mounted) {
+        _showMessage(
+          context,
+          '신고할 수 있는 그룹원이 없습니다.',
+        );
+      }
+      return;
+    }
+
+    String selectedMemberUid = memberList[0].id;
+    String selectedReason = '부적절한 언행';
+
+    TextEditingController detailController =
+    TextEditingController();
+
+    bool isSaving = false;
+    int detailLength = 0;
+
+    if (!context.mounted) {
+      detailController.dispose();
+      return;
+    }
+
+    await showDialog<void>(
       context: context,
+      barrierDismissible: false,
       builder: (dialogContext) {
         return StatefulBuilder(
-          builder: (
-              context,
-              setDialogState,
-              ) {
+          builder: (context, setDialogState) {
             return AlertDialog(
-              title:
-              const Text('그룹원 신고'),
-              content:
-              DropdownButtonFormField<String>(
-                initialValue:
-                selectedReason,
-                decoration:
-                const InputDecoration(
-                  labelText: '신고 사유',
-                  border:
-                  OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem(
-                    value: '부적절한 언행',
-                    child:
-                    Text('부적절한 언행'),
-                  ),
-                  DropdownMenuItem(
-                    value: '광고 또는 홍보',
-                    child:
-                    Text('광고 또는 홍보'),
-                  ),
-                  DropdownMenuItem(
-                    value: '스터디 활동 방해',
-                    child:
-                    Text('스터디 활동 방해'),
-                  ),
-                  DropdownMenuItem(
-                    value: '기타',
-                    child: Text('기타'),
-                  ),
-                ],
-                onChanged: (value) {
-                  if (value == null) {
-                    return;
-                  }
+              title: Text('그룹원 신고'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      value: selectedMemberUid,
+                      decoration: InputDecoration(
+                        labelText: '신고할 그룹원',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: memberList.map((memberDocument) {
+                        Map<String, dynamic> memberData =
+                        memberDocument.data();
 
-                  setDialogState(() {
-                    selectedReason = value;
-                  });
-                },
+                        String nickname =
+                            memberData['nickname']?.toString() ??
+                                '스터디원';
+
+                        return DropdownMenuItem<String>(
+                          value: memberDocument.id,
+                          child: Text(nickname),
+                        );
+                      }).toList(),
+                      onChanged: isSaving
+                          ? null
+                          : (value) {
+                        if (value == null) {
+                          return;
+                        }
+
+                        setDialogState(() {
+                          selectedMemberUid = value;
+                        });
+                      },
+                    ),
+
+                    SizedBox(height: 16),
+
+                    DropdownButtonFormField<String>(
+                      value: selectedReason,
+                      decoration: InputDecoration(
+                        labelText: '신고 사유',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: [
+                        DropdownMenuItem(
+                          value: '부적절한 언행',
+                          child: Text('부적절한 언행'),
+                        ),
+                        DropdownMenuItem(
+                          value: '광고 또는 홍보',
+                          child: Text('광고 또는 홍보'),
+                        ),
+                        DropdownMenuItem(
+                          value: '스터디 활동 방해',
+                          child: Text('스터디 활동 방해'),
+                        ),
+                        DropdownMenuItem(
+                          value: '기타',
+                          child: Text('기타'),
+                        ),
+                      ],
+                      onChanged: isSaving
+                          ? null
+                          : (value) {
+                        if (value == null) {
+                          return;
+                        }
+
+                        setDialogState(() {
+                          selectedReason = value;
+                        });
+                      },
+                    ),
+
+                    SizedBox(height: 16),
+
+                    Stack(
+                      children: [
+                        TextField(
+                          controller: detailController,
+                          enabled: !isSaving,
+                          maxLines: 4,
+                          maxLength: 300,
+                          onChanged: (value) {
+                            setDialogState(() {
+                              detailLength = value.length;
+                            });
+                          },
+                          decoration: InputDecoration(
+                            labelText: '상세 내용',
+                            hintText: '신고 내용을 입력해주세요.',
+                            alignLabelWithHint: true,
+                            counterText: '',
+                            contentPadding: EdgeInsets.fromLTRB(
+                              12,
+                              16,
+                              12,
+                              30,
+                            ),
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        Positioned(
+                          right: 12,
+                          bottom: 10,
+                          child: Text(
+                            '$detailLength/300',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF858994),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
               actions: [
                 TextButton(
-                  onPressed: () {
-                    Navigator.pop(
-                      dialogContext,
-                    );
+                  onPressed: isSaving
+                      ? null
+                      : () {
+                    Navigator.pop(dialogContext);
                   },
-                  child: const Text('취소'),
+                  child: Text('취소'),
                 ),
                 ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(
-                      dialogContext,
-                    );
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                    String detail =
+                    detailController.text.trim();
 
-                    _showMessage(
-                      context,
-                      '신고 기능은 다음 단계에서 연결합니다.',
-                    );
+                    if (detail.isEmpty) {
+                      _showMessage(
+                        context,
+                        '신고 내용을 입력해주세요.',
+                      );
+                      return;
+                    }
+
+                    String reportedNickname = '스터디원';
+
+                    for (int i = 0;
+                    i < memberList.length;
+                    i++) {
+                      if (memberList[i].id ==
+                          selectedMemberUid) {
+                        Map<String, dynamic> memberData =
+                        memberList[i].data();
+
+                        reportedNickname =
+                            memberData['nickname']
+                                ?.toString() ??
+                                '스터디원';
+                        break;
+                      }
+                    }
+
+                    setDialogState(() {
+                      isSaving = true;
+                    });
+
+                    try {
+                      await _saveMemberReport(
+                        groupName: groupName,
+                        reportedUid: selectedMemberUid,
+                        reportedNickname:
+                        reportedNickname,
+                        reason: selectedReason,
+                        detail: detail,
+                      );
+
+                      if (!dialogContext.mounted) {
+                        return;
+                      }
+
+                      Navigator.pop(dialogContext);
+
+                      if (context.mounted) {
+                        _showMessage(
+                          context,
+                          '신고가 접수되었습니다.',
+                        );
+                      }
+                    } catch (error) {
+                      debugPrint('그룹원 신고 오류: $error');
+
+                      if (!dialogContext.mounted) {
+                        return;
+                      }
+
+                      setDialogState(() {
+                        isSaving = false;
+                      });
+
+                      _showMessage(
+                        context,
+                        error.toString().replaceFirst(
+                          'Exception: ',
+                          '',
+                        ),
+                      );
+                    }
                   },
-                  child: const Text('신고'),
+                  child: isSaving
+                      ? SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  )
+                      : Text('신고'),
                 ),
               ],
             );
@@ -1896,48 +3582,207 @@ class StudyDetailPage extends StatelessWidget {
         );
       },
     );
+
+    detailController.dispose();
   }
 
-  /// 스터디 나가기
+  /// 스터디 나가기 처리
+  Future<void> _leaveStudy() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      throw Exception('로그인 정보가 없습니다.');
+    }
+
+    final groupDocument = FirebaseFirestore.instance
+        .collection('studyGroups')
+        .doc(studyId);
+
+    final memberDocument = groupDocument
+        .collection('members')
+        .doc(currentUser.uid);
+
+    await FirebaseFirestore.instance.runTransaction(
+          (transaction) async {
+        final groupSnapshot = await transaction.get(
+          groupDocument,
+        );
+
+        final memberSnapshot = await transaction.get(
+          memberDocument,
+        );
+
+        if (!groupSnapshot.exists) {
+          throw Exception('스터디 정보를 찾을 수 없습니다.');
+        }
+
+        if (!memberSnapshot.exists) {
+          throw Exception('참여 중인 스터디가 아닙니다.');
+        }
+
+        final groupData = groupSnapshot.data() ?? {};
+        final memberData = memberSnapshot.data() ?? {};
+
+        final ownerUid =
+            groupData['ownerUid']?.toString() ?? '';
+
+        final memberStatus =
+            memberData['status']?.toString() ?? '';
+
+        if (currentUser.uid == ownerUid) {
+          throw Exception('방장은 스터디에서 나갈 수 없습니다.');
+        }
+
+        if (memberStatus != 'ACTIVE') {
+          throw Exception('이미 참여 중인 스터디가 아닙니다.');
+        }
+
+        final currentMemberCount = _getInt(
+          groupData,
+          'currentMemberCount',
+        );
+
+        int newMemberCount = currentMemberCount - 1;
+
+        if (newMemberCount < 1) {
+          newMemberCount = 1;
+        }
+
+        final currentStatus =
+            groupData['status']?.toString() ?? 'RECRUITING';
+
+        String nextStatus = 'RECRUITING';
+
+        if (currentStatus == 'COMPLETED') {
+          nextStatus = 'COMPLETED';
+        }
+
+        transaction.update(
+          memberDocument,
+          {
+            'status': 'LEFT',
+            'leftAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+        );
+
+        transaction.update(
+          groupDocument,
+          {
+            'currentMemberCount': newMemberCount,
+            'status': nextStatus,
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+        );
+      },
+    );
+  }
+
+  /// 스터디 나가기 확인창
   void _showLeaveDialog(
       BuildContext context,
       ) {
+    bool isLeaving = false;
+
     showDialog<void>(
       context: context,
+      barrierDismissible: false,
       builder: (dialogContext) {
-        return AlertDialog(
-          title:
-          const Text('스터디 나가기'),
-          content: const Text(
-            '이 스터디에서 나가시겠습니까?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                );
-              },
-              child: const Text('취소'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                );
-
-                _showMessage(
-                  context,
-                  '스터디 나가기 기능은 다음 단계에서 연결합니다.',
-                );
-              },
-              style:
-              TextButton.styleFrom(
-                foregroundColor: Colors.red,
+        return StatefulBuilder(
+          builder: (
+              context,
+              setDialogState,
+              ) {
+            return AlertDialog(
+              title: Text('스터디 나가기'),
+              content: Text(
+                '이 스터디에서 나가시겠습니까?\n\n'
+                    '나간 뒤에는 다시 참여해야 스터디 활동을 이용할 수 있습니다.',
+                style: TextStyle(
+                  height: 1.5,
+                ),
               ),
-              child: const Text('나가기'),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: isLeaving
+                      ? null
+                      : () {
+                    Navigator.pop(
+                      dialogContext,
+                    );
+                  },
+                  child: Text('취소'),
+                ),
+                TextButton(
+                  onPressed: isLeaving
+                      ? null
+                      : () async {
+                    setDialogState(() {
+                      isLeaving = true;
+                    });
+
+                    try {
+                      await _leaveStudy();
+
+                      if (!dialogContext.mounted) {
+                        return;
+                      }
+
+                      Navigator.pop(
+                        dialogContext,
+                      );
+
+                      if (!context.mounted) {
+                        return;
+                      }
+
+                      _showMessage(
+                        context,
+                        '스터디에서 나갔습니다.',
+                      );
+
+                      Navigator.pop(
+                        context,
+                        true,
+                      );
+                    } catch (error) {
+                      debugPrint(
+                        '스터디 나가기 오류: $error',
+                      );
+
+                      if (!dialogContext.mounted) {
+                        return;
+                      }
+
+                      setDialogState(() {
+                        isLeaving = false;
+                      });
+
+                      _showMessage(
+                        context,
+                        error.toString().replaceFirst(
+                          'Exception: ',
+                          '',
+                        ),
+                      );
+                    }
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.red,
+                  ),
+                  child: isLeaving
+                      ? SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  )
+                      : Text('나가기'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -2116,21 +3961,31 @@ class StudyDetailPage extends StatelessWidget {
             '스터디 상세 조회 오류: '
                 '${snapshot.error}',
           );
+
+          return Scaffold(
+            appBar: AppBar(
+              title: Text('스터디 상세'),
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.white,
+            ),
+            body: AppErrorView(
+              message: '스터디 정보를 불러오지 못했습니다.',
+              description: '잠시 후 다시 시도해 주세요.',
+            ),
+          );
         }
 
         if (snapshot.hasData &&
             snapshot.data?.exists == false) {
           return Scaffold(
             appBar: AppBar(
-              title:
-              const Text('스터디 상세'),
+              title: Text('스터디 상세'),
               backgroundColor: Colors.white,
               surfaceTintColor: Colors.white,
             ),
-            body: const Center(
-              child: Text(
-                '삭제되었거나 존재하지 않는 스터디입니다.',
-              ),
+            body: AppErrorView(
+              message: '존재하지 않는 스터디입니다.',
+              description: '삭제되었거나 더 이상 이용할 수 없는 스터디입니다.',
             ),
           );
         }
@@ -2410,140 +4265,34 @@ class StudyDetailPage extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  SizedBox(height: 16),
 
-                  const Text(
-                    '스터디 활동',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight:
-                      FontWeight.bold,
-                    ),
+                  _buildJoinArea(
+                    context,
+                    currentStudyData,
                   ),
 
-                  const SizedBox(height: 12),
+                  SizedBox(height: 16),
 
-                  _buildMenuButton(
-                    icon: Icons
-                        .chat_bubble_outline,
-                    title: '그룹 채팅',
-                    description:
-                    '스터디원들과 메시지를 주고받아요.',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              StudyChatPage(
-                                studyId:
-                                studyId,
-                                groupName:
-                                groupName,
-                              ),
-                        ),
-                      );
-                    },
+                  _buildStudyRoomArea(
+                    context,
+                    currentStudyData,
                   ),
 
-                  const SizedBox(height: 12),
+                  SizedBox(height: 16),
 
-                  _buildMenuButton(
-                    icon: Icons
-                        .emoji_events_outlined,
-                    title: '공부시간 순위',
-                    description:
-                    '그룹원의 누적 공부시간 순위를 확인해요.',
-                    onTap: () {
-                      _openStudyRanking(
-                        context,
-                        currentStudyData,
-                      );
-                    },
+                  _buildJoinRequestArea(
+                    context,
+                    currentStudyData,
                   ),
 
-                  const SizedBox(height: 12),
+                  SizedBox(height: 24),
 
-                  _buildMenuButton(
-                    icon:
-                    Icons.quiz_outlined,
-                    title: '발송된 문제 풀기',
-                    description:
-                    '그룹에 발송된 문제를 확인하고 풀어요.',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              StudyQuizPage(
-                                studyId:
-                                studyId,
-                                groupName:
-                                groupName,
-                              ),
-                        ),
-                      );
-                    },
+                  _buildStudyManageArea(
+                    context,
+                    currentStudyData,
+                    groupName,
                   ),
-
-                  const SizedBox(height: 12),
-
-                  _buildMenuButton(
-                    icon: Icons
-                        .person_add_alt_outlined,
-                    title: '그룹원 초대',
-                    description:
-                    '아이디 또는 이메일로 그룹원을 초대해요.',
-                    onTap: () {
-                      _showInviteDialog(
-                        context,
-                        groupName,
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  const Text(
-                    '그룹 관리',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight:
-                      FontWeight.bold,
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  _buildMenuButton(
-                    icon:
-                    Icons.report_outlined,
-                    title: '그룹원 신고',
-                    description:
-                    '문제가 있는 그룹원을 신고해요.',
-                    onTap: () {
-                      _showReportDialog(
-                        context,
-                      );
-                    },
-                  ),
-
-                  if (!isOwner) ...[
-                    const SizedBox(
-                      height: 12,
-                    ),
-
-                    _buildMenuButton(
-                      icon: Icons.logout,
-                      title: '스터디 나가기',
-                      description:
-                      '현재 스터디에서 나가요.',
-                      onTap: () {
-                        _showLeaveDialog(
-                          context,
-                        );
-                      },
-                    ),
-                  ],
                 ],
               ),
             ),

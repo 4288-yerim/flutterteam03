@@ -2,16 +2,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutterteam03/widgets/app_state_views.dart';
 
 import '../firebase_options.dart';
-import '../widgets/app_bottom_bar.dart';
-import '../widgets/app_card.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
 import 'study_add.dart';
 import 'study_detail.dart';
 
-/// 스터디 목록 페이지만 단독 실행
+/// 스터디 목록 페이지만 단독 실행할 때 사용
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -19,30 +18,30 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // 단독 실행 확인용 익명 로그인
   if (FirebaseAuth.instance.currentUser == null) {
     await FirebaseAuth.instance.signInAnonymously();
   }
 
-  runApp(const StudyListApp());
+  runApp(
+    MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: StudyListApp(),
+    ),
+  );
 }
 
+/// main_page.dart에서 불러오는 스터디 화면
 class StudyListApp extends StatelessWidget {
   const StudyListApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: StudyListPage(
-        showBottomBar: true,
-      ),
-    );
+    return StudyListPage();
   }
 }
 
 class StudyListPage extends StatefulWidget {
-  // 단독 실행할 때 하단 메뉴 표시
+  // 기존 다른 파일과 연결이 끊기지 않도록 유지
   final bool showBottomBar;
 
   const StudyListPage({
@@ -51,23 +50,16 @@ class StudyListPage extends StatefulWidget {
   });
 
   @override
-  State<StudyListPage> createState() => _StudyListPageState();
+  State<StudyListPage> createState() {
+    return _StudyListPageState();
+  }
 }
 
 class _StudyListPageState extends State<StudyListPage> {
-  final TextEditingController _searchController =
-  TextEditingController();
-
-  int currentIndex = 1;
+  TextEditingController _searchController = TextEditingController();
 
   String _selectedMenu = '전체';
   String _searchText = '';
-
-  final List<String> _menuList = [
-    '전체',
-    '모집 중',
-    '내 스터디',
-  ];
 
   @override
   void dispose() {
@@ -80,7 +72,7 @@ class _StudyListPageState extends State<StudyListPage> {
       Map<String, dynamic> data,
       String fieldName,
       ) {
-    final value = data[fieldName];
+    dynamic value = data[fieldName];
 
     if (value is int) {
       return value;
@@ -93,18 +85,25 @@ class _StudyListPageState extends State<StudyListPage> {
     return 0;
   }
 
-  /// 현재 모집 중인지 확인
+  /// 모집 중인지 확인
   bool _isRecruiting(Map<String, dynamic> data) {
-    final status =
-        data['status']?.toString() ?? 'RECRUITING';
+    String status = data['status']?.toString() ?? 'RECRUITING';
 
-    final currentMemberCount =
-    _getInt(data, 'currentMemberCount');
+    int currentMemberCount = _getInt(
+      data,
+      'currentMemberCount',
+    );
 
-    final maxMemberCount =
-    _getInt(data, 'maxMemberCount');
+    int maxMemberCount = _getInt(
+      data,
+      'maxMemberCount',
+    );
 
-    if (status == 'CLOSED' || status == 'COMPLETED') {
+    if (status == 'CLOSED') {
+      return false;
+    }
+
+    if (status == 'COMPLETED') {
       return false;
     }
 
@@ -120,25 +119,25 @@ class _StudyListPageState extends State<StudyListPage> {
   bool _isVisibleStudy(
       QueryDocumentSnapshot<Map<String, dynamic>> document,
       ) {
-    final data = document.data();
+    Map<String, dynamic> data = document.data();
 
-    final groupName =
+    String groupName =
         data['groupName']?.toString().toLowerCase() ?? '';
 
-    final description =
+    String description =
         data['description']?.toString().toLowerCase() ?? '';
 
-    final certificateName =
+    String certificateName =
         data['certificateName']?.toString().toLowerCase() ?? '';
 
-    final searchText = _searchText.toLowerCase();
+    String searchText = _searchText.toLowerCase();
 
-    final matchesSearch =
+    bool matchesSearch =
         groupName.contains(searchText) ||
             description.contains(searchText) ||
             certificateName.contains(searchText);
 
-    if (!matchesSearch) {
+    if (matchesSearch == false) {
       return false;
     }
 
@@ -147,7 +146,7 @@ class _StudyListPageState extends State<StudyListPage> {
     }
 
     if (_selectedMenu == '내 스터디') {
-      final currentUserUid =
+      String? currentUserUid =
           FirebaseAuth.instance.currentUser?.uid;
 
       return data['ownerUid'] == currentUserUid;
@@ -156,23 +155,21 @@ class _StudyListPageState extends State<StudyListPage> {
     return true;
   }
 
-  /// 스터디 만들기 페이지로 이동
+  /// 스터디 만들기 화면으로 이동
   Future<void> _openCreatePage() async {
-    // 검색 키보드가 열려 있으면 먼저 닫기
     FocusScope.of(context).unfocus();
 
-    await Navigator.push<bool>(
+    await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const StudyCreatePage(),
+        builder: (context) {
+          return StudyCreatePage();
+        },
       ),
     );
-
-    // snapshots()가 실시간으로 목록을 갱신하므로
-    // 별도의 새로고침은 필요 없음
   }
 
-  /// 스터디 상세 페이지로 이동
+  /// 스터디 상세 화면으로 이동
   void _openStudyDetail(
       String studyId,
       Map<String, dynamic> studyData,
@@ -182,110 +179,74 @@ class _StudyListPageState extends State<StudyListPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => StudyDetailPage(
-          studyId: studyId,
-          studyData: studyData,
-        ),
+        builder: (context) {
+          return StudyDetailPage(
+            studyId: studyId,
+            studyData: studyData,
+          );
+        },
       ),
     );
   }
 
-  /// 검색창 위 안내 배너
-  Widget _buildStudyBanner() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 18,
-        vertical: 17,
-      ),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF4F0FF),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFFE8E1FF),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(
-              Icons.groups_rounded,
-              size: 29,
-              color: Color(0xFF8068D8),
-            ),
-          ),
+  /// 목록 다시 불러오기
+  void _reloadStudyList() {
+    setState(() {});
+  }
 
-          const SizedBox(width: 14),
+  /// 네트워크 오류인지 확인
+  bool _isNetworkError(Object? error) {
+    if (error is FirebaseException) {
+      if (error.code == 'unavailable') {
+        return true;
+      }
 
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '함께 공부할 스터디를 찾아보세요',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF302D39),
-                  ),
-                ),
+      if (error.code == 'network-request-failed') {
+        return true;
+      }
+    }
 
-                SizedBox(height: 5),
-
-                Text(
-                  '관심 있는 자격증 스터디에 참여하거나\n'
-                      '새로운 스터디를 직접 만들 수 있어요.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    height: 1.45,
-                    color: Color(0xFF777383),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+    return false;
   }
 
   /// 전체 / 모집 중 / 내 스터디 메뉴
   Widget _buildMenuChip(String menu) {
-    final isSelected = _selectedMenu == menu;
+    bool isSelected = _selectedMenu == menu;
+
+    Color backgroundColor = Colors.white;
+    Color borderColor = Color(0xFFE4E5E9);
+    Color textColor = Color(0xFF727680);
+    FontWeight fontWeight = FontWeight.normal;
+
+    if (isSelected) {
+      backgroundColor = Color(0xFFE9E4FF);
+      borderColor = Color(0xFF8068D8);
+      textColor = Color(0xFF6C54C8);
+      fontWeight = FontWeight.bold;
+    }
 
     return ChoiceChip(
       label: Text(menu),
       selected: isSelected,
       showCheckmark: false,
-      selectedColor: const Color(0xFFE7E1FF),
-      backgroundColor: Colors.white,
+      selectedColor: backgroundColor,
+      backgroundColor: backgroundColor,
       side: BorderSide(
-        color: isSelected
-            ? const Color(0xFF8068D8)
-            : const Color(0xFFE1E3E8),
+        color: borderColor,
       ),
       labelStyle: TextStyle(
-        color: isSelected
-            ? const Color(0xFF6C54C8)
-            : const Color(0xFF777C86),
-        fontWeight: isSelected
-            ? FontWeight.bold
-            : FontWeight.normal,
+        fontSize: 12,
+        color: textColor,
+        fontWeight: fontWeight,
       ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 13,
-        vertical: 9,
+      padding: EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 4,
       ),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(12),
       ),
-      onSelected: (_) {
+      onSelected: (value) {
         setState(() {
           _selectedMenu = menu;
         });
@@ -294,24 +255,26 @@ class _StudyListPageState extends State<StudyListPage> {
   }
 
   /// 카드 위 작은 표시
-  Widget _smallBadge(
+  Widget _buildBadge(
       String text,
       Color backgroundColor,
       Color textColor,
       ) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 5,
+      padding: EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 4,
       ),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
         text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          fontSize: 11,
+          fontSize: 10,
           color: textColor,
           fontWeight: FontWeight.w600,
         ),
@@ -319,20 +282,195 @@ class _StudyListPageState extends State<StudyListPage> {
     );
   }
 
+  /// 데이터가 없을 때 공통 상태 화면
+  Widget _buildEmptyScreen() {
+    if (_searchText.isNotEmpty) {
+      return AppEmptyView(
+        message: '검색 결과가 없습니다.',
+        description: '다른 검색어로 다시 검색해 주세요.',
+      );
+    }
+
+    if (_selectedMenu == '모집 중') {
+      return AppEmptyView(
+        message: '현재 모집 중인 스터디가 없습니다.',
+        description: '새로운 스터디가 등록되면 이곳에 표시됩니다.',
+      );
+    }
+
+    if (_selectedMenu == '내 스터디') {
+      return AppEmptyView(
+        message: '내가 만든 스터디가 없습니다.',
+        description: '새로운 스터디를 직접 만들어 보세요.',
+        buttonText: '스터디 만들기',
+        onButtonPressed: _openCreatePage,
+      );
+    }
+
+    return AppEmptyView(
+      message: '등록된 스터디가 없습니다.',
+      description: '함께 공부할 스터디를 직접 만들어 보세요.',
+      buttonText: '스터디 만들기',
+      onButtonPressed: _openCreatePage,
+    );
+  }
+
+  /// 스터디 카드 하나
+  Widget _buildStudyCard(
+      QueryDocumentSnapshot<Map<String, dynamic>> studyDocument,
+      ) {
+    Map<String, dynamic> studyData = studyDocument.data();
+
+    String groupName =
+        studyData['groupName']?.toString() ?? '그룹명 없음';
+
+    String description =
+        studyData['description']?.toString() ?? '';
+
+    String certificateName =
+        studyData['certificateName']?.toString() ?? '공통 스터디';
+
+    int currentMemberCount = _getInt(
+      studyData,
+      'currentMemberCount',
+    );
+
+    int maxMemberCount = _getInt(
+      studyData,
+      'maxMemberCount',
+    );
+
+    bool isRecruiting = _isRecruiting(studyData);
+
+    String recruitingText = '모집 완료';
+    Color recruitingBackgroundColor = Color(0xFFF1F2F5);
+    Color recruitingTextColor = Color(0xFF858994);
+
+    if (isRecruiting) {
+      recruitingText = '모집 중';
+      recruitingBackgroundColor = Color(0xFFDFF5EA);
+      recruitingTextColor = Color(0xFF3F9C72);
+    }
+
+    String descriptionText = description;
+
+    if (descriptionText.isEmpty) {
+      descriptionText = '등록된 스터디 소개가 없습니다.';
+    }
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () {
+          _openStudyDetail(
+            studyDocument.id,
+            studyData,
+          );
+        },
+        child: Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: Color(0xFFE8E7EB),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: _buildBadge(
+                      certificateName,
+                      Color(0xFFE9E4FF),
+                      Color(0xFF6F58C9),
+                    ),
+                  ),
+                  SizedBox(width: 6),
+                  _buildBadge(
+                    recruitingText,
+                    recruitingBackgroundColor,
+                    recruitingTextColor,
+                  ),
+                ],
+              ),
+              SizedBox(height: 9),
+              Text(
+                groupName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF29272E),
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                descriptionText,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF7B7F89),
+                ),
+              ),
+              SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(
+                    Icons.groups_outlined,
+                    size: 17,
+                    color: Color(0xFF8C919C),
+                  ),
+                  SizedBox(width: 5),
+                  Text(
+                    '$currentMemberCount / $maxMemberCount명',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF737782),
+                    ),
+                  ),
+                  Spacer(),
+                  Text(
+                    '자세히',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF6C54C8),
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 20,
+                    color: Color(0xFF6C54C8),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // 키보드가 열려 있는지 확인
-    final bool isKeyboardOpen =
+    bool isKeyboardOpen =
         MediaQuery.of(context).viewInsets.bottom > 0;
 
+    double bottomPadding = 12;
+
+    if (isKeyboardOpen) {
+      bottomPadding = 6;
+    }
+
     return Scaffold(
-      // 키보드가 열리면 본문 높이를 자동 조절
       resizeToAvoidBottomInset: true,
-
-      // 키보드가 열려 있을 때는 하단 메뉴가 없으므로
-      // 본문을 하단 메뉴 뒤까지 확장하지 않음
-      extendBody: !isKeyboardOpen,
-
       appBar: AppTopBar(
         title: '스터디',
         centerTitle: false,
@@ -340,120 +478,93 @@ class _StudyListPageState extends State<StudyListPage> {
           IconButton(
             tooltip: '스터디 만들기',
             onPressed: _openCreatePage,
-            icon: const Icon(
+            icon: Icon(
               Icons.add_rounded,
               size: 30,
             ),
           ),
         ],
       ),
-
       body: AppMainBackground(
         applySafeArea: false,
         child: Padding(
           padding: EdgeInsets.fromLTRB(
-            20,
-
-            // 키보드가 열리면 위쪽 간격 축소
-            isKeyboardOpen ? 10 : 18,
-
-            20,
-
-            // 키보드가 열리면 하단 메뉴 여백 제거
-            isKeyboardOpen
-                ? 12
-                : widget.showBottomBar
-                ? 100
-                : 25,
+            16,
+            8,
+            16,
+            bottomPadding,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 키보드가 닫혀 있을 때만 안내 배너 표시
-              if (!isKeyboardOpen) ...[
-                _buildStudyBanner(),
-                const SizedBox(height: 16),
-              ],
-
-              // 검색창
-              TextField(
-                controller: _searchController,
-                textInputAction: TextInputAction.search,
-                onChanged: (value) {
-                  setState(() {
-                    _searchText = value.trim();
-                  });
-                },
-                decoration: InputDecoration(
-                  hintText: '스터디 이름이나 자격증을 검색하세요',
-                  hintStyle: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF989AA2),
-                  ),
-                  prefixIcon: const Icon(
-                    Icons.search_rounded,
-                    color: Color(0xFF66636E),
-                  ),
-                  suffixIcon: _searchText.isNotEmpty
-                      ? IconButton(
-                    onPressed: () {
-                      _searchController.clear();
-
-                      setState(() {
-                        _searchText = '';
-                      });
-                    },
-                    icon: const Icon(
-                      Icons.close_rounded,
-                    ),
-                  )
-                      : null,
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(
-                    vertical: 16,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(17),
-                    borderSide: const BorderSide(
-                      color: Color(0xFFE8E7EB),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(17),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF8068D8),
-                      width: 1.5,
-                    ),
-                  ),
-                ),
-              ),
-
               SizedBox(
-                height: isKeyboardOpen ? 8 : 14,
-              ),
+                height: 44,
+                child: TextField(
+                  controller: _searchController,
+                  textInputAction: TextInputAction.search,
+                  onChanged: (value) {
+                    setState(() {
+                      _searchText = value.trim();
+                    });
+                  },
+                  decoration: InputDecoration(
+                    hintText: '스터디 이름 또는 자격증 검색',
+                    hintStyle: TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF989AA2),
+                    ),
+                    prefixIcon: Icon(
+                      Icons.search_rounded,
+                      size: 21,
+                      color: Color(0xFF66636E),
+                    ),
+                    suffixIcon: _searchText.isNotEmpty
+                        ? IconButton(
+                      onPressed: () {
+                        _searchController.clear();
 
-              // 전체 / 모집 중 / 내 스터디
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: _menuList
-                      .map(
-                        (menu) => Padding(
-                      padding: const EdgeInsets.only(
-                        right: 8,
+                        setState(() {
+                          _searchText = '';
+                        });
+                      },
+                      icon: Icon(
+                        Icons.close_rounded,
+                        size: 19,
                       ),
-                      child: _buildMenuChip(menu),
+                    )
+                        : null,
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: EdgeInsets.symmetric(
+                      vertical: 9,
                     ),
-                  )
-                      .toList(),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                        color: Color(0xFFE8E7EB),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                        color: Color(0xFF8068D8),
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
                 ),
               ),
-
-              SizedBox(
-                height: isKeyboardOpen ? 8 : 18,
+              SizedBox(height: 7),
+              Row(
+                children: [
+                  _buildMenuChip('전체'),
+                  SizedBox(width: 6),
+                  _buildMenuChip('모집 중'),
+                  SizedBox(width: 6),
+                  _buildMenuChip('내 스터디'),
+                ],
               ),
-
+              SizedBox(height: 7),
               Expanded(
                 child: StreamBuilder<
                     QuerySnapshot<Map<String, dynamic>>>(
@@ -463,8 +574,8 @@ class _StudyListPageState extends State<StudyListPage> {
                   builder: (context, snapshot) {
                     if (snapshot.connectionState ==
                         ConnectionState.waiting) {
-                      return const Center(
-                        child: CircularProgressIndicator(),
+                      return AppLoadingView(
+                        message: '스터디 목록을 불러오는 중입니다.',
                       );
                     }
 
@@ -473,374 +584,100 @@ class _StudyListPageState extends State<StudyListPage> {
                         'Firestore 오류: ${snapshot.error}',
                       );
 
-                      return const Center(
-                        child: Text(
-                          '스터디 목록을 불러오지 못했습니다.',
-                          textAlign: TextAlign.center,
-                        ),
+                      if (_isNetworkError(snapshot.error)) {
+                        return AppNetworkErrorView(
+                          message: '인터넷 연결을 확인해 주세요.',
+                          description:
+                          'Wi-Fi 또는 모바일 데이터를 확인한 뒤 다시 시도해 주세요.',
+                          retryButtonText: '다시 시도',
+                          onRetryPressed: _reloadStudyList,
+                        );
+                      }
+
+                      return AppErrorView(
+                        message: '스터디 목록을 불러오지 못했습니다.',
+                        description: '잠시 후 다시 시도해 주세요.',
+                        retryButtonText: '다시 시도',
+                        onRetryPressed: _reloadStudyList,
                       );
                     }
 
-                    final allStudyList =
-                        snapshot.data?.docs.toList() ?? [];
+                    List<
+                        QueryDocumentSnapshot<
+                            Map<String, dynamic>>>
+                    allStudyList = [];
 
-                    // 최근 등록한 스터디가 위로 오도록 정렬
+                    if (snapshot.data != null) {
+                      allStudyList = snapshot.data!.docs.toList();
+                    }
+
                     allStudyList.sort((a, b) {
-                      final aCreatedAt =
-                      a.data()['createdAt'];
+                      dynamic aCreatedAt = a.data()['createdAt'];
+                      dynamic bCreatedAt = b.data()['createdAt'];
 
-                      final bCreatedAt =
-                      b.data()['createdAt'];
+                      int aTime = 0;
+                      int bTime = 0;
 
-                      final aTime = aCreatedAt is Timestamp
-                          ? aCreatedAt.millisecondsSinceEpoch
-                          : 0;
+                      if (aCreatedAt is Timestamp) {
+                        aTime = aCreatedAt.millisecondsSinceEpoch;
+                      }
 
-                      final bTime = bCreatedAt is Timestamp
-                          ? bCreatedAt.millisecondsSinceEpoch
-                          : 0;
+                      if (bCreatedAt is Timestamp) {
+                        bTime = bCreatedAt.millisecondsSinceEpoch;
+                      }
 
                       return bTime.compareTo(aTime);
                     });
 
-                    final visibleStudyList = allStudyList
-                        .where(_isVisibleStudy)
-                        .toList();
+                    List<
+                        QueryDocumentSnapshot<
+                            Map<String, dynamic>>>
+                    visibleStudyList = [];
+
+                    for (int i = 0;
+                    i < allStudyList.length;
+                    i++) {
+                      bool isVisible = _isVisibleStudy(
+                        allStudyList[i],
+                      );
+
+                      if (isVisible) {
+                        visibleStudyList.add(
+                          allStudyList[i],
+                        );
+                      }
+                    }
 
                     if (visibleStudyList.isEmpty) {
-                      return Center(
-                        child: SingleChildScrollView(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 78,
-                                height: 78,
-                                decoration:
-                                const BoxDecoration(
-                                  color: Color(0xFFF0ECFF),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.groups_outlined,
-                                  size: 38,
-                                  color: Color(0xFF8068D8),
-                                ),
-                              ),
-
-                              const SizedBox(height: 18),
-
-                              Text(
-                                _selectedMenu == '내 스터디'
-                                    ? '내가 만든 스터디가 없습니다.'
-                                    : _searchText.isNotEmpty
-                                    ? '검색 결과가 없습니다.'
-                                    : '등록된 스터디가 없습니다.',
-                                style: const TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-
-                              const SizedBox(height: 8),
-
-                              const Text(
-                                '새로운 스터디를 직접 만들어보세요.',
-                                style: TextStyle(
-                                  color: Color(0xFF858994),
-                                ),
-                              ),
-
-                              const SizedBox(height: 20),
-
-                              ElevatedButton.icon(
-                                onPressed: _openCreatePage,
-                                icon: const Icon(Icons.add),
-                                label: const Text(
-                                  '스터디 만들기',
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor:
-                                  const Color(0xFF8068D8),
-                                  foregroundColor: Colors.white,
-                                  padding:
-                                  const EdgeInsets.symmetric(
-                                    horizontal: 18,
-                                    vertical: 12,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius:
-                                    BorderRadius.circular(13),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
+                      return _buildEmptyScreen();
                     }
 
                     return Column(
-                      crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          '총 ${visibleStudyList.length}개의 스터디',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF777C86),
+                        Padding(
+                          padding: EdgeInsets.only(
+                            left: 2,
+                            bottom: 6,
+                          ),
+                          child: Text(
+                            '스터디 ${visibleStudyList.length}개',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF777C86),
+                            ),
                           ),
                         ),
-
-                        const SizedBox(height: 12),
-
                         Expanded(
                           child: ListView.builder(
                             keyboardDismissBehavior:
                             ScrollViewKeyboardDismissBehavior
                                 .onDrag,
                             padding: EdgeInsets.zero,
-                            itemCount:
-                            visibleStudyList.length,
+                            itemCount: visibleStudyList.length,
                             itemBuilder: (context, index) {
-                              final studyDocument =
-                              visibleStudyList[index];
-
-                              final studyData =
-                              studyDocument.data();
-
-                              final groupName =
-                                  studyData['groupName']
-                                      ?.toString() ??
-                                      '그룹명 없음';
-
-                              final description =
-                                  studyData['description']
-                                      ?.toString() ??
-                                      '';
-
-                              final certificateName =
-                                  studyData[
-                                  'certificateName']
-                                      ?.toString() ??
-                                      '공통 스터디';
-
-                              final currentMemberCount =
-                              _getInt(
-                                studyData,
-                                'currentMemberCount',
-                              );
-
-                              final maxMemberCount = _getInt(
-                                studyData,
-                                'maxMemberCount',
-                              );
-
-                              final isPublic =
-                              studyData['isPublic'] is bool
-                                  ? studyData['isPublic']
-                              as bool
-                                  : true;
-
-                              final isRecruiting =
-                              _isRecruiting(studyData);
-
-                              final double progress =
-                              maxMemberCount > 0
-                                  ? currentMemberCount /
-                                  maxMemberCount
-                                  : 0.0;
-
-                              return Padding(
-                                padding:
-                                const EdgeInsets.only(
-                                  bottom: 15,
-                                ),
-                                child: AppCard(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                    children: [
-                                      Wrap(
-                                        spacing: 7,
-                                        runSpacing: 7,
-                                        children: [
-                                          _smallBadge(
-                                            certificateName,
-                                            const Color(
-                                              0xFFE9E4FF,
-                                            ),
-                                            const Color(
-                                              0xFF6F58C9,
-                                            ),
-                                          ),
-
-                                          _smallBadge(
-                                            isRecruiting
-                                                ? '모집 중'
-                                                : '모집 완료',
-                                            isRecruiting
-                                                ? const Color(
-                                              0xFFDFF5EA,
-                                            )
-                                                : const Color(
-                                              0xFFF1F2F5,
-                                            ),
-                                            isRecruiting
-                                                ? const Color(
-                                              0xFF3F9C72,
-                                            )
-                                                : const Color(
-                                              0xFF858994,
-                                            ),
-                                          ),
-
-                                          _smallBadge(
-                                            isPublic
-                                                ? '공개'
-                                                : '비공개',
-                                            const Color(
-                                              0xFFF3F4F7,
-                                            ),
-                                            const Color(
-                                              0xFF737782,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-
-                                      const SizedBox(height: 15),
-
-                                      Text(
-                                        groupName,
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight:
-                                          FontWeight.bold,
-                                        ),
-                                      ),
-
-                                      const SizedBox(height: 8),
-
-                                      Text(
-                                        description.isEmpty
-                                            ? '등록된 스터디 소개가 없습니다.'
-                                            : description,
-                                        maxLines: 2,
-                                        overflow:
-                                        TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          height: 1.4,
-                                          color: Color(
-                                            0xFF7B7F89,
-                                          ),
-                                        ),
-                                      ),
-
-                                      const SizedBox(height: 17),
-
-                                      Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.groups_outlined,
-                                            size: 18,
-                                            color: Color(
-                                              0xFF8C919C,
-                                            ),
-                                          ),
-
-                                          const SizedBox(width: 6),
-
-                                          Text(
-                                            '$currentMemberCount / '
-                                                '$maxMemberCount명',
-                                            style: const TextStyle(
-                                              fontSize: 13,
-                                              color: Color(
-                                                0xFF737782,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-
-                                      const SizedBox(height: 9),
-
-                                      ClipRRect(
-                                        borderRadius:
-                                        BorderRadius.circular(
-                                          10,
-                                        ),
-                                        child:
-                                        LinearProgressIndicator(
-                                          value: progress
-                                              .clamp(
-                                            0.0,
-                                            1.0,
-                                          )
-                                              .toDouble(),
-                                          minHeight: 6,
-                                          backgroundColor:
-                                          const Color(
-                                            0xFFECEEF2,
-                                          ),
-                                          valueColor:
-                                          const AlwaysStoppedAnimation<
-                                              Color>(
-                                            Color(0xFF8068D8),
-                                          ),
-                                        ),
-                                      ),
-
-                                      const SizedBox(height: 16),
-
-                                      SizedBox(
-                                        width: double.infinity,
-                                        height: 46,
-                                        child:
-                                        OutlinedButton.icon(
-                                          onPressed: () {
-                                            _openStudyDetail(
-                                              studyDocument.id,
-                                              studyData,
-                                            );
-                                          },
-                                          icon: const Icon(
-                                            Icons
-                                                .arrow_forward_rounded,
-                                            size: 18,
-                                          ),
-                                          label: const Text(
-                                            '상세 보기',
-                                            style: TextStyle(
-                                              fontWeight:
-                                              FontWeight.w600,
-                                            ),
-                                          ),
-                                          style: OutlinedButton
-                                              .styleFrom(
-                                            foregroundColor:
-                                            const Color(
-                                              0xFF6C54C8,
-                                            ),
-                                            side: const BorderSide(
-                                              color: Color(
-                                                0xFF8B8792,
-                                              ),
-                                            ),
-                                            shape:
-                                            RoundedRectangleBorder(
-                                              borderRadius:
-                                              BorderRadius
-                                                  .circular(16),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                              return _buildStudyCard(
+                                visibleStudyList[index],
                               );
                             },
                           ),
@@ -854,19 +691,6 @@ class _StudyListPageState extends State<StudyListPage> {
           ),
         ),
       ),
-
-      // 키보드가 닫혀 있을 때만 하단 메뉴 표시
-      bottomNavigationBar:
-      widget.showBottomBar && !isKeyboardOpen
-          ? AppBottomBar(
-        currentIndex: currentIndex,
-        onTap: (index) {
-          setState(() {
-            currentIndex = index;
-          });
-        },
-      )
-          : null,
     );
   }
 }

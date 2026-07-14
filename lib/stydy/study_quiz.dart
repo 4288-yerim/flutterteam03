@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutterteam03/widgets/app_state_views.dart';
 
 import '../widgets/app_card.dart';
 import '../widgets/app_main_background.dart';
@@ -83,8 +84,8 @@ class StudyQuizPage extends StatelessWidget {
           builder: (context, snapshot) {
             if (snapshot.connectionState ==
                 ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(),
+              return AppLoadingView(
+                message: '발송된 문제를 불러오는 중입니다.',
               );
             }
 
@@ -93,10 +94,9 @@ class StudyQuizPage extends StatelessWidget {
                 '발송된 문제 조회 오류: ${snapshot.error}',
               );
 
-              return const Center(
-                child: Text(
-                  '발송된 문제를 불러오지 못했습니다.',
-                ),
+              return AppErrorView(
+                message: '발송된 문제를 불러오지 못했습니다.',
+                description: '잠시 후 다시 시도해 주세요.',
               );
             }
 
@@ -125,49 +125,9 @@ class StudyQuizPage extends StatelessWidget {
             });
 
             if (quizList.isEmpty) {
-              return Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(30),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 82,
-                        height: 82,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFF0ECFF),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.quiz_outlined,
-                          size: 41,
-                          color: Color(0xFF8068D8),
-                        ),
-                      ),
-
-                      const SizedBox(height: 18),
-
-                      const Text(
-                        '발송된 문제가 없습니다.',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      const Text(
-                        '스터디에 문제가 발송되면\n이곳에서 확인하고 풀 수 있어요.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          height: 1.5,
-                          color: Color(0xFF858994),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              return AppEmptyView(
+                message: '발송된 문제가 없습니다.',
+                description: '새로운 문제가 발송되면 이곳에 표시됩니다.',
               );
             }
 
