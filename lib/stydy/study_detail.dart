@@ -3,15 +3,39 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import 'package:flutterteam03/widgets/app_state_views.dart';
 
 import '../widgets/app_card.dart';
+import '../widgets/app_button.dart';
 import '../widgets/app_main_background.dart';
+import '../widgets/app_top_bar.dart';
 import 'study_chat.dart';
 import 'study_edit.dart';
 import 'study_quiz.dart';
 import 'study_room.dart';
 import 'study_timer.dart';
+
+
+Brightness get _studyBrightness {
+  return WidgetsBinding.instance.platformDispatcher.platformBrightness;
+}
+
+AppColors get _studyColors {
+  if (_studyBrightness == Brightness.dark) {
+    return AppColors.dark;
+  }
+
+  return AppColors.light;
+}
+
+ColorScheme get _studyColorScheme {
+  if (_studyBrightness == Brightness.dark) {
+    return darkTheme.colorScheme;
+  }
+
+  return lightTheme.colorScheme;
+}
 
 class StudyDetailPage extends StatelessWidget {
   final String studyId;
@@ -269,7 +293,7 @@ class StudyDetailPage extends StatelessWidget {
         // 초대 유효기간 7일
         'expiredAt': Timestamp.fromDate(
           DateTime.now().add(
-            const Duration(days: 7),
+            Duration(days: 7),
           ),
         ),
       },
@@ -513,12 +537,12 @@ class StudyDetailPage extends StatelessWidget {
                 borderRadius:
                 BorderRadius.circular(22),
               ),
-              title: const Row(
+              title: Row(
                 children: [
                   Icon(
                     Icons
                         .person_remove_outlined,
-                    color: Colors.red,
+                    color: _studyColorScheme.error,
                   ),
                   SizedBox(width: 10),
                   Text('그룹원 추방'),
@@ -527,7 +551,7 @@ class StudyDetailPage extends StatelessWidget {
               content: Text(
                 '$nickname 님을 스터디에서 추방하시겠습니까?\n\n'
                     '추방된 사용자는 이 스터디에 참여할 수 없습니다.',
-                style: const TextStyle(
+                style: TextStyle(
                   height: 1.5,
                 ),
               ),
@@ -540,7 +564,7 @@ class StudyDetailPage extends StatelessWidget {
                       dialogContext,
                     );
                   },
-                  child: const Text('취소'),
+                  child: Text('취소'),
                 ),
                 ElevatedButton(
                   onPressed: isProcessing
@@ -548,20 +572,20 @@ class StudyDetailPage extends StatelessWidget {
                       : kickMember,
                   style:
                   ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
+                    backgroundColor: _studyColorScheme.error,
+                    foregroundColor: _studyColorScheme.onPrimary,
                   ),
                   child: isProcessing
-                      ? const SizedBox(
+                      ? SizedBox(
                     width: 18,
                     height: 18,
                     child:
                     CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Colors.white,
+                      color: _studyColorScheme.onPrimary,
                     ),
                   )
-                      : const Text('추방'),
+                      : Text('추방'),
                 ),
               ],
             );
@@ -750,7 +774,7 @@ class StudyDetailPage extends StatelessWidget {
         return Container(
           height: MediaQuery.of(context).size.height * 0.75,
           decoration: BoxDecoration(
-            color: Color(0xFFFAF9FD),
+            color: _studyColorScheme.surface,
             borderRadius: BorderRadius.vertical(
               top: Radius.circular(26),
             ),
@@ -763,7 +787,7 @@ class StudyDetailPage extends StatelessWidget {
                 width: 42,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: Color(0xFFD8D5DE),
+                  color: _studyColorScheme.outlineVariant,
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -781,12 +805,12 @@ class StudyDetailPage extends StatelessWidget {
                       width: 46,
                       height: 46,
                       decoration: BoxDecoration(
-                        color: Color(0xFFF0ECFF),
+                        color: _studyColors.lavender,
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Icon(
                         Icons.how_to_reg_outlined,
-                        color: Color(0xFF8068D8),
+                        color: _studyColors.pinkStart,
                       ),
                     ),
 
@@ -808,7 +832,7 @@ class StudyDetailPage extends StatelessWidget {
                             '참여 신청을 승인하거나 거절합니다.',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF858994),
+                              color: _studyColors.textSecondary,
                             ),
                           ),
                         ],
@@ -907,19 +931,19 @@ class StudyDetailPage extends StatelessWidget {
                           margin: EdgeInsets.only(bottom: 12),
                           padding: EdgeInsets.all(15),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: _studyColorScheme.surface,
                             borderRadius: BorderRadius.circular(18),
                             border: Border.all(
-                              color: Color(0xFFECEAF0),
+                              color: _studyColorScheme.outlineVariant,
                             ),
                           ),
                           child: Row(
                             children: [
                               CircleAvatar(
-                                backgroundColor: Color(0xFFF0ECFF),
+                                backgroundColor: _studyColors.lavender,
                                 child: Icon(
                                   Icons.person_outline,
-                                  color: Color(0xFF8068D8),
+                                  color: _studyColors.pinkStart,
                                 ),
                               ),
 
@@ -942,7 +966,7 @@ class StudyDetailPage extends StatelessWidget {
                                       '참여 승인 대기 중',
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: Color(0xFF858994),
+                                        color: _studyColors.textSecondary,
                                       ),
                                     ),
                                   ],
@@ -969,8 +993,8 @@ class StudyDetailPage extends StatelessWidget {
                                   );
                                 },
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Color(0xFF8068D8),
-                                  foregroundColor: Colors.white,
+                                  backgroundColor: _studyColors.pinkStart,
+                                  foregroundColor: _studyColorScheme.onPrimary,
                                 ),
                                 child: Text('승인'),
                               ),
@@ -1068,7 +1092,7 @@ class StudyDetailPage extends StatelessWidget {
         return Container(
           height: MediaQuery.of(context).size.height * 0.72,
           decoration: BoxDecoration(
-            color: Color(0xFFFAF9FD),
+            color: _studyColorScheme.surface,
             borderRadius: BorderRadius.vertical(
               top: Radius.circular(26),
             ),
@@ -1081,7 +1105,7 @@ class StudyDetailPage extends StatelessWidget {
                 width: 42,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: Color(0xFFD8D5DE),
+                  color: _studyColorScheme.outlineVariant,
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -1094,12 +1118,12 @@ class StudyDetailPage extends StatelessWidget {
                       width: 46,
                       height: 46,
                       decoration: BoxDecoration(
-                        color: Color(0xFFF0ECFF),
+                        color: _studyColors.lavender,
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Icon(
                         Icons.groups_outlined,
-                        color: Color(0xFF8068D8),
+                        color: _studyColors.pinkStart,
                       ),
                     ),
 
@@ -1121,7 +1145,7 @@ class StudyDetailPage extends StatelessWidget {
                             '현재 활동 중인 그룹원을 확인합니다.',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF858994),
+                              color: _studyColors.textSecondary,
                             ),
                           ),
                         ],
@@ -1255,10 +1279,10 @@ class StudyDetailPage extends StatelessWidget {
                           margin: EdgeInsets.only(bottom: 11),
                           padding: EdgeInsets.all(15),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: _studyColorScheme.surface,
                             borderRadius: BorderRadius.circular(18),
                             border: Border.all(
-                              color: Color(0xFFECEAF0),
+                              color: _studyColorScheme.outlineVariant,
                             ),
                           ),
                           child: Row(
@@ -1268,7 +1292,7 @@ class StudyDetailPage extends StatelessWidget {
                                 height: 46,
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
-                                  color: Color(0xFFF0ECFF),
+                                  color: _studyColors.lavender,
                                   shape: BoxShape.circle,
                                 ),
                                 child: Text(
@@ -1276,7 +1300,7 @@ class StudyDetailPage extends StatelessWidget {
                                   style: TextStyle(
                                     fontSize: 17,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFF6F58C9),
+                                    color: _studyColors.pinkStart,
                                   ),
                                 ),
                               ),
@@ -1310,7 +1334,7 @@ class StudyDetailPage extends StatelessWidget {
                                               vertical: 3,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: Color(0xFFFFE7EE),
+                                              color: _studyColors.pinkSoft,
                                               borderRadius:
                                               BorderRadius.circular(11),
                                             ),
@@ -1318,7 +1342,7 @@ class StudyDetailPage extends StatelessWidget {
                                               '방장',
                                               style: TextStyle(
                                                 fontSize: 10,
-                                                color: Color(0xFFD85F82),
+                                                color: _studyColors.pinkStart,
                                                 fontWeight: FontWeight.w600,
                                               ),
                                             ),
@@ -1334,7 +1358,7 @@ class StudyDetailPage extends StatelessWidget {
                                           '${_formatStudyTime(totalStudyMinutes)}',
                                       style: TextStyle(
                                         fontSize: 11,
-                                        color: Color(0xFF92969F),
+                                        color: _studyColors.textSecondary,
                                       ),
                                     ),
                                   ],
@@ -1389,8 +1413,8 @@ class StudyDetailPage extends StatelessWidget {
               scrollController,
               ) {
             return Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFFFAF9FD),
+              decoration: BoxDecoration(
+                color: _studyColorScheme.surface,
                 borderRadius:
                 BorderRadius.vertical(
                   top: Radius.circular(26),
@@ -1398,15 +1422,13 @@ class StudyDetailPage extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  const SizedBox(height: 11),
+                  SizedBox(height: 11),
 
                   Container(
                     width: 42,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: const Color(
-                        0xFFD8D5DE,
-                      ),
+                      color: _studyColorScheme.outlineVariant,
                       borderRadius:
                       BorderRadius.circular(10),
                     ),
@@ -1414,7 +1436,7 @@ class StudyDetailPage extends StatelessWidget {
 
                   Padding(
                     padding:
-                    const EdgeInsets.fromLTRB(
+                    EdgeInsets.fromLTRB(
                       20,
                       18,
                       12,
@@ -1426,26 +1448,22 @@ class StudyDetailPage extends StatelessWidget {
                           width: 46,
                           height: 46,
                           decoration: BoxDecoration(
-                            color: const Color(
-                              0xFFF0ECFF,
-                            ),
+                            color: _studyColors.lavender,
                             borderRadius:
                             BorderRadius.circular(
                               14,
                             ),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons
                                 .manage_accounts_outlined,
-                            color: Color(
-                              0xFF8068D8,
-                            ),
+                            color: _studyColors.pinkStart,
                           ),
                         ),
 
-                        const SizedBox(width: 13),
+                        SizedBox(width: 13),
 
-                        const Expanded(
+                        Expanded(
                           child: Column(
                             crossAxisAlignment:
                             CrossAxisAlignment
@@ -1464,9 +1482,7 @@ class StudyDetailPage extends StatelessWidget {
                                 '활동 중인 그룹원을 확인하고 관리합니다.',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Color(
-                                    0xFF858994,
-                                  ),
+                                  color: _studyColors.textSecondary,
                                 ),
                               ),
                             ],
@@ -1479,7 +1495,7 @@ class StudyDetailPage extends StatelessWidget {
                               bottomSheetContext,
                             );
                           },
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.close_rounded,
                           ),
                         ),
@@ -1487,7 +1503,7 @@ class StudyDetailPage extends StatelessWidget {
                     ),
                   ),
 
-                  const Divider(height: 1),
+                  Divider(height: 1),
 
                   Expanded(
                     child: StreamBuilder<
@@ -1507,7 +1523,7 @@ class StudyDetailPage extends StatelessWidget {
                             .connectionState ==
                             ConnectionState
                                 .waiting) {
-                          return const Center(
+                          return Center(
                             child:
                             CircularProgressIndicator(),
                           );
@@ -1519,7 +1535,7 @@ class StudyDetailPage extends StatelessWidget {
                                 '${snapshot.error}',
                           );
 
-                          return const Center(
+                          return Center(
                             child: Text(
                               '그룹원 목록을 불러오지 못했습니다.',
                             ),
@@ -1584,7 +1600,7 @@ class StudyDetailPage extends StatelessWidget {
                         );
 
                         if (memberList.isEmpty) {
-                          return const Center(
+                          return Center(
                             child: Text(
                               '등록된 그룹원이 없습니다.',
                             ),
@@ -1595,7 +1611,7 @@ class StudyDetailPage extends StatelessWidget {
                           controller:
                           scrollController,
                           padding:
-                          const EdgeInsets.fromLTRB(
+                          EdgeInsets.fromLTRB(
                             18,
                             16,
                             18,
@@ -1632,23 +1648,21 @@ class StudyDetailPage extends StatelessWidget {
 
                             return Container(
                               margin:
-                              const EdgeInsets.only(
+                              EdgeInsets.only(
                                 bottom: 11,
                               ),
                               padding:
-                              const EdgeInsets.all(
+                              EdgeInsets.all(
                                 15,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: _studyColorScheme.surface,
                                 borderRadius:
                                 BorderRadius.circular(
                                   18,
                                 ),
                                 border: Border.all(
-                                  color: const Color(
-                                    0xFFECEAF0,
-                                  ),
+                                  color: _studyColorScheme.outlineVariant,
                                 ),
                               ),
                               child: Row(
@@ -1659,10 +1673,8 @@ class StudyDetailPage extends StatelessWidget {
                                     alignment:
                                     Alignment.center,
                                     decoration:
-                                    const BoxDecoration(
-                                      color: Color(
-                                        0xFFF0ECFF,
-                                      ),
+                                    BoxDecoration(
+                                      color: _studyColors.lavender,
                                       shape:
                                       BoxShape.circle,
                                     ),
@@ -1672,19 +1684,17 @@ class StudyDetailPage extends StatelessWidget {
                                           .toUpperCase()
                                           : '?',
                                       style:
-                                      const TextStyle(
+                                      TextStyle(
                                         fontSize: 17,
                                         fontWeight:
                                         FontWeight
                                             .bold,
-                                        color: Color(
-                                          0xFF6F58C9,
-                                        ),
+                                        color: _studyColors.pinkStart,
                                       ),
                                     ),
                                   ),
 
-                                  const SizedBox(
+                                  SizedBox(
                                     width: 13,
                                   ),
 
@@ -1703,7 +1713,7 @@ class StudyDetailPage extends StatelessWidget {
                                                 TextOverflow
                                                     .ellipsis,
                                                 style:
-                                                const TextStyle(
+                                                TextStyle(
                                                   fontSize:
                                                   15,
                                                   fontWeight:
@@ -1714,12 +1724,12 @@ class StudyDetailPage extends StatelessWidget {
                                             ),
 
                                             if (isOwner) ...[
-                                              const SizedBox(
+                                              SizedBox(
                                                 width: 7,
                                               ),
                                               Container(
                                                 padding:
-                                                const EdgeInsets
+                                                EdgeInsets
                                                     .symmetric(
                                                   horizontal:
                                                   8,
@@ -1729,9 +1739,7 @@ class StudyDetailPage extends StatelessWidget {
                                                 decoration:
                                                 BoxDecoration(
                                                   color:
-                                                  const Color(
-                                                    0xFFFFE7EE,
-                                                  ),
+                                                  _studyColors.pinkSoft,
                                                   borderRadius:
                                                   BorderRadius
                                                       .circular(
@@ -1739,16 +1747,14 @@ class StudyDetailPage extends StatelessWidget {
                                                   ),
                                                 ),
                                                 child:
-                                                const Text(
+                                                Text(
                                                   '방장',
                                                   style:
                                                   TextStyle(
                                                     fontSize:
                                                     10,
                                                     color:
-                                                    Color(
-                                                      0xFFD85F82,
-                                                    ),
+                                                    _studyColors.pinkStart,
                                                     fontWeight:
                                                     FontWeight
                                                         .w600,
@@ -1759,7 +1765,7 @@ class StudyDetailPage extends StatelessWidget {
                                           ],
                                         ),
 
-                                        const SizedBox(
+                                        SizedBox(
                                           height: 5,
                                         ),
 
@@ -1767,11 +1773,9 @@ class StudyDetailPage extends StatelessWidget {
                                           '누적 공부시간 '
                                               '${_formatStudyTime(totalStudyMinutes)}',
                                           style:
-                                          const TextStyle(
+                                          TextStyle(
                                             fontSize: 11,
-                                            color: Color(
-                                              0xFF92969F,
-                                            ),
+                                            color: _studyColors.textSecondary,
                                           ),
                                         ),
                                       ],
@@ -1795,21 +1799,19 @@ class StudyDetailPage extends StatelessWidget {
                                       OutlinedButton
                                           .styleFrom(
                                         foregroundColor:
-                                        Colors.red,
+                                        _studyColorScheme.error,
                                         side:
-                                        const BorderSide(
-                                          color: Color(
-                                            0xFFE99AA4,
-                                          ),
+                                        BorderSide(
+                                          color: _studyColorScheme.secondaryContainer,
                                         ),
                                         minimumSize:
-                                        const Size(
+                                        Size(
                                           64,
                                           38,
                                         ),
                                       ),
                                       child:
-                                      const Text(
+                                      Text(
                                         '추방',
                                       ),
                                     ),
@@ -1864,8 +1866,8 @@ class StudyDetailPage extends StatelessWidget {
               scrollController,
               ) {
             return Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFFFAF9FD),
+              decoration: BoxDecoration(
+                color: _studyColorScheme.surface,
                 borderRadius:
                 BorderRadius.vertical(
                   top: Radius.circular(26),
@@ -1873,15 +1875,13 @@ class StudyDetailPage extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  const SizedBox(height: 11),
+                  SizedBox(height: 11),
 
                   Container(
                     width: 42,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: const Color(
-                        0xFFD8D5DE,
-                      ),
+                      color: _studyColorScheme.outlineVariant,
                       borderRadius:
                       BorderRadius.circular(10),
                     ),
@@ -1889,7 +1889,7 @@ class StudyDetailPage extends StatelessWidget {
 
                   Padding(
                     padding:
-                    const EdgeInsets.fromLTRB(
+                    EdgeInsets.fromLTRB(
                       20,
                       18,
                       12,
@@ -1901,26 +1901,22 @@ class StudyDetailPage extends StatelessWidget {
                           width: 46,
                           height: 46,
                           decoration: BoxDecoration(
-                            color: const Color(
-                              0xFFF0ECFF,
-                            ),
+                            color: _studyColors.lavender,
                             borderRadius:
                             BorderRadius.circular(
                               14,
                             ),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons
                                 .emoji_events_outlined,
-                            color: Color(
-                              0xFF8068D8,
-                            ),
+                            color: _studyColors.pinkStart,
                           ),
                         ),
 
-                        const SizedBox(width: 13),
+                        SizedBox(width: 13),
 
-                        const Expanded(
+                        Expanded(
                           child: Column(
                             crossAxisAlignment:
                             CrossAxisAlignment
@@ -1939,9 +1935,7 @@ class StudyDetailPage extends StatelessWidget {
                                 '전체 누적 공부시간 기준',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Color(
-                                    0xFF858994,
-                                  ),
+                                  color: _studyColors.textSecondary,
                                 ),
                               ),
                             ],
@@ -1954,7 +1948,7 @@ class StudyDetailPage extends StatelessWidget {
                               bottomSheetContext,
                             );
                           },
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.close_rounded,
                           ),
                         ),
@@ -1962,7 +1956,7 @@ class StudyDetailPage extends StatelessWidget {
                     ),
                   ),
 
-                  const Divider(height: 1),
+                  Divider(height: 1),
 
                   Expanded(
                     child: StreamBuilder<
@@ -1982,14 +1976,14 @@ class StudyDetailPage extends StatelessWidget {
                             .connectionState ==
                             ConnectionState
                                 .waiting) {
-                          return const Center(
+                          return Center(
                             child:
                             CircularProgressIndicator(),
                           );
                         }
 
                         if (snapshot.hasError) {
-                          return const Center(
+                          return Center(
                             child: Text(
                               '공부시간 순위를 불러오지 못했습니다.',
                             ),
@@ -2035,7 +2029,7 @@ class StudyDetailPage extends StatelessWidget {
                         );
 
                         if (memberList.isEmpty) {
-                          return const Center(
+                          return Center(
                             child: Text(
                               '표시할 공부시간이 없습니다.',
                             ),
@@ -2046,7 +2040,7 @@ class StudyDetailPage extends StatelessWidget {
                           controller:
                           scrollController,
                           padding:
-                          const EdgeInsets.fromLTRB(
+                          EdgeInsets.fromLTRB(
                             18,
                             16,
                             18,
@@ -2112,40 +2106,40 @@ class StudyDetailPage extends StatelessWidget {
 
     if (rank == 1) {
       rankBackgroundColor =
-      const Color(0xFFFFF3CF);
+          _studyColorScheme.secondary;
       rankTextColor =
-      const Color(0xFFC58B18);
+          _studyColorScheme.secondary;
     } else if (rank == 2) {
       rankBackgroundColor =
-      const Color(0xFFF0F1F4);
+          _studyColorScheme.surface;
       rankTextColor =
-      const Color(0xFF7D838E);
+          _studyColors.textSecondary;
     } else if (rank == 3) {
       rankBackgroundColor =
-      const Color(0xFFF8E7DC);
+          _studyColorScheme.secondary;
       rankTextColor =
-      const Color(0xFFB8754C);
+          _studyColorScheme.secondary;
     } else {
       rankBackgroundColor =
-      const Color(0xFFF0ECFF);
+          _studyColors.lavender;
       rankTextColor =
-      const Color(0xFF6F58C9);
+          _studyColors.pinkStart;
     }
 
     return Container(
       margin:
-      const EdgeInsets.only(bottom: 11),
-      padding: const EdgeInsets.all(15),
+      EdgeInsets.only(bottom: 11),
+      padding: EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: isCurrentUser
-            ? const Color(0xFFF6F2FF)
-            : Colors.white,
+            ? _studyColors.lavender
+            : _studyColorScheme.surface,
         borderRadius:
         BorderRadius.circular(18),
         border: Border.all(
           color: isCurrentUser
-              ? const Color(0xFFB7A8EF)
-              : const Color(0xFFECEAF0),
+              ? _studyColors.pinkStart
+              : _studyColorScheme.outlineVariant,
         ),
       ),
       child: Row(
@@ -2175,7 +2169,7 @@ class StudyDetailPage extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(width: 13),
+          SizedBox(width: 13),
 
           Expanded(
             child: Column(
@@ -2190,7 +2184,7 @@ class StudyDetailPage extends StatelessWidget {
                         overflow:
                         TextOverflow.ellipsis,
                         style:
-                        const TextStyle(
+                        TextStyle(
                           fontSize: 15,
                           fontWeight:
                           FontWeight.bold,
@@ -2199,64 +2193,52 @@ class StudyDetailPage extends StatelessWidget {
                     ),
 
                     if (role == 'OWNER') ...[
-                      const SizedBox(width: 7),
+                      SizedBox(width: 7),
                       _buildMiniBadge(
                         text: '방장',
                         backgroundColor:
-                        const Color(
-                          0xFFFFE7EE,
-                        ),
+                        _studyColors.pinkSoft,
                         textColor:
-                        const Color(
-                          0xFFD85F82,
-                        ),
+                        _studyColors.pinkStart,
                       ),
                     ],
 
                     if (isCurrentUser) ...[
-                      const SizedBox(width: 7),
+                      SizedBox(width: 7),
                       _buildMiniBadge(
                         text: '나',
                         backgroundColor:
-                        const Color(
-                          0xFFE9E4FF,
-                        ),
+                        _studyColors.lavender,
                         textColor:
-                        const Color(
-                          0xFF6F58C9,
-                        ),
+                        _studyColors.pinkStart,
                       ),
                     ],
                   ],
                 ),
 
-                const SizedBox(height: 5),
+                SizedBox(height: 5),
 
-                const Text(
+                Text(
                   '누적 공부시간',
                   style: TextStyle(
                     fontSize: 11,
-                    color: Color(
-                      0xFF92969F,
-                    ),
+                    color: _studyColors.textSecondary,
                   ),
                 ),
               ],
             ),
           ),
 
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
 
           Text(
             _formatStudyTime(
               totalStudyMinutes,
             ),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: Color(
-                0xFF6C54C8,
-              ),
+              color: _studyColors.pinkStart,
             ),
           ),
         ],
@@ -2271,7 +2253,7 @@ class StudyDetailPage extends StatelessWidget {
     required Color textColor,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
         horizontal: 8,
         vertical: 3,
       ),
@@ -2518,6 +2500,7 @@ class StudyDetailPage extends StatelessWidget {
 
     if (currentUser == null) {
       return AppCard(
+        backgroundColor: _studyColorScheme.surface,
         child: Text(
           '로그인 후 스터디에 참여할 수 있습니다.',
         ),
@@ -2590,11 +2573,12 @@ class StudyDetailPage extends StatelessWidget {
 
         if (memberStatus == 'ACTIVE') {
           return AppCard(
+            backgroundColor: _studyColorScheme.surface,
             child: Row(
               children: [
                 Icon(
                   Icons.check_circle_outline,
-                  color: Color(0xFF3F9C72),
+                  color: _studyColorScheme.tertiary,
                 ),
                 SizedBox(width: 10),
                 Text(
@@ -2610,11 +2594,12 @@ class StudyDetailPage extends StatelessWidget {
 
         if (memberStatus == 'PENDING') {
           return AppCard(
+            backgroundColor: _studyColorScheme.surface,
             child: Row(
               children: [
                 Icon(
                   Icons.schedule_outlined,
-                  color: Color(0xFFC58B18),
+                  color: _studyColorScheme.secondary,
                 ),
                 SizedBox(width: 10),
                 Text(
@@ -2630,11 +2615,12 @@ class StudyDetailPage extends StatelessWidget {
 
         if (memberStatus == 'BANNED') {
           return AppCard(
+            backgroundColor: _studyColorScheme.surface,
             child: Row(
               children: [
                 Icon(
                   Icons.block,
-                  color: Colors.red,
+                  color: _studyColorScheme.error,
                 ),
                 SizedBox(width: 10),
                 Text(
@@ -2650,12 +2636,13 @@ class StudyDetailPage extends StatelessWidget {
 
         if (_isRecruiting(currentStudyData) == false) {
           return AppCard(
+            backgroundColor: _studyColorScheme.surface,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(
                   Icons.lock_outline_rounded,
-                  color: Color(0xFF858994),
+                  color: _studyColors.textSecondary,
                 ),
                 SizedBox(width: 10),
                 Expanded(
@@ -2674,7 +2661,7 @@ class StudyDetailPage extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12,
                           height: 1.4,
-                          color: Color(0xFF858994),
+                          color: _studyColors.textSecondary,
                         ),
                       ),
                     ],
@@ -2699,30 +2686,16 @@ class StudyDetailPage extends StatelessWidget {
           buttonText = '참여 신청하기';
         }
 
-        return SizedBox(
-          width: double.infinity,
+        return AppButton(
+          text: buttonText,
+          type: AppButtonType.primaryPink,
           height: 50,
-          child: ElevatedButton(
-            onPressed: () {
-              _joinStudy(
-                context,
-                currentStudyData,
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF8068D8),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-            child: Text(
-              buttonText,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
+          onPressed: () {
+            _joinStudy(
+              context,
+              currentStudyData,
+            );
+          },
         );
       },
     );
@@ -2743,38 +2716,23 @@ class StudyDetailPage extends StatelessWidget {
     String groupName =
         currentStudyData['groupName']?.toString() ?? '스터디';
 
-    Widget roomButton = SizedBox(
-      width: double.infinity,
+    Widget roomButton = AppButton(
+      text: '스터디방 들어가기',
+      type: AppButtonType.primaryPink,
       height: 52,
-      child: ElevatedButton.icon(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) {
-                return StudyRoomPage(
-                  studyId: studyId,
-                  groupName: groupName,
-                );
-              },
-            ),
-          );
-        },
-        icon: Icon(Icons.meeting_room_outlined),
-        label: Text(
-          '스터디방 들어가기',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) {
+              return StudyRoomPage(
+                studyId: studyId,
+                groupName: groupName,
+              );
+            },
           ),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Color(0xFF8068D8),
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
-      ),
+        );
+      },
     );
 
     if (_isOwner(currentStudyData)) {
@@ -3080,14 +3038,12 @@ class StudyDetailPage extends StatelessWidget {
                 borderRadius:
                 BorderRadius.circular(22),
               ),
-              title: const Row(
+              title: Row(
                 children: [
                   Icon(
                     Icons
                         .person_add_alt_outlined,
-                    color: Color(
-                      0xFF8068D8,
-                    ),
+                    color: _studyColors.pinkStart,
                   ),
                   SizedBox(width: 10),
                   Text('그룹원 초대'),
@@ -3099,18 +3055,16 @@ class StudyDetailPage extends StatelessWidget {
                 crossAxisAlignment:
                 CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     '초대할 사용자의 아이디 또는 이메일을 입력해주세요.',
                     style: TextStyle(
                       fontSize: 13,
                       height: 1.5,
-                      color: Color(
-                        0xFF777C86,
-                      ),
+                      color: _studyColors.textSecondary,
                     ),
                   ),
 
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
 
                   TextField(
                     controller:
@@ -3132,7 +3086,7 @@ class StudyDetailPage extends StatelessWidget {
                       '예: user01 또는 user@email.com',
                       errorText: inputError,
                       prefixIcon:
-                      const Icon(
+                      Icon(
                         Icons
                             .alternate_email_rounded,
                       ),
@@ -3156,7 +3110,7 @@ class StudyDetailPage extends StatelessWidget {
                       dialogContext,
                     );
                   },
-                  child: const Text('취소'),
+                  child: Text('취소'),
                 ),
                 ElevatedButton(
                   onPressed: isSending
@@ -3165,23 +3119,21 @@ class StudyDetailPage extends StatelessWidget {
                   style:
                   ElevatedButton.styleFrom(
                     backgroundColor:
-                    const Color(
-                      0xFF8068D8,
-                    ),
+                    _studyColors.pinkStart,
                     foregroundColor:
-                    Colors.white,
+                    _studyColorScheme.surface,
                   ),
                   child: isSending
-                      ? const SizedBox(
+                      ? SizedBox(
                     width: 18,
                     height: 18,
                     child:
                     CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Colors.white,
+                      color: _studyColorScheme.onPrimary,
                     ),
                   )
-                      : const Text('초대 보내기'),
+                      : Text('초대 보내기'),
                 ),
               ],
             );
@@ -3349,11 +3301,11 @@ class StudyDetailPage extends StatelessWidget {
                 borderRadius:
                 BorderRadius.circular(22),
               ),
-              title: const Row(
+              title: Row(
                 children: [
                   Icon(
                     Icons.delete_outline,
-                    color: Colors.red,
+                    color: _studyColorScheme.error,
                   ),
                   SizedBox(width: 10),
                   Text('스터디 삭제'),
@@ -3363,7 +3315,7 @@ class StudyDetailPage extends StatelessWidget {
                 '"$groupName" 스터디를 정말 삭제하시겠습니까?\n\n'
                     '그룹원, 채팅, 문제, 초대 정보도 함께 삭제되며 '
                     '삭제한 후에는 복구할 수 없습니다.',
-                style: const TextStyle(
+                style: TextStyle(
                   height: 1.5,
                 ),
               ),
@@ -3376,7 +3328,7 @@ class StudyDetailPage extends StatelessWidget {
                       dialogContext,
                     );
                   },
-                  child: const Text('취소'),
+                  child: Text('취소'),
                 ),
                 ElevatedButton(
                   onPressed: isDeleting
@@ -3384,20 +3336,20 @@ class StudyDetailPage extends StatelessWidget {
                       : deleteStudy,
                   style:
                   ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
+                    backgroundColor: _studyColorScheme.error,
+                    foregroundColor: _studyColorScheme.onPrimary,
                   ),
                   child: isDeleting
-                      ? const SizedBox(
+                      ? SizedBox(
                     width: 18,
                     height: 18,
                     child:
                     CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Colors.white,
+                      color: _studyColorScheme.onPrimary,
                     ),
                   )
-                      : const Text('삭제'),
+                      : Text('삭제'),
                 ),
               ],
             );
@@ -3644,7 +3596,7 @@ class StudyDetailPage extends StatelessWidget {
                             '$detailLength/300',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF858994),
+                              color: _studyColors.textSecondary,
                             ),
                           ),
                         ),
@@ -3942,7 +3894,7 @@ class StudyDetailPage extends StatelessWidget {
                     }
                   },
                   style: TextButton.styleFrom(
-                    foregroundColor: Colors.red,
+                    foregroundColor: _studyColorScheme.error,
                   ),
                   child: isLeaving
                       ? SizedBox(
@@ -3970,7 +3922,7 @@ class StudyDetailPage extends StatelessWidget {
       ) {
     return Container(
       padding:
-      const EdgeInsets.symmetric(
+      EdgeInsets.symmetric(
         horizontal: 10,
         vertical: 6,
       ),
@@ -3998,7 +3950,7 @@ class StudyDetailPage extends StatelessWidget {
       ) {
     return Padding(
       padding:
-      const EdgeInsets.only(
+      EdgeInsets.only(
         bottom: 14,
       ),
       child: Row(
@@ -4008,21 +3960,17 @@ class StudyDetailPage extends StatelessWidget {
           Icon(
             icon,
             size: 20,
-            color: const Color(
-              0xFF8A8F99,
-            ),
+            color: _studyColorScheme.secondaryContainer,
           ),
 
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
 
           SizedBox(
             width: 78,
             child: Text(
               title,
-              style: const TextStyle(
-                color: Color(
-                  0xFF777C86,
-                ),
+              style: TextStyle(
+                color: _studyColors.textSecondary,
               ),
             ),
           ),
@@ -4030,7 +3978,7 @@ class StudyDetailPage extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight:
                 FontWeight.w600,
               ),
@@ -4052,6 +4000,7 @@ class StudyDetailPage extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: AppCard(
+        backgroundColor: _studyColorScheme.surface,
         child: Row(
           children: [
             Container(
@@ -4059,9 +4008,7 @@ class StudyDetailPage extends StatelessWidget {
               height: 48,
               decoration:
               BoxDecoration(
-                color: const Color(
-                  0xFFF0ECFF,
-                ),
+                color: _studyColors.lavender,
                 borderRadius:
                 BorderRadius.circular(
                   14,
@@ -4069,13 +4016,11 @@ class StudyDetailPage extends StatelessWidget {
               ),
               child: Icon(
                 icon,
-                color: const Color(
-                  0xFF8068D8,
-                ),
+                color: _studyColors.pinkStart,
               ),
             ),
 
-            const SizedBox(width: 14),
+            SizedBox(width: 14),
 
             Expanded(
               child: Column(
@@ -4085,34 +4030,30 @@ class StudyDetailPage extends StatelessWidget {
                   Text(
                     title,
                     style:
-                    const TextStyle(
+                    TextStyle(
                       fontSize: 15,
                       fontWeight:
                       FontWeight.bold,
                     ),
                   ),
 
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
 
                   Text(
                     description,
                     style:
-                    const TextStyle(
+                    TextStyle(
                       fontSize: 12,
-                      color: Color(
-                        0xFF7B7F89,
-                      ),
+                      color: _studyColors.textSecondary,
                     ),
                   ),
                 ],
               ),
             ),
 
-            const Icon(
+            Icon(
               Icons.chevron_right,
-              color: Color(
-                0xFF999DA6,
-              ),
+              color: _studyColors.textSecondary,
             ),
           ],
         ),
@@ -4159,10 +4100,8 @@ class StudyDetailPage extends StatelessWidget {
         if (snapshot.connectionState == ConnectionState.waiting &&
             snapshot.hasData == false) {
           return Scaffold(
-            appBar: AppBar(
-              title: Text('스터디 상세'),
-              backgroundColor: Colors.white,
-              surfaceTintColor: Colors.white,
+            appBar: AppTopBar(
+              title: '스터디 상세',
             ),
             body: AppLoadingView(
               message: '스터디 정보를 불러오는 중입니다.',
@@ -4177,10 +4116,8 @@ class StudyDetailPage extends StatelessWidget {
 
           if (_isNetworkError(snapshot.error)) {
             return Scaffold(
-              appBar: AppBar(
-                title: Text('스터디 상세'),
-                backgroundColor: Colors.white,
-                surfaceTintColor: Colors.white,
+              appBar: AppTopBar(
+                title: '스터디 상세',
               ),
               body: AppNetworkErrorView(
                 message: '인터넷 연결을 확인해 주세요.',
@@ -4195,10 +4132,8 @@ class StudyDetailPage extends StatelessWidget {
           }
 
           return Scaffold(
-            appBar: AppBar(
-              title: Text('스터디 상세'),
-              backgroundColor: Colors.white,
-              surfaceTintColor: Colors.white,
+            appBar: AppTopBar(
+              title: '스터디 상세',
             ),
             body: AppErrorView(
               message: '스터디 정보를 불러오지 못했습니다.',
@@ -4214,10 +4149,8 @@ class StudyDetailPage extends StatelessWidget {
         if (snapshot.data == null ||
             snapshot.data!.exists == false) {
           return Scaffold(
-            appBar: AppBar(
-              title: Text('스터디 상세'),
-              backgroundColor: Colors.white,
-              surfaceTintColor: Colors.white,
+            appBar: AppTopBar(
+              title: '스터디 상세',
             ),
             body: AppErrorView(
               message: '존재하지 않는 스터디입니다.',
@@ -4269,10 +4202,8 @@ class StudyDetailPage extends StatelessWidget {
         User? currentUser = FirebaseAuth.instance.currentUser;
 
         return Scaffold(
-          appBar: AppBar(
-            title: Text('스터디 상세'),
-            backgroundColor: Colors.white,
-            surfaceTintColor: Colors.white,
+          appBar: AppTopBar(
+            title: '스터디 상세',
             actions: [
               if (isOwner)
                 PopupMenuButton<String>(
@@ -4380,13 +4311,13 @@ class StudyDetailPage extends StatelessWidget {
                             Icon(
                               Icons.delete_outline,
                               size: 20,
-                              color: Colors.red,
+                              color: _studyColorScheme.error,
                             ),
                             SizedBox(width: 10),
                             Text(
                               '스터디 삭제',
                               style: TextStyle(
-                                color: Colors.red,
+                                color: _studyColorScheme.error,
                               ),
                             ),
                           ],
@@ -4454,13 +4385,13 @@ class StudyDetailPage extends StatelessWidget {
                                 Icon(
                                   Icons.logout,
                                   size: 20,
-                                  color: Colors.red,
+                                  color: _studyColorScheme.error,
                                 ),
                                 SizedBox(width: 10),
                                 Text(
                                   '스터디 나가기',
                                   style: TextStyle(
-                                    color: Colors.red,
+                                    color: _studyColorScheme.error,
                                   ),
                                 ),
                               ],
@@ -4486,6 +4417,7 @@ class StudyDetailPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   AppCard(
+                    backgroundColor: _studyColorScheme.surface,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -4495,28 +4427,28 @@ class StudyDetailPage extends StatelessWidget {
                           children: [
                             _buildBadge(
                               certificateName,
-                              Color(0xFFE6E1FB),
-                              Color(0xFF6F58C9),
+                              _studyColors.lavender,
+                              _studyColors.pinkStart,
                             ),
                             _buildBadge(
                               isPublic ? '공개' : '비공개',
-                              Color(0xFFF1F2F5),
-                              Color(0xFF737782),
+                              _studyColorScheme.outlineVariant,
+                              _studyColors.textSecondary,
                             ),
                             _buildBadge(
                               isRecruiting ? '모집 중' : '모집 마감',
                               isRecruiting
-                                  ? Color(0xFFDFF5EA)
-                                  : Color(0xFFF1F2F5),
+                                  ? _studyColors.mint
+                                  : _studyColorScheme.outlineVariant,
                               isRecruiting
-                                  ? Color(0xFF3F9C72)
-                                  : Color(0xFF858994),
+                                  ? _studyColorScheme.tertiary
+                                  : _studyColors.textSecondary,
                             ),
                             if (isOwner)
                               _buildBadge(
                                 '방장',
-                                Color(0xFFFCE1E8),
-                                Color(0xFFD85F82),
+                                _studyColors.pinkSoft,
+                                _studyColors.pinkStart,
                               ),
                           ],
                         ),
@@ -4536,7 +4468,7 @@ class StudyDetailPage extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 14,
                             height: 1.5,
-                            color: Color(0xFF686D78),
+                            color: _studyColors.textSecondary,
                           ),
                         ),
                         SizedBox(height: 20),

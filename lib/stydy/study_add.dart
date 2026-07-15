@@ -1,10 +1,34 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../theme.dart';
 
 import '../widgets/app_main_background.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_top_bar.dart';
+import '../widgets/app_button.dart';
+import '../widgets/loading_overlay.dart';
+
+
+Brightness get _studyBrightness {
+  return WidgetsBinding.instance.platformDispatcher.platformBrightness;
+}
+
+AppColors get _studyColors {
+  if (_studyBrightness == Brightness.dark) {
+    return AppColors.dark;
+  }
+
+  return AppColors.light;
+}
+
+ColorScheme get _studyColorScheme {
+  if (_studyBrightness == Brightness.dark) {
+    return darkTheme.colorScheme;
+  }
+
+  return lightTheme.colorScheme;
+}
 
 class StudyCreatePage extends StatefulWidget {
   const StudyCreatePage({super.key});
@@ -164,7 +188,7 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('스터디가 등록되었습니다.'),
         ),
       );
@@ -203,366 +227,341 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
         centerTitle: false,
       ),
 
-      body: AppMainBackground(
-        applySafeArea: false,
-        child: SafeArea(
-          child: SingleChildScrollView(
-            keyboardDismissBehavior:
-            ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.fromLTRB(
-              20,
-              25,
-              20,
-              40,
-            ),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment:
-                CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '새로운 스터디를 만들어보세요',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  const Text(
-                    '스터디 정보를 입력하면 목록에 바로 등록됩니다.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF7B7F89),
-                    ),
-                  ),
-
-                  const SizedBox(height: 25),
-
-                  AppCard(
-                    child: Column(
-                      crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          '기본 정보',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight:
-                            FontWeight.bold,
-                          ),
+      body: Stack(
+        children: [
+          AppMainBackground(
+            applySafeArea: false,
+            child: SafeArea(
+              child: SingleChildScrollView(
+                keyboardDismissBehavior:
+                ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  25,
+                  20,
+                  40,
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '새로운 스터디를 만들어보세요',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
                         ),
+                      ),
 
-                        const SizedBox(height: 20),
+                      SizedBox(height: 8),
 
-                        // 스터디 이름
-                        TextFormField(
-                          controller:
-                          _groupNameController,
-                          textInputAction:
-                          TextInputAction.next,
-                          decoration: InputDecoration(
-                            labelText: '스터디 이름',
-                            hintText:
-                            '예: 정보처리기사 실기 스터디',
-                            prefixIcon: const Icon(
-                              Icons.groups_outlined,
-                            ),
-                            border:
-                            OutlineInputBorder(
-                              borderRadius:
-                              BorderRadius.circular(
-                                14,
-                              ),
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value == null ||
-                                value.trim().isEmpty) {
-                              return '스터디 이름을 입력해주세요.';
-                            }
-
-                            if (value.trim().length < 2) {
-                              return '스터디 이름을 2글자 이상 입력해주세요.';
-                            }
-
-                            return null;
-                          },
+                      Text(
+                        '스터디 정보를 입력하면 목록에 바로 등록됩니다.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: _studyColors.textSecondary,
                         ),
+                      ),
 
-                        const SizedBox(height: 18),
+                      SizedBox(height: 25),
 
-                        // 자격증 이름
-                        TextFormField(
-                          controller:
-                          _certificateNameController,
-                          textInputAction:
-                          TextInputAction.next,
-                          decoration: InputDecoration(
-                            labelText: '자격증 이름',
-                            hintText: '예: 정보처리기사',
-                            prefixIcon: const Icon(
-                              Icons
-                                  .workspace_premium_outlined,
-                            ),
-                            border:
-                            OutlineInputBorder(
-                              borderRadius:
-                              BorderRadius.circular(
-                                14,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 18),
-
-                        // 스터디 소개
-                        TextFormField(
-                          controller:
-                          _descriptionController,
-                          maxLines: 4,
-                          maxLength: 200,
-                          textInputAction:
-                          TextInputAction.newline,
-                          decoration: InputDecoration(
-                            labelText: '스터디 소개',
-                            hintText:
-                            '스터디 목표와 진행 방법을 입력해주세요.',
-                            alignLabelWithHint: true,
-                            border:
-                            OutlineInputBorder(
-                              borderRadius:
-                              BorderRadius.circular(
-                                14,
-                              ),
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value == null ||
-                                value.trim().isEmpty) {
-                              return '스터디 소개를 입력해주세요.';
-                            }
-
-                            return null;
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  AppCard(
-                    child: Column(
-                      crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          '스터디 설정',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight:
-                            FontWeight.bold,
-                          ),
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        const Text(
-                          '최대 인원',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight:
-                            FontWeight.w600,
-                          ),
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        Row(
+                      AppCard(
+                        backgroundColor: _studyColorScheme.surface,
+                        child: Column(
+                          crossAxisAlignment:
+                          CrossAxisAlignment.start,
                           children: [
-                            IconButton(
-                              onPressed:
-                              _maxMemberCount > 2
-                                  ? () {
-                                setState(() {
-                                  _maxMemberCount--;
-                                });
-                              }
-                                  : null,
-                              icon: const Icon(
-                                Icons
-                                    .remove_circle_outline,
+                            Text(
+                              '기본 정보',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight:
+                                FontWeight.bold,
                               ),
                             ),
 
-                            const SizedBox(width: 8),
+                            SizedBox(height: 20),
 
-                            Expanded(
-                              child: Container(
-                                height: 56,
-                                alignment:
-                                Alignment.center,
-                                decoration:
-                                BoxDecoration(
-                                  color: const Color(
-                                    0xFFF0ECFF,
-                                  ),
+                            // 스터디 이름
+                            TextFormField(
+                              controller:
+                              _groupNameController,
+                              textInputAction:
+                              TextInputAction.next,
+                              decoration: InputDecoration(
+                                labelText: '스터디 이름',
+                                hintText:
+                                '예: 정보처리기사 실기 스터디',
+                                prefixIcon: Icon(
+                                  Icons.groups_outlined,
+                                ),
+                                border:
+                                OutlineInputBorder(
                                   borderRadius:
                                   BorderRadius.circular(
                                     14,
                                   ),
                                 ),
-                                child: Text(
-                                  '$_maxMemberCount명',
-                                  style:
-                                  const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight:
-                                    FontWeight.bold,
-                                    color: Color(
-                                      0xFF6F58C9,
-                                    ),
+                              ),
+                              validator: (value) {
+                                if (value == null ||
+                                    value.trim().isEmpty) {
+                                  return '스터디 이름을 입력해주세요.';
+                                }
+
+                                if (value.trim().length < 2) {
+                                  return '스터디 이름을 2글자 이상 입력해주세요.';
+                                }
+
+                                return null;
+                              },
+                            ),
+
+                            SizedBox(height: 18),
+
+                            // 자격증 이름
+                            TextFormField(
+                              controller:
+                              _certificateNameController,
+                              textInputAction:
+                              TextInputAction.next,
+                              decoration: InputDecoration(
+                                labelText: '자격증 이름',
+                                hintText: '예: 정보처리기사',
+                                prefixIcon: Icon(
+                                  Icons
+                                      .workspace_premium_outlined,
+                                ),
+                                border:
+                                OutlineInputBorder(
+                                  borderRadius:
+                                  BorderRadius.circular(
+                                    14,
                                   ),
                                 ),
                               ),
                             ),
 
-                            const SizedBox(width: 8),
+                            SizedBox(height: 18),
 
-                            IconButton(
-                              onPressed:
-                              _maxMemberCount < 30
-                                  ? () {
-                                setState(() {
-                                  _maxMemberCount++;
-                                });
-                              }
-                                  : null,
-                              icon: const Icon(
-                                Icons
-                                    .add_circle_outline,
+                            // 스터디 소개
+                            TextFormField(
+                              controller:
+                              _descriptionController,
+                              maxLines: 4,
+                              maxLength: 200,
+                              textInputAction:
+                              TextInputAction.newline,
+                              decoration: InputDecoration(
+                                labelText: '스터디 소개',
+                                hintText:
+                                '스터디 목표와 진행 방법을 입력해주세요.',
+                                alignLabelWithHint: true,
+                                border:
+                                OutlineInputBorder(
+                                  borderRadius:
+                                  BorderRadius.circular(
+                                    14,
+                                  ),
+                                ),
                               ),
+                              validator: (value) {
+                                if (value == null ||
+                                    value.trim().isEmpty) {
+                                  return '스터디 소개를 입력해주세요.';
+                                }
+
+                                return null;
+                              },
                             ),
                           ],
                         ),
+                      ),
 
-                        const SizedBox(height: 9),
+                      SizedBox(height: 18),
 
-                        const Align(
-                          alignment:
-                          Alignment.centerRight,
-                          child: Text(
-                            '최소 2명 · 최대 30명',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Color(
-                                0xFF858994,
+                      AppCard(
+                        backgroundColor: _studyColorScheme.surface,
+                        child: Column(
+                          crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '스터디 설정',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight:
+                                FontWeight.bold,
                               ),
                             ),
-                          ),
-                        ),
 
-                        const Divider(height: 35),
+                            SizedBox(height: 20),
 
-                        SwitchListTile(
-                          contentPadding:
-                          EdgeInsets.zero,
-                          title: const Text(
-                            '공개 스터디',
-                            style: TextStyle(
-                              fontWeight:
-                              FontWeight.w600,
+                            Text(
+                              '최대 인원',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight:
+                                FontWeight.w600,
+                              ),
                             ),
-                          ),
-                          subtitle: Text(
-                            _isPublic
-                                ? '다른 사용자가 검색하고 확인할 수 있습니다.'
-                                : '초대받은 사용자만 확인할 수 있습니다.',
-                          ),
-                          value: _isPublic,
-                          onChanged: (value) {
-                            setState(() {
-                              _isPublic = value;
-                            });
-                          },
-                        ),
 
-                        const Divider(height: 1),
+                            SizedBox(height: 12),
 
-                        SwitchListTile(
-                          contentPadding:
-                          EdgeInsets.zero,
-                          title: const Text(
-                            '참여 승인 필요',
-                            style: TextStyle(
-                              fontWeight:
-                              FontWeight.w600,
+                            Row(
+                              children: [
+                                IconButton(
+                                  onPressed:
+                                  _maxMemberCount > 2
+                                      ? () {
+                                    setState(() {
+                                      _maxMemberCount--;
+                                    });
+                                  }
+                                      : null,
+                                  icon: Icon(
+                                    Icons
+                                        .remove_circle_outline,
+                                  ),
+                                ),
+
+                                SizedBox(width: 8),
+
+                                Expanded(
+                                  child: Container(
+                                    height: 56,
+                                    alignment:
+                                    Alignment.center,
+                                    decoration:
+                                    BoxDecoration(
+                                      color: _studyColors.lavender,
+                                      borderRadius:
+                                      BorderRadius.circular(
+                                        14,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      '$_maxMemberCount명',
+                                      style:
+                                      TextStyle(
+                                        fontSize: 18,
+                                        fontWeight:
+                                        FontWeight.bold,
+                                        color: _studyColors.pinkStart,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                SizedBox(width: 8),
+
+                                IconButton(
+                                  onPressed:
+                                  _maxMemberCount < 30
+                                      ? () {
+                                    setState(() {
+                                      _maxMemberCount++;
+                                    });
+                                  }
+                                      : null,
+                                  icon: Icon(
+                                    Icons
+                                        .add_circle_outline,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          subtitle: Text(
-                            _joinApprovalRequired
-                                ? '방장이 승인해야 참여할 수 있습니다.'
-                                : '신청하면 바로 참여할 수 있습니다.',
-                          ),
-                          value:
-                          _joinApprovalRequired,
-                          onChanged: (value) {
-                            setState(() {
-                              _joinApprovalRequired =
-                                  value;
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
 
-                  const SizedBox(height: 25),
+                            SizedBox(height: 9),
 
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      onPressed:
-                      _isSaving ? null : _saveStudy,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                        const Color(0xFF8068D8),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius:
-                          BorderRadius.circular(15),
+                            Align(
+                              alignment:
+                              Alignment.centerRight,
+                              child: Text(
+                                '최소 2명 · 최대 30명',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: _studyColors.textSecondary,
+                                ),
+                              ),
+                            ),
+
+                            Divider(height: 35),
+
+                            SwitchListTile(
+                              contentPadding:
+                              EdgeInsets.zero,
+                              title: Text(
+                                '공개 스터디',
+                                style: TextStyle(
+                                  fontWeight:
+                                  FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Text(
+                                _isPublic
+                                    ? '다른 사용자가 검색하고 확인할 수 있습니다.'
+                                    : '초대받은 사용자만 확인할 수 있습니다.',
+                              ),
+                              value: _isPublic,
+                              onChanged: (value) {
+                                setState(() {
+                                  _isPublic = value;
+                                });
+                              },
+                            ),
+
+                            Divider(height: 1),
+
+                            SwitchListTile(
+                              contentPadding:
+                              EdgeInsets.zero,
+                              title: Text(
+                                '참여 승인 필요',
+                                style: TextStyle(
+                                  fontWeight:
+                                  FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Text(
+                                _joinApprovalRequired
+                                    ? '방장이 승인해야 참여할 수 있습니다.'
+                                    : '신청하면 바로 참여할 수 있습니다.',
+                              ),
+                              value:
+                              _joinApprovalRequired,
+                              onChanged: (value) {
+                                setState(() {
+                                  _joinApprovalRequired =
+                                      value;
+                                });
+                              },
+                            ),
+                          ],
                         ),
                       ),
-                      child: _isSaving
-                          ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child:
-                        CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                          : const Text(
-                        '스터디 만들기',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight:
-                          FontWeight.bold,
-                        ),
+
+                      SizedBox(height: 25),
+
+                      AppButton(
+                        text: '스터디 만들기',
+                        type: AppButtonType.primaryPink,
+                        height: 54,
+                        onPressed: _isSaving ? null : _saveStudy,
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
+          if (_isSaving)
+            Positioned.fill(
+              child: LoadingOverlay(),
+            ),
+        ],
       ),
     );
   }
