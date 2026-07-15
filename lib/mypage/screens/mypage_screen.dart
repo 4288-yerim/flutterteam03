@@ -12,6 +12,8 @@ import 'study_record_screen.dart';
 import 'my_posts_screen.dart';
 import 'joined_study_screen.dart';
 import 'notification_setting_screen.dart';
+import 'my_comments_screen.dart';
+import 'mypage_calendar_screen.dart';
 
 class MyPageScreen extends StatelessWidget {
   const MyPageScreen({super.key});
@@ -99,6 +101,19 @@ class MyPageScreen extends StatelessWidget {
                         _openPage(
                           context,
                           const GoalCertificateScreen(),
+                        );
+                      },
+                    ),
+                    const _MenuDivider(),
+
+                    MyPageMenuTile(
+                      icon: Icons.calendar_month_outlined,
+                      title: '캘린더',
+                      subtitle: '시험 일정과 학습 계획을 날짜별로 확인합니다.',
+                      onTap: () {
+                        _openPage(
+                          context,
+                          const MyPageCalendarScreen(),
                         );
                       },
                     ),
