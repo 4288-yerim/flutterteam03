@@ -152,7 +152,6 @@ class _HomePageState extends State<HomePage> {
       extendBody: true,
 
       appBar: AppTopBar(
-        centerTitle: false,
         title: _isNicknameLoading
             ? '안녕하세요!'
             : '안녕하세요, $_nickname님!',
@@ -162,10 +161,9 @@ class _HomePageState extends State<HomePage> {
             icon: const Icon(
               Icons.notifications_none_rounded,
               color: Color(0xFF2E292B),
-              size: 28,
             ),
           ),
-          const SizedBox(width: 12),
+          // const SizedBox(width: 12),
         ],
       ),
 

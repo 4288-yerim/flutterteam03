@@ -370,7 +370,7 @@ class _QuestionGenerationPageState
                       Icons.auto_awesome_rounded,
                     ),
                     label: const Text(
-                      'AI 문제 1개 생성하기',
+                      'AI 문제 생성하기',
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
@@ -482,7 +482,7 @@ class _PageDescriptionCard extends StatelessWidget {
                 SizedBox(height: 8),
 
                 Text(
-                  '자격증과 시험 유형을 선택하면\nAI가 연습 문제 1개를 생성해드려요.',
+                  '자격증과 생성 방식을 선택하면\n구름iT이 연습 문제를 생성해드려요.',
                   style: TextStyle(
                     color: _QuestionGenerationPageState._subTextColor,
                     fontSize: 14,
