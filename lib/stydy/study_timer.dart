@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutterteam03/widgets/app_state_views.dart';
 
 import '../widgets/app_card.dart';
 import '../widgets/app_main_background.dart';
@@ -33,13 +34,46 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
 
   String _nickname = '사용자';
 
+  Stream<DocumentSnapshot<Map<String, dynamic>>>? _memberStream;
+  bool _hasTriedTotalTimeMigration = false;
+
   @override
   void dispose() {
     if (_timer != null) {
       _timer!.cancel();
     }
 
+    if (_isStudying) {
+      _clearLiveStudyStatus();
+    }
+
     super.dispose();
+  }
+
+  bool _isNetworkError(Object? error) {
+    if (error is FirebaseException) {
+      if (error.code == 'unavailable' ||
+          error.code == 'network-request-failed' ||
+          error.code == 'deadline-exceeded') {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  void _reloadPage() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) {
+          return StudyTimerPage(
+            studyId: widget.studyId,
+            groupName: widget.groupName,
+          );
+        },
+      ),
+    );
   }
 
   void _showMessage(String message) {
@@ -62,23 +96,181 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
     return '$hourText:$minuteText:$secondText';
   }
 
-  String _formatStudyMinutes(int totalMinutes) {
-    if (totalMinutes <= 0) {
-      return '0분';
+  String _formatStudySeconds(int totalSeconds) {
+    if (totalSeconds <= 0) {
+      return '0초';
     }
 
-    int hours = totalMinutes ~/ 60;
-    int minutes = totalMinutes % 60;
+    int hours = totalSeconds ~/ 3600;
+    int minutes = (totalSeconds % 3600) ~/ 60;
+    int seconds = totalSeconds % 60;
 
-    if (hours == 0) {
-      return '$minutes분';
+    if (hours > 0) {
+      return '$hours시간 $minutes분 $seconds초';
     }
 
-    if (minutes == 0) {
-      return '$hours시간';
+    if (minutes > 0) {
+      return '$minutes분 $seconds초';
     }
 
-    return '$hours시간 $minutes분';
+    return '$seconds초';
+  }
+
+  int _getStoredTotalStudySeconds(
+      Map<String, dynamic> memberData,
+      ) {
+    dynamic secondsValue = memberData['totalStudySeconds'];
+
+    if (secondsValue is int) {
+      return secondsValue;
+    }
+
+    if (secondsValue is num) {
+      return secondsValue.toInt();
+    }
+
+    dynamic minutesValue = memberData['totalStudyMinutes'];
+
+    if (minutesValue is int) {
+      return minutesValue * 60;
+    }
+
+    if (minutesValue is num) {
+      return (minutesValue * 60).round();
+    }
+
+    return 0;
+  }
+
+  int _getRecordStudySeconds(Map<String, dynamic> recordData) {
+    dynamic studySecondsValue = recordData['studySeconds'];
+
+    if (studySecondsValue is int) {
+      return studySecondsValue;
+    }
+
+    if (studySecondsValue is num) {
+      return studySecondsValue.toInt();
+    }
+
+    dynamic elapsedSecondsValue = recordData['elapsedSeconds'];
+
+    if (elapsedSecondsValue is int) {
+      return elapsedSecondsValue;
+    }
+
+    if (elapsedSecondsValue is num) {
+      return elapsedSecondsValue.toInt();
+    }
+
+    dynamic studyMinutesValue = recordData['studyMinutes'];
+
+    if (studyMinutesValue is int) {
+      return studyMinutesValue * 60;
+    }
+
+    if (studyMinutesValue is num) {
+      return (studyMinutesValue * 60).round();
+    }
+
+    return 0;
+  }
+
+  Future<void> _migrateOldTotalStudyTime(String uid) async {
+    if (_hasTriedTotalTimeMigration) {
+      return;
+    }
+
+    _hasTriedTotalTimeMigration = true;
+
+    try {
+      QuerySnapshot<Map<String, dynamic>> recordSnapshot =
+      await FirebaseFirestore.instance
+          .collection('studyGroups')
+          .doc(widget.studyId)
+          .collection('studyRecords')
+          .where('uid', isEqualTo: uid)
+          .get();
+
+      int exactTotalSeconds = 0;
+
+      for (int i = 0; i < recordSnapshot.docs.length; i++) {
+        exactTotalSeconds +=
+            _getRecordStudySeconds(recordSnapshot.docs[i].data());
+      }
+
+      DocumentReference<Map<String, dynamic>>? memberDocument =
+      _getMemberDocument();
+
+      if (memberDocument == null) {
+        return;
+      }
+
+      if (exactTotalSeconds == 0) {
+        DocumentSnapshot<Map<String, dynamic>> memberSnapshot =
+        await memberDocument.get();
+
+        exactTotalSeconds = _getStoredTotalStudySeconds(
+          memberSnapshot.data() ?? {},
+        );
+      }
+
+      await memberDocument.set({
+        'totalStudySeconds': exactTotalSeconds,
+        'totalStudyMinutes': exactTotalSeconds ~/ 60,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (error) {
+      debugPrint('기존 누적 공부시간 변환 오류: $error');
+    }
+  }
+
+  Stream<DocumentSnapshot<Map<String, dynamic>>> _getMemberStream(
+      String uid,
+      ) {
+    if (_memberStream == null) {
+      _memberStream = FirebaseFirestore.instance
+          .collection('studyGroups')
+          .doc(widget.studyId)
+          .collection('members')
+          .doc(uid)
+          .snapshots();
+    }
+
+    return _memberStream!;
+  }
+
+  DocumentReference<Map<String, dynamic>>? _getMemberDocument() {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      return null;
+    }
+
+    return FirebaseFirestore.instance
+        .collection('studyGroups')
+        .doc(widget.studyId)
+        .collection('members')
+        .doc(currentUser.uid);
+  }
+
+  Future<void> _clearLiveStudyStatus() async {
+    DocumentReference<Map<String, dynamic>>? memberDocument =
+    _getMemberDocument();
+
+    if (memberDocument == null) {
+      return;
+    }
+
+    try {
+      await memberDocument.set({
+        'isStudying': false,
+        'studyEndedAt': FieldValue.serverTimestamp(),
+        'studyStatusUpdatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (error) {
+      debugPrint('실시간 공부 상태 해제 오류: $error');
+    }
   }
 
   Future<bool> _checkMember() async {
@@ -95,19 +287,15 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
         .doc(widget.studyId);
 
     DocumentReference<Map<String, dynamic>> memberDocument =
-    groupDocument
-        .collection('members')
-        .doc(currentUser.uid);
+    groupDocument.collection('members').doc(currentUser.uid);
 
     DocumentSnapshot<Map<String, dynamic>> memberSnapshot =
     await memberDocument.get();
 
     if (memberSnapshot.exists) {
-      Map<String, dynamic> memberData =
-          memberSnapshot.data() ?? {};
+      Map<String, dynamic> memberData = memberSnapshot.data() ?? {};
 
-      String status =
-          memberData['status']?.toString() ?? '';
+      String status = memberData['status']?.toString() ?? '';
 
       if (memberData['nickname'] != null) {
         _nickname = memberData['nickname'].toString();
@@ -134,11 +322,9 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
       return false;
     }
 
-    Map<String, dynamic> groupData =
-        groupSnapshot.data() ?? {};
+    Map<String, dynamic> groupData = groupSnapshot.data() ?? {};
 
-    String ownerUid =
-        groupData['ownerUid']?.toString() ?? '';
+    String ownerUid = groupData['ownerUid']?.toString() ?? '';
 
     if (ownerUid != currentUser.uid) {
       _showMessage('현재 참여 중인 그룹원만 기록할 수 있습니다.');
@@ -156,6 +342,8 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
       'role': 'OWNER',
       'status': 'ACTIVE',
       'totalStudyMinutes': 0,
+      'totalStudySeconds': 0,
+      'isStudying': false,
       'joinedAt': groupData['createdAt'] ??
           FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
@@ -165,40 +353,71 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
   }
 
   Future<void> _startStudy() async {
-    if (_isStudying) {
+    if (_isStudying || _isSaving) {
       return;
     }
 
-    bool canStudy = await _checkMember();
+    try {
+      bool canStudy = await _checkMember();
 
-    if (canStudy == false) {
-      return;
+      if (canStudy == false) {
+        return;
+      }
+
+      DocumentReference<Map<String, dynamic>>? memberDocument =
+      _getMemberDocument();
+
+      if (memberDocument == null) {
+        _showMessage('로그인 정보가 없습니다.');
+        return;
+      }
+
+      await memberDocument.set({
+        'isStudying': true,
+        'studyStartedAt': FieldValue.serverTimestamp(),
+        'studyStatusUpdatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _elapsedSeconds = 0;
+        _isStudying = true;
+        _startedAt = DateTime.now();
+      });
+
+      _timer = Timer.periodic(
+        Duration(seconds: 1),
+            (timer) {
+          if (!mounted || _startedAt == null) {
+            return;
+          }
+
+          int currentSeconds = DateTime.now()
+              .difference(_startedAt!)
+              .inSeconds;
+
+          if (currentSeconds != _elapsedSeconds) {
+            setState(() {
+              _elapsedSeconds = currentSeconds;
+            });
+          }
+        },
+      );
+    } catch (error) {
+      debugPrint('공부 시작 오류: $error');
+
+      if (mounted) {
+        _showMessage('공부를 시작하지 못했습니다.');
+      }
     }
-
-    setState(() {
-      _elapsedSeconds = 0;
-      _isStudying = true;
-      _startedAt = DateTime.now();
-    });
-
-    _timer = Timer.periodic(
-      Duration(seconds: 1),
-          (timer) {
-        if (mounted) {
-          setState(() {
-            _elapsedSeconds++;
-          });
-        }
-      },
-    );
   }
 
   Future<void> _stopStudy() async {
-    if (_isStudying == false) {
-      return;
-    }
-
-    if (_isSaving) {
+    if (_isStudying == false || _isSaving) {
       return;
     }
 
@@ -211,14 +430,26 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
       _isSaving = true;
     });
 
-    int studyMinutes = _elapsedSeconds ~/ 60;
-
-    if (_elapsedSeconds % 60 > 0) {
-      studyMinutes++;
+    if (_startedAt != null) {
+      _elapsedSeconds = DateTime.now()
+          .difference(_startedAt!)
+          .inSeconds;
     }
 
-    if (studyMinutes <= 0) {
-      studyMinutes = 1;
+    int studySeconds = _elapsedSeconds;
+
+    if (studySeconds <= 0) {
+      await _clearLiveStudyStatus();
+
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+
+        _showMessage('1초 이상 공부한 뒤 종료해 주세요.');
+      }
+
+      return;
     }
 
     User? currentUser = FirebaseAuth.instance.currentUser;
@@ -241,36 +472,66 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
         .collection('members')
         .doc(currentUser.uid);
 
-    CollectionReference<Map<String, dynamic>> recordCollection =
+    DocumentReference<Map<String, dynamic>> recordDocument =
     FirebaseFirestore.instance
         .collection('studyGroups')
         .doc(widget.studyId)
-        .collection('studyRecords');
+        .collection('studyRecords')
+        .doc();
 
     try {
-      await memberDocument.update({
-        'totalStudyMinutes': FieldValue.increment(studyMinutes),
-        'lastStudyAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      await FirebaseFirestore.instance.runTransaction(
+            (transaction) async {
+          DocumentSnapshot<Map<String, dynamic>> memberSnapshot =
+          await transaction.get(memberDocument);
 
-      await recordCollection.add({
-        'uid': currentUser.uid,
-        'nickname': _nickname,
-        'studyMinutes': studyMinutes,
-        'elapsedSeconds': _elapsedSeconds,
-        'startedAt': Timestamp.fromDate(
-          _startedAt ?? endedAt,
-        ),
-        'endedAt': Timestamp.fromDate(endedAt),
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+          Map<String, dynamic> memberData =
+              memberSnapshot.data() ?? {};
+
+          int previousTotalSeconds =
+          _getStoredTotalStudySeconds(memberData);
+
+          int newTotalSeconds =
+              previousTotalSeconds + studySeconds;
+
+          transaction.set(
+            memberDocument,
+            {
+              'totalStudySeconds': newTotalSeconds,
+              'totalStudyMinutes': newTotalSeconds ~/ 60,
+              'lastStudyAt': FieldValue.serverTimestamp(),
+              'isStudying': false,
+              'studyEndedAt': FieldValue.serverTimestamp(),
+              'studyStatusUpdatedAt': FieldValue.serverTimestamp(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true),
+          );
+
+          transaction.set(recordDocument, {
+            'uid': currentUser.uid,
+            'nickname': _nickname,
+            'studySeconds': studySeconds,
+            'elapsedSeconds': studySeconds,
+            'studyMinutes': studySeconds ~/ 60,
+            'startedAt': Timestamp.fromDate(
+              _startedAt ?? endedAt,
+            ),
+            'endedAt': Timestamp.fromDate(endedAt),
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        },
+      );
 
       if (mounted) {
-        _showMessage('$studyMinutes분이 저장되었습니다.');
+        _showMessage(
+          '${_formatStudySeconds(studySeconds)}이 저장되었습니다.',
+        );
       }
     } catch (error) {
       debugPrint('공부시간 저장 오류: $error');
+
+      await _clearLiveStudyStatus();
 
       if (mounted) {
         _showMessage('공부시간을 저장하지 못했습니다.');
@@ -296,27 +557,54 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    User? currentUser = FirebaseAuth.instance.currentUser;
-
-    Stream<DocumentSnapshot<Map<String, dynamic>>>? memberStream;
-
-    if (currentUser != null) {
-      memberStream = FirebaseFirestore.instance
-          .collection('studyGroups')
-          .doc(widget.studyId)
-          .collection('members')
-          .doc(currentUser.uid)
-          .snapshots();
+  Future<bool> _onWillPop() async {
+    if (_isStudying == false) {
+      return true;
     }
 
+    bool? shouldStop = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text('공부를 종료할까요?'),
+          content: Text(
+            '현재 공부시간을 저장한 뒤 스터디방으로 돌아갑니다.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+              },
+              child: Text('계속 공부'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
+              child: Text('저장하고 종료'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldStop != true) {
+      return false;
+    }
+
+    await _stopStudy();
+    return true;
+  }
+
+  Widget _buildTimerContent(int totalStudySeconds) {
     String studyStatusText = '공부 준비';
     Color studyStatusColor = Color(0xFF777C86);
+    Color statusBackgroundColor = Color(0xFFF1F2F5);
 
     if (_isStudying) {
       studyStatusText = '공부 중';
       studyStatusColor = Color(0xFF3F9C72);
+      statusBackgroundColor = Color(0xFFDFF5EA);
     }
 
     String mainButtonText = '공부 시작';
@@ -334,174 +622,322 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
       mainButtonFunction = null;
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('공부시간 기록'),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-      ),
-      body: AppMainBackground(
-        applySafeArea: false,
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.groupName,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+    return AppMainBackground(
+      applySafeArea: false,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          18,
+          16,
+          18,
+          MediaQuery.of(context).padding.bottom + 36,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFF1EEFF),
+                    Color(0xFFFFEDF2),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(26),
+                border: Border.all(
+                  color: Color(0xFFEDE5F3),
                 ),
               ),
-
-              SizedBox(height: 16),
-
-              AppCard(
-                child: StreamBuilder<
-                    DocumentSnapshot<Map<String, dynamic>>>(
-                  stream: memberStream,
-                  builder: (context, snapshot) {
-                    int totalStudyMinutes = 0;
-
-                    if (snapshot.hasData &&
-                        snapshot.data!.exists) {
-                      Map<String, dynamic> memberData =
-                          snapshot.data!.data() ?? {};
-
-                      dynamic value =
-                      memberData['totalStudyMinutes'];
-
-                      if (value is int) {
-                        totalStudyMinutes = value;
-                      }
-
-                      if (value is num) {
-                        totalStudyMinutes = value.toInt();
-                      }
-                    }
-
-                    return Row(
-                      children: [
-                        Icon(
-                          Icons.access_time_rounded,
-                          size: 30,
-                          color: Color(0xFF8068D8),
-                        ),
-
-                        SizedBox(width: 12),
-
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '나의 누적 공부시간',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Color(0xFF777C86),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.groupName,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF292C33),
+                    ),
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    '집중한 시간은 종료할 때 자동으로 저장됩니다.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF737782),
+                    ),
+                  ),
+                  SizedBox(height: 17),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: EdgeInsets.all(13),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.85),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '나의 누적 공부시간',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Color(0xFF858994),
+                                ),
                               ),
-                            ),
-
-                            SizedBox(height: 4),
-
-                            Text(
-                              _formatStudyMinutes(totalStudyMinutes),
-                              style: TextStyle(
-                                fontSize: 21,
-                                fontWeight: FontWeight.bold,
+                              SizedBox(height: 4),
+                              Text(
+                                _formatStudySeconds(totalStudySeconds),
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF4E3DA0),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ],
-                    );
-                  },
-                ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Container(
+                          padding: EdgeInsets.all(13),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.85),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '현재 상태',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Color(0xFF858994),
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: studyStatusColor,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    studyStatusText,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: studyStatusColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-
-              SizedBox(height: 16),
-
-              AppCard(
-                child: Column(
-                  children: [
-                    Text(
+            ),
+            SizedBox(height: 18),
+            AppCard(
+              child: Column(
+                children: [
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusBackgroundColor,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
                       studyStatusText,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 12,
                         color: studyStatusColor,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-
-                    SizedBox(height: 18),
-
-                    Text(
-                      _formatTime(_elapsedSeconds),
-                      style: TextStyle(
-                        fontSize: 46,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2,
-                      ),
+                  ),
+                  SizedBox(height: 22),
+                  Text(
+                    _formatTime(_elapsedSeconds),
+                    style: TextStyle(
+                      fontSize: 48,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2,
+                      color: Color(0xFF292C33),
                     ),
-
-                    SizedBox(height: 10),
-
-                    Text(
-                      '1분 미만으로 공부해도 1분으로 저장됩니다.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF858994),
-                      ),
+                  ),
+                  SizedBox(height: 9),
+                  Text(
+                    _isStudying
+                        ? '지금 스터디방에 공부 중으로 표시되고 있습니다.'
+                        : '시작 버튼을 누르면 다른 그룹원에게 공부 중으로 표시됩니다.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.45,
+                      color: Color(0xFF858994),
                     ),
-
-                    SizedBox(height: 24),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed: mainButtonFunction,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: mainButtonColor,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        child: Text(
-                          mainButtonText,
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                          ),
+                  ),
+                  SizedBox(height: 25),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: mainButtonFunction,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: mainButtonColor,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
                         ),
                       ),
-                    ),
-
-                    SizedBox(height: 10),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 44,
-                      child: OutlinedButton(
-                        onPressed: _resetTimer,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Color(0xFF6C54C8),
-                          side: BorderSide(
-                            color: Color(0xFFD7D3DE),
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
+                      child: _isSaving
+                          ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
                         ),
-                        child: Text('시간 초기화'),
+                      )
+                          : Text(
+                        mainButtonText,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: OutlinedButton(
+                      onPressed: _isSaving ? null : _resetTimer,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Color(0xFF6C54C8),
+                        side: BorderSide(
+                          color: Color(0xFFD7D3DE),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: Text('시간 초기화'),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('공부시간 기록'),
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+        ),
+        body: AppErrorView(
+          message: '로그인 정보를 확인할 수 없습니다.',
+          description: '다시 로그인한 뒤 공부시간을 기록해 주세요.',
+        ),
+      );
+    }
+
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text('공부시간 기록'),
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+        ),
+        body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: _getMemberStream(currentUser.uid),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return AppLoadingView(
+                message: '공부시간 정보를 불러오는 중입니다.',
+              );
+            }
+
+            if (snapshot.hasError) {
+              if (_isNetworkError(snapshot.error)) {
+                return AppNetworkErrorView(
+                  message: '인터넷 연결을 확인해 주세요.',
+                  description: '네트워크 연결 후 공부시간 정보를 다시 불러와 주세요.',
+                  onRetryPressed: _reloadPage,
+                );
+              }
+
+              return AppErrorView(
+                message: '공부시간 정보를 불러오지 못했습니다.',
+                description: '잠시 후 다시 시도해 주세요.',
+                onRetryPressed: _reloadPage,
+              );
+            }
+
+            int totalStudySeconds = 0;
+
+            if (snapshot.data != null && snapshot.data!.exists) {
+              Map<String, dynamic> memberData =
+                  snapshot.data!.data() ?? {};
+
+              if (memberData.containsKey('totalStudySeconds') == false) {
+                WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+                  _migrateOldTotalStudyTime(currentUser.uid);
+                });
+              }
+
+              totalStudySeconds =
+                  _getStoredTotalStudySeconds(memberData);
+
+              String status = memberData['status']?.toString() ?? '';
+              String role = memberData['role']?.toString() ?? '';
+
+              if (status.isNotEmpty &&
+                  status != 'ACTIVE' &&
+                  role != 'OWNER') {
+                return AppErrorView(
+                  message: '공부시간을 기록할 수 없습니다.',
+                  description: '현재 참여 중인 그룹원만 이용할 수 있습니다.',
+                );
+              }
+            }
+
+            return _buildTimerContent(totalStudySeconds);
+          },
         ),
       ),
     );

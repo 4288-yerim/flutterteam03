@@ -41,6 +41,45 @@ class StudyDetailPage extends StatelessWidget {
     return 0;
   }
 
+  /// 현재 모집 중인지 확인
+  bool _isRecruiting(Map<String, dynamic> data) {
+    String recruitmentStatus =
+        data['recruitmentStatus']?.toString() ?? '';
+
+    String groupStatus =
+        data['status']?.toString() ?? '';
+
+    int currentMemberCount = _getInt(
+      data,
+      'currentMemberCount',
+    );
+
+    int maxMemberCount = _getInt(
+      data,
+      'maxMemberCount',
+    );
+
+    if (groupStatus == 'COMPLETED') {
+      return false;
+    }
+
+    if (recruitmentStatus == 'CLOSED') {
+      return false;
+    }
+
+    if (recruitmentStatus.isEmpty &&
+        groupStatus == 'CLOSED') {
+      return false;
+    }
+
+    if (maxMemberCount > 0 &&
+        currentMemberCount >= maxMemberCount) {
+      return false;
+    }
+
+    return true;
+  }
+
   /// 현재 로그인한 사용자가 방장인지 확인
   bool _isOwner(Map<String, dynamic> data) {
     final currentUserUid =
@@ -83,6 +122,79 @@ class StudyDetailPage extends StatelessWidget {
         content: Text(message),
       ),
     );
+  }
+
+  /// 방장이 모집 상태 변경
+  Future<void> _updateRecruitmentStatus(
+      BuildContext context,
+      Map<String, dynamic> currentStudyData,
+      bool openRecruitment,
+      ) async {
+    int currentMemberCount = _getInt(
+      currentStudyData,
+      'currentMemberCount',
+    );
+
+    int maxMemberCount = _getInt(
+      currentStudyData,
+      'maxMemberCount',
+    );
+
+    if (openRecruitment &&
+        maxMemberCount > 0 &&
+        currentMemberCount >= maxMemberCount) {
+      _showMessage(
+        context,
+        '정원이 가득 차서 모집을 다시 열 수 없습니다.',
+      );
+      return;
+    }
+
+    try {
+      String nextRecruitmentStatus = 'CLOSED';
+      String nextGroupStatus = 'CLOSED';
+
+      if (openRecruitment) {
+        nextRecruitmentStatus = 'OPEN';
+        nextGroupStatus = 'RECRUITING';
+      }
+
+      await FirebaseFirestore.instance
+          .collection('studyGroups')
+          .doc(studyId)
+          .update({
+        'recruitmentStatus': nextRecruitmentStatus,
+        'status': nextGroupStatus,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (!context.mounted) {
+        return;
+      }
+
+      if (openRecruitment) {
+        _showMessage(
+          context,
+          '스터디 모집을 다시 시작했습니다.',
+        );
+      } else {
+        _showMessage(
+          context,
+          '스터디 모집을 마감했습니다.',
+        );
+      }
+    } catch (error) {
+      debugPrint('모집 상태 변경 오류: $error');
+
+      if (!context.mounted) {
+        return;
+      }
+
+      _showMessage(
+        context,
+        '모집 상태를 변경하지 못했습니다.',
+      );
+    }
   }
 
   /// 중복되지 않는 초대 문서 ID 생성
@@ -528,10 +640,12 @@ class StudyDetailPage extends StatelessWidget {
 
       int newMemberCount = currentMemberCount + 1;
       String nextStatus = 'RECRUITING';
+      String nextRecruitmentStatus = 'OPEN';
 
       if (maxMemberCount > 0 &&
           newMemberCount >= maxMemberCount) {
         nextStatus = 'CLOSED';
+        nextRecruitmentStatus = 'CLOSED';
       }
 
       await memberDocument.update({
@@ -544,6 +658,7 @@ class StudyDetailPage extends StatelessWidget {
       await groupDocument.update({
         'currentMemberCount': newMemberCount,
         'status': nextStatus,
+        'recruitmentStatus': nextRecruitmentStatus,
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
@@ -2226,8 +2341,7 @@ class StudyDetailPage extends StatelessWidget {
           groupSnapshot.data() ?? {};
 
       String groupStatus =
-          groupData['status']?.toString() ??
-              'RECRUITING';
+          groupData['status']?.toString() ?? '';
 
       int currentMemberCount = _getInt(
         groupData,
@@ -2247,19 +2361,10 @@ class StudyDetailPage extends StatelessWidget {
         return;
       }
 
-      if (groupStatus == 'CLOSED') {
+      if (_isRecruiting(groupData) == false) {
         _showMessage(
           context,
-          '모집이 완료된 스터디입니다.',
-        );
-        return;
-      }
-
-      if (maxMemberCount > 0 &&
-          currentMemberCount >= maxMemberCount) {
-        _showMessage(
-          context,
-          '모집 인원이 모두 찼습니다.',
+          '모집이 마감된 스터디입니다.',
         );
         return;
       }
@@ -2349,10 +2454,12 @@ class StudyDetailPage extends StatelessWidget {
 
       int newMemberCount = currentMemberCount + 1;
       String nextStatus = 'RECRUITING';
+      String nextRecruitmentStatus = 'OPEN';
 
       if (maxMemberCount > 0 &&
           newMemberCount >= maxMemberCount) {
         nextStatus = 'CLOSED';
+        nextRecruitmentStatus = 'CLOSED';
       }
 
       await memberDocument.set(
@@ -2373,6 +2480,7 @@ class StudyDetailPage extends StatelessWidget {
       await groupDocument.update({
         'currentMemberCount': newMemberCount,
         'status': nextStatus,
+        'recruitmentStatus': nextRecruitmentStatus,
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
@@ -2434,8 +2542,38 @@ class StudyDetailPage extends StatelessWidget {
       builder: (context, snapshot) {
         if (snapshot.connectionState ==
             ConnectionState.waiting) {
-          return Center(
-            child: CircularProgressIndicator(),
+          return SizedBox(
+            height: 180,
+            child: AppLoadingView(
+              message: '참여 상태를 확인하는 중입니다.',
+            ),
+          );
+        }
+
+        if (snapshot.hasError) {
+          if (_isNetworkError(snapshot.error)) {
+            return SizedBox(
+              height: 220,
+              child: AppNetworkErrorView(
+                message: '인터넷 연결을 확인해 주세요.',
+                description:
+                '네트워크 연결 후 참여 상태를 다시 확인해 주세요.',
+                onRetryPressed: () {
+                  _retryDetailPage(context);
+                },
+              ),
+            );
+          }
+
+          return SizedBox(
+            height: 220,
+            child: AppErrorView(
+              message: '참여 상태를 확인하지 못했습니다.',
+              description: '잠시 후 다시 시도해 주세요.',
+              onRetryPressed: () {
+                _retryDetailPage(context);
+              },
+            ),
           );
         }
 
@@ -2503,6 +2641,43 @@ class StudyDetailPage extends StatelessWidget {
                   '이 스터디에는 참여할 수 없습니다.',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        if (_isRecruiting(currentStudyData) == false) {
+          return AppCard(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.lock_outline_rounded,
+                  color: Color(0xFF858994),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '모집이 마감된 스터디입니다.',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        '스터디 정보는 확인할 수 있지만 새로 참여할 수 없습니다.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.4,
+                          color: Color(0xFF858994),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -3583,7 +3758,6 @@ class StudyDetailPage extends StatelessWidget {
       },
     );
 
-    detailController.dispose();
   }
 
   /// 스터디 나가기 처리
@@ -3946,21 +4120,79 @@ class StudyDetailPage extends StatelessWidget {
     );
   }
 
+  bool _isNetworkError(Object? error) {
+    if (error is FirebaseException) {
+      if (error.code == 'unavailable') {
+        return true;
+      }
+
+      if (error.code == 'network-request-failed') {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  void _retryDetailPage(BuildContext context) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) {
+          return StudyDetailPage(
+            studyId: studyId,
+            studyData: studyData,
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<
-        DocumentSnapshot<
-            Map<String, dynamic>>>(
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('studyGroups')
           .doc(studyId)
           .snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            snapshot.hasData == false) {
+          return Scaffold(
+            appBar: AppBar(
+              title: Text('스터디 상세'),
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.white,
+            ),
+            body: AppLoadingView(
+              message: '스터디 정보를 불러오는 중입니다.',
+            ),
+          );
+        }
+
         if (snapshot.hasError) {
           debugPrint(
-            '스터디 상세 조회 오류: '
-                '${snapshot.error}',
+            '스터디 상세 조회 오류: ${snapshot.error}',
           );
+
+          if (_isNetworkError(snapshot.error)) {
+            return Scaffold(
+              appBar: AppBar(
+                title: Text('스터디 상세'),
+                backgroundColor: Colors.white,
+                surfaceTintColor: Colors.white,
+              ),
+              body: AppNetworkErrorView(
+                message: '인터넷 연결을 확인해 주세요.',
+                description:
+                'Wi-Fi 또는 모바일 데이터를 확인한 뒤 다시 시도해 주세요.',
+                retryButtonText: '다시 시도',
+                onRetryPressed: () {
+                  _retryDetailPage(context);
+                },
+              ),
+            );
+          }
 
           return Scaffold(
             appBar: AppBar(
@@ -3971,12 +4203,16 @@ class StudyDetailPage extends StatelessWidget {
             body: AppErrorView(
               message: '스터디 정보를 불러오지 못했습니다.',
               description: '잠시 후 다시 시도해 주세요.',
+              retryButtonText: '다시 시도',
+              onRetryPressed: () {
+                _retryDetailPage(context);
+              },
             ),
           );
         }
 
-        if (snapshot.hasData &&
-            snapshot.data?.exists == false) {
+        if (snapshot.data == null ||
+            snapshot.data!.exists == false) {
           return Scaffold(
             appBar: AppBar(
               title: Text('스터디 상세'),
@@ -3990,82 +4226,81 @@ class StudyDetailPage extends StatelessWidget {
           );
         }
 
-        final currentStudyData =
-            snapshot.data?.data() ??
-                studyData;
+        Map<String, dynamic> currentStudyData =
+            snapshot.data!.data() ?? studyData;
 
-        final groupName =
-            currentStudyData['groupName']
-                ?.toString() ??
-                '그룹명 없음';
+        String groupName =
+            currentStudyData['groupName']?.toString() ?? '그룹명 없음';
 
-        final description =
-            currentStudyData['description']
-                ?.toString() ??
-                '';
+        String description =
+            currentStudyData['description']?.toString() ?? '';
 
-        final certificateName =
-            currentStudyData[
-            'certificateName']
-                ?.toString() ??
-                '공통 스터디';
+        String certificateName =
+            currentStudyData['certificateName']?.toString() ?? '공통 스터디';
 
-        final ownerNickname =
-            currentStudyData[
-            'ownerNickname']
-                ?.toString() ??
-                '방장 정보 없음';
+        String ownerNickname =
+            currentStudyData['ownerNickname']?.toString() ?? '방장 정보 없음';
 
-        final currentMemberCount =
-        _getInt(
+        int currentMemberCount = _getInt(
           currentStudyData,
           'currentMemberCount',
         );
 
-        final maxMemberCount =
-        _getInt(
+        int maxMemberCount = _getInt(
           currentStudyData,
           'maxMemberCount',
         );
 
-        final isPublic =
-        currentStudyData['isPublic']
-        is bool
-            ? currentStudyData[
-        'isPublic'] as bool
-            : true;
+        bool isPublic = true;
 
-        final joinApprovalRequired =
-        currentStudyData[
-        'joinApprovalRequired']
-        is bool
-            ? currentStudyData[
-        'joinApprovalRequired']
-        as bool
-            : true;
+        if (currentStudyData['isPublic'] is bool) {
+          isPublic = currentStudyData['isPublic'];
+        }
 
-        final isOwner =
-        _isOwner(currentStudyData);
+        bool joinApprovalRequired = true;
+
+        if (currentStudyData['joinApprovalRequired'] is bool) {
+          joinApprovalRequired =
+          currentStudyData['joinApprovalRequired'];
+        }
+
+        bool isOwner = _isOwner(currentStudyData);
+        bool isRecruiting = _isRecruiting(currentStudyData);
+        User? currentUser = FirebaseAuth.instance.currentUser;
 
         return Scaffold(
           appBar: AppBar(
-            title:
-            const Text('스터디 상세'),
+            title: Text('스터디 상세'),
             backgroundColor: Colors.white,
             surfaceTintColor: Colors.white,
             actions: [
               if (isOwner)
                 PopupMenuButton<String>(
                   onSelected: (value) {
-                    if (value == 'edit') {
-                      _openEditPage(
+                    if (value == 'recruitment') {
+                      _updateRecruitmentStatus(
                         context,
                         currentStudyData,
+                        isRecruiting == false,
+                      );
+                    }
+
+                    if (value == 'invite') {
+                      _showInviteDialog(
+                        context,
+                        groupName,
                       );
                     }
 
                     if (value == 'member') {
                       _openMemberManagement(
+                        context,
+                        currentStudyData,
+                      );
+                    }
+
+                    if (value == 'edit') {
+                      _openEditPage(
                         context,
                         currentStudyData,
                       );
@@ -4079,7 +4314,52 @@ class StudyDetailPage extends StatelessWidget {
                     }
                   },
                   itemBuilder: (context) {
-                    return const [
+                    return [
+                      PopupMenuItem(
+                        value: 'recruitment',
+                        child: Row(
+                          children: [
+                            Icon(
+                              isRecruiting
+                                  ? Icons.lock_outline_rounded
+                                  : Icons.lock_open_rounded,
+                              size: 20,
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              isRecruiting
+                                  ? '모집 마감'
+                                  : '모집 재개',
+                            ),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'invite',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.person_add_alt_outlined,
+                              size: 20,
+                            ),
+                            SizedBox(width: 10),
+                            Text('그룹원 초대'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'member',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.manage_accounts_outlined,
+                              size: 20,
+                            ),
+                            SizedBox(width: 10),
+                            Text('그룹원 관리'),
+                          ],
+                        ),
+                      ),
                       PopupMenuItem(
                         value: 'edit',
                         child: Row(
@@ -4089,21 +4369,7 @@ class StudyDetailPage extends StatelessWidget {
                               size: 20,
                             ),
                             SizedBox(width: 10),
-                            Text('방 수정'),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: 'member',
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons
-                                  .manage_accounts_outlined,
-                              size: 20,
-                            ),
-                            SizedBox(width: 10),
-                            Text('그룹원 관리'),
+                            Text('스터디 수정'),
                           ],
                         ),
                       ),
@@ -4112,19 +4378,15 @@ class StudyDetailPage extends StatelessWidget {
                         child: Row(
                           children: [
                             Icon(
-                              Icons
-                                  .delete_outline,
+                              Icons.delete_outline,
                               size: 20,
-                              color:
-                              Colors.red,
+                              color: Colors.red,
                             ),
                             SizedBox(width: 10),
                             Text(
-                              '방 삭제',
-                              style:
-                              TextStyle(
-                                color:
-                                Colors.red,
+                              '스터디 삭제',
+                              style: TextStyle(
+                                color: Colors.red,
                               ),
                             ),
                           ],
@@ -4133,129 +4395,163 @@ class StudyDetailPage extends StatelessWidget {
                     ];
                   },
                 ),
+              if (isOwner == false && currentUser != null)
+                StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance
+                      .collection('studyGroups')
+                      .doc(studyId)
+                      .collection('members')
+                      .doc(currentUser.uid)
+                      .snapshots(),
+                  builder: (context, memberSnapshot) {
+                    String memberStatus = '';
+
+                    if (memberSnapshot.data != null &&
+                        memberSnapshot.data!.exists) {
+                      Map<String, dynamic> memberData =
+                          memberSnapshot.data!.data() ?? {};
+
+                      memberStatus =
+                          memberData['status']?.toString() ?? '';
+                    }
+
+                    if (memberStatus != 'ACTIVE') {
+                      return SizedBox();
+                    }
+
+                    return PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'report') {
+                          _showReportDialog(
+                            context,
+                            groupName,
+                          );
+                        }
+
+                        if (value == 'leave') {
+                          _showLeaveDialog(context);
+                        }
+                      },
+                      itemBuilder: (context) {
+                        return [
+                          PopupMenuItem(
+                            value: 'report',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.report_outlined,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 10),
+                                Text('그룹원 신고'),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'leave',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.logout,
+                                  size: 20,
+                                  color: Colors.red,
+                                ),
+                                SizedBox(width: 10),
+                                Text(
+                                  '스터디 나가기',
+                                  style: TextStyle(
+                                    color: Colors.red,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ];
+                      },
+                    );
+                  },
+                ),
             ],
           ),
-
           body: AppMainBackground(
             applySafeArea: false,
-            child:
-            SingleChildScrollView(
-              padding:
-              const EdgeInsets.fromLTRB(
-                20,
-                24,
-                20,
-                40,
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                14,
+                16,
+                MediaQuery.of(context).padding.bottom + 30,
               ),
               child: Column(
-                crossAxisAlignment:
-                CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   AppCard(
                     child: Column(
-                      crossAxisAlignment:
-                      CrossAxisAlignment
-                          .start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
+                          spacing: 7,
+                          runSpacing: 7,
                           children: [
                             _buildBadge(
                               certificateName,
-                              const Color(
-                                0xFFE9E4FF,
-                              ),
-                              const Color(
-                                0xFF6F58C9,
-                              ),
+                              Color(0xFFE6E1FB),
+                              Color(0xFF6F58C9),
                             ),
-
                             _buildBadge(
-                              isPublic
-                                  ? '공개'
-                                  : '비공개',
-                              const Color(
-                                0xFFF1F2F5,
-                              ),
-                              const Color(
-                                0xFF737782,
-                              ),
+                              isPublic ? '공개' : '비공개',
+                              Color(0xFFF1F2F5),
+                              Color(0xFF737782),
                             ),
-
+                            _buildBadge(
+                              isRecruiting ? '모집 중' : '모집 마감',
+                              isRecruiting
+                                  ? Color(0xFFDFF5EA)
+                                  : Color(0xFFF1F2F5),
+                              isRecruiting
+                                  ? Color(0xFF3F9C72)
+                                  : Color(0xFF858994),
+                            ),
                             if (isOwner)
                               _buildBadge(
                                 '방장',
-                                const Color(
-                                  0xFFFFE7EE,
-                                ),
-                                const Color(
-                                  0xFFD85F82,
-                                ),
+                                Color(0xFFFCE1E8),
+                                Color(0xFFD85F82),
                               ),
                           ],
                         ),
-
-                        const SizedBox(
-                          height: 18,
-                        ),
-
+                        SizedBox(height: 15),
                         Text(
                           groupName,
-                          style:
-                          const TextStyle(
-                            fontSize: 22,
-                            fontWeight:
-                            FontWeight.bold,
+                          style: TextStyle(
+                            fontSize: 21,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-
-                        const SizedBox(
-                          height: 10,
-                        ),
-
+                        SizedBox(height: 8),
                         Text(
                           description.isEmpty
                               ? '등록된 스터디 소개가 없습니다.'
                               : description,
-                          style:
-                          const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
                             height: 1.5,
-                            color: Color(
-                              0xFF686D78,
-                            ),
+                            color: Color(0xFF686D78),
                           ),
                         ),
-
-                        const SizedBox(
-                          height: 24,
-                        ),
-
+                        SizedBox(height: 20),
                         _buildInfoRow(
                           Icons.person_outline,
                           '방장',
                           ownerNickname,
                         ),
-
                         _buildInfoRow(
                           Icons.groups_outlined,
                           '참여 인원',
-                          '$currentMemberCount / '
-                              '$maxMemberCount명',
+                          '$currentMemberCount / $maxMemberCount명',
                         ),
-
                         _buildInfoRow(
-                          Icons.lock_outline,
-                          '공개 여부',
-                          isPublic
-                              ? '공개'
-                              : '비공개',
-                        ),
-
-                        _buildInfoRow(
-                          Icons
-                              .fact_check_outlined,
+                          Icons.fact_check_outlined,
                           '참여 방식',
                           joinApprovalRequired
                               ? '방장 승인 후 참여'
@@ -4264,35 +4560,22 @@ class StudyDetailPage extends StatelessWidget {
                       ],
                     ),
                   ),
-
-                  SizedBox(height: 16),
-
+                  SizedBox(height: 12),
                   _buildJoinArea(
                     context,
                     currentStudyData,
                   ),
-
-                  SizedBox(height: 16),
-
+                  SizedBox(height: 12),
                   _buildStudyRoomArea(
                     context,
                     currentStudyData,
                   ),
-
-                  SizedBox(height: 16),
-
-                  _buildJoinRequestArea(
-                    context,
-                    currentStudyData,
-                  ),
-
-                  SizedBox(height: 24),
-
-                  _buildStudyManageArea(
-                    context,
-                    currentStudyData,
-                    groupName,
-                  ),
+                  if (isOwner) SizedBox(height: 12),
+                  if (isOwner)
+                    _buildJoinRequestArea(
+                      context,
+                      currentStudyData,
+                    ),
                 ],
               ),
             ),
