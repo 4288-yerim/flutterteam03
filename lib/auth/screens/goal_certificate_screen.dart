@@ -3,6 +3,7 @@ import '../../theme.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_top_bar.dart';
+import '../widgets/step_indicator.dart';
 
 /// 회원가입 중 "목표 자격증이 있으신가요?" 를 물어보는 화면.
 /// 선택된 자격증의 id는 completeSignup 호출 시 users 컬렉션의
@@ -186,27 +187,17 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen>
                   Padding(
                     padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: colors.pinkStart.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            '마지막 단계예요',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: colors.pinkStart,
-                            ),
-                          ),
+                        StepIndicator(
+                          currentStep: 1,
+                          label: '1단계 · 목표 자격증',
+                          colors: colors,
                         ),
-                        SizedBox(height: 14),
+                        SizedBox(height: 20),
                         Text(
                           '목표 자격증이\n있으신가요?',
+                          textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w800,
@@ -217,6 +208,7 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen>
                         SizedBox(height: 8),
                         Text(
                           '선택해주시면 맞춤 학습 캘린더를 준비해드려요.\n나중에 언제든 바꿀 수 있어요.',
+                          textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 13.5,
                             height: 1.6,
@@ -307,9 +299,7 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen>
                     padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                     child: AppButton(
                       text: _selectedId == null ? '다음에 정할게요' : '선택 완료',
-                      type: _selectedId == null
-                          ? AppButtonType.gray
-                          : AppButtonType.primaryPink,
+                      type: AppButtonType.primaryPink,
                       onPressed: () => widget.onNext(context, _selectedId),
                     ),
                   ),

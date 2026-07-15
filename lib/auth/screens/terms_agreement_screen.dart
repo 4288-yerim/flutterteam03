@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import '../../theme.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/loading_overlay.dart';
+import '../widgets/step_indicator.dart';
+
 
 class TermsAgreementScreen extends StatefulWidget {
   final Future<void> Function(
@@ -128,41 +131,42 @@ class _TermsAgreementScreenState extends State<TermsAgreementScreen> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     const SizedBox(height: 8),
-                    IconButton(
-                      padding: EdgeInsets.zero,
+                    Align(
                       alignment: Alignment.centerLeft,
-                      icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-                      onPressed: () => Navigator.of(context).maybePop(),
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                        onPressed: () => Navigator.of(context).maybePop(),
+                      ),
                     ),
                     const SizedBox(height: 12),
+                    StepIndicator(
+                      currentStep: 3,
+                      label: '3단계 · 약관 동의',
+                      colors: Theme.of(context).extension<AppColors>()!,
+                    ),
+                    const SizedBox(height: 20),
                     const Text(
                       '서비스 이용을 위해\n약관에 동의해주세요',
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.w800,
                           height: 1.35),
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      children: List.generate(_requiredTotalCount, (i) {
-                        final filled = i < _requiredCheckedCount;
-                        return AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeOut,
-                          margin: const EdgeInsets.only(right: 6),
-                          width: filled ? 20 : 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: filled
-                                ? const Color(0xFFFF4D6D)
-                                : const Color(0xFFE5E7EB),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        );
-                      }),
+                    Text(
+                      '필수 항목 $_requiredCheckedCount / $_requiredTotalCount 동의했어요',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: _requiredCheckedCount == _requiredTotalCount
+                            ? const Color(0xFFFF4D6D)
+                            : const Color(0xFF9AA0AC),
+                      ),
                     ),
                     const SizedBox(height: 24),
                     _AllAgreeTile(

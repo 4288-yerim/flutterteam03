@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +12,9 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_top_bar.dart';
 import '../../widgets/loading_overlay.dart';
 import 'goal_certificate_screen.dart';
+import 'profile_setup_screen.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:io';
 
 /// 이메일로 받은 6자리 코드를 입력받아 verifyOtp Cloud Function을 호출한다.
 /// 코드가 맞아도 이 시점엔 Firebase Auth 계정을 만들지 않는다 (verificationToken만 발급).
@@ -187,19 +191,30 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => GoalCertificateScreen(
-            // certContext: 목표자격증 화면 "자신의" context.
-            // 여기서 반드시 이 context를 써야 함 -- OTP 화면(this)의 context를 쓰면
-            // pushReplacement로 이미 사라진 위젯의 context라 unmounted 에러가 남.
             onNext: (certContext, goalCertificateId) {
               Navigator.of(certContext).push(
                 MaterialPageRoute(
-                  builder: (_) => TermsAgreementScreen(
-                    onAgree: (termsContext, agreements) async {
-                      await _completeSignup(
-                        termsContext,
-                        verificationToken,
-                        agreements,
-                        goalCertificateId,
+                  builder: (_) => ProfileSetupScreen(
+                    onNext: (profileContext,
+                        {required String nickname,
+                          String? bio,
+                          File? profileImageFile}) {
+                      Navigator.of(profileContext).push(
+                        MaterialPageRoute(
+                          builder: (_) => TermsAgreementScreen(
+                            onAgree: (termsContext, agreements) async {
+                              await _completeSignup(
+                                termsContext,
+                                verificationToken,
+                                agreements,
+                                goalCertificateId,
+                                nickname,
+                                bio,
+                                profileImageFile,
+                              );
+                            },
+                          ),
+                        ),
                       );
                     },
                   ),
@@ -241,6 +256,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
       String verificationToken,
       Map<String, bool> agreements,
       String? goalCertificateId,
+      String nickname,
+      String? bio,
+      File? profileImageFile,
       ) async {
     try {
       final callable = FirebaseFunctions.instance.httpsCallable('completeSignup');
@@ -250,10 +268,35 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
         'verificationToken': verificationToken,
         'agreements': agreements,
         'goalCertificateId': goalCertificateId,
+        'nickname': nickname,
+        'bio': bio,
       });
 
       final customToken = result.data['customToken'] as String;
       await FirebaseAuth.instance.signInWithCustomToken(customToken);
+
+      // 계정이 방금 생겼으니, 이제서야 프로필 이미지를 업로드할 수 있음
+      if (profileImageFile != null) {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          try {
+            final path = 'profile_images/${user.uid}.jpg';
+            final ref = FirebaseStorage.instance.ref().child(path);
+            await ref.putFile(profileImageFile);
+            final url = await ref.getDownloadURL();
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .update({
+              'profileImageUrl': url,
+              'profileImagePath': path,
+            });
+          } catch (e) {
+            debugPrint('PROFILE IMAGE UPLOAD FAILED: $e');
+            // 이미지 업로드 실패해도 가입 자체는 이미 끝났으니 그냥 진행
+          }
+        }
+      }
 
       if (!termsContext.mounted) return;
       Navigator.of(termsContext).pushReplacement(
