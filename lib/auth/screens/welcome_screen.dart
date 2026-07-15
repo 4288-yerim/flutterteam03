@@ -79,6 +79,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             onAgree: (termsContext, agreements) async {
               final user = FirebaseAuth.instance.currentUser;
               if (user != null) {
+                // 변경 후 - lastLoginAt 한 줄 추가
                 await FirebaseFirestore.instance
                     .collection('users')
                     .doc(user.uid)
@@ -95,6 +96,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   'marketingAgreed': agreements['marketing'] ?? false,
                   'createdAt': FieldValue.serverTimestamp(),
                   'updatedAt': FieldValue.serverTimestamp(),
+                  'lastLoginAt': FieldValue.serverTimestamp(),
                 }, SetOptions(merge: true));
               }
 
@@ -110,7 +112,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-          'updatedAt': FieldValue.serverTimestamp(),
+          'lastLoginAt': FieldValue.serverTimestamp(),
         });
       }
       Navigator.of(context).pushReplacement(
