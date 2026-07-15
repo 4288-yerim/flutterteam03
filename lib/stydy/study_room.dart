@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutterteam03/widgets/app_state_views.dart';
 
-import '../widgets/app_card.dart';
 import '../widgets/app_main_background.dart';
 import 'study_chat.dart';
 import 'study_quiz.dart';
@@ -18,6 +17,33 @@ class StudyRoomPage extends StatelessWidget {
     required this.studyId,
     required this.groupName,
   });
+
+
+  bool _isNetworkError(Object? error) {
+    if (error is FirebaseException) {
+      if (error.code == 'unavailable' ||
+          error.code == 'network-request-failed' ||
+          error.code == 'deadline-exceeded') {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  void _reloadPage(BuildContext context) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) {
+          return StudyRoomPage(
+            studyId: studyId,
+            groupName: groupName,
+          );
+        },
+      ),
+    );
+  }
 
   int _getInt(
       Map<String, dynamic> data,
@@ -36,23 +62,298 @@ class StudyRoomPage extends StatelessWidget {
     return 0;
   }
 
-  String _formatStudyTime(int totalMinutes) {
-    if (totalMinutes <= 0) {
-      return '0분';
+  bool _isRecruiting(Map<String, dynamic> data) {
+    String recruitmentStatus =
+        data['recruitmentStatus']?.toString() ?? '';
+
+    String groupStatus = data['status']?.toString() ?? '';
+
+    int currentMemberCount = _getInt(
+      data,
+      'currentMemberCount',
+    );
+
+    int maxMemberCount = _getInt(
+      data,
+      'maxMemberCount',
+    );
+
+    if (groupStatus == 'COMPLETED') {
+      return false;
     }
 
-    int hours = totalMinutes ~/ 60;
-    int minutes = totalMinutes % 60;
-
-    if (hours == 0) {
-      return '$minutes분';
+    if (recruitmentStatus == 'CLOSED') {
+      return false;
     }
 
-    if (minutes == 0) {
-      return '$hours시간';
+    if (recruitmentStatus.isEmpty && groupStatus == 'CLOSED') {
+      return false;
     }
 
-    return '$hours시간 $minutes분';
+    if (maxMemberCount > 0 &&
+        currentMemberCount >= maxMemberCount) {
+      return false;
+    }
+
+    return true;
+  }
+
+  Future<void> _updateRecruitmentStatus(
+      BuildContext context,
+      Map<String, dynamic> groupData,
+      bool openRecruitment,
+      ) async {
+    int currentMemberCount = _getInt(
+      groupData,
+      'currentMemberCount',
+    );
+
+    int maxMemberCount = _getInt(
+      groupData,
+      'maxMemberCount',
+    );
+
+    if (openRecruitment &&
+        maxMemberCount > 0 &&
+        currentMemberCount >= maxMemberCount) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('정원이 가득 차서 모집을 다시 열 수 없습니다.'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      String recruitmentStatus = 'CLOSED';
+      String groupStatus = 'CLOSED';
+
+      if (openRecruitment) {
+        recruitmentStatus = 'OPEN';
+        groupStatus = 'RECRUITING';
+      }
+
+      await FirebaseFirestore.instance
+          .collection('studyGroups')
+          .doc(studyId)
+          .update({
+        'recruitmentStatus': recruitmentStatus,
+        'status': groupStatus,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (!context.mounted) {
+        return;
+      }
+
+      String message = '스터디 모집을 마감했습니다.';
+
+      if (openRecruitment) {
+        message = '스터디 모집을 다시 시작했습니다.';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+        ),
+      );
+    } catch (error) {
+      debugPrint('모집 상태 변경 오류: $error');
+
+      if (!context.mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('모집 상태를 변경하지 못했습니다.'),
+        ),
+      );
+    }
+  }
+
+  Widget _buildRoomBadge(
+      String text,
+      Color backgroundColor,
+      Color textColor,
+      ) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: 9,
+        vertical: 5,
+      ),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 10,
+          color: textColor,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoomSectionTitle(
+      String title,
+      String description,
+      ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF292C33),
+          ),
+        ),
+        SizedBox(height: 3),
+        Text(
+          description,
+          style: TextStyle(
+            fontSize: 11,
+            color: Color(0xFF8B8F98),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRoomMetric(
+      IconData icon,
+      String label,
+      String value,
+      ) {
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.82),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: Color(0xFF8068D8),
+            ),
+            SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Color(0xFF8B8F98),
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF4E3DA0),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatStudyTime(int totalSeconds) {
+    if (totalSeconds <= 0) {
+      return '0초';
+    }
+
+    int hours = totalSeconds ~/ 3600;
+    int minutes = (totalSeconds % 3600) ~/ 60;
+    int seconds = totalSeconds % 60;
+
+    if (hours > 0) {
+      return '$hours시간 $minutes분 $seconds초';
+    }
+
+    if (minutes > 0) {
+      return '$minutes분 $seconds초';
+    }
+
+    return '$seconds초';
+  }
+
+  int _getTotalStudySeconds(Map<String, dynamic> data) {
+    dynamic secondsValue = data['totalStudySeconds'];
+
+    if (secondsValue is int) {
+      return secondsValue;
+    }
+
+    if (secondsValue is num) {
+      return secondsValue.toInt();
+    }
+
+    dynamic minutesValue = data['totalStudyMinutes'];
+
+    if (minutesValue is int) {
+      return minutesValue * 60;
+    }
+
+    if (minutesValue is num) {
+      return (minutesValue * 60).round();
+    }
+
+    return 0;
+  }
+
+  int _getRecordStudySeconds(Map<String, dynamic> data) {
+    dynamic studySecondsValue = data['studySeconds'];
+
+    if (studySecondsValue is int) {
+      return studySecondsValue;
+    }
+
+    if (studySecondsValue is num) {
+      return studySecondsValue.toInt();
+    }
+
+    dynamic elapsedSecondsValue = data['elapsedSeconds'];
+
+    if (elapsedSecondsValue is int) {
+      return elapsedSecondsValue;
+    }
+
+    if (elapsedSecondsValue is num) {
+      return elapsedSecondsValue.toInt();
+    }
+
+    dynamic studyMinutesValue = data['studyMinutes'];
+
+    if (studyMinutesValue is int) {
+      return studyMinutesValue * 60;
+    }
+
+    if (studyMinutesValue is num) {
+      return (studyMinutesValue * 60).round();
+    }
+
+    return 0;
   }
 
   String _formatChatTime(dynamic createdAt) {
@@ -159,23 +460,36 @@ class StudyRoomPage extends StatelessWidget {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Container(
-            height: 95,
-            alignment: Alignment.center,
-            child: CircularProgressIndicator(),
+          return SizedBox(
+            height: 180,
+            child: AppLoadingView(
+              message: '그룹원을 불러오는 중입니다.',
+            ),
           );
         }
 
         if (snapshot.hasError) {
-          return Container(
-            height: 70,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              '그룹원 정보를 불러오지 못했습니다.',
-              style: TextStyle(
-                fontSize: 12,
-                color: Color(0xFF858994),
+          if (_isNetworkError(snapshot.error)) {
+            return SizedBox(
+              height: 220,
+              child: AppNetworkErrorView(
+                message: '인터넷 연결을 확인해 주세요.',
+                description: '네트워크 연결 후 그룹원을 다시 불러와 주세요.',
+                onRetryPressed: () {
+                  _reloadPage(context);
+                },
               ),
+            );
+          }
+
+          return SizedBox(
+            height: 220,
+            child: AppErrorView(
+              message: '그룹원을 불러오지 못했습니다.',
+              description: '잠시 후 다시 시도해 주세요.',
+              onRetryPressed: () {
+                _reloadPage(context);
+              },
             ),
           );
         }
@@ -214,21 +528,17 @@ class StudyRoomPage extends StatelessWidget {
         });
 
         if (memberList.isEmpty) {
-          return Container(
-            height: 70,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              '아직 참여 중인 그룹원이 없습니다.',
-              style: TextStyle(
-                fontSize: 12,
-                color: Color(0xFF858994),
-              ),
+          return SizedBox(
+            height: 220,
+            child: AppEmptyView(
+              message: '참여 중인 그룹원이 없습니다.',
+              description: '새로운 그룹원이 참여하면 이곳에 표시됩니다.',
             ),
           );
         }
 
         return SizedBox(
-          height: 96,
+          height: 92,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: memberList.length,
@@ -247,8 +557,8 @@ class StudyRoomPage extends StatelessWidget {
               bool isOwner = role == 'OWNER';
 
               return Container(
-                width: 76,
-                margin: EdgeInsets.only(right: 8),
+                width: 72,
+                margin: EdgeInsets.only(right: 10),
                 child: Column(
                   children: [
                     _buildProfileImage(
@@ -279,6 +589,352 @@ class StudyRoomPage extends StatelessWidget {
     );
   }
 
+  Widget _buildTodayStudySummary(
+      BuildContext context,
+      String displayGroupName,
+      ) {
+    DateTime now = DateTime.now();
+    DateTime todayStart = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    );
+    DateTime tomorrowStart = todayStart.add(
+      Duration(days: 1),
+    );
+
+    Stream<QuerySnapshot<Map<String, dynamic>>> memberStream =
+    FirebaseFirestore.instance
+        .collection('studyGroups')
+        .doc(studyId)
+        .collection('members')
+        .snapshots();
+
+    Stream<QuerySnapshot<Map<String, dynamic>>> recordStream =
+    FirebaseFirestore.instance
+        .collection('studyGroups')
+        .doc(studyId)
+        .collection('studyRecords')
+        .where(
+      'endedAt',
+      isGreaterThanOrEqualTo: Timestamp.fromDate(todayStart),
+    )
+        .where(
+      'endedAt',
+      isLessThan: Timestamp.fromDate(tomorrowStart),
+    )
+        .snapshots();
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: memberStream,
+      builder: (context, memberSnapshot) {
+        if (memberSnapshot.connectionState ==
+            ConnectionState.waiting) {
+          return SizedBox(
+            height: 180,
+            child: AppLoadingView(
+              message: '오늘의 학습 현황을 불러오는 중입니다.',
+            ),
+          );
+        }
+
+        if (memberSnapshot.hasError) {
+          if (_isNetworkError(memberSnapshot.error)) {
+            return SizedBox(
+              height: 220,
+              child: AppNetworkErrorView(
+                message: '인터넷 연결을 확인해 주세요.',
+                description: '네트워크 연결 후 오늘의 학습 현황을 다시 불러와 주세요.',
+                onRetryPressed: () {
+                  _reloadPage(context);
+                },
+              ),
+            );
+          }
+
+          return SizedBox(
+            height: 220,
+            child: AppErrorView(
+              message: '오늘의 학습 현황을 불러오지 못했습니다.',
+              description: '잠시 후 다시 시도해 주세요.',
+              onRetryPressed: () {
+                _reloadPage(context);
+              },
+            ),
+          );
+        }
+
+        List<Map<String, dynamic>> studyingMembers = [];
+
+        if (memberSnapshot.data != null) {
+          for (int i = 0;
+          i < memberSnapshot.data!.docs.length;
+          i++) {
+            Map<String, dynamic> memberData =
+            memberSnapshot.data!.docs[i].data();
+
+            String status =
+                memberData['status']?.toString() ?? '';
+            String role =
+                memberData['role']?.toString() ?? 'MEMBER';
+            bool isStudying = memberData['isStudying'] == true;
+
+            bool isActiveMember =
+                status == 'ACTIVE' || role == 'OWNER';
+
+            if (isActiveMember && isStudying) {
+              studyingMembers.add(memberData);
+            }
+          }
+        }
+
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: recordStream,
+          builder: (context, recordSnapshot) {
+            if (recordSnapshot.connectionState ==
+                ConnectionState.waiting) {
+              return SizedBox(
+                height: 180,
+                child: AppLoadingView(
+                  message: '오늘의 공부 기록을 불러오는 중입니다.',
+                ),
+              );
+            }
+
+            if (recordSnapshot.hasError) {
+              if (_isNetworkError(recordSnapshot.error)) {
+                return SizedBox(
+                  height: 220,
+                  child: AppNetworkErrorView(
+                    message: '인터넷 연결을 확인해 주세요.',
+                    description: '네트워크 연결 후 오늘의 공부 기록을 다시 불러와 주세요.',
+                    onRetryPressed: () {
+                      _reloadPage(context);
+                    },
+                  ),
+                );
+              }
+
+              return SizedBox(
+                height: 220,
+                child: AppErrorView(
+                  message: '오늘의 공부 기록을 불러오지 못했습니다.',
+                  description: '잠시 후 다시 시도해 주세요.',
+                  onRetryPressed: () {
+                    _reloadPage(context);
+                  },
+                ),
+              );
+            }
+
+            int todayStudySeconds = 0;
+            Set<String> todayMemberUidSet = {};
+
+            if (recordSnapshot.data != null) {
+              for (int i = 0;
+              i < recordSnapshot.data!.docs.length;
+              i++) {
+                Map<String, dynamic> recordData =
+                recordSnapshot.data!.docs[i].data();
+
+                int recordStudySeconds =
+                _getRecordStudySeconds(recordData);
+
+                todayStudySeconds += recordStudySeconds;
+
+                String uid = recordData['uid']?.toString() ?? '';
+
+                if (uid.isNotEmpty) {
+                  todayMemberUidSet.add(uid);
+                }
+              }
+            }
+
+            for (int i = 0; i < studyingMembers.length; i++) {
+              String uid =
+                  studyingMembers[i]['uid']?.toString() ?? '';
+
+              if (uid.isNotEmpty) {
+                todayMemberUidSet.add(uid);
+              }
+            }
+
+            String studyingText = '지금 공부 중인 멤버가 없습니다.';
+
+            if (studyingMembers.isNotEmpty) {
+              List<String> nicknameList = [];
+
+              for (int i = 0; i < studyingMembers.length; i++) {
+                String nickname =
+                    studyingMembers[i]['nickname']?.toString() ??
+                        '스터디원';
+                nicknameList.add(nickname);
+              }
+
+              if (nicknameList.length == 1) {
+                studyingText = '${nicknameList[0]}님이 공부 중입니다.';
+              } else if (nicknameList.length == 2) {
+                studyingText =
+                '${nicknameList[0]}님, ${nicknameList[1]}님이 공부 중입니다.';
+              } else {
+                int otherCount = nicknameList.length - 2;
+                studyingText =
+                '${nicknameList[0]}님, ${nicknameList[1]}님 외 $otherCount명이 공부 중입니다.';
+              }
+            }
+
+            return Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Color(0xFFF8F7FF),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: Color(0xFFE8E3F7),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 39,
+                        height: 39,
+                        decoration: BoxDecoration(
+                          color: Color(0xFFE6E1FB),
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        child: Icon(
+                          Icons.insights_rounded,
+                          size: 20,
+                          color: Color(0xFF6F58C9),
+                        ),
+                      ),
+                      SizedBox(width: 11),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '오늘 스터디 현황',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF353941),
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              '오늘 그룹원들의 공부 기록을 확인해요.',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Color(0xFF858994),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 14),
+                  Row(
+                    children: [
+                      _buildRoomMetric(
+                        Icons.schedule_rounded,
+                        '오늘 공부시간',
+                        _formatStudyTime(todayStudySeconds),
+                      ),
+                      SizedBox(width: 8),
+                      _buildRoomMetric(
+                        Icons.person_outline_rounded,
+                        '공부한 멤버',
+                        '${todayMemberUidSet.length}명',
+                      ),
+                      SizedBox(width: 8),
+                      _buildRoomMetric(
+                        Icons.bolt_rounded,
+                        '지금 공부 중',
+                        '${studyingMembers.length}명',
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 13),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) {
+                            return StudyTimerPage(
+                              studyId: studyId,
+                              groupName: displayGroupName,
+                            );
+                          },
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 11,
+                      ),
+                      decoration: BoxDecoration(
+                        color: studyingMembers.isNotEmpty
+                            ? Color(0xFFDFF5EA)
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: studyingMembers.isNotEmpty
+                                  ? Color(0xFF3F9C72)
+                                  : Color(0xFFB0B3BB),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              studyingText,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                height: 1.4,
+                                color: studyingMembers.isNotEmpty
+                                    ? Color(0xFF347F5E)
+                                    : Color(0xFF777C86),
+                                fontWeight: studyingMembers.isNotEmpty
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            size: 19,
+                            color: Color(0xFF8B8F98),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildChatActivityButton(
       BuildContext context,
       String displayGroupName,
@@ -290,200 +946,221 @@ class StudyRoomPage extends StatelessWidget {
       currentUserUid = currentUser.uid;
     }
 
-    return Expanded(
-      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance
-            .collection('chats')
-            .doc(studyId)
-            .collection('messages')
-            .orderBy(
-          'createdAt',
-          descending: true,
-        )
-            .limit(100)
-            .snapshots(),
-        builder: (context, snapshot) {
-          String lastMessage = '아직 메시지가 없습니다.';
-          String lastMessageTime = '';
-          int unreadCount = 0;
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('chats')
+          .doc(studyId)
+          .collection('messages')
+          .orderBy(
+        'createdAt',
+        descending: true,
+      )
+          .limit(100)
+          .snapshots(),
+      builder: (context, snapshot) {
+        String lastMessage = '아직 메시지가 없습니다.';
+        String lastMessageTime = '';
+        int unreadCount = 0;
 
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            lastMessage = '채팅을 불러오는 중입니다.';
-          } else if (snapshot.hasError) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          lastMessage = '채팅을 불러오는 중입니다.';
+        } else if (snapshot.hasError) {
+          if (_isNetworkError(snapshot.error)) {
+            lastMessage = '인터넷 연결을 확인해 주세요.';
+          } else {
             lastMessage = '채팅을 불러오지 못했습니다.';
-          } else if (snapshot.data != null) {
-            bool foundLastMessage = false;
+          }
+        } else if (snapshot.data != null) {
+          bool foundLastMessage = false;
 
-            for (int i = 0; i < snapshot.data!.docs.length; i++) {
-              QueryDocumentSnapshot<Map<String, dynamic>> messageDocument =
-              snapshot.data!.docs[i];
+          for (int i = 0; i < snapshot.data!.docs.length; i++) {
+            QueryDocumentSnapshot<Map<String, dynamic>> messageDocument =
+            snapshot.data!.docs[i];
 
-              Map<String, dynamic> messageData = messageDocument.data();
+            Map<String, dynamic> messageData = messageDocument.data();
 
-              List<dynamic> hiddenFor = [];
+            List<dynamic> hiddenFor = [];
 
-              if (messageData['hiddenFor'] is List) {
-                hiddenFor = messageData['hiddenFor'];
+            if (messageData['hiddenFor'] is List) {
+              hiddenFor = messageData['hiddenFor'];
+            }
+
+            if (hiddenFor.contains(currentUserUid)) {
+              continue;
+            }
+
+            String senderUid =
+                messageData['senderUid']?.toString() ?? '';
+
+            List<dynamic> readBy = [];
+
+            if (messageData['readBy'] is List) {
+              readBy = messageData['readBy'];
+            }
+
+            bool isDeleted = messageData['isDeleted'] == true;
+
+            if (isDeleted == false &&
+                senderUid != currentUserUid &&
+                readBy.contains(currentUserUid) == false) {
+              unreadCount++;
+            }
+
+            if (foundLastMessage == false) {
+              String senderNickname =
+                  messageData['senderNickname']?.toString() ?? '스터디원';
+
+              String message =
+                  messageData['message']?.toString() ?? '';
+
+              if (isDeleted) {
+                lastMessage = '삭제된 메시지입니다.';
+              } else if (senderUid == currentUserUid) {
+                lastMessage = '나: $message';
+              } else {
+                lastMessage = '$senderNickname: $message';
               }
 
-              if (hiddenFor.contains(currentUserUid)) {
-                continue;
-              }
+              lastMessageTime = _formatChatTime(
+                messageData['createdAt'],
+              );
 
-              String senderUid =
-                  messageData['senderUid']?.toString() ?? '';
-
-              List<dynamic> readBy = [];
-
-              if (messageData['readBy'] is List) {
-                readBy = messageData['readBy'];
-              }
-
-              if (senderUid != currentUserUid &&
-                  readBy.contains(currentUserUid) == false) {
-                unreadCount++;
-              }
-
-              if (foundLastMessage == false) {
-                String senderNickname =
-                    messageData['senderNickname']?.toString() ?? '스터디원';
-
-                String message =
-                    messageData['message']?.toString() ?? '';
-
-                bool isDeleted = messageData['isDeleted'] == true;
-
-                if (isDeleted) {
-                  lastMessage = '삭제된 메시지입니다.';
-                } else if (senderUid == currentUserUid) {
-                  lastMessage = '나: $message';
-                } else {
-                  lastMessage = '$senderNickname: $message';
-                }
-
-                lastMessageTime = _formatChatTime(
-                  messageData['createdAt'],
-                );
-
-                foundLastMessage = true;
-              }
+              foundLastMessage = true;
             }
           }
+        }
 
-          return GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) {
-                    return StudyChatPage(
-                      studyId: studyId,
-                      groupName: displayGroupName,
-                    );
-                  },
-                ),
-              );
-            },
-            child: Container(
-              height: 135,
-              padding: EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: Color(0xFFECEAF0),
-                ),
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) {
+                  return StudyChatPage(
+                    studyId: studyId,
+                    groupName: displayGroupName,
+                  );
+                },
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 43,
-                        height: 43,
-                        decoration: BoxDecoration(
-                          color: Color(0xFFE1E9FB),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.chat_bubble_outline,
-                          color: Color(0xFF5576B7),
-                          size: 22,
-                        ),
-                      ),
-                      Spacer(),
-                      Visibility(
-                        visible: unreadCount > 0,
-                        child: Container(
-                          constraints: BoxConstraints(
-                            minWidth: 23,
-                            minHeight: 23,
-                          ),
-                          alignment: Alignment.center,
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Color(0xFFF0788F),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            unreadCount > 99 ? '99+' : '$unreadCount',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    '그룹 채팅',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          lastMessage,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF858994),
-                          ),
-                        ),
-                      ),
-                      Visibility(
-                        visible: lastMessageTime.isNotEmpty,
-                        child: Padding(
-                          padding: EdgeInsets.only(left: 5),
-                          child: Text(
-                            lastMessageTime,
-                            style: TextStyle(
-                              fontSize: 9,
-                              color: Color(0xFFA1A4AC),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+            );
+          },
+          child: Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(17),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: Color(0xFFE8E6EC),
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.035),
+                  blurRadius: 12,
+                  offset: Offset(0, 5),
+                ),
+              ],
             ),
-          );
-        },
-      ),
+            child: Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: Color(0xFFE1E9FB),
+                    borderRadius: BorderRadius.circular(17),
+                  ),
+                  child: Icon(
+                    Icons.forum_rounded,
+                    color: Color(0xFF5576B7),
+                    size: 25,
+                  ),
+                ),
+                SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '그룹 채팅',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF292C33),
+                              ),
+                            ),
+                          ),
+                          Visibility(
+                            visible: lastMessageTime.isNotEmpty,
+                            child: Text(
+                              lastMessageTime,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFFA1A4AC),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 7),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              lastMessage,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF7B7F89),
+                              ),
+                            ),
+                          ),
+                          Visibility(
+                            visible: unreadCount > 0,
+                            child: Container(
+                              margin: EdgeInsets.only(left: 10),
+                              constraints: BoxConstraints(
+                                minWidth: 24,
+                                minHeight: 24,
+                              ),
+                              alignment: Alignment.center,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Color(0xFFF0788F),
+                                borderRadius: BorderRadius.circular(13),
+                              ),
+                              child: Text(
+                                unreadCount > 99 ? '99+' : '$unreadCount',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: 8),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: Color(0xFFB2B4BB),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -499,24 +1176,31 @@ class StudyRoomPage extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          height: 135,
+          height: 128,
           padding: EdgeInsets.all(15),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(21),
             border: Border.all(
-              color: Color(0xFFECEAF0),
+              color: Color(0xFFE8E6EC),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.025),
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 43,
-                height: 43,
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
                   color: backgroundColor,
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
                   icon,
@@ -524,12 +1208,13 @@ class StudyRoomPage extends StatelessWidget {
                   size: 22,
                 ),
               ),
-              SizedBox(height: 12),
+              Spacer(),
               Text(
                 title,
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
+                  color: Color(0xFF292C33),
                 ),
               ),
               SizedBox(height: 4),
@@ -539,11 +1224,100 @@ class StudyRoomPage extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 11,
-                  color: Color(0xFF858994),
+                  color: Color(0xFF8B8F98),
                 ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPrimaryStudyButton(
+      BuildContext context,
+      String displayGroupName,
+      ) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) {
+              return StudyTimerPage(
+                studyId: studyId,
+                groupName: displayGroupName,
+              );
+            },
+          ),
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 17,
+        ),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFFF49AAD),
+              Color(0xFFF0788F),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: Color(0xFFF0788F).withOpacity(0.22),
+              blurRadius: 16,
+              offset: Offset(0, 7),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.22),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(
+                Icons.play_arrow_rounded,
+                color: Colors.white,
+                size: 29,
+              ),
+            ),
+            SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '지금 공부 시작하기',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    '공부시간을 기록하고 순위에 반영해요.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.white.withOpacity(0.88),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: Colors.white,
+            ),
+          ],
         ),
       ),
     );
@@ -619,9 +1393,24 @@ class StudyRoomPage extends StatelessWidget {
                     }
 
                     if (snapshot.hasError) {
+                      if (_isNetworkError(snapshot.error)) {
+                        return AppNetworkErrorView(
+                          message: '인터넷 연결을 확인해 주세요.',
+                          description: '네트워크 연결 후 그룹원 목록을 다시 불러와 주세요.',
+                          onRetryPressed: () {
+                            Navigator.pop(bottomSheetContext);
+                            _openMemberList(context);
+                          },
+                        );
+                      }
+
                       return AppErrorView(
                         message: '그룹원 목록을 불러오지 못했습니다.',
                         description: '잠시 후 다시 시도해 주세요.',
+                        onRetryPressed: () {
+                          Navigator.pop(bottomSheetContext);
+                          _openMemberList(context);
+                        },
                       );
                     }
 
@@ -691,10 +1480,8 @@ class StudyRoomPage extends StatelessWidget {
                         String profileImageUrl =
                             memberData['profileImageUrl']?.toString() ?? '';
 
-                        int totalStudyMinutes = _getInt(
-                          memberData,
-                          'totalStudyMinutes',
-                        );
+                        int totalStudySeconds =
+                        _getTotalStudySeconds(memberData);
 
                         bool isOwner = role == 'OWNER';
 
@@ -758,7 +1545,7 @@ class StudyRoomPage extends StatelessWidget {
                                     SizedBox(height: 5),
                                     Text(
                                       '누적 공부시간 '
-                                          '${_formatStudyTime(totalStudyMinutes)}',
+                                          '${_formatStudyTime(totalStudySeconds)}',
                                       style: TextStyle(
                                         fontSize: 11,
                                         color: Color(0xFF92969F),
@@ -852,9 +1639,24 @@ class StudyRoomPage extends StatelessWidget {
                     }
 
                     if (snapshot.hasError) {
+                      if (_isNetworkError(snapshot.error)) {
+                        return AppNetworkErrorView(
+                          message: '인터넷 연결을 확인해 주세요.',
+                          description: '네트워크 연결 후 공부시간 순위를 다시 불러와 주세요.',
+                          onRetryPressed: () {
+                            Navigator.pop(bottomSheetContext);
+                            _openStudyRanking(context);
+                          },
+                        );
+                      }
+
                       return AppErrorView(
                         message: '공부시간 순위를 불러오지 못했습니다.',
                         description: '잠시 후 다시 시도해 주세요.',
+                        onRetryPressed: () {
+                          Navigator.pop(bottomSheetContext);
+                          _openStudyRanking(context);
+                        },
                       );
                     }
 
@@ -884,17 +1686,13 @@ class StudyRoomPage extends StatelessWidget {
                     }
 
                     memberList.sort((a, b) {
-                      int aMinutes = _getInt(
-                        a.data(),
-                        'totalStudyMinutes',
-                      );
+                      int aSeconds =
+                      _getTotalStudySeconds(a.data());
 
-                      int bMinutes = _getInt(
-                        b.data(),
-                        'totalStudyMinutes',
-                      );
+                      int bSeconds =
+                      _getTotalStudySeconds(b.data());
 
-                      return bMinutes.compareTo(aMinutes);
+                      return bSeconds.compareTo(aSeconds);
                     });
 
                     if (memberList.isEmpty) {
@@ -915,10 +1713,8 @@ class StudyRoomPage extends StatelessWidget {
                             memberData['nickname']?.toString() ??
                                 '스터디원';
 
-                        int totalStudyMinutes = _getInt(
-                          memberData,
-                          'totalStudyMinutes',
-                        );
+                        int totalStudySeconds =
+                        _getTotalStudySeconds(memberData);
 
                         return Container(
                           margin: EdgeInsets.only(bottom: 11),
@@ -959,7 +1755,7 @@ class StudyRoomPage extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                _formatStudyTime(totalStudyMinutes),
+                                _formatStudyTime(totalStudySeconds),
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: Color(0xFF6F58C9),
@@ -1068,6 +1864,9 @@ class StudyRoomPage extends StatelessWidget {
 
     String notice = groupData['notice']?.toString() ?? '';
 
+    String certificateName =
+        groupData['certificateName']?.toString() ?? '공통 스터디';
+
     int currentMemberCount = _getInt(
       groupData,
       'currentMemberCount',
@@ -1078,228 +1877,340 @@ class StudyRoomPage extends StatelessWidget {
       'maxMemberCount',
     );
 
+    bool joinApprovalRequired = true;
+
+    if (groupData['joinApprovalRequired'] is bool) {
+      joinApprovalRequired = groupData['joinApprovalRequired'];
+    }
+
+    bool isRecruiting = _isRecruiting(groupData);
+
+    String memberText = '$currentMemberCount명';
+
+    if (maxMemberCount > 0) {
+      memberText = '$currentMemberCount / $maxMemberCount명';
+    }
+
+    String joinTypeText = '바로 참여';
+
+    if (joinApprovalRequired) {
+      joinTypeText = '승인 후 참여';
+    }
+
+    if (description.isEmpty) {
+      description = '함께 목표를 정하고 공부하는 스터디입니다.';
+    }
+
     double bottomPadding =
-        MediaQuery.of(context).padding.bottom + 40;
+        MediaQuery.of(context).padding.bottom + 42;
 
     return AppMainBackground(
       applySafeArea: false,
       child: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(
-          20,
+          18,
           14,
-          20,
+          18,
           bottomPadding,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AppCard(
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFFFEDF2),
+                    Color(0xFFF1EEFF),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: Color(0xFFF0E4EC),
+                ),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  Wrap(
+                    spacing: 7,
+                    runSpacing: 7,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              displayGroupName,
-                              style: TextStyle(
-                                fontSize: 21,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: 5),
-                            Text(
-                              '$currentMemberCount / $maxMemberCount명 참여 중',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF7B7F89),
-                              ),
-                            ),
-                          ],
-                        ),
+                      _buildRoomBadge(
+                        certificateName,
+                        Colors.white.withOpacity(0.88),
+                        Color(0xFF6F58C9),
+                      ),
+                      _buildRoomBadge(
+                        isRecruiting ? '모집 중' : '모집 마감',
+                        isRecruiting
+                            ? Color(0xFFDFF5EA)
+                            : Color(0xFFF1F2F5),
+                        isRecruiting
+                            ? Color(0xFF3F9C72)
+                            : Color(0xFF858994),
                       ),
                       Visibility(
                         visible: isOwner,
-                        child: Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 9,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Color(0xFFFFE7EE),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '방장',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Color(0xFFD85F82),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                        child: _buildRoomBadge(
+                          '방장',
+                          Color(0xFFF0788F),
+                          Colors.white,
                         ),
                       ),
                     ],
                   ),
-                  Visibility(
-                    visible: description.isNotEmpty,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(height: 12),
-                        Text(
-                          description,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 13,
-                            height: 1.5,
-                            color: Color(0xFF686D78),
-                          ),
-                        ),
-                      ],
+                  SizedBox(height: 14),
+                  Text(
+                    displayGroupName,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 23,
+                      height: 1.25,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF292C33),
+                    ),
+                  ),
+                  SizedBox(height: 9),
+                  Text(
+                    description,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.55,
+                      color: Color(0xFF666B75),
                     ),
                   ),
                   SizedBox(height: 18),
                   Row(
                     children: [
-                      Expanded(
-                        child: Text(
-                          '함께 공부하는 멤버',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          _openMemberList(context);
-                        },
-                        child: Text(
-                          '전체보기',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF8068D8),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  _buildMemberProfiles(context),
-                ],
-              ),
-            ),
-            SizedBox(height: 15),
-            AppCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: Color(0xFFFFE7EE),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.campaign_outlined,
-                          color: Color(0xFFD85F82),
-                          size: 20,
-                        ),
+                      _buildRoomMetric(
+                        Icons.groups_rounded,
+                        '참여 인원',
+                        memberText,
                       ),
                       SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          '스터디 공지',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      Visibility(
-                        visible: isOwner,
-                        child: TextButton(
-                          onPressed: () {
-                            _showNoticeDialog(
-                              context,
-                              notice,
-                            );
-                          },
-                          child: Text(
-                            notice.isEmpty ? '등록' : '수정',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFFD85F82),
-                            ),
-                          ),
-                        ),
+                      _buildRoomMetric(
+                        Icons.how_to_reg_rounded,
+                        '참여 방식',
+                        joinTypeText,
                       ),
                     ],
                   ),
-                  SizedBox(height: 10),
-                  Text(
-                    notice.isEmpty ? '등록된 공지가 없습니다.' : notice,
-                    style: TextStyle(
-                      fontSize: 13,
-                      height: 1.5,
-                      color: Color(0xFF686D78),
+                  Visibility(
+                    visible: isOwner,
+                    child: Padding(
+                      padding: EdgeInsets.only(top: 12),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(15),
+                        onTap: () {
+                          _updateRecruitmentStatus(
+                            context,
+                            groupData,
+                            isRecruiting == false,
+                          );
+                        },
+                        child: Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 13,
+                            vertical: 11,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.82),
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isRecruiting
+                                    ? Icons.lock_outline_rounded
+                                    : Icons.lock_open_rounded,
+                                size: 18,
+                                color: Color(0xFFD85F82),
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  isRecruiting
+                                      ? '신규 참여 모집 마감하기'
+                                      : '신규 참여 모집 다시 열기',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFFD85F82),
+                                  ),
+                                ),
+                              ),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                size: 20,
+                                color: Color(0xFFD85F82),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
             SizedBox(height: 22),
-            Text(
-              '스터디 활동',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+            _buildRoomSectionTitle(
+              '공지',
+              '스터디원 모두가 확인해야 할 내용이에요.',
+            ),
+            SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Color(0xFFFFF7F9),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: Color(0xFFF7DDE5),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Color(0xFFFFE2E9),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: Icon(
+                      Icons.campaign_rounded,
+                      color: Color(0xFFD85F82),
+                      size: 21,
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                notice.isEmpty
+                                    ? '등록된 공지가 없습니다.'
+                                    : notice,
+                                maxLines: 4,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  height: 1.5,
+                                  color: Color(0xFF5F636D),
+                                ),
+                              ),
+                            ),
+                            Visibility(
+                              visible: isOwner,
+                              child: TextButton(
+                                onPressed: () {
+                                  _showNoticeDialog(
+                                    context,
+                                    notice,
+                                  );
+                                },
+                                style: TextButton.styleFrom(
+                                  minimumSize: Size(0, 32),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                ),
+                                child: Text(
+                                  notice.isEmpty ? '등록' : '수정',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFFD85F82),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            SizedBox(height: 12),
+            SizedBox(height: 24),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                _buildChatActivityButton(
-                  context,
-                  displayGroupName,
+                Expanded(
+                  child: _buildRoomSectionTitle(
+                    '함께 공부하는 멤버',
+                    '현재 활동 중인 스터디원이에요.',
+                  ),
                 ),
-                SizedBox(width: 11),
-                _buildActivityButton(
-                  Icons.timer_outlined,
-                  '공부시간',
-                  '기록하기',
-                  Color(0xFFDFF5EA),
-                  Color(0xFF3F9C72),
-                      () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) {
-                          return StudyTimerPage(
-                            studyId: studyId,
-                            groupName: displayGroupName,
-                          );
-                        },
-                      ),
-                    );
+                TextButton(
+                  onPressed: () {
+                    _openMemberList(context);
                   },
+                  child: Text(
+                    '전체보기',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF8068D8),
+                    ),
+                  ),
                 ),
               ],
+            ),
+            SizedBox(height: 9),
+            _buildMemberProfiles(context),
+            SizedBox(height: 25),
+            _buildRoomSectionTitle(
+              '오늘의 학습',
+              '그룹의 공부 현황을 확인하고 바로 시작해요.',
+            ),
+            SizedBox(height: 11),
+            _buildTodayStudySummary(
+              context,
+              displayGroupName,
+            ),
+            SizedBox(height: 11),
+            _buildPrimaryStudyButton(
+              context,
+              displayGroupName,
+            ),
+            SizedBox(height: 25),
+            _buildRoomSectionTitle(
+              '스터디 소통',
+              '질문과 공부 계획을 그룹원과 나눠 보세요.',
+            ),
+            SizedBox(height: 11),
+            _buildChatActivityButton(
+              context,
+              displayGroupName,
+            ),
+            SizedBox(height: 25),
+            _buildRoomSectionTitle(
+              '기록과 문제',
+              '공부시간 순위와 발송된 문제를 확인해요.',
             ),
             SizedBox(height: 11),
             Row(
               children: [
                 _buildActivityButton(
-                  Icons.emoji_events_outlined,
+                  Icons.emoji_events_rounded,
                   '공부 순위',
-                  '순위 보기',
+                  '그룹원 기록 보기',
                   Color(0xFFE6E1FB),
                   Color(0xFF6F58C9),
                       () {
@@ -1308,9 +2219,9 @@ class StudyRoomPage extends StatelessWidget {
                 ),
                 SizedBox(width: 11),
                 _buildActivityButton(
-                  Icons.quiz_outlined,
+                  Icons.quiz_rounded,
                   '발송 문제',
-                  '문제 풀기',
+                  '문제 확인하기',
                   Color(0xFFFCE1E8),
                   Color(0xFFD85F82),
                       () {
@@ -1351,6 +2262,15 @@ class StudyRoomPage extends StatelessWidget {
         title: Text('스터디방'),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
+        actions: [
+          IconButton(
+            onPressed: () {
+              _openMemberList(context);
+            },
+            icon: Icon(Icons.groups_outlined),
+            tooltip: '그룹원 보기',
+          ),
+        ],
       ),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
@@ -1366,9 +2286,22 @@ class StudyRoomPage extends StatelessWidget {
           }
 
           if (groupSnapshot.hasError) {
+            if (_isNetworkError(groupSnapshot.error)) {
+              return AppNetworkErrorView(
+                message: '인터넷 연결을 확인해 주세요.',
+                description: 'Wi-Fi 또는 모바일 데이터를 확인한 뒤 다시 시도해 주세요.',
+                onRetryPressed: () {
+                  _reloadPage(context);
+                },
+              );
+            }
+
             return AppErrorView(
               message: '스터디방을 불러오지 못했습니다.',
               description: '잠시 후 다시 시도해 주세요.',
+              onRetryPressed: () {
+                _reloadPage(context);
+              },
             );
           }
 
@@ -1417,9 +2350,22 @@ class StudyRoomPage extends StatelessWidget {
               }
 
               if (memberSnapshot.hasError) {
+                if (_isNetworkError(memberSnapshot.error)) {
+                  return AppNetworkErrorView(
+                    message: '인터넷 연결을 확인해 주세요.',
+                    description: '네트워크 연결 후 그룹원 정보를 다시 확인해 주세요.',
+                    onRetryPressed: () {
+                      _reloadPage(context);
+                    },
+                  );
+                }
+
                 return AppErrorView(
                   message: '그룹원 정보를 불러오지 못했습니다.',
                   description: '잠시 후 다시 시도해 주세요.',
+                  onRetryPressed: () {
+                    _reloadPage(context);
+                  },
                 );
               }
 
