@@ -1,18 +1,31 @@
-import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:naver_login_sdk/naver_login_sdk.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:http/http.dart' as http;
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart' as kakao;
+import 'package:cloud_functions/cloud_functions.dart';
 
 class AuthResult {
   final User? user;
   final bool isNewUser;
+  final SocialSignupTicket? signupTicket; // 신규 유저일 때만 채워짐
 
-  AuthResult({required this.user, required this.isNewUser});
+  AuthResult({this.user, required this.isNewUser, this.signupTicket});
+}
+
+class SocialSignupTicket {
+  final String provider;
+  final String signupToken;
+  final String? email;
+  final String? suggestedNickname; // 카카오/네이버가 준 닉네임, 프리필용
+
+  SocialSignupTicket({
+    required this.provider,
+    required this.signupToken,
+    this.email,
+    this.suggestedNickname,
+  });
 }
 
 class AuthService {
@@ -20,29 +33,37 @@ class AuthService {
 
   static final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   static final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  static final FirebaseFunctions _functions =
+  FirebaseFunctions.instanceFor(region: 'us-central1'); // 배포 리전에 맞게 수정
 
-  // ---------------------------------------------------------------------
-  // Google 로그인 (google_sign_in 7.x API로 마이그레이션)
-  // ---------------------------------------------------------------------
   static Future<AuthResult?> signInWithGoogle() async {
-    debugPrint('🟡 구글 로그인 authenticate() 호출 시작');
     try {
       final GoogleSignInAccount googleUser = await _googleSignIn.authenticate();
-      debugPrint('🟢 authenticate 성공: ${googleUser.email}');
-
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
-      debugPrint('🟢 idToken 확보: ${googleAuth.idToken != null}');
 
       final credential = GoogleAuthProvider.credential(
         idToken: googleAuth.idToken,
       );
 
-      final userCredential =
-      await _firebaseAuth.signInWithCredential(credential);
-      debugPrint('🟢 Firebase 로그인 성공: ${userCredential.user?.uid}');
+      final userCredential = await _firebaseAuth.signInWithCredential(credential);
+      final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
+
+      if (!isNewUser) {
+        return AuthResult(user: userCredential.user, isNewUser: false);
+      }
+
+      await userCredential.user?.delete();
+      await _firebaseAuth.signOut();
+
       return AuthResult(
-        user: userCredential.user,
-        isNewUser: userCredential.additionalUserInfo?.isNewUser ?? false,
+        user: null,
+        isNewUser: true,
+        signupTicket: SocialSignupTicket(
+          provider: 'google',
+          signupToken: googleAuth.idToken ?? '',
+          email: googleUser.email,
+          suggestedNickname: googleUser.displayName,
+        ),
       );
     } on GoogleSignInException catch (e) {
       debugPrint('🔴 GoogleSignInException: ${e.code} ${e.description}');
@@ -57,7 +78,6 @@ class AuthService {
     }
   }
 
-  // signOut도 v7에서는 방식이 조금 다릅니다
   static Future<void> _googleSignOut() async {
     await _googleSignIn.signOut();
   }
@@ -71,21 +91,35 @@ class AuthService {
 
       final kakao.User kakaoUser = await kakao.UserApi.instance.me();
 
-      final tokenResult = await _exchangeForFirebaseCustomToken(
+      final result = await _exchangeForFirebaseCustomToken(
         provider: 'kakao',
         accessToken: token.accessToken,
         providerUserId: kakaoUser.id.toString(),
         email: kakaoUser.kakaoAccount?.email,
         nickname: kakaoUser.kakaoAccount?.profile?.nickname,
       );
-      final customToken = tokenResult?['firebaseCustomToken'] as String?;
-      if (customToken == null) return null;
+      if (result == null) return null;
 
-      final userCredential =
-      await _firebaseAuth.signInWithCustomToken(customToken);
+      final isNewUser = result['isNewUser'] as bool? ?? false;
+
+      if (!isNewUser) {
+        final customToken = result['firebaseCustomToken'] as String?;
+        if (customToken == null) return null;
+        final userCredential = await _firebaseAuth.signInWithCustomToken(customToken);
+        return AuthResult(user: userCredential.user, isNewUser: false);
+      }
+
+      final signupToken = result['signupToken'] as String?;
+      if (signupToken == null) return null;
       return AuthResult(
-        user: userCredential.user,
-        isNewUser: tokenResult?['isNewUser'] as bool? ?? false,
+        user: null,
+        isNewUser: true,
+        signupTicket: SocialSignupTicket(
+          provider: 'kakao',
+          signupToken: signupToken,
+          email: kakaoUser.kakaoAccount?.email,
+          suggestedNickname: kakaoUser.kakaoAccount?.profile?.nickname,
+        ),
       );
     } on kakao.KakaoAuthException catch (e) {
       debugPrint('카카오 인증 실패: ${e.error} / ${e.errorDescription}');
@@ -99,42 +133,48 @@ class AuthService {
     }
   }
 
-  // ---------------------------------------------------------------------
-  // 네이버 로그인 (naver_login_sdk로 마이그레이션)
-  //
-  // 이전 API: FlutterNaverLogin.logIn() → NaverLoginResult
-  // 새 API: NaverLoginSDK.login() → bool (로그인 성공 여부만 반환)
-  //         프로필/토큰은 별도 함수로 조회해야 함
-  // ---------------------------------------------------------------------
   static Future<AuthResult?> signInWithNaver() async {
     try {
       final bool isLogin = await NaverLoginSDK.login();
-      if (!isLogin) return null; // 로그인 취소/실패
+      if (!isLogin) return null;
 
       final String accessToken = await NaverLoginSDK.getAccessToken();
 
-      // profile()이 nullable을 반환하므로 ? 로 받고 null 체크
       final NaverLoginProfile? profile = await NaverLoginSDK.profile();
       if (profile == null) {
         debugPrint('네이버 프로필 조회 실패: profile이 null');
         return null;
       }
 
-      final tokenResult = await _exchangeForFirebaseCustomToken(
+      final result = await _exchangeForFirebaseCustomToken(
         provider: 'naver',
         accessToken: accessToken,
         providerUserId: profile.id ?? '',
         email: profile.email,
         nickname: profile.nickName,
       );
-      final customToken = tokenResult?['firebaseCustomToken'] as String?;
-      if (customToken == null) return null;
+      if (result == null) return null;
 
-      final userCredential =
-      await _firebaseAuth.signInWithCustomToken(customToken);
+      final isNewUser = result['isNewUser'] as bool? ?? false;
+
+      if (!isNewUser) {
+        final customToken = result['firebaseCustomToken'] as String?;
+        if (customToken == null) return null;
+        final userCredential = await _firebaseAuth.signInWithCustomToken(customToken);
+        return AuthResult(user: userCredential.user, isNewUser: false);
+      }
+
+      final signupToken = result['signupToken'] as String?;
+      if (signupToken == null) return null;
       return AuthResult(
-        user: userCredential.user,
-        isNewUser: tokenResult?['isNewUser'] as bool? ?? false,
+        user: null,
+        isNewUser: true,
+        signupTicket: SocialSignupTicket(
+          provider: 'naver',
+          signupToken: signupToken,
+          email: profile.email,
+          suggestedNickname: profile.nickName,
+        ),
       );
     } catch (e) {
       debugPrint('네이버 로그인 실패: $e');
@@ -142,9 +182,6 @@ class AuthService {
     }
   }
 
-  // ---------------------------------------------------------------------
-  // 백엔드 Custom Token 교환 (변경 없음)
-  // ---------------------------------------------------------------------
   static Future<Map<String, dynamic>?> _exchangeForFirebaseCustomToken({
     required String provider,
     required String accessToken,
@@ -152,43 +189,93 @@ class AuthService {
     String? email,
     String? nickname,
   }) async {
-    final baseUrl = dotenv.env['BACKEND_BASE_URL'];
-    if (baseUrl == null || baseUrl.isEmpty) {
-      debugPrint('[$provider] BACKEND_BASE_URL이 설정되지 않았습니다. .env를 확인하세요.');
-      return null;
-    }
-
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/$provider'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'accessToken': accessToken,
-          'providerUserId': providerUserId,
-          'email': email,
-          'nickname': nickname,
-        }),
-      );
-
-      if (response.statusCode != 200) {
-        debugPrint(
-          '[$provider] Custom token 발급 실패: ${response.statusCode} ${response.body}',
-        );
-        return null;
-      }
-
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      debugPrint('[$provider] 서버 응답: $body');
-      return body;
+      final callable = _functions.httpsCallable(
+        'auth${provider[0].toUpperCase()}${provider.substring(1)}',
+      ); // 'kakao' -> 'authKakao', 'naver' -> 'authNaver'
+      final result = await callable.call({
+        'accessToken': accessToken,
+        'providerUserId': providerUserId,
+        'email': email,
+        'nickname': nickname,
+      });
+      return Map<String, dynamic>.from(result.data as Map);
+    } on FirebaseFunctionsException catch (e) {
+      debugPrint('[$provider] Cloud Function 오류: ${e.code} ${e.message}');
+      return null;
     } catch (e) {
       debugPrint('[$provider] Custom token 요청 중 오류: $e');
       return null;
     }
   }
 
-  // ---------------------------------------------------------------------
-  // 로그아웃
-  // ---------------------------------------------------------------------
+  static Future<AuthResult?> completeSocialSignup({
+    required SocialSignupTicket ticket,
+    required Map<String, bool> agreements,
+    String? goalCertificateId,
+    required String nickname,
+    String? bio,
+  }) async {
+    if (ticket.provider == 'google') {
+      try {
+        final credential = GoogleAuthProvider.credential(idToken: ticket.signupToken);
+        final userCredential = await _firebaseAuth.signInWithCredential(credential);
+        final user = userCredential.user;
+        if (user == null) return null;
+
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'uid': user.uid,
+          'email': user.email,
+          'loginProvider': 'GOOGLE',
+          'role': 'USER',
+          'status': 'ACTIVE',
+          'loginFailCount': 0,
+          'reportCount': 0,
+          'goalCertificateId': goalCertificateId,
+          'nickname': nickname,
+          'bio': bio,
+          'termsAgreed': agreements['terms'] ?? false,
+          'privacyAgreed': agreements['privacy'] ?? false,
+          'marketingAgreed': agreements['marketing'] ?? false,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'lastLoginAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        return AuthResult(user: user, isNewUser: true);
+      } catch (e) {
+        debugPrint('구글 가입 완료 실패: $e');
+        return null;
+      }
+    }
+
+    // 카카오 / 네이버: Cloud Function이 signupToken을 받아서 계정 생성 +
+    // Firestore 문서 생성을 한 번에 처리하고, customToken을 돌려준다.
+    try {
+      final callable = _functions.httpsCallable('completeSocialSignup');
+      final result = await callable.call({
+        'signupToken': ticket.signupToken,
+        'agreements': agreements,
+        'goalCertificateId': goalCertificateId,
+        'nickname': nickname,
+        'bio': bio,
+      });
+
+      final body = Map<String, dynamic>.from(result.data as Map);
+      final customToken = body['firebaseCustomToken'] as String?;
+      if (customToken == null) return null;
+
+      final userCredential = await _firebaseAuth.signInWithCustomToken(customToken);
+      return AuthResult(user: userCredential.user, isNewUser: true);
+    } on FirebaseFunctionsException catch (e) {
+      debugPrint('[${ticket.provider}] 가입 완료 실패: ${e.code} ${e.message}');
+      return null;
+    } catch (e) {
+      debugPrint('[${ticket.provider}] 가입 완료 요청 중 오류: $e');
+      return null;
+    }
+  }
+
   static Future<void> signOut() async {
     await Future.wait([
       _firebaseAuth.signOut(),

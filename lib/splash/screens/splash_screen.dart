@@ -14,13 +14,12 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
   late final AnimationController _controller;
-  late final Animation<double> _logoScale;
-  late final Animation<double> _logoOpacity;
   late final Animation<double> _wordmarkOpacity;
   late final Animation<Offset> _wordmarkSlide;
   late final Animation<double> _dotsOpacity;
 
   late final AnimationController _breatheController;
+  late final AnimationController _characterController;
 
   @override
   void initState() {
@@ -31,20 +30,9 @@ class _SplashScreenState extends State<SplashScreen>
       duration: const Duration(milliseconds: 1400),
     );
 
-    _logoScale = Tween<double>(begin: 0.7, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.0, 0.55, curve: Curves.elasticOut),
-      ),
-    );
-    _logoOpacity = CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.0, 0.35, curve: Curves.easeOut),
-    );
-
     _wordmarkOpacity = CurvedAnimation(
       parent: _controller,
-      curve: const Interval(0.35, 0.7, curve: Curves.easeOut),
+      curve: const Interval(0.0, 0.4, curve: Curves.easeOut),
     );
     _wordmarkSlide = Tween<Offset>(
       begin: const Offset(0, 0.25),
@@ -52,19 +40,25 @@ class _SplashScreenState extends State<SplashScreen>
     ).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.35, 0.75, curve: Curves.easeOutCubic),
+        curve: const Interval(0.0, 0.5, curve: Curves.easeOutCubic),
       ),
     );
 
     _dotsOpacity = CurvedAnimation(
       parent: _controller,
-      curve: const Interval(0.7, 1.0, curve: Curves.easeOut),
+      curve: const Interval(0.6, 1.0, curve: Curves.easeOut),
     );
 
     // 배경 블롭 은은하게 숨쉬는 애니메이션
     _breatheController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
+    )..repeat(reverse: true);
+
+    // 캐릭터 인사/들썩임 애니메이션
+    _characterController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
     )..repeat(reverse: true);
 
     _controller.forward();
@@ -95,6 +89,7 @@ class _SplashScreenState extends State<SplashScreen>
   void dispose() {
     _controller.dispose();
     _breatheController.dispose();
+    _characterController.dispose();
     super.dispose();
   }
 
@@ -135,73 +130,13 @@ class _SplashScreenState extends State<SplashScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // 로고: 흰 카드 없이 은은한 글로우 위에 배치
-                  AnimatedBuilder(
-                    animation: _controller,
-                    builder: (context, child) {
-                      return Opacity(
-                        opacity: _logoOpacity.value,
-                        child: Transform.scale(
-                          scale: _logoScale.value,
-                          child: child,
-                        ),
-                      );
-                    },
-                    child: AnimatedBuilder(
-                      animation: _breatheController,
-                      builder: (context, child) {
-                        final scale = 1.0 + _breatheController.value * 0.04;
-                        return Transform.scale(scale: scale, child: child);
-                      },
-                      child: SizedBox(
-                        width: 168,
-                        height: 168,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // 은은한 글로우 링
-                            Container(
-                              width: 168,
-                              height: 168,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: RadialGradient(
-                                  colors: [
-                                    Colors.white.withOpacity(0.22),
-                                    Colors.white.withOpacity(0.0),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            // 로고 카드 (반투명 유리 느낌)
-                            Container(
-                              width: 116,
-                              height: 116,
-                              padding: const EdgeInsets.all(24),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.14),
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.35),
-                                  width: 1.2,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.12),
-                                    blurRadius: 24,
-                                    offset: const Offset(0, 10),
-                                  ),
-                                ],
-                              ),
-                              child: Image.asset('assets/splash/logo.png'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                  // 캐릭터: 인사하듯 좌우로 까딱이며 살짝 들썩임
+                  FadeTransition(
+                    opacity: _wordmarkOpacity,
+                    child: _WavingCharacter(controller: _characterController),
                   ),
 
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 18),
 
                   // 워드마크: 텍스트로고 이미지
                   SlideTransition(
@@ -277,6 +212,37 @@ class _BackgroundBlob extends StatelessWidget {
             color: Colors.white.withOpacity(0.08),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _WavingCharacter extends StatelessWidget {
+  final AnimationController controller;
+
+  const _WavingCharacter({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        // -0.06 ~ 0.06 라디안 사이로 좌우 까딱임 (인사하는 느낌)
+        final tilt = (controller.value - 0.5) * 0.12;
+        // 살짝 위아래로도 들썩 (열공 텐션)
+        final bounce = -6 * (1 - (controller.value - 0.5).abs() * 2);
+        return Transform.translate(
+          offset: Offset(0, bounce),
+          child: Transform.rotate(
+            angle: tilt,
+            child: child,
+          ),
+        );
+      },
+      child: Image.asset(
+        'assets/icons/character.png',
+        width: 88,
+        height: 88,
       ),
     );
   }
