@@ -11,6 +11,7 @@ import '../widgets/mypage_summary_card.dart';
 import 'study_record_screen.dart';
 import 'my_posts_screen.dart';
 import 'joined_study_screen.dart';
+import 'notification_setting_screen.dart';
 
 class MyPageScreen extends StatelessWidget {
   const MyPageScreen({super.key});
@@ -67,13 +68,17 @@ class MyPageScreen extends StatelessWidget {
                 onGroupTap: () {
                   _openPage(
                     context,
-                    const JoinedStudyScreen(),
+                    const TemporaryPage(
+                      title: '참여 중인 스터디',
+                    ),
                   );
                 },
                 onPostTap: () {
                   _openPage(
                     context,
-                    const MyPostsScreen(),
+                    const TemporaryPage(
+                      title: '내가 쓴 글',
+                    ),
                   );
                 },
               ),
@@ -142,7 +147,9 @@ class MyPageScreen extends StatelessWidget {
                       onTap: () {
                         _openPage(
                           context,
-                          const MyPostsScreen(),
+                          const TemporaryPage(
+                            title: '내가 쓴 글',
+                          ),
                         );
                       },
                     ),
@@ -182,7 +189,9 @@ class MyPageScreen extends StatelessWidget {
                       onTap: () {
                         _openPage(
                           context,
-                          const JoinedStudyScreen(),
+                          const TemporaryPage(
+                            title: '참여 중인 스터디',
+                          ),
                         );
                       },
                     ),
