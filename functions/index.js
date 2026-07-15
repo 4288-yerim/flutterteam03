@@ -3,6 +3,7 @@ const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
+const axios = require("axios");
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -243,8 +244,10 @@ exports.completeSignup = onCall(
     const password = request.data?.password || "";
     const verificationToken = request.data?.verificationToken || "";
     const agreements = request.data?.agreements || {};
-    // 선택 사항: 회원가입 중 목표 자격증을 선택했다면 전달됨. 선택 안 했으면 null.
     const goalCertificateId = request.data?.goalCertificateId || null;
+
+    const nickname = (request.data?.nickname || "").trim();
+    const bio = request.data?.bio || null;
 
     if (!isValidEmail(email)) {
       throw new HttpsError("invalid-argument", "이메일 형식이 올바르지 않습니다.");
@@ -255,9 +258,12 @@ exports.completeSignup = onCall(
     if (!verificationToken) {
       throw new HttpsError("invalid-argument", "이메일 인증을 먼저 완료해주세요.");
     }
-    if (!agreements.terms || !agreements.privacy || !agreements.age) {
-      throw new HttpsError("invalid-argument", "필수 약관에 동의해주세요.");
-    }
+   if (!agreements.terms || !agreements.privacy || !agreements.age) {
+     throw new HttpsError("invalid-argument", "필수 약관에 동의해주세요.");
+   }
+   if (!nickname) {
+     throw new HttpsError("invalid-argument", "닉네임을 입력해주세요.");
+   }
 
     const docRef = db.collection(OTP_COLLECTION).doc(email);
     const snap = await docRef.get();
@@ -297,21 +303,23 @@ exports.completeSignup = onCall(
 
     // Firestore 유저 문서까지 같은 호출 안에서 생성 (약관동의와 계정 생성을 사실상 하나의 단위로 묶음)
     try {
-      await db.collection("users").doc(userRecord.uid).set({
-        uid: userRecord.uid,
-        email: userRecord.email,
-        loginProvider: "PASSWORD",
-        role: "USER",
-        status: "ACTIVE",
-        loginFailCount: 0,
-        reportCount: 0,
-        termsAgreed: !!agreements.terms,
-        privacyAgreed: !!agreements.privacy,
-        marketingAgreed: !!agreements.marketing,
-        goalCertificateId: goalCertificateId,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+     await db.collection("users").doc(userRecord.uid).set({
+       uid: userRecord.uid,
+       email: userRecord.email,
+       loginProvider: "PASSWORD",
+       role: "USER",
+       status: "ACTIVE",
+       loginFailCount: 0,
+       reportCount: 0,
+       termsAgreed: !!agreements.terms,
+       privacyAgreed: !!agreements.privacy,
+       marketingAgreed: !!agreements.marketing,
+       goalCertificateId: goalCertificateId,
+       nickname: nickname,
+       bio: bio,
+       createdAt: admin.firestore.FieldValue.serverTimestamp(),
+       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+     });
     } catch (err) {
       // Firestore 문서 생성 실패 -> 방금 만든 Auth 계정 롤백
       await admin.auth().deleteUser(userRecord.uid).catch(() => {});
@@ -503,3 +511,177 @@ exports.resetPassword = onCall(
     return { success: true };
   }
 );
+// functions/index.js (기존 파일에 추가)
+
+exports.authKakao = onCall(async (request) => {
+  const { accessToken, providerUserId, email, nickname } = request.data;
+
+  if (!accessToken || !providerUserId) {
+    throw new HttpsError("invalid-argument", "accessToken과 providerUserId가 필요합니다.");
+  }
+
+  let verifiedKakaoId;
+  try {
+    const kakaoResponse = await axios.get("https://kapi.kakao.com/v2/user/me", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    verifiedKakaoId = kakaoResponse.data.id?.toString();
+  } catch (err) {
+    throw new HttpsError("unauthenticated", "카카오 토큰 검증 실패");
+  }
+
+  if (verifiedKakaoId !== providerUserId) {
+    throw new HttpsError("unauthenticated", "토큰 검증 실패: 유저 정보 불일치");
+  }
+
+  const uid = `kakao_${verifiedKakaoId}`;
+
+  let isNewUser = false;
+  try {
+    await admin.auth().getUser(uid);
+  } catch (err) {
+    if (err.code === "auth/user-not-found") {
+      isNewUser = true;
+    } else {
+      throw new HttpsError("internal", "계정 확인 중 오류가 발생했습니다.");
+    }
+  }
+
+  if (!isNewUser) {
+    const customToken = await admin.auth().createCustomToken(uid, {
+      provider: "kakao",
+      email: email || null,
+      nickname: nickname || null,
+    });
+    return { firebaseCustomToken: customToken, isNewUser: false };
+  }
+
+  const signupToken = crypto.randomBytes(24).toString("hex");
+  await db.collection("social_signup_tickets").doc(signupToken).set({
+    provider: "kakao",
+    uid,
+    email: email || null,
+    nickname: nickname || null,
+    expiresAt: Date.now() + 15 * 60 * 1000,
+    createdAt: Date.now(),
+  });
+
+  return { isNewUser: true, signupToken };
+});
+
+exports.completeSocialSignup = onCall(async (request) => {
+  const { signupToken, agreements, goalCertificateId, nickname, bio } = request.data;
+
+  if (!signupToken) throw new HttpsError("invalid-argument", "signupToken이 필요합니다.");
+  if (!agreements?.terms || !agreements?.privacy || !agreements?.age) {
+    throw new HttpsError("invalid-argument", "필수 약관에 동의해주세요.");
+  }
+  if (!nickname?.trim()) throw new HttpsError("invalid-argument", "닉네임을 입력해주세요.");
+
+  const ticketRef = db.collection("social_signup_tickets").doc(signupToken);
+  const snap = await ticketRef.get();
+  if (!snap.exists) throw new HttpsError("not-found", "인증 정보를 찾을 수 없습니다. 다시 로그인해주세요.");
+
+  const ticket = snap.data();
+  if (Date.now() > ticket.expiresAt) {
+    await ticketRef.delete();
+    throw new HttpsError("deadline-exceeded", "인증이 만료됐어요. 다시 로그인해주세요.");
+  }
+
+  const { uid, provider, email } = ticket;
+
+  try {
+    await admin.auth().getUser(uid);
+  } catch (err) {
+    if (err.code === "auth/user-not-found") {
+      await admin.auth().createUser({ uid, email: email || undefined });
+    } else {
+      throw new HttpsError("internal", "계정 생성 중 오류가 발생했습니다.");
+    }
+  }
+
+  try {
+    await db.collection("users").doc(uid).set({
+      uid,
+      email: email || null,
+      loginProvider: provider.toUpperCase(),
+      role: "USER",
+      status: "ACTIVE",
+      loginFailCount: 0,
+      reportCount: 0,
+      goalCertificateId: goalCertificateId || null,
+      nickname: nickname.trim(),
+      bio: bio || null,
+      termsAgreed: !!agreements.terms,
+      privacyAgreed: !!agreements.privacy,
+      marketingAgreed: !!agreements.marketing,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastLoginAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+  } catch (err) {
+    await admin.auth().deleteUser(uid).catch(() => {});
+    throw new HttpsError("internal", "가입 처리 중 오류가 발생했습니다.");
+  }
+
+  await ticketRef.delete();
+
+  const customToken = await admin.auth().createCustomToken(uid, { provider, email: email || null });
+  return { firebaseCustomToken: customToken, uid };
+});
+
+exports.authNaver = onCall(async (request) => {
+  const { accessToken, providerUserId, email, nickname } = request.data;
+
+  if (!accessToken || !providerUserId) {
+    throw new HttpsError("invalid-argument", "accessToken과 providerUserId가 필요합니다.");
+  }
+
+  let verifiedNaverId;
+  try {
+    const naverResponse = await axios.get("https://openapi.naver.com/v1/nid/me", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    verifiedNaverId = naverResponse.data?.response?.id;
+  } catch (err) {
+    throw new HttpsError("unauthenticated", "네이버 토큰 검증 실패");
+  }
+
+  if (verifiedNaverId !== providerUserId) {
+    throw new HttpsError("unauthenticated", "토큰 검증 실패: 유저 정보 불일치");
+  }
+
+  const uid = `naver_${verifiedNaverId}`;
+
+  let isNewUser = false;
+  try {
+    await admin.auth().getUser(uid);
+  } catch (err) {
+    if (err.code === "auth/user-not-found") {
+      isNewUser = true;
+    } else {
+      throw new HttpsError("internal", "계정 확인 중 오류가 발생했습니다.");
+    }
+  }
+
+  if (!isNewUser) {
+    const customToken = await admin.auth().createCustomToken(uid, {
+      provider: "naver",
+      email: email || null,
+      nickname: nickname || null,
+    });
+    return { firebaseCustomToken: customToken, isNewUser: false };
+  }
+
+  const signupToken = crypto.randomBytes(24).toString("hex");
+  await db.collection("social_signup_tickets").doc(signupToken).set({
+    provider: "naver",
+    uid,
+    email: email || null,
+    nickname: nickname || null,
+    expiresAt: Date.now() + 15 * 60 * 1000,
+    createdAt: Date.now(),
+  });
+
+  return { isNewUser: true, signupToken };
+});
