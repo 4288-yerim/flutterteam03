@@ -1,14 +1,57 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import '../../theme.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_top_bar.dart';
 import '../../widgets/loading_overlay.dart';
-import 'email_verification_screen.dart';
+import 'otp_verification_screen.dart';
 
 enum _PasswordStrength { none, weak, medium, strong }
+
+/// 조건이 true가 될 때 자식 위젯을 슬라이드+페이드로 부드럽게 등장시키는 위젯.
+/// 회원가입 폼에서 이메일 -> 비밀번호 -> 비밀번호 확인 -> 버튼 순으로
+/// 다음 단계를 순차적으로 공개하는 데 사용.
+class _StepReveal extends StatelessWidget {
+  final bool visible;
+  final Widget child;
+  final Duration sizeDuration;
+  final Duration switchDuration;
+
+  const _StepReveal({
+    required this.visible,
+    required this.child,
+    this.sizeDuration = const Duration(milliseconds: 380),
+    this.switchDuration = const Duration(milliseconds: 320),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSize(
+      duration: sizeDuration,
+      curve: Curves.easeOutCubic,
+      alignment: Alignment.topCenter,
+      child: AnimatedSwitcher(
+        duration: switchDuration,
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeIn,
+        transitionBuilder: (child, anim) => FadeTransition(
+          opacity: anim,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.18),
+              end: Offset.zero,
+            ).animate(anim),
+            child: child,
+          ),
+        ),
+        child: visible
+            ? KeyedSubtree(key: const ValueKey('visible'), child: child)
+            : const SizedBox.shrink(key: ValueKey('hidden')),
+      ),
+    );
+  }
+}
 
 class SignupScreen extends StatefulWidget {
   SignupScreen({super.key});
@@ -23,6 +66,10 @@ class _SignupScreenState extends State<SignupScreen>
   final _passwordController = TextEditingController();
   final _passwordConfirmController = TextEditingController();
 
+  final _emailFocus = FocusNode();
+  final _passwordFocus = FocusNode();
+  final _passwordConfirmFocus = FocusNode();
+
   bool _isLoading = false;
 
   String? _emailServerError;
@@ -35,6 +82,10 @@ class _SignupScreenState extends State<SignupScreen>
 
   late final AnimationController _breatheController;
 
+  // 버튼이 막 활성화됐을 때 살짝 튀는 느낌을 주기 위한 컨트롤러
+  late final AnimationController _buttonPulseController;
+  bool _wasFormValid = false;
+
   static final _emailRegex = RegExp(r'^[\w\.-]+@([\w-]+\.)+[\w-]{2,4}$');
 
   @override
@@ -42,7 +93,7 @@ class _SignupScreenState extends State<SignupScreen>
     super.initState();
     _emailController.addListener(_onEmailChanged);
     _passwordController.addListener(_onPasswordChanged);
-    _passwordConfirmController.addListener(() => setState(() {}));
+    _passwordConfirmController.addListener(_onConfirmChanged);
 
     _entryController = AnimationController(
       vsync: this,
@@ -65,7 +116,15 @@ class _SignupScreenState extends State<SignupScreen>
       duration: const Duration(seconds: 3),
     )..repeat(reverse: true);
 
+    _buttonPulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 420),
+    );
+
     _entryController.forward();
+
+    // 다음 단계가 나타날 때 자동으로 포커스를 옮겨줘서 타이핑 흐름이 끊기지 않도록 함
+    _passwordFocus.addListener(() {});
   }
 
   void _onEmailChanged() {
@@ -76,17 +135,36 @@ class _SignupScreenState extends State<SignupScreen>
   void _onPasswordChanged() {
     if (_passwordServerError != null) _passwordServerError = null;
     setState(() {});
+    _maybePulseButton();
+  }
+
+  void _onConfirmChanged() {
+    setState(() {});
+    _maybePulseButton();
+  }
+
+  void _maybePulseButton() {
+    final isValidNow = _isFormValid;
+    if (isValidNow && !_wasFormValid) {
+      _buttonPulseController.forward(from: 0);
+    }
+    _wasFormValid = isValidNow;
   }
 
   @override
   void dispose() {
     _emailController.removeListener(_onEmailChanged);
     _passwordController.removeListener(_onPasswordChanged);
+    _passwordConfirmController.removeListener(_onConfirmChanged);
     _emailController.dispose();
     _passwordController.dispose();
     _passwordConfirmController.dispose();
+    _emailFocus.dispose();
+    _passwordFocus.dispose();
+    _passwordConfirmFocus.dispose();
     _entryController.dispose();
     _breatheController.dispose();
+    _buttonPulseController.dispose();
     super.dispose();
   }
 
@@ -137,6 +215,16 @@ class _SignupScreenState extends State<SignupScreen>
     return confirm == _passwordController.text ? null : '비밀번호가 일치하지 않습니다.';
   }
 
+  // ── 단계별 공개 조건 ──────────────────────────────────────────
+  bool get _showPasswordStep =>
+      _emailController.text.trim().isNotEmpty && _emailFormatError == null;
+
+  bool get _showConfirmStep => _showPasswordStep && _isPasswordValid;
+
+  bool get _showButtonStep =>
+      _showConfirmStep && _passwordConfirmController.text.isNotEmpty;
+  // ─────────────────────────────────────────────────────────────
+
   bool get _isFormValid =>
       _emailController.text.trim().isNotEmpty &&
           _emailFormatError == null &&
@@ -145,62 +233,55 @@ class _SignupScreenState extends State<SignupScreen>
           _confirmError == null;
 
   Future<void> _signup() async {
+    print('===== SIGNUP BUTTON PRESSED =====');
     setState(() => _isLoading = true);
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
     try {
-      final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-
-      // 추가된 줄: 인증 메일을 한국어로 보내도록 설정
-      await FirebaseAuth.instance.setLanguageCode('ko');
-
-      // 이메일 인증 메일 발송
-      await credential.user?.sendEmailVerification();
+      final functions = FirebaseFunctions.instance;
+      final callable = functions.httpsCallable('sendOtp');
+      await callable.call({'email': email});
 
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => EmailVerificationScreen(
-            email: _emailController.text.trim(),
+          builder: (_) => OtpVerificationScreen(
+            email: email,
+            password: password,
           ),
         ),
       );
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseFunctionsException catch (e) {
+      debugPrint('FUNCTIONS ERROR CODE: ${e.code}');
+      debugPrint('FUNCTIONS ERROR MESSAGE: ${e.message}');
+      debugPrint('FUNCTIONS ERROR DETAILS: ${e.details}');
       if (!mounted) return;
 
       String modalMessage = '회원가입에 실패했습니다.';
       switch (e.code) {
-        case 'email-already-in-use':
+        case 'already-exists':
           modalMessage = '이미 가입된 이메일입니다.';
           break;
-        case 'invalid-email':
-          modalMessage = '이메일 형식에 맞게 입력해주세요.';
+        case 'invalid-argument':
+          modalMessage = e.message ?? '입력값을 다시 확인해주세요.';
           break;
-        case 'weak-password':
-          modalMessage = '비밀번호가 너무 약합니다.';
+        case 'resource-exhausted':
+          modalMessage = e.message ?? '잠시 후 다시 시도해주세요.';
           break;
-        case 'operation-not-allowed':
-          modalMessage = '이메일/비밀번호 회원가입이 아직 활성화되지 않았습니다.\nFirebase 콘솔에서 로그인 방법을 확인해주세요.';
-          break;
-        case 'network-request-failed':
-          modalMessage = '네트워크 연결을 확인해주세요.';
-          break;
+        default:
+          modalMessage = '회원가입에 실패했습니다. 잠시 후 다시 시도해주세요.';
       }
 
       setState(() {
-        switch (e.code) {
-          case 'email-already-in-use':
-          case 'invalid-email':
-            _emailServerError = modalMessage;
-            break;
-          case 'weak-password':
-            _passwordServerError = modalMessage;
-            break;
+        if (e.code == 'already-exists' || e.code == 'invalid-argument') {
+          _emailServerError = modalMessage;
         }
       });
       _showSignupFailedModal(modalMessage);
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('SIGNUP ERROR: $e');
+      debugPrint('$st');
       if (!mounted) return;
       _showSignupFailedModal('회원가입에 실패했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
@@ -343,7 +424,6 @@ class _SignupScreenState extends State<SignupScreen>
     );
   }
 
-  // 상단 로고: 은은한 글로우 + 등장 시 팝 + 계속되는 숨쉬기 애니메이션
   Widget _logoHeader(AppColors colors) {
     return AnimatedBuilder(
       animation: _entryController,
@@ -362,7 +442,6 @@ class _SignupScreenState extends State<SignupScreen>
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // 은은한 글로우
               Container(
                 width: 96,
                 height: 96,
@@ -453,9 +532,18 @@ class _SignupScreenState extends State<SignupScreen>
                                 style: TextStyle(fontSize: 14, color: colors.textSecondary),
                               ),
                               SizedBox(height: 36),
+
+                              // ── 이메일 (항상 표시) ──────────────
                               TextField(
                                 controller: _emailController,
+                                focusNode: _emailFocus,
                                 keyboardType: TextInputType.emailAddress,
+                                textInputAction: TextInputAction.next,
+                                onSubmitted: (_) {
+                                  if (_showPasswordStep) {
+                                    FocusScope.of(context).requestFocus(_passwordFocus);
+                                  }
+                                },
                                 decoration: _decoration(
                                   colors: colors,
                                   errorColor: errorColor,
@@ -474,56 +562,7 @@ class _SignupScreenState extends State<SignupScreen>
                                     style: TextStyle(color: errorColor, fontSize: 12),
                                   ),
                                 ),
-                              ],
-                              SizedBox(height: 14),
-                              TextField(
-                                controller: _passwordController,
-                                obscureText: true,
-                                obscuringCharacter: '●',
-                                decoration: _decoration(
-                                  colors: colors,
-                                  errorColor: errorColor,
-                                  label: '비밀번호',
-                                  hint: '8자 이상 비밀번호',
-                                  controller: _passwordController,
-                                  icon: Icons.lock_outline_rounded,
-                                ),
-                              ),
-                              _strengthMeter(colors, errorColor),
-                              if (_passwordDisplayError != null) ...[
-                                SizedBox(height: 6),
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    _passwordDisplayError!,
-                                    style: TextStyle(color: errorColor, fontSize: 12),
-                                  ),
-                                ),
-                              ],
-                              SizedBox(height: 14),
-                              TextField(
-                                controller: _passwordConfirmController,
-                                obscureText: true,
-                                obscuringCharacter: '●',
-                                decoration: _decoration(
-                                  colors: colors,
-                                  errorColor: errorColor,
-                                  label: '비밀번호 확인',
-                                  hint: '비밀번호를 다시 입력해주세요',
-                                  controller: _passwordConfirmController,
-                                  icon: Icons.lock_person_outlined,
-                                ),
-                              ),
-                              if (_confirmError != null) ...[
-                                SizedBox(height: 6),
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    _confirmError!,
-                                    style: TextStyle(color: errorColor, fontSize: 12),
-                                  ),
-                                ),
-                              ] else if (_passwordConfirmController.text.isNotEmpty) ...[
+                              ] else if (_showPasswordStep) ...[
                                 SizedBox(height: 6),
                                 Align(
                                   alignment: Alignment.centerLeft,
@@ -533,20 +572,139 @@ class _SignupScreenState extends State<SignupScreen>
                                       Icon(Icons.check_circle, size: 14, color: colors.pinkStart),
                                       SizedBox(width: 4),
                                       Text(
-                                        '비밀번호가 일치해요',
+                                        '좋은 이메일이에요',
                                         style: TextStyle(color: colors.pinkStart, fontSize: 12),
                                       ),
                                     ],
                                   ),
                                 ),
                               ],
-                              SizedBox(height: 28),
-                              AppButton(
-                                text: '회원가입',
-                                type: _isFormValid
-                                    ? AppButtonType.primaryPink
-                                    : AppButtonType.gray,
-                                onPressed: (_isFormValid && !_isLoading) ? _signup : null,
+
+                              // ── 비밀번호 (이메일 유효 시 등장) ──────
+                              _StepReveal(
+                                visible: _showPasswordStep,
+                                child: Column(
+                                  key: const ValueKey('password-block'),
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    SizedBox(height: 14),
+                                    TextField(
+                                      controller: _passwordController,
+                                      focusNode: _passwordFocus,
+                                      obscureText: true,
+                                      obscuringCharacter: '●',
+                                      textInputAction: TextInputAction.next,
+                                      onSubmitted: (_) {
+                                        if (_showConfirmStep) {
+                                          FocusScope.of(context)
+                                              .requestFocus(_passwordConfirmFocus);
+                                        }
+                                      },
+                                      decoration: _decoration(
+                                        colors: colors,
+                                        errorColor: errorColor,
+                                        label: '비밀번호',
+                                        hint: '8자 이상 비밀번호',
+                                        controller: _passwordController,
+                                        icon: Icons.lock_outline_rounded,
+                                      ),
+                                    ),
+                                    _strengthMeter(colors, errorColor),
+                                    if (_passwordDisplayError != null) ...[
+                                      SizedBox(height: 6),
+                                      Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: Text(
+                                          _passwordDisplayError!,
+                                          style: TextStyle(color: errorColor, fontSize: 12),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+
+                              // ── 비밀번호 확인 (비밀번호 유효 시 등장) ──
+                              _StepReveal(
+                                visible: _showConfirmStep,
+                                child: Column(
+                                  key: const ValueKey('confirm-block'),
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    SizedBox(height: 14),
+                                    TextField(
+                                      controller: _passwordConfirmController,
+                                      focusNode: _passwordConfirmFocus,
+                                      obscureText: true,
+                                      obscuringCharacter: '●',
+                                      textInputAction: TextInputAction.done,
+                                      decoration: _decoration(
+                                        colors: colors,
+                                        errorColor: errorColor,
+                                        label: '비밀번호 확인',
+                                        hint: '비밀번호를 다시 입력해주세요',
+                                        controller: _passwordConfirmController,
+                                        icon: Icons.lock_person_outlined,
+                                      ),
+                                    ),
+                                    if (_confirmError != null) ...[
+                                      SizedBox(height: 6),
+                                      Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: Text(
+                                          _confirmError!,
+                                          style: TextStyle(color: errorColor, fontSize: 12),
+                                        ),
+                                      ),
+                                    ] else if (_passwordConfirmController.text.isNotEmpty) ...[
+                                      SizedBox(height: 6),
+                                      Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.check_circle,
+                                                size: 14, color: colors.pinkStart),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              '비밀번호가 일치해요',
+                                              style: TextStyle(
+                                                  color: colors.pinkStart, fontSize: 12),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+
+                              // ── 가입 버튼 (비밀번호 확인 입력 시 등장) ──
+                              _StepReveal(
+                                visible: _showButtonStep,
+                                child: Padding(
+                                  key: const ValueKey('button-block'),
+                                  padding: EdgeInsets.only(top: 28),
+                                  child: AnimatedBuilder(
+                                    animation: _buttonPulseController,
+                                    builder: (context, child) {
+                                      final t = _buttonPulseController.value;
+                                      // 0 -> 1.06 -> 1.0 로 살짝 튀는 스케일
+                                      final scale = 1.0 +
+                                          (Curves.easeOutBack.transform(t) *
+                                              (t < 1 ? 0.06 : 0.0));
+                                      return Transform.scale(scale: scale, child: child);
+                                    },
+                                    child: AppButton(
+                                      text: '회원가입',
+                                      type: _isFormValid
+                                          ? AppButtonType.primaryPink
+                                          : AppButtonType.gray,
+                                      onPressed:
+                                      (_isFormValid && !_isLoading) ? _signup : null,
+                                    ),
+                                  ),
+                                ),
                               ),
                               SizedBox(height: 60),
                             ],

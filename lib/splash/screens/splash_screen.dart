@@ -110,7 +110,10 @@ class _SplashScreenState extends State<SplashScreen>
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [colors.pinkStart, colors.pinkEnd],
+            colors: [
+              Color.lerp(colors.pinkStart, Colors.white, 0.75)!,
+              Color.lerp(colors.pinkEnd, Colors.white, 0.75)!,
+            ],
           ),
         ),
         child: Stack(
@@ -219,9 +222,9 @@ class _SplashScreenState extends State<SplashScreen>
                     child: Text(
                       '목표를 세우고, 함께 공부하고',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.85),
+                        color: const Color(0xFF7A4A52).withOpacity(0.85),
                         fontSize: 13.5,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -230,7 +233,7 @@ class _SplashScreenState extends State<SplashScreen>
 
                   FadeTransition(
                     opacity: _dotsOpacity,
-                    child: const _LoadingDots(),
+                    child: const _LoadingDots(color: Color(0xFF7A4A52)),
                   ),
                 ],
               ),
@@ -280,7 +283,9 @@ class _BackgroundBlob extends StatelessWidget {
 }
 
 class _LoadingDots extends StatefulWidget {
-  const _LoadingDots();
+  final Color color;
+
+  const _LoadingDots({required this.color});
 
   @override
   State<_LoadingDots> createState() => _LoadingDotsState();
@@ -325,7 +330,7 @@ class _LoadingDotsState extends State<_LoadingDots>
                   width: 9,
                   height: 9,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.6 + 0.4 * bounce),
+                    color: widget.color.withOpacity(0.6 + 0.4 * bounce),
                     shape: BoxShape.circle,
                   ),
                 ),

@@ -1,14 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// 앱 전용 컬러 팔레트.
-/// ColorScheme(primary, secondary 등)에 없는 커스텀 컬러(그라데이션, blob 색상 등)를
-/// 다크/라이트 모드별로 따로 관리하기 위한 ThemeExtension.
-///
-/// 사용 예시 (위젯 build 안에서):
-/// ```dart
-/// final colors = Theme.of(context).extension<AppColors>()!;
-/// colors.pinkStart
-/// ```
 @immutable
 class AppColors extends ThemeExtension<AppColors> {
   final Color pinkStart;
@@ -17,30 +8,46 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color textPrimary;
   final Color textSecondary;
 
+  final Color pinkSoft;
+  final Color lavender;
+  final Color softBlue;
+  final Color mint;
+
   const AppColors({
     required this.pinkStart,
     required this.pinkEnd,
     required this.background,
     required this.textPrimary,
     required this.textSecondary,
+    required this.pinkSoft,
+    required this.lavender,
+    required this.softBlue,
+    required this.mint,
   });
 
-  // 라이트 모드 값
   static const light = AppColors(
-    pinkStart: Color(0xFFF0788F),
+    pinkStart: Color(0xFFE094A3),
     pinkEnd: Color(0xFFFCE1E8),
     background: Color(0xFFFFFDFC),
     textPrimary: Color(0xFF1A1A1A),
     textSecondary: Color(0xFF9AA0AC),
+    pinkSoft: Color(0xFFF6E8EC),
+    lavender: Color(0xFFEEE9FD),
+    softBlue: Color(0xFFECF0FD),
+    mint: Color(0xFFECF6F3),
   );
 
-  // 다크 모드 값 (배경은 어둡게, 핑크는 톤을 살짝 낮춰서 눈부심 방지)
+  // 다크 모드 값 (배경은 어둡게, 파스텔 컬러는 채도를 낮추고 배경과 섞어서 눈부심 방지)
   static const dark = AppColors(
     pinkStart: Color(0xFFB85C6E),
     pinkEnd: Color(0xFF3A2A2E),
     background: Color(0xFF121212),
     textPrimary: Color(0xFFF5F5F5),
     textSecondary: Color(0xFFB0B0B0),
+    pinkSoft: Color(0xFF4A3238),
+    lavender: Color(0xFF322E42),
+    softBlue: Color(0xFF29304A),
+    mint: Color(0xFF223A2E),
   );
 
   @override
@@ -50,6 +57,10 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? background,
     Color? textPrimary,
     Color? textSecondary,
+    Color? pinkSoft,
+    Color? lavender,
+    Color? softBlue,
+    Color? mint,
   }) {
     return AppColors(
       pinkStart: pinkStart ?? this.pinkStart,
@@ -57,6 +68,10 @@ class AppColors extends ThemeExtension<AppColors> {
       background: background ?? this.background,
       textPrimary: textPrimary ?? this.textPrimary,
       textSecondary: textSecondary ?? this.textSecondary,
+      pinkSoft: pinkSoft ?? this.pinkSoft,
+      lavender: lavender ?? this.lavender,
+      softBlue: softBlue ?? this.softBlue,
+      mint: mint ?? this.mint,
     );
   }
 
@@ -69,6 +84,10 @@ class AppColors extends ThemeExtension<AppColors> {
       background: Color.lerp(background, other.background, t)!,
       textPrimary: Color.lerp(textPrimary, other.textPrimary, t)!,
       textSecondary: Color.lerp(textSecondary, other.textSecondary, t)!,
+      pinkSoft: Color.lerp(pinkSoft, other.pinkSoft, t)!,
+      lavender: Color.lerp(lavender, other.lavender, t)!,
+      softBlue: Color.lerp(softBlue, other.softBlue, t)!,
+      mint: Color.lerp(mint, other.mint, t)!,
     );
   }
 }

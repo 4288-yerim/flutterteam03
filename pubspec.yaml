@@ -34,24 +34,21 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  firebase_core: ^4.11.0
+  firebase_core: ^4.12.1
   flutter_dotenv: ^6.0.1
-  cloud_firestore: ^6.6.0
-  firebase_auth: ^6.5.4
+  cloud_firestore: ^6.7.1
+  firebase_auth: ^6.5.6
   table_calendar: ^3.2.0
   http: ^1.6.0
   xml: ^7.0.1
   naver_login_sdk: ^3.2.1
   kakao_flutter_sdk_user: ^2.0.0+1
-  cloud_functions: ^6.3.4
+  cloud_functions: ^6.3.5
   google_sign_in: ^7.2.0
 
 dev_dependencies:
   flutter:
     sdk: flutter
-  firebase_core:
-  cloud_functions:
-
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
@@ -108,5 +105,9 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/icons/icon.png"
+  image_path: "assets/icons/icon.png" # 아이폰은 기존 네모난 이미지 사용
   min_sdk_android: 21
+
+  # --- 안드로이드 전용 꽉 차는 아이콘 설정 ---
+  adaptive_icon_background: "#FDF6F0" # 여기에 아이콘의 실제 배경색(Hex 코드)을 넣으세요.
+  adaptive_icon_foreground: "assets/icons/character.png" # 배경이 투명한 캐릭터 이미지 경로
