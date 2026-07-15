@@ -3,10 +3,35 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import 'package:flutterteam03/widgets/app_state_views.dart';
 
 import '../widgets/app_card.dart';
 import '../widgets/app_main_background.dart';
+import '../widgets/app_top_bar.dart';
+import '../widgets/app_button.dart';
+import '../widgets/loading_overlay.dart';
+
+
+Brightness get _studyBrightness {
+  return WidgetsBinding.instance.platformDispatcher.platformBrightness;
+}
+
+AppColors get _studyColors {
+  if (_studyBrightness == Brightness.dark) {
+    return AppColors.dark;
+  }
+
+  return AppColors.light;
+}
+
+ColorScheme get _studyColorScheme {
+  if (_studyBrightness == Brightness.dark) {
+    return darkTheme.colorScheme;
+  }
+
+  return lightTheme.colorScheme;
+}
 
 class StudyTimerPage extends StatefulWidget {
   final String studyId;
@@ -598,22 +623,22 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
 
   Widget _buildTimerContent(int totalStudySeconds) {
     String studyStatusText = '공부 준비';
-    Color studyStatusColor = Color(0xFF777C86);
-    Color statusBackgroundColor = Color(0xFFF1F2F5);
+    Color studyStatusColor = _studyColors.textSecondary;
+    Color statusBackgroundColor = _studyColorScheme.outlineVariant;
 
     if (_isStudying) {
       studyStatusText = '공부 중';
-      studyStatusColor = Color(0xFF3F9C72);
-      statusBackgroundColor = Color(0xFFDFF5EA);
+      studyStatusColor = _studyColorScheme.tertiary;
+      statusBackgroundColor = _studyColors.mint;
     }
 
     String mainButtonText = '공부 시작';
-    Color mainButtonColor = Color(0xFF8068D8);
+    Color mainButtonColor = _studyColors.pinkStart;
     VoidCallback? mainButtonFunction = _startStudy;
 
     if (_isStudying) {
       mainButtonText = '공부 종료';
-      mainButtonColor = Color(0xFFE45F73);
+      mainButtonColor = _studyColors.pinkStart;
       mainButtonFunction = _stopStudy;
     }
 
@@ -642,13 +667,13 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Color(0xFFF1EEFF),
-                    Color(0xFFFFEDF2),
+                    _studyColors.lavender,
+                    _studyColors.pinkSoft,
                   ],
                 ),
                 borderRadius: BorderRadius.circular(26),
                 border: Border.all(
-                  color: Color(0xFFEDE5F3),
+                  color: _studyColors.lavender,
                 ),
               ),
               child: Column(
@@ -661,7 +686,7 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
                     style: TextStyle(
                       fontSize: 21,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF292C33),
+                      color: _studyColors.textPrimary,
                     ),
                   ),
                   SizedBox(height: 6),
@@ -669,7 +694,7 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
                     '집중한 시간은 종료할 때 자동으로 저장됩니다.',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF737782),
+                      color: _studyColors.textSecondary,
                     ),
                   ),
                   SizedBox(height: 17),
@@ -679,7 +704,7 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
                         child: Container(
                           padding: EdgeInsets.all(13),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.85),
+                            color: _studyColorScheme.surface.withOpacity(0.85),
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Column(
@@ -689,7 +714,7 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
                                 '나의 누적 공부시간',
                                 style: TextStyle(
                                   fontSize: 10,
-                                  color: Color(0xFF858994),
+                                  color: _studyColors.textSecondary,
                                 ),
                               ),
                               SizedBox(height: 4),
@@ -698,7 +723,7 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
                                 style: TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFF4E3DA0),
+                                  color: _studyColors.pinkStart,
                                 ),
                               ),
                             ],
@@ -710,7 +735,7 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
                         child: Container(
                           padding: EdgeInsets.all(13),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.85),
+                            color: _studyColorScheme.surface.withOpacity(0.85),
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Column(
@@ -720,7 +745,7 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
                                 '현재 상태',
                                 style: TextStyle(
                                   fontSize: 10,
-                                  color: Color(0xFF858994),
+                                  color: _studyColors.textSecondary,
                                 ),
                               ),
                               SizedBox(height: 4),
@@ -756,6 +781,7 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
             ),
             SizedBox(height: 18),
             AppCard(
+              backgroundColor: _studyColorScheme.surface,
               child: Column(
                 children: [
                   Container(
@@ -783,7 +809,7 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
                       fontSize: 48,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 2,
-                      color: Color(0xFF292C33),
+                      color: _studyColors.textPrimary,
                     ),
                   ),
                   SizedBox(height: 9),
@@ -795,58 +821,22 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
                     style: TextStyle(
                       fontSize: 11,
                       height: 1.45,
-                      color: Color(0xFF858994),
+                      color: _studyColors.textSecondary,
                     ),
                   ),
                   SizedBox(height: 25),
-                  SizedBox(
-                    width: double.infinity,
+                  AppButton(
+                    text: mainButtonText,
+                    type: AppButtonType.primaryPink,
                     height: 50,
-                    child: ElevatedButton(
-                      onPressed: mainButtonFunction,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: mainButtonColor,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                      ),
-                      child: _isSaving
-                          ? SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                          : Text(
-                        mainButtonText,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+                    onPressed: mainButtonFunction,
                   ),
                   SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
+                  AppButton(
+                    text: '시간 초기화',
+                    type: AppButtonType.outlinePink,
                     height: 44,
-                    child: OutlinedButton(
-                      onPressed: _isSaving ? null : _resetTimer,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Color(0xFF6C54C8),
-                        side: BorderSide(
-                          color: Color(0xFFD7D3DE),
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      child: Text('시간 초기화'),
-                    ),
+                    onPressed: _isSaving ? null : _resetTimer,
                   ),
                 ],
               ),
@@ -863,10 +853,8 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
 
     if (currentUser == null) {
       return Scaffold(
-        appBar: AppBar(
-          title: Text('공부시간 기록'),
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.white,
+        appBar: AppTopBar(
+          title: '공부시간 기록',
         ),
         body: AppErrorView(
           message: '로그인 정보를 확인할 수 없습니다.',
@@ -878,66 +866,72 @@ class _StudyTimerPageState extends State<StudyTimerPage> {
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
-        appBar: AppBar(
-          title: Text('공부시간 기록'),
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.white,
+        appBar: AppTopBar(
+          title: '공부시간 기록',
         ),
-        body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-          stream: _getMemberStream(currentUser.uid),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return AppLoadingView(
-                message: '공부시간 정보를 불러오는 중입니다.',
-              );
-            }
+        body: Stack(
+          children: [
+            StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+              stream: _getMemberStream(currentUser.uid),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return AppLoadingView(
+                    message: '공부시간 정보를 불러오는 중입니다.',
+                  );
+                }
 
-            if (snapshot.hasError) {
-              if (_isNetworkError(snapshot.error)) {
-                return AppNetworkErrorView(
-                  message: '인터넷 연결을 확인해 주세요.',
-                  description: '네트워크 연결 후 공부시간 정보를 다시 불러와 주세요.',
-                  onRetryPressed: _reloadPage,
-                );
-              }
+                if (snapshot.hasError) {
+                  if (_isNetworkError(snapshot.error)) {
+                    return AppNetworkErrorView(
+                      message: '인터넷 연결을 확인해 주세요.',
+                      description: '네트워크 연결 후 공부시간 정보를 다시 불러와 주세요.',
+                      onRetryPressed: _reloadPage,
+                    );
+                  }
 
-              return AppErrorView(
-                message: '공부시간 정보를 불러오지 못했습니다.',
-                description: '잠시 후 다시 시도해 주세요.',
-                onRetryPressed: _reloadPage,
-              );
-            }
+                  return AppErrorView(
+                    message: '공부시간 정보를 불러오지 못했습니다.',
+                    description: '잠시 후 다시 시도해 주세요.',
+                    onRetryPressed: _reloadPage,
+                  );
+                }
 
-            int totalStudySeconds = 0;
+                int totalStudySeconds = 0;
 
-            if (snapshot.data != null && snapshot.data!.exists) {
-              Map<String, dynamic> memberData =
-                  snapshot.data!.data() ?? {};
+                if (snapshot.data != null && snapshot.data!.exists) {
+                  Map<String, dynamic> memberData =
+                      snapshot.data!.data() ?? {};
 
-              if (memberData.containsKey('totalStudySeconds') == false) {
-                WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-                  _migrateOldTotalStudyTime(currentUser.uid);
-                });
-              }
+                  if (memberData.containsKey('totalStudySeconds') == false) {
+                    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+                      _migrateOldTotalStudyTime(currentUser.uid);
+                    });
+                  }
 
-              totalStudySeconds =
-                  _getStoredTotalStudySeconds(memberData);
+                  totalStudySeconds =
+                      _getStoredTotalStudySeconds(memberData);
 
-              String status = memberData['status']?.toString() ?? '';
-              String role = memberData['role']?.toString() ?? '';
+                  String status = memberData['status']?.toString() ?? '';
+                  String role = memberData['role']?.toString() ?? '';
 
-              if (status.isNotEmpty &&
-                  status != 'ACTIVE' &&
-                  role != 'OWNER') {
-                return AppErrorView(
-                  message: '공부시간을 기록할 수 없습니다.',
-                  description: '현재 참여 중인 그룹원만 이용할 수 있습니다.',
-                );
-              }
-            }
+                  if (status.isNotEmpty &&
+                      status != 'ACTIVE' &&
+                      role != 'OWNER') {
+                    return AppErrorView(
+                      message: '공부시간을 기록할 수 없습니다.',
+                      description: '현재 참여 중인 그룹원만 이용할 수 있습니다.',
+                    );
+                  }
+                }
 
-            return _buildTimerContent(totalStudySeconds);
-          },
+                return _buildTimerContent(totalStudySeconds);
+              },
+            ),
+            if (_isSaving)
+              Positioned.fill(
+                child: LoadingOverlay(),
+              ),
+          ],
         ),
       ),
     );

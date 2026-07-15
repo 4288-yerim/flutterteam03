@@ -1,12 +1,37 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import 'package:flutterteam03/widgets/app_state_views.dart';
 
 import '../widgets/app_main_background.dart';
+import '../widgets/app_card.dart';
+import '../widgets/app_button.dart';
+import '../widgets/app_top_bar.dart';
 import 'study_chat.dart';
 import 'study_quiz.dart';
 import 'study_timer.dart';
+
+
+Brightness get _studyBrightness {
+  return WidgetsBinding.instance.platformDispatcher.platformBrightness;
+}
+
+AppColors get _studyColors {
+  if (_studyBrightness == Brightness.dark) {
+    return AppColors.dark;
+  }
+
+  return AppColors.light;
+}
+
+ColorScheme get _studyColorScheme {
+  if (_studyBrightness == Brightness.dark) {
+    return darkTheme.colorScheme;
+  }
+
+  return lightTheme.colorScheme;
+}
 
 class StudyRoomPage extends StatelessWidget {
   final String studyId;
@@ -209,7 +234,7 @@ class StudyRoomPage extends StatelessWidget {
           style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF292C33),
+            color: _studyColors.textPrimary,
           ),
         ),
         SizedBox(height: 3),
@@ -217,7 +242,7 @@ class StudyRoomPage extends StatelessWidget {
           description,
           style: TextStyle(
             fontSize: 11,
-            color: Color(0xFF8B8F98),
+            color: _studyColors.textSecondary,
           ),
         ),
       ],
@@ -236,7 +261,7 @@ class StudyRoomPage extends StatelessWidget {
           vertical: 12,
         ),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.82),
+          color: _studyColorScheme.surface.withOpacity(0.82),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
@@ -244,7 +269,7 @@ class StudyRoomPage extends StatelessWidget {
             Icon(
               icon,
               size: 18,
-              color: Color(0xFF8068D8),
+              color: _studyColors.pinkStart,
             ),
             SizedBox(width: 8),
             Expanded(
@@ -255,7 +280,7 @@ class StudyRoomPage extends StatelessWidget {
                     label,
                     style: TextStyle(
                       fontSize: 10,
-                      color: Color(0xFF8B8F98),
+                      color: _studyColors.textSecondary,
                     ),
                   ),
                   SizedBox(height: 2),
@@ -266,7 +291,7 @@ class StudyRoomPage extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF4E3DA0),
+                      color: _studyColors.pinkStart,
                     ),
                   ),
                 ],
@@ -401,17 +426,17 @@ class StudyRoomPage extends StatelessWidget {
     if (profileImageUrl.isNotEmpty) {
       profile = CircleAvatar(
         radius: 28,
-        backgroundColor: Color(0xFFF0ECFF),
+        backgroundColor: _studyColors.lavender,
         backgroundImage: NetworkImage(profileImageUrl),
       );
     } else {
       profile = CircleAvatar(
         radius: 28,
-        backgroundColor: Color(0xFFF0ECFF),
+        backgroundColor: _studyColors.lavender,
         child: Text(
           _getFirstLetter(nickname),
           style: TextStyle(
-            color: Color(0xFF6F58C9),
+            color: _studyColors.pinkStart,
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
@@ -432,17 +457,17 @@ class StudyRoomPage extends StatelessWidget {
               width: 21,
               height: 21,
               decoration: BoxDecoration(
-                color: Color(0xFFF0788F),
+                color: _studyColors.pinkStart,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: Colors.white,
+                  color: _studyColorScheme.onPrimary,
                   width: 2,
                 ),
               ),
               child: Icon(
                 Icons.star_rounded,
                 size: 12,
-                color: Colors.white,
+                color: _studyColorScheme.onPrimary,
               ),
             ),
           ),
@@ -574,7 +599,7 @@ class StudyRoomPage extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 11,
-                        color: Color(0xFF555A64),
+                        color: _studyColors.textSecondary,
                         fontWeight:
                         isOwner ? FontWeight.bold : FontWeight.normal,
                       ),
@@ -783,16 +808,10 @@ class StudyRoomPage extends StatelessWidget {
               }
             }
 
-            return Container(
-              width: double.infinity,
+            return AppCard(
+              borderRadius: 22,
               padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Color(0xFFF8F7FF),
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(
-                  color: Color(0xFFE8E3F7),
-                ),
-              ),
+              backgroundColor: _studyColors.lavender,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -802,13 +821,13 @@ class StudyRoomPage extends StatelessWidget {
                         width: 39,
                         height: 39,
                         decoration: BoxDecoration(
-                          color: Color(0xFFE6E1FB),
+                          color: _studyColors.lavender,
                           borderRadius: BorderRadius.circular(13),
                         ),
                         child: Icon(
                           Icons.insights_rounded,
                           size: 20,
-                          color: Color(0xFF6F58C9),
+                          color: _studyColors.pinkStart,
                         ),
                       ),
                       SizedBox(width: 11),
@@ -821,7 +840,7 @@ class StudyRoomPage extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF353941),
+                                color: _studyColors.textPrimary,
                               ),
                             ),
                             SizedBox(height: 2),
@@ -829,7 +848,7 @@ class StudyRoomPage extends StatelessWidget {
                               '오늘 그룹원들의 공부 기록을 확인해요.',
                               style: TextStyle(
                                 fontSize: 10,
-                                color: Color(0xFF858994),
+                                color: _studyColors.textSecondary,
                               ),
                             ),
                           ],
@@ -883,8 +902,8 @@ class StudyRoomPage extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: studyingMembers.isNotEmpty
-                            ? Color(0xFFDFF5EA)
-                            : Colors.white,
+                            ? _studyColors.mint
+                            : _studyColorScheme.surface,
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Row(
@@ -894,8 +913,8 @@ class StudyRoomPage extends StatelessWidget {
                             height: 8,
                             decoration: BoxDecoration(
                               color: studyingMembers.isNotEmpty
-                                  ? Color(0xFF3F9C72)
-                                  : Color(0xFFB0B3BB),
+                                  ? _studyColorScheme.tertiary
+                                  : _studyColorScheme.secondaryContainer,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -909,8 +928,8 @@ class StudyRoomPage extends StatelessWidget {
                                 fontSize: 11,
                                 height: 1.4,
                                 color: studyingMembers.isNotEmpty
-                                    ? Color(0xFF347F5E)
-                                    : Color(0xFF777C86),
+                                    ? _studyColorScheme.tertiary
+                                    : _studyColors.textSecondary,
                                 fontWeight: studyingMembers.isNotEmpty
                                     ? FontWeight.w600
                                     : FontWeight.normal,
@@ -920,7 +939,7 @@ class StudyRoomPage extends StatelessWidget {
                           Icon(
                             Icons.chevron_right_rounded,
                             size: 19,
-                            color: Color(0xFF8B8F98),
+                            color: _studyColors.textSecondary,
                           ),
                         ],
                       ),
@@ -1044,35 +1063,22 @@ class StudyRoomPage extends StatelessWidget {
               ),
             );
           },
-          child: Container(
-            width: double.infinity,
+          child: AppCard(
+            borderRadius: 22,
             padding: EdgeInsets.all(17),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(
-                color: Color(0xFFE8E6EC),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.035),
-                  blurRadius: 12,
-                  offset: Offset(0, 5),
-                ),
-              ],
-            ),
+            backgroundColor: _studyColorScheme.surface,
             child: Row(
               children: [
                 Container(
                   width: 50,
                   height: 50,
                   decoration: BoxDecoration(
-                    color: Color(0xFFE1E9FB),
+                    color: _studyColors.softBlue,
                     borderRadius: BorderRadius.circular(17),
                   ),
                   child: Icon(
                     Icons.forum_rounded,
-                    color: Color(0xFF5576B7),
+                    color: _studyColorScheme.secondaryContainer,
                     size: 25,
                   ),
                 ),
@@ -1089,7 +1095,7 @@ class StudyRoomPage extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF292C33),
+                                color: _studyColors.textPrimary,
                               ),
                             ),
                           ),
@@ -1099,7 +1105,7 @@ class StudyRoomPage extends StatelessWidget {
                               lastMessageTime,
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Color(0xFFA1A4AC),
+                                color: _studyColors.textSecondary,
                               ),
                             ),
                           ),
@@ -1115,7 +1121,7 @@ class StudyRoomPage extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFF7B7F89),
+                                color: _studyColors.textSecondary,
                               ),
                             ),
                           ),
@@ -1133,14 +1139,14 @@ class StudyRoomPage extends StatelessWidget {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: Color(0xFFF0788F),
+                                color: _studyColors.pinkStart,
                                 borderRadius: BorderRadius.circular(13),
                               ),
                               child: Text(
                                 unreadCount > 99 ? '99+' : '$unreadCount',
                                 style: TextStyle(
                                   fontSize: 10,
-                                  color: Colors.white,
+                                  color: _studyColorScheme.onPrimary,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -1154,7 +1160,7 @@ class StudyRoomPage extends StatelessWidget {
                 SizedBox(width: 8),
                 Icon(
                   Icons.chevron_right_rounded,
-                  color: Color(0xFFB2B4BB),
+                  color: _studyColors.textSecondary,
                 ),
               ],
             ),
@@ -1175,59 +1181,49 @@ class StudyRoomPage extends StatelessWidget {
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
-        child: Container(
+        child: SizedBox(
           height: 128,
-          padding: EdgeInsets.all(15),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(21),
-            border: Border.all(
-              color: Color(0xFFE8E6EC),
+          child: AppCard(
+            borderRadius: 21,
+            padding: EdgeInsets.all(15),
+            backgroundColor: _studyColorScheme.surface,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: backgroundColor,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: iconColor,
+                    size: 22,
+                  ),
+                ),
+                Spacer(),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: _studyColors.textPrimary,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  description,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: _studyColors.textSecondary,
+                  ),
+                ),
+              ],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.025),
-                blurRadius: 10,
-                offset: Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: backgroundColor,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  icon,
-                  color: iconColor,
-                  size: 22,
-                ),
-              ),
-              Spacer(),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF292C33),
-                ),
-              ),
-              SizedBox(height: 4),
-              Text(
-                description,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Color(0xFF8B8F98),
-                ),
-              ),
-            ],
           ),
         ),
       ),
@@ -1238,8 +1234,11 @@ class StudyRoomPage extends StatelessWidget {
       BuildContext context,
       String displayGroupName,
       ) {
-    return GestureDetector(
-      onTap: () {
+    return AppButton(
+      text: '지금 공부 시작하기',
+      type: AppButtonType.primaryPink,
+      height: 56,
+      onPressed: () {
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -1252,74 +1251,6 @@ class StudyRoomPage extends StatelessWidget {
           ),
         );
       },
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.symmetric(
-          horizontal: 18,
-          vertical: 17,
-        ),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Color(0xFFF49AAD),
-              Color(0xFFF0788F),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0xFFF0788F).withOpacity(0.22),
-              blurRadius: 16,
-              offset: Offset(0, 7),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.22),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(
-                Icons.play_arrow_rounded,
-                color: Colors.white,
-                size: 29,
-              ),
-            ),
-            SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '지금 공부 시작하기',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    '공부시간을 기록하고 순위에 반영해요.',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.white.withOpacity(0.88),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: Colors.white,
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -1332,7 +1263,7 @@ class StudyRoomPage extends StatelessWidget {
         return Container(
           height: MediaQuery.of(context).size.height * 0.72,
           decoration: BoxDecoration(
-            color: Color(0xFFFAF9FD),
+            color: _studyColorScheme.surface,
             borderRadius: BorderRadius.vertical(
               top: Radius.circular(26),
             ),
@@ -1344,7 +1275,7 @@ class StudyRoomPage extends StatelessWidget {
                 width: 42,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: Color(0xFFD8D5DE),
+                  color: _studyColorScheme.outlineVariant,
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -1354,7 +1285,7 @@ class StudyRoomPage extends StatelessWidget {
                   children: [
                     Icon(
                       Icons.groups_outlined,
-                      color: Color(0xFF8068D8),
+                      color: _studyColors.pinkStart,
                     ),
                     SizedBox(width: 10),
                     Expanded(
@@ -1489,10 +1420,10 @@ class StudyRoomPage extends StatelessWidget {
                           margin: EdgeInsets.only(bottom: 11),
                           padding: EdgeInsets.all(15),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: _studyColorScheme.surface,
                             borderRadius: BorderRadius.circular(18),
                             border: Border.all(
-                              color: Color(0xFFECEAF0),
+                              color: _studyColorScheme.outlineVariant,
                             ),
                           ),
                           child: Row(
@@ -1526,7 +1457,7 @@ class StudyRoomPage extends StatelessWidget {
                                               vertical: 3,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: Color(0xFFFFE7EE),
+                                              color: _studyColors.pinkSoft,
                                               borderRadius:
                                               BorderRadius.circular(11),
                                             ),
@@ -1534,7 +1465,7 @@ class StudyRoomPage extends StatelessWidget {
                                               '방장',
                                               style: TextStyle(
                                                 fontSize: 10,
-                                                color: Color(0xFFD85F82),
+                                                color: _studyColors.pinkStart,
                                                 fontWeight: FontWeight.w600,
                                               ),
                                             ),
@@ -1548,7 +1479,7 @@ class StudyRoomPage extends StatelessWidget {
                                           '${_formatStudyTime(totalStudySeconds)}',
                                       style: TextStyle(
                                         fontSize: 11,
-                                        color: Color(0xFF92969F),
+                                        color: _studyColors.textSecondary,
                                       ),
                                     ),
                                   ],
@@ -1578,7 +1509,7 @@ class StudyRoomPage extends StatelessWidget {
         return Container(
           height: MediaQuery.of(context).size.height * 0.72,
           decoration: BoxDecoration(
-            color: Color(0xFFFAF9FD),
+            color: _studyColorScheme.surface,
             borderRadius: BorderRadius.vertical(
               top: Radius.circular(26),
             ),
@@ -1590,7 +1521,7 @@ class StudyRoomPage extends StatelessWidget {
                 width: 42,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: Color(0xFFD8D5DE),
+                  color: _studyColorScheme.outlineVariant,
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -1600,7 +1531,7 @@ class StudyRoomPage extends StatelessWidget {
                   children: [
                     Icon(
                       Icons.emoji_events_outlined,
-                      color: Color(0xFF8068D8),
+                      color: _studyColors.pinkStart,
                     ),
                     SizedBox(width: 10),
                     Expanded(
@@ -1720,10 +1651,10 @@ class StudyRoomPage extends StatelessWidget {
                           margin: EdgeInsets.only(bottom: 11),
                           padding: EdgeInsets.all(15),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: _studyColorScheme.surface,
                             borderRadius: BorderRadius.circular(18),
                             border: Border.all(
-                              color: Color(0xFFECEAF0),
+                              color: _studyColorScheme.outlineVariant,
                             ),
                           ),
                           child: Row(
@@ -1733,13 +1664,13 @@ class StudyRoomPage extends StatelessWidget {
                                 height: 42,
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
-                                  color: Color(0xFFF0ECFF),
+                                  color: _studyColors.lavender,
                                   shape: BoxShape.circle,
                                 ),
                                 child: Text(
                                   '${index + 1}',
                                   style: TextStyle(
-                                    color: Color(0xFF6F58C9),
+                                    color: _studyColors.pinkStart,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -1758,7 +1689,7 @@ class StudyRoomPage extends StatelessWidget {
                                 _formatStudyTime(totalStudySeconds),
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: Color(0xFF6F58C9),
+                                  color: _studyColors.pinkStart,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -1924,13 +1855,13 @@ class StudyRoomPage extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Color(0xFFFFEDF2),
-                    Color(0xFFF1EEFF),
+                    _studyColors.pinkSoft,
+                    _studyColors.lavender,
                   ],
                 ),
                 borderRadius: BorderRadius.circular(28),
                 border: Border.all(
-                  color: Color(0xFFF0E4EC),
+                  color: _studyColors.pinkSoft,
                 ),
               ),
               child: Column(
@@ -1942,24 +1873,24 @@ class StudyRoomPage extends StatelessWidget {
                     children: [
                       _buildRoomBadge(
                         certificateName,
-                        Colors.white.withOpacity(0.88),
-                        Color(0xFF6F58C9),
+                        _studyColorScheme.surface.withOpacity(0.88),
+                        _studyColors.pinkStart,
                       ),
                       _buildRoomBadge(
                         isRecruiting ? '모집 중' : '모집 마감',
                         isRecruiting
-                            ? Color(0xFFDFF5EA)
-                            : Color(0xFFF1F2F5),
+                            ? _studyColors.mint
+                            : _studyColorScheme.outlineVariant,
                         isRecruiting
-                            ? Color(0xFF3F9C72)
-                            : Color(0xFF858994),
+                            ? _studyColorScheme.tertiary
+                            : _studyColors.textSecondary,
                       ),
                       Visibility(
                         visible: isOwner,
                         child: _buildRoomBadge(
                           '방장',
-                          Color(0xFFF0788F),
-                          Colors.white,
+                          _studyColors.pinkStart,
+                          _studyColorScheme.surface,
                         ),
                       ),
                     ],
@@ -1973,7 +1904,7 @@ class StudyRoomPage extends StatelessWidget {
                       fontSize: 23,
                       height: 1.25,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF292C33),
+                      color: _studyColors.textPrimary,
                     ),
                   ),
                   SizedBox(height: 9),
@@ -1984,7 +1915,7 @@ class StudyRoomPage extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13,
                       height: 1.55,
-                      color: Color(0xFF666B75),
+                      color: _studyColors.textSecondary,
                     ),
                   ),
                   SizedBox(height: 18),
@@ -2023,7 +1954,7 @@ class StudyRoomPage extends StatelessWidget {
                             vertical: 11,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.82),
+                            color: _studyColorScheme.surface.withOpacity(0.82),
                             borderRadius: BorderRadius.circular(15),
                           ),
                           child: Row(
@@ -2033,7 +1964,7 @@ class StudyRoomPage extends StatelessWidget {
                                     ? Icons.lock_outline_rounded
                                     : Icons.lock_open_rounded,
                                 size: 18,
-                                color: Color(0xFFD85F82),
+                                color: _studyColors.pinkStart,
                               ),
                               SizedBox(width: 8),
                               Expanded(
@@ -2044,14 +1975,14 @@ class StudyRoomPage extends StatelessWidget {
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFFD85F82),
+                                    color: _studyColors.pinkStart,
                                   ),
                                 ),
                               ),
                               Icon(
                                 Icons.chevron_right_rounded,
                                 size: 20,
-                                color: Color(0xFFD85F82),
+                                color: _studyColors.pinkStart,
                               ),
                             ],
                           ),
@@ -2072,10 +2003,10 @@ class StudyRoomPage extends StatelessWidget {
               width: double.infinity,
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Color(0xFFFFF7F9),
+                color: _studyColors.pinkSoft,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: Color(0xFFF7DDE5),
+                  color: _studyColors.pinkSoft,
                 ),
               ),
               child: Row(
@@ -2085,12 +2016,12 @@ class StudyRoomPage extends StatelessWidget {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: Color(0xFFFFE2E9),
+                      color: _studyColors.pinkSoft,
                       borderRadius: BorderRadius.circular(13),
                     ),
                     child: Icon(
                       Icons.campaign_rounded,
-                      color: Color(0xFFD85F82),
+                      color: _studyColors.pinkStart,
                       size: 21,
                     ),
                   ),
@@ -2111,7 +2042,7 @@ class StudyRoomPage extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 12,
                                   height: 1.5,
-                                  color: Color(0xFF5F636D),
+                                  color: _studyColors.textSecondary,
                                 ),
                               ),
                             ),
@@ -2134,7 +2065,7 @@ class StudyRoomPage extends StatelessWidget {
                                   notice.isEmpty ? '등록' : '수정',
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: Color(0xFFD85F82),
+                                    color: _studyColors.pinkStart,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -2166,7 +2097,7 @@ class StudyRoomPage extends StatelessWidget {
                     '전체보기',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF8068D8),
+                      color: _studyColors.pinkStart,
                     ),
                   ),
                 ),
@@ -2211,8 +2142,8 @@ class StudyRoomPage extends StatelessWidget {
                   Icons.emoji_events_rounded,
                   '공부 순위',
                   '그룹원 기록 보기',
-                  Color(0xFFE6E1FB),
-                  Color(0xFF6F58C9),
+                  _studyColors.lavender,
+                  _studyColors.pinkStart,
                       () {
                     _openStudyRanking(context);
                   },
@@ -2222,8 +2153,8 @@ class StudyRoomPage extends StatelessWidget {
                   Icons.quiz_rounded,
                   '발송 문제',
                   '문제 확인하기',
-                  Color(0xFFFCE1E8),
-                  Color(0xFFD85F82),
+                  _studyColors.pinkSoft,
+                  _studyColors.pinkStart,
                       () {
                     Navigator.push(
                       context,
@@ -2258,10 +2189,8 @@ class StudyRoomPage extends StatelessWidget {
     User? currentUser = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('스터디방'),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+      appBar: AppTopBar(
+        title: '스터디방',
         actions: [
           IconButton(
             onPressed: () {
