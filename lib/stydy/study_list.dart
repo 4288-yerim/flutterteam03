@@ -2,10 +2,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import 'package:flutterteam03/widgets/app_state_views.dart';
 
 import '../firebase_options.dart';
 import '../widgets/app_main_background.dart';
+import '../widgets/app_card.dart';
 import '../widgets/app_top_bar.dart';
 import 'study_add.dart';
 import 'study_detail.dart';
@@ -26,12 +28,36 @@ Future<void> main() async {
   runApp(
     MaterialApp(
       debugShowCheckedModeBanner: false,
+      theme: lightTheme,
+      darkTheme: darkTheme,
+      themeMode: ThemeMode.system,
       home: StudyListApp(),
     ),
   );
 }
 
 /// main_page.dart에서 사용하는 스터디 화면
+
+Brightness get _studyBrightness {
+  return WidgetsBinding.instance.platformDispatcher.platformBrightness;
+}
+
+AppColors get _studyColors {
+  if (_studyBrightness == Brightness.dark) {
+    return AppColors.dark;
+  }
+
+  return AppColors.light;
+}
+
+ColorScheme get _studyColorScheme {
+  if (_studyBrightness == Brightness.dark) {
+    return darkTheme.colorScheme;
+  }
+
+  return lightTheme.colorScheme;
+}
+
 class StudyListApp extends StatelessWidget {
   const StudyListApp({super.key});
 
@@ -305,14 +331,14 @@ class _StudyListPageState extends State<StudyListPage> {
   Widget _buildTopTab(String title) {
     bool isSelected = _selectedTab == title;
 
-    Color backgroundColor = Colors.white;
-    Color textColor = Color(0xFF777C86);
-    Color borderColor = Color(0xFFE5E5EA);
+    Color backgroundColor = _studyColorScheme.surface;
+    Color textColor = _studyColors.textSecondary;
+    Color borderColor = _studyColorScheme.outlineVariant;
 
     if (isSelected) {
-      backgroundColor = Color(0xFFFCE1E8);
-      textColor = Color(0xFFD85F82);
-      borderColor = Color(0xFFF0788F);
+      backgroundColor = _studyColors.pinkSoft;
+      textColor = _studyColors.pinkStart;
+      borderColor = _studyColors.pinkStart;
     }
 
     return Expanded(
@@ -350,14 +376,14 @@ class _StudyListPageState extends State<StudyListPage> {
   Widget _buildFindFilter(String title) {
     bool isSelected = _selectedFindFilter == title;
 
-    Color backgroundColor = Colors.white;
-    Color textColor = Color(0xFF777C86);
-    Color borderColor = Color(0xFFE4E5E9);
+    Color backgroundColor = _studyColorScheme.surface;
+    Color textColor = _studyColors.textSecondary;
+    Color borderColor = _studyColorScheme.outlineVariant;
 
     if (isSelected) {
-      backgroundColor = Color(0xFFE6E1FB);
-      textColor = Color(0xFF6F58C9);
-      borderColor = Color(0xFF8068D8);
+      backgroundColor = _studyColors.lavender;
+      textColor = _studyColors.pinkStart;
+      borderColor = _studyColors.pinkStart;
     }
 
     return ChoiceChip(
@@ -424,7 +450,7 @@ class _StudyListPageState extends State<StudyListPage> {
     if (thumbnailUrl.isNotEmpty) {
       return CircleAvatar(
         radius: 27,
-        backgroundColor: Color(0xFFF0ECFF),
+        backgroundColor: _studyColors.lavender,
         backgroundImage: NetworkImage(thumbnailUrl),
       );
     }
@@ -437,13 +463,13 @@ class _StudyListPageState extends State<StudyListPage> {
 
     return CircleAvatar(
       radius: 27,
-      backgroundColor: Color(0xFFE6E1FB),
+      backgroundColor: _studyColors.lavender,
       child: Text(
         firstLetter,
         style: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.bold,
-          color: Color(0xFF6F58C9),
+          color: _studyColors.pinkStart,
         ),
       ),
     );
@@ -499,13 +525,13 @@ class _StudyListPageState extends State<StudyListPage> {
     }
 
     String roleText = '참여 중';
-    Color roleBackgroundColor = Color(0xFFDFF5EA);
-    Color roleTextColor = Color(0xFF3F9C72);
+    Color roleBackgroundColor = _studyColors.mint;
+    Color roleTextColor = _studyColorScheme.tertiary;
 
     if (isOwner) {
       roleText = '방장';
-      roleBackgroundColor = Color(0xFFFCE1E8);
-      roleTextColor = Color(0xFFD85F82);
+      roleBackgroundColor = _studyColors.pinkSoft;
+      roleTextColor = _studyColors.pinkStart;
     }
 
     return Material(
@@ -518,129 +544,125 @@ class _StudyListPageState extends State<StudyListPage> {
             groupName,
           );
         },
-        child: Container(
-          width: double.infinity,
-          padding: EdgeInsets.all(14),
-          margin: EdgeInsets.only(bottom: 9),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: Color(0xFFE8E7EB),
-            ),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildStudyCircle(
-                certificateName,
-                thumbnailUrl,
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: _buildBadge(
-                            certificateName,
-                            Color(0xFFE6E1FB),
-                            Color(0xFF6F58C9),
-                          ),
-                        ),
-                        SizedBox(width: 6),
-                        _buildBadge(
-                          roleText,
-                          roleBackgroundColor,
-                          roleTextColor,
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      groupName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF29272E),
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      description,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF777C86),
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.groups_outlined,
-                          size: 17,
-                          color: Color(0xFF8C919C),
-                        ),
-                        SizedBox(width: 5),
-                        Text(
-                          memberText,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF737782),
-                          ),
-                        ),
-                        Spacer(),
-                        TextButton(
-                          onPressed: () {
-                            _openStudyDetail(
-                              studyDocument.id,
-                              studyData,
-                            );
-                          },
-                          style: TextButton.styleFrom(
-                            minimumSize: Size(0, 30),
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
+        child: Padding(
+          padding: EdgeInsets.only(bottom: 9),
+          child: AppCard(
+            borderRadius: 18,
+            padding: EdgeInsets.all(14),
+            backgroundColor: _studyColorScheme.surface,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildStudyCircle(
+                  certificateName,
+                  thumbnailUrl,
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: _buildBadge(
+                              certificateName,
+                              _studyColors.lavender,
+                              _studyColors.pinkStart,
                             ),
-                            tapTargetSize:
-                            MaterialTapTargetSize.shrinkWrap,
                           ),
-                          child: Text(
-                            '정보',
+                          SizedBox(width: 6),
+                          _buildBadge(
+                            roleText,
+                            roleBackgroundColor,
+                            roleTextColor,
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        groupName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: _studyColors.textPrimary,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        description,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _studyColors.textSecondary,
+                        ),
+                      ),
+                      SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.groups_outlined,
+                            size: 17,
+                            color: _studyColors.textSecondary,
+                          ),
+                          SizedBox(width: 5),
+                          Text(
+                            memberText,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _studyColors.textSecondary,
+                            ),
+                          ),
+                          Spacer(),
+                          TextButton(
+                            onPressed: () {
+                              _openStudyDetail(
+                                studyDocument.id,
+                                studyData,
+                              );
+                            },
+                            style: TextButton.styleFrom(
+                              minimumSize: Size(0, 30),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              tapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: Text(
+                              '정보',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: _studyColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 2),
+                          Text(
+                            '스터디방',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF777C86),
+                              color: _studyColors.pinkStart,
                             ),
                           ),
-                        ),
-                        SizedBox(width: 2),
-                        Text(
-                          '스터디방',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFFD85F82),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            size: 20,
+                            color: _studyColors.pinkStart,
                           ),
-                        ),
-                        Icon(
-                          Icons.chevron_right_rounded,
-                          size: 20,
-                          color: Color(0xFFD85F82),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -674,13 +696,13 @@ class _StudyListPageState extends State<StudyListPage> {
     bool isRecruiting = _isRecruiting(studyData);
 
     String recruitingText = '모집 마감';
-    Color recruitingBackgroundColor = Color(0xFFF1F2F5);
-    Color recruitingTextColor = Color(0xFF858994);
+    Color recruitingBackgroundColor = _studyColorScheme.outlineVariant;
+    Color recruitingTextColor = _studyColors.textSecondary;
 
     if (isRecruiting) {
       recruitingText = '모집 중';
-      recruitingBackgroundColor = Color(0xFFDFF5EA);
-      recruitingTextColor = Color(0xFF3F9C72);
+      recruitingBackgroundColor = _studyColors.mint;
+      recruitingTextColor = _studyColorScheme.tertiary;
     }
 
     if (description.isEmpty) {
@@ -697,91 +719,87 @@ class _StudyListPageState extends State<StudyListPage> {
             studyData,
           );
         },
-        child: Container(
-          width: double.infinity,
-          padding: EdgeInsets.all(14),
-          margin: EdgeInsets.only(bottom: 9),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: Color(0xFFE8E7EB),
+        child: Padding(
+          padding: EdgeInsets.only(bottom: 9),
+          child: AppCard(
+            borderRadius: 18,
+            padding: EdgeInsets.all(14),
+            backgroundColor: _studyColorScheme.surface,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: _buildBadge(
+                        certificateName,
+                        _studyColors.lavender,
+                        _studyColors.pinkStart,
+                      ),
+                    ),
+                    SizedBox(width: 6),
+                    _buildBadge(
+                      recruitingText,
+                      recruitingBackgroundColor,
+                      recruitingTextColor,
+                    ),
+                  ],
+                ),
+                SizedBox(height: 9),
+                Text(
+                  groupName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: _studyColors.textPrimary,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  description,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _studyColors.textSecondary,
+                  ),
+                ),
+                SizedBox(height: 9),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.groups_outlined,
+                      size: 17,
+                      color: _studyColors.textSecondary,
+                    ),
+                    SizedBox(width: 5),
+                    Text(
+                      '$currentMemberCount / $maxMemberCount명',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _studyColors.textSecondary,
+                      ),
+                    ),
+                    Spacer(),
+                    Text(
+                      '상세 보기',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _studyColors.pinkStart,
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 20,
+                      color: _studyColors.pinkStart,
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Flexible(
-                    child: _buildBadge(
-                      certificateName,
-                      Color(0xFFE6E1FB),
-                      Color(0xFF6F58C9),
-                    ),
-                  ),
-                  SizedBox(width: 6),
-                  _buildBadge(
-                    recruitingText,
-                    recruitingBackgroundColor,
-                    recruitingTextColor,
-                  ),
-                ],
-              ),
-              SizedBox(height: 9),
-              Text(
-                groupName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF29272E),
-                ),
-              ),
-              SizedBox(height: 4),
-              Text(
-                description,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF7B7F89),
-                ),
-              ),
-              SizedBox(height: 9),
-              Row(
-                children: [
-                  Icon(
-                    Icons.groups_outlined,
-                    size: 17,
-                    color: Color(0xFF8C919C),
-                  ),
-                  SizedBox(width: 5),
-                  Text(
-                    '$currentMemberCount / $maxMemberCount명',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF737782),
-                    ),
-                  ),
-                  Spacer(),
-                  Text(
-                    '상세 보기',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFFD85F82),
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    size: 20,
-                    color: Color(0xFFD85F82),
-                  ),
-                ],
-              ),
-            ],
           ),
         ),
       ),
@@ -851,7 +869,7 @@ class _StudyListPageState extends State<StudyListPage> {
                 '참여 중인 스터디 ${myStudyList.length}개',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Color(0xFF777C86),
+                  color: _studyColors.textSecondary,
                 ),
               ),
             ),
@@ -898,12 +916,12 @@ class _StudyListPageState extends State<StudyListPage> {
               hintText: '스터디 이름 또는 자격증 검색',
               hintStyle: TextStyle(
                 fontSize: 13,
-                color: Color(0xFF989AA2),
+                color: _studyColors.textSecondary,
               ),
               prefixIcon: Icon(
                 Icons.search_rounded,
                 size: 21,
-                color: Color(0xFF66636E),
+                color: _studyColors.textSecondary,
               ),
               suffixIcon: _searchText.isNotEmpty
                   ? IconButton(
@@ -921,20 +939,20 @@ class _StudyListPageState extends State<StudyListPage> {
               )
                   : null,
               filled: true,
-              fillColor: Colors.white,
+              fillColor: _studyColorScheme.surface,
               contentPadding: EdgeInsets.symmetric(
                 vertical: 9,
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide(
-                  color: Color(0xFFE8E7EB),
+                  color: _studyColorScheme.outlineVariant,
                 ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide(
-                  color: Color(0xFFF0788F),
+                  color: _studyColors.pinkStart,
                   width: 1.5,
                 ),
               ),
@@ -967,7 +985,7 @@ class _StudyListPageState extends State<StudyListPage> {
                   '스터디 ${visibleStudyList.length}개',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF777C86),
+                    color: _studyColors.textSecondary,
                   ),
                 ),
               ),

@@ -1,10 +1,33 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import 'package:flutter/services.dart';
 import 'package:flutterteam03/widgets/app_state_views.dart';
 
 import '../widgets/app_main_background.dart';
+import '../widgets/app_top_bar.dart';
+
+
+Brightness get _studyBrightness {
+  return WidgetsBinding.instance.platformDispatcher.platformBrightness;
+}
+
+AppColors get _studyColors {
+  if (_studyBrightness == Brightness.dark) {
+    return AppColors.dark;
+  }
+
+  return AppColors.light;
+}
+
+ColorScheme get _studyColorScheme {
+  if (_studyBrightness == Brightness.dark) {
+    return darkTheme.colorScheme;
+  }
+
+  return lightTheme.colorScheme;
+}
 
 class StudyChatPage extends StatefulWidget {
   final String studyId;
@@ -54,6 +77,18 @@ class _StudyChatPageState extends State<StudyChatPage> {
   /// 채팅 화면 다시 불러오기
   void _reloadChat() {
     setState(() {});
+  }
+
+  bool _isNetworkError(Object? error) {
+    if (error is FirebaseException) {
+      if (error.code == 'unavailable' ||
+          error.code == 'network-request-failed' ||
+          error.code == 'deadline-exceeded') {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /// 채팅방 기본 문서 생성
@@ -514,7 +549,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
               child: Text(
                 '삭제',
                 style: TextStyle(
-                  color: Colors.red,
+                  color: _studyColorScheme.error,
                 ),
               ),
             ),
@@ -645,12 +680,12 @@ class _StudyChatPageState extends State<StudyChatPage> {
                 child: ListTile(
                   leading: Icon(
                     Icons.delete_forever_outlined,
-                    color: Colors.red,
+                    color: _studyColorScheme.error,
                   ),
                   title: Text(
                     '모두에게서 삭제',
                     style: TextStyle(
-                      color: Colors.red,
+                      color: _studyColorScheme.error,
                     ),
                   ),
                   onTap: () {
@@ -733,18 +768,18 @@ class _StudyChatPageState extends State<StudyChatPage> {
     if (profileImageUrl.isNotEmpty) {
       return CircleAvatar(
         radius: radius,
-        backgroundColor: Color(0xFFF0ECFF),
+        backgroundColor: _studyColors.lavender,
         backgroundImage: NetworkImage(profileImageUrl),
       );
     }
 
     return CircleAvatar(
       radius: radius,
-      backgroundColor: Color(0xFFF0ECFF),
+      backgroundColor: _studyColors.lavender,
       child: Text(
         _getFirstLetter(nickname),
         style: TextStyle(
-          color: Color(0xFF6F58C9),
+          color: _studyColors.pinkStart,
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -820,7 +855,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
         return Container(
           height: MediaQuery.of(context).size.height * 0.65,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _studyColorScheme.surface,
             borderRadius: BorderRadius.only(
               topLeft: Radius.circular(24),
               topRight: Radius.circular(24),
@@ -833,7 +868,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
                 width: 42,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: Color(0xFFD8D5DE),
+                  color: _studyColorScheme.outlineVariant,
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -913,8 +948,8 @@ class _StudyChatPageState extends State<StudyChatPage> {
                                     : Icons.schedule_rounded,
                                 size: 18,
                                 color: isRead
-                                    ? Color(0xFF3F9C72)
-                                    : Color(0xFF9A9DA6),
+                                    ? _studyColorScheme.tertiary
+                                    : _studyColors.textSecondary,
                               ),
                               SizedBox(width: 5),
                               Text(
@@ -922,8 +957,8 @@ class _StudyChatPageState extends State<StudyChatPage> {
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: isRead
-                                      ? Color(0xFF3F9C72)
-                                      : Color(0xFF8A8E98),
+                                      ? _studyColorScheme.tertiary
+                                      : _studyColors.textSecondary,
                                 ),
                               ),
                             ],
@@ -951,7 +986,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
         return Container(
           height: MediaQuery.of(context).size.height * 0.7,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _studyColorScheme.surface,
             borderRadius: BorderRadius.only(
               topLeft: Radius.circular(24),
               topRight: Radius.circular(24),
@@ -964,7 +999,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
                 width: 42,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: Color(0xFFD8D5DE),
+                  color: _studyColorScheme.outlineVariant,
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -1058,14 +1093,14 @@ class _StudyChatPageState extends State<StudyChatPage> {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: Color(0xFFFCE1E8),
+                                color: _studyColors.pinkSoft,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
                                 '방장',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Color(0xFFF0788F),
+                                  color: _studyColors.pinkStart,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -1094,12 +1129,12 @@ class _StudyChatPageState extends State<StudyChatPage> {
       return Container();
     }
 
-    Color backgroundColor = Color(0xFFF7F4FA);
-    Color lineColor = Color(0xFF8068D8);
+    Color backgroundColor = _studyColorScheme.surface;
+    Color lineColor = _studyColors.pinkStart;
 
     if (isMyMessage) {
-      backgroundColor = Color(0xFFFFF1F4);
-      lineColor = Color(0xFFF0788F);
+      backgroundColor = _studyColors.pinkSoft;
+      lineColor = _studyColors.pinkStart;
     }
 
     return Container(
@@ -1137,7 +1172,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 11,
-                    color: Color(0xFF66636E),
+                    color: _studyColors.textSecondary,
                   ),
                 ),
               ],
@@ -1193,7 +1228,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
             '수정됨',
             style: TextStyle(
               fontSize: 9,
-              color: Color(0xFF92959E),
+              color: _studyColors.textSecondary,
             ),
           ),
         ),
@@ -1205,7 +1240,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
             readText,
             style: TextStyle(
               fontSize: 9,
-              color: Color(0xFF8068D8),
+              color: _studyColors.pinkStart,
             ),
           ),
         ),
@@ -1213,7 +1248,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
           _formatTime(createdAt),
           style: TextStyle(
             fontSize: 9,
-            color: Color(0xFF9699A2),
+            color: _studyColors.textSecondary,
           ),
         ),
       ],
@@ -1244,12 +1279,12 @@ class _StudyChatPageState extends State<StudyChatPage> {
     bool isMyMessage = senderUid == currentUserUid;
     bool isDeleted = messageData['isDeleted'] == true;
 
-    Color bubbleColor = Colors.white;
-    Color textColor = Color(0xFF302D39);
+    Color bubbleColor = _studyColorScheme.surface;
+    Color textColor = _studyColors.textPrimary;
 
     if (isMyMessage) {
-      bubbleColor = Color(0xFFFCE1E8);
-      textColor = Color(0xFF302D39);
+      bubbleColor = _studyColors.pinkSoft;
+      textColor = _studyColors.textPrimary;
     }
 
     Widget bubble = GestureDetector(
@@ -1270,7 +1305,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
           border: isMyMessage
               ? null
               : Border.all(
-            color: Color(0xFFE8E7EB),
+            color: _studyColorScheme.outlineVariant,
           ),
         ),
         child: Column(
@@ -1289,7 +1324,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
               style: TextStyle(
                 fontSize: 14,
                 height: 1.35,
-                color: isDeleted ? Color(0xFF92959E) : textColor,
+                color: isDeleted ? _studyColors.textSecondary : textColor,
                 fontStyle:
                 isDeleted ? FontStyle.italic : FontStyle.normal,
               ),
@@ -1344,7 +1379,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF686570),
+                    color: _studyColors.textSecondary,
                   ),
                 ),
                 SizedBox(height: 4),
@@ -1391,14 +1426,14 @@ class _StudyChatPageState extends State<StudyChatPage> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF302D39),
+                color: _studyColors.textPrimary,
               ),
             ),
             Text(
               '${memberList.length}명 참여 중',
               style: TextStyle(
                 fontSize: 11,
-                color: Color(0xFF858994),
+                color: _studyColors.textSecondary,
               ),
             ),
           ],
@@ -1428,10 +1463,10 @@ class _StudyChatPageState extends State<StudyChatPage> {
             vertical: 11,
           ),
           decoration: BoxDecoration(
-            color: Color(0xFFFFF5F7),
+            color: _studyColors.pinkSoft,
             border: Border(
               bottom: BorderSide(
-                color: Color(0xFFF0E7EA),
+                color: _studyColors.pinkSoft,
               ),
             ),
           ),
@@ -1440,7 +1475,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
               Icon(
                 Icons.campaign_outlined,
                 size: 21,
-                color: Color(0xFFF0788F),
+                color: _studyColors.pinkStart,
               ),
               SizedBox(width: 9),
               Expanded(
@@ -1451,7 +1486,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
                   style: TextStyle(
                     fontSize: 12,
                     height: 1.35,
-                    color: Color(0xFF5F5C66),
+                    color: _studyColors.textSecondary,
                   ),
                 ),
               ),
@@ -1483,10 +1518,10 @@ class _StudyChatPageState extends State<StudyChatPage> {
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(14, 9, 8, 9),
       decoration: BoxDecoration(
-        color: Color(0xFFFFF6F8),
+        color: _studyColors.pinkSoft,
         border: Border(
           top: BorderSide(
-            color: Color(0xFFF0E7EA),
+            color: _studyColors.pinkSoft,
           ),
         ),
       ),
@@ -1495,7 +1530,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
           Icon(
             Icons.reply_rounded,
             size: 20,
-            color: Color(0xFFF0788F),
+            color: _studyColors.pinkStart,
           ),
           SizedBox(width: 8),
           Expanded(
@@ -1507,7 +1542,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFFF0788F),
+                    color: _studyColors.pinkStart,
                   ),
                 ),
                 SizedBox(height: 2),
@@ -1517,7 +1552,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 11,
-                    color: Color(0xFF6F6B75),
+                    color: _studyColors.textSecondary,
                   ),
                 ),
               ],
@@ -1545,10 +1580,10 @@ class _StudyChatPageState extends State<StudyChatPage> {
         MediaQuery.of(context).padding.bottom + 9,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _studyColorScheme.surface,
         border: Border(
           top: BorderSide(
-            color: Color(0xFFE8E7EB),
+            color: _studyColorScheme.outlineVariant,
           ),
         ),
       ),
@@ -1566,7 +1601,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
                 hintText: '메시지를 입력하세요.',
                 counterText: '',
                 filled: true,
-                fillColor: Color(0xFFF5F3F6),
+                fillColor: _studyColorScheme.surface,
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 12,
@@ -1586,8 +1621,8 @@ class _StudyChatPageState extends State<StudyChatPage> {
               onPressed: _isSending ? null : _sendMessage,
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.zero,
-                backgroundColor: Color(0xFFF0788F),
-                foregroundColor: Colors.white,
+                backgroundColor: _studyColors.pinkStart,
+                foregroundColor: _studyColorScheme.onPrimary,
                 shape: CircleBorder(),
               ),
               child: _isSending
@@ -1596,7 +1631,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
                 height: 19,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: Colors.white,
+                  color: _studyColorScheme.onPrimary,
                 ),
               )
                   : Icon(
@@ -1617,11 +1652,8 @@ class _StudyChatPageState extends State<StudyChatPage> {
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      appBar: AppBar(
-        titleSpacing: 0,
-        title: _buildAppBarTitle(),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+      appBar: AppTopBar(
+        title: widget.groupName,
         actions: [
           IconButton(
             tooltip: '그룹원 보기',
@@ -1677,6 +1709,15 @@ class _StudyChatPageState extends State<StudyChatPage> {
                         debugPrint(
                           '채팅 목록 오류: ${messageSnapshot.error}',
                         );
+
+                        if (_isNetworkError(messageSnapshot.error)) {
+                          return AppNetworkErrorView(
+                            message: '인터넷 연결을 확인해 주세요.',
+                            description:
+                            '네트워크 연결 후 채팅 내용을 다시 불러와 주세요.',
+                            onRetryPressed: _reloadChat,
+                          );
+                        }
 
                         return AppErrorView(
                           message: '채팅 내용을 불러오지 못했습니다.',
@@ -1779,7 +1820,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
                                     vertical: 5,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Color(0xFFEDEBF1),
+                                    color: _studyColorScheme.outlineVariant,
                                     borderRadius:
                                     BorderRadius.circular(14),
                                   ),
@@ -1787,7 +1828,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
                                     _formatDate(currentCreatedAt),
                                     style: TextStyle(
                                       fontSize: 10,
-                                      color: Color(0xFF777C86),
+                                      color: _studyColors.textSecondary,
                                     ),
                                   ),
                                 ),

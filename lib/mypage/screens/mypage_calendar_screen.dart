@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:add_2_calendar/add_2_calendar.dart';
 
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
@@ -878,20 +879,67 @@ class _MyPageCalendarScreenState
               ],
             ),
           ),
-          if (schedule.type ==
-              CalendarScheduleType.user)
-            IconButton(
-              tooltip: '일정 삭제',
-              onPressed: () {
+          PopupMenuButton<String>(
+            tooltip: '일정 메뉴',
+            color: Colors.white,
+            icon: const Icon(
+              Icons.more_vert_rounded,
+              color: Color(0xFF9AA0AC),
+            ),
+            onSelected: (String value) {
+              if (value == 'calendar') {
+                _addScheduleToPhoneCalendar(
+                  schedule,
+                );
+              }
+
+              if (value == 'delete') {
                 _showDeleteScheduleDialog(
                   schedule,
                 );
-              },
-              icon: const Icon(
-                Icons.delete_outline_rounded,
-                color: Color(0xFF9AA0AC),
-              ),
-            ),
+              }
+            },
+            itemBuilder: (context) {
+              return [
+                const PopupMenuItem<String>(
+                  value: 'calendar',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_month_outlined,
+                        size: 20,
+                        color: Color(0xFFF0788F),
+                      ),
+                      SizedBox(width: 10),
+                      Text(
+                        '휴대폰 캘린더에 추가',
+                      ),
+                    ],
+                  ),
+                ),
+
+                // 사용자 직접 일정에만 삭제 메뉴 표시
+                if (schedule.type ==
+                    CalendarScheduleType.user)
+                  const PopupMenuItem<String>(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.delete_outline_rounded,
+                          size: 20,
+                          color: Colors.redAccent,
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          '일정 삭제',
+                        ),
+                      ],
+                    ),
+                  ),
+              ];
+            },
+          ),
         ],
       ),
     );
@@ -1287,6 +1335,88 @@ class _MyPageCalendarScreenState
         ),
       ),
     );
+  }
+
+  Future<void> _addScheduleToPhoneCalendar(
+      CalendarScheduleItem schedule,
+      ) async {
+    // 시작 시간이 없는 일정은 종일 일정으로 처리
+    final bool isAllDay = schedule.startTime == null;
+
+    late DateTime startDate;
+    late DateTime endDate;
+
+    if (isAllDay) {
+      // 자격증 일정처럼 시간이 없는 경우
+      startDate = DateTime(
+        schedule.date.year,
+        schedule.date.month,
+        schedule.date.day,
+      );
+
+      // 종일 일정의 종료일은 다음 날 0시로 지정
+      endDate = startDate.add(
+        const Duration(days: 1),
+      );
+    } else {
+      // 시작 시간이 있는 경우 날짜와 시간을 합침
+      startDate = DateTime(
+        schedule.date.year,
+        schedule.date.month,
+        schedule.date.day,
+        schedule.startTime!.hour,
+        schedule.startTime!.minute,
+      );
+
+      if (schedule.endTime != null) {
+        // 종료 시간이 있으면 해당 시간 사용
+        endDate = DateTime(
+          schedule.date.year,
+          schedule.date.month,
+          schedule.date.day,
+          schedule.endTime!.hour,
+          schedule.endTime!.minute,
+        );
+      } else {
+        // 종료 시간이 없으면 시작 시간으로부터 1시간 뒤
+        endDate = startDate.add(
+          const Duration(hours: 1),
+        );
+      }
+    }
+
+    final Event event = Event(
+      title: schedule.title,
+      description: schedule.description,
+      startDate: startDate,
+      endDate: endDate,
+      allDay: isAllDay,
+    );
+
+    final bool added =
+    await Add2Calendar.addEvent2Cal(event);
+
+    if (!mounted) {
+      return;
+    }
+
+    if (added) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '휴대폰 캘린더 등록 화면을 열었습니다.',
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '휴대폰 캘린더를 열지 못했습니다.',
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _showDeleteScheduleDialog(

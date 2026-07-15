@@ -1,12 +1,38 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import 'package:flutterteam03/widgets/app_state_views.dart';
 
 import '../widgets/app_card.dart';
 import '../widgets/app_main_background.dart';
+import '../widgets/app_top_bar.dart';
+import '../widgets/app_button.dart';
+import '../widgets/loading_overlay.dart';
+import 'study_quiz_add.dart';
 
-class StudyQuizPage extends StatelessWidget {
+
+Brightness get _studyBrightness {
+  return WidgetsBinding.instance.platformDispatcher.platformBrightness;
+}
+
+AppColors get _studyColors {
+  if (_studyBrightness == Brightness.dark) {
+    return AppColors.dark;
+  }
+
+  return AppColors.light;
+}
+
+ColorScheme get _studyColorScheme {
+  if (_studyBrightness == Brightness.dark) {
+    return darkTheme.colorScheme;
+  }
+
+  return lightTheme.colorScheme;
+}
+
+class StudyQuizPage extends StatefulWidget {
   final String studyId;
   final String groupName;
 
@@ -15,6 +41,110 @@ class StudyQuizPage extends StatelessWidget {
     required this.studyId,
     required this.groupName,
   });
+
+  @override
+  State<StudyQuizPage> createState() {
+    return _StudyQuizPageState();
+  }
+}
+
+class _StudyQuizPageState extends State<StudyQuizPage> {
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _quizStream;
+
+  bool _isOwner = false;
+  bool _isOwnerLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _quizStream = _createQuizStream();
+    _loadOwnerStatus();
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> _createQuizStream() {
+    return FirebaseFirestore.instance
+        .collection('studyGroups')
+        .doc(widget.studyId)
+        .collection('quizzes')
+        .snapshots();
+  }
+
+  /// 현재 로그인한 사용자가 방장인지 확인
+  Future<void> _loadOwnerStatus() async {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      if (mounted) {
+        setState(() {
+          _isOwner = false;
+          _isOwnerLoading = false;
+        });
+      }
+
+      return;
+    }
+
+    try {
+      DocumentSnapshot<Map<String, dynamic>> groupSnapshot =
+      await FirebaseFirestore.instance
+          .collection('studyGroups')
+          .doc(widget.studyId)
+          .get();
+
+      bool isOwner = false;
+
+      if (groupSnapshot.exists) {
+        Map<String, dynamic> groupData =
+            groupSnapshot.data() ?? {};
+
+        String ownerUid =
+            groupData['ownerUid']?.toString() ?? '';
+
+        if (ownerUid == currentUser.uid) {
+          isOwner = true;
+        }
+      }
+
+      if (isOwner == false) {
+        DocumentSnapshot<Map<String, dynamic>> memberSnapshot =
+        await FirebaseFirestore.instance
+            .collection('studyGroups')
+            .doc(widget.studyId)
+            .collection('members')
+            .doc(currentUser.uid)
+            .get();
+
+        if (memberSnapshot.exists) {
+          Map<String, dynamic> memberData =
+              memberSnapshot.data() ?? {};
+
+          String role =
+              memberData['role']?.toString() ?? '';
+
+          if (role == 'OWNER') {
+            isOwner = true;
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _isOwner = isOwner;
+          _isOwnerLoading = false;
+        });
+      }
+    } catch (error) {
+      debugPrint('문제 발송 권한 확인 오류: $error');
+
+      if (mounted) {
+        setState(() {
+          _isOwner = false;
+          _isOwnerLoading = false;
+        });
+      }
+    }
+  }
 
   /// Firestore 숫자 필드 가져오기
   int _getInt(
@@ -34,6 +164,27 @@ class StudyQuizPage extends StatelessWidget {
     return 0;
   }
 
+  bool _isNetworkError(Object? error) {
+    if (error is FirebaseException) {
+      if (error.code == 'unavailable' ||
+          error.code == 'network-request-failed' ||
+          error.code == 'deadline-exceeded') {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /// 문제 목록 다시 불러오기
+  void _reloadQuizList() {
+    setState(() {
+      _quizStream = _createQuizStream();
+    });
+
+    _loadOwnerStatus();
+  }
+
   /// Firestore 날짜 표시
   String _formatDate(dynamic createdAt) {
     if (createdAt is! Timestamp) {
@@ -46,6 +197,21 @@ class StudyQuizPage extends StatelessWidget {
         '${dateTime.day.toString().padLeft(2, '0')}';
   }
 
+  /// 문제 작성 화면으로 이동
+  Future<void> _openQuizAddPage() async {
+    await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) {
+          return StudyQuizAddPage(
+            studyId: widget.studyId,
+            groupName: widget.groupName,
+          );
+        },
+      ),
+    );
+  }
+
   /// 문제 풀이 화면으로 이동
   void _openQuiz(
       BuildContext context,
@@ -56,7 +222,7 @@ class StudyQuizPage extends StatelessWidget {
       context,
       MaterialPageRoute(
         builder: (context) => _QuizSolvePage(
-          studyId: studyId,
+          studyId: widget.studyId,
           quizId: quizId,
           quizData: quizData,
         ),
@@ -66,21 +232,32 @@ class StudyQuizPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    List<Widget> appBarActions = [];
+
+    if (_isOwnerLoading == false && _isOwner) {
+      appBarActions.add(
+        IconButton(
+          tooltip: '문제 발송',
+          onPressed: _openQuizAddPage,
+          icon: Icon(
+            Icons.add_rounded,
+            color: _studyColors.textPrimary,
+            size: 29,
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('발송된 문제'),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+      appBar: AppTopBar(
+        title: '발송된 문제',
+        actions: appBarActions,
       ),
       body: AppMainBackground(
         applySafeArea: false,
         child: StreamBuilder<
             QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
-              .collection('studyGroups')
-              .doc(studyId)
-              .collection('quizzes')
-              .snapshots(),
+          stream: _quizStream,
           builder: (context, snapshot) {
             if (snapshot.connectionState ==
                 ConnectionState.waiting) {
@@ -94,9 +271,21 @@ class StudyQuizPage extends StatelessWidget {
                 '발송된 문제 조회 오류: ${snapshot.error}',
               );
 
+              if (_isNetworkError(snapshot.error)) {
+                return AppNetworkErrorView(
+                  message: '인터넷 연결을 확인해 주세요.',
+                  description:
+                  '네트워크 연결 후 발송된 문제를 다시 불러와 주세요.',
+                  retryButtonText: '다시 시도',
+                  onRetryPressed: _reloadQuizList,
+                );
+              }
+
               return AppErrorView(
                 message: '발송된 문제를 불러오지 못했습니다.',
                 description: '잠시 후 다시 시도해 주세요.',
+                retryButtonText: '다시 시도',
+                onRetryPressed: _reloadQuizList,
               );
             }
 
@@ -127,12 +316,20 @@ class StudyQuizPage extends StatelessWidget {
             if (quizList.isEmpty) {
               return AppEmptyView(
                 message: '발송된 문제가 없습니다.',
-                description: '새로운 문제가 발송되면 이곳에 표시됩니다.',
+                description: _isOwner
+                    ? '우측 상단의 + 버튼을 눌러 첫 문제를 발송해 보세요.'
+                    : '새로운 문제가 발송되면 이곳에 표시됩니다.',
+                buttonText: _isOwner
+                    ? '문제 발송하기'
+                    : null,
+                onButtonPressed: _isOwner
+                    ? _openQuizAddPage
+                    : null,
               );
             }
 
             return ListView(
-              padding: const EdgeInsets.fromLTRB(
+              padding: EdgeInsets.fromLTRB(
                 20,
                 22,
                 20,
@@ -141,12 +338,12 @@ class StudyQuizPage extends StatelessWidget {
               children: [
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(18),
+                  padding: EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF4F0FF),
+                    color: _studyColors.lavender,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: const Color(0xFFE8E1FF),
+                      color: _studyColors.lavender,
                     ),
                   ),
                   child: Row(
@@ -155,18 +352,18 @@ class StudyQuizPage extends StatelessWidget {
                         width: 48,
                         height: 48,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: _studyColorScheme.surface,
                           borderRadius:
                           BorderRadius.circular(15),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.edit_note_rounded,
-                          color: Color(0xFF8068D8),
+                          color: _studyColors.pinkStart,
                           size: 29,
                         ),
                       ),
 
-                      const SizedBox(width: 14),
+                      SizedBox(width: 14),
 
                       Expanded(
                         child: Column(
@@ -174,32 +371,43 @@ class StudyQuizPage extends StatelessWidget {
                           CrossAxisAlignment.start,
                           children: [
                             Text(
-                              groupName,
-                              style: const TextStyle(
+                              widget.groupName,
+                              style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
 
-                            const SizedBox(height: 4),
+                            SizedBox(height: 4),
 
                             Text(
                               '총 ${quizList.length}개의 문제가 발송되었습니다.',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFF777383),
+                                color: _studyColors.textSecondary,
                               ),
                             ),
                           ],
                         ),
                       ),
+
+                      if (_isOwner)
+                        IconButton(
+                          tooltip: '문제 발송',
+                          onPressed: _openQuizAddPage,
+                          icon: Icon(
+                            Icons.add_circle_rounded,
+                            color: _studyColors.pinkStart,
+                            size: 28,
+                          ),
+                        ),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 22),
+                SizedBox(height: 22),
 
-                const Text(
+                Text(
                   '문제 목록',
                   style: TextStyle(
                     fontSize: 18,
@@ -207,7 +415,7 @@ class StudyQuizPage extends StatelessWidget {
                   ),
                 ),
 
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
 
                 ...quizList.map((quizDocument) {
                   final quizData =
@@ -234,7 +442,7 @@ class StudyQuizPage extends StatelessWidget {
 
                   return Padding(
                     padding:
-                    const EdgeInsets.only(bottom: 14),
+                    EdgeInsets.only(bottom: 14),
                     child: GestureDetector(
                       onTap: () {
                         _openQuiz(
@@ -245,6 +453,7 @@ class StudyQuizPage extends StatelessWidget {
                       },
                       behavior: HitTestBehavior.opaque,
                       child: AppCard(
+                        backgroundColor: _studyColorScheme.surface,
                         child: Column(
                           crossAxisAlignment:
                           CrossAxisAlignment.start,
@@ -253,24 +462,24 @@ class StudyQuizPage extends StatelessWidget {
                               children: [
                                 Container(
                                   padding:
-                                  const EdgeInsets.symmetric(
+                                  EdgeInsets.symmetric(
                                     horizontal: 10,
                                     vertical: 5,
                                   ),
                                   decoration: BoxDecoration(
                                     color:
-                                    const Color(0xFFE9E4FF),
+                                    _studyColors.lavender,
                                     borderRadius:
                                     BorderRadius.circular(
                                       14,
                                     ),
                                   ),
-                                  child: const Text(
+                                  child: Text(
                                     '발송 문제',
                                     style: TextStyle(
                                       fontSize: 11,
                                       color:
-                                      Color(0xFF6F58C9),
+                                      _studyColors.pinkStart,
                                       fontWeight:
                                       FontWeight.w600,
                                     ),
@@ -278,17 +487,15 @@ class StudyQuizPage extends StatelessWidget {
                                 ),
 
                                 if (point > 0) ...[
-                                  const SizedBox(width: 7),
+                                  SizedBox(width: 7),
                                   Container(
-                                    padding: const EdgeInsets
+                                    padding: EdgeInsets
                                         .symmetric(
                                       horizontal: 10,
                                       vertical: 5,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: const Color(
-                                        0xFFFFEDF2,
-                                      ),
+                                      color: _studyColors.pinkSoft,
                                       borderRadius:
                                       BorderRadius.circular(
                                         14,
@@ -296,10 +503,10 @@ class StudyQuizPage extends StatelessWidget {
                                     ),
                                     child: Text(
                                       '$point점',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 11,
                                         color:
-                                        Color(0xFFD85F82),
+                                        _studyColors.pinkStart,
                                         fontWeight:
                                         FontWeight.w600,
                                       ),
@@ -307,30 +514,30 @@ class StudyQuizPage extends StatelessWidget {
                                   ),
                                 ],
 
-                                const Spacer(),
+                                Spacer(),
 
                                 Text(
                                   _formatDate(createdAt),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 11,
                                     color:
-                                    Color(0xFF999DA6),
+                                    _studyColors.textSecondary,
                                   ),
                                 ),
                               ],
                             ),
 
-                            const SizedBox(height: 15),
+                            SizedBox(height: 15),
 
                             Text(
                               title,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
 
-                            const SizedBox(height: 8),
+                            SizedBox(height: 8),
 
                             Text(
                               question.isEmpty
@@ -339,52 +546,52 @@ class StudyQuizPage extends StatelessWidget {
                               maxLines: 2,
                               overflow:
                               TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
                                 height: 1.45,
-                                color: Color(0xFF777C86),
+                                color: _studyColors.textSecondary,
                               ),
                             ),
 
-                            const SizedBox(height: 16),
+                            SizedBox(height: 16),
 
                             Row(
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.person_outline,
                                   size: 17,
-                                  color: Color(0xFF90949D),
+                                  color: _studyColors.textSecondary,
                                 ),
 
-                                const SizedBox(width: 5),
+                                SizedBox(width: 5),
 
                                 Expanded(
                                   child: Text(
                                     '$senderNickname 님이 발송',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 12,
                                       color:
-                                      Color(0xFF858994),
+                                      _studyColors.textSecondary,
                                     ),
                                   ),
                                 ),
 
-                                const Text(
+                                Text(
                                   '문제 풀기',
                                   style: TextStyle(
                                     fontSize: 13,
                                     color:
-                                    Color(0xFF6C54C8),
+                                    _studyColors.pinkStart,
                                     fontWeight:
                                     FontWeight.bold,
                                   ),
                                 ),
 
-                                const SizedBox(width: 3),
+                                SizedBox(width: 3),
 
-                                const Icon(
+                                Icon(
                                   Icons.chevron_right,
-                                  color: Color(0xFF6C54C8),
+                                  color: _studyColors.pinkStart,
                                 ),
                               ],
                             ),
@@ -534,7 +741,7 @@ class _QuizSolvePageState
         _isSubmitted) {
       if (_selectedAnswerIndex == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('정답을 먼저 선택해주세요.'),
           ),
         );
@@ -548,7 +755,7 @@ class _QuizSolvePageState
 
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('로그인 정보가 없습니다.'),
         ),
       );
@@ -602,7 +809,7 @@ class _QuizSolvePageState
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('답안을 저장하지 못했습니다.'),
         ),
       );
@@ -626,40 +833,40 @@ class _QuizSolvePageState
     final correctAnswerIndex =
     _getCorrectAnswerIndex();
 
-    Color backgroundColor = Colors.white;
+    Color backgroundColor = _studyColorScheme.surface;
     Color borderColor =
-    const Color(0xFFE1E3E8);
+        _studyColorScheme.outlineVariant;
     Color numberColor =
-    const Color(0xFF777C86);
+        _studyColors.textSecondary;
 
     if (!_isSubmitted && isSelected) {
       backgroundColor =
-      const Color(0xFFF0ECFF);
+          _studyColors.lavender;
       borderColor =
-      const Color(0xFF8068D8);
+          _studyColors.pinkStart;
       numberColor =
-      const Color(0xFF6C54C8);
+          _studyColors.pinkStart;
     }
 
     if (_isSubmitted &&
         index == correctAnswerIndex) {
       backgroundColor =
-      const Color(0xFFE5F7EE);
+          _studyColors.mint;
       borderColor =
-      const Color(0xFF4BA87D);
+          _studyColorScheme.tertiary;
       numberColor =
-      const Color(0xFF31825E);
+          _studyColorScheme.tertiary;
     }
 
     if (_isSubmitted &&
         isSelected &&
         index != correctAnswerIndex) {
       backgroundColor =
-      const Color(0xFFFFECEF);
+          _studyColors.pinkSoft;
       borderColor =
-      const Color(0xFFE66F7E);
+          _studyColors.pinkStart;
       numberColor =
-      const Color(0xFFD95668);
+          _studyColorScheme.error;
     }
 
     return GestureDetector(
@@ -672,12 +879,12 @@ class _QuizSolvePageState
       },
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(
+        duration: Duration(
           milliseconds: 180,
         ),
         width: double.infinity,
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(15),
+        margin: EdgeInsets.only(bottom: 12),
+        padding: EdgeInsets.all(15),
         decoration: BoxDecoration(
           color: backgroundColor,
           borderRadius: BorderRadius.circular(16),
@@ -707,12 +914,12 @@ class _QuizSolvePageState
               ),
             ),
 
-            const SizedBox(width: 13),
+            SizedBox(width: 13),
 
             Expanded(
               child: Text(
                 choice,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   height: 1.4,
                 ),
@@ -725,8 +932,8 @@ class _QuizSolvePageState
                     ? Icons.close_rounded
                     : Icons.check_rounded,
                 color: _isSubmitted && !_isCorrect
-                    ? const Color(0xFFD95668)
-                    : const Color(0xFF6C54C8),
+                    ? _studyColorScheme.error
+                    : _studyColors.pinkStart,
               ),
           ],
         ),
@@ -752,226 +959,195 @@ class _QuizSolvePageState
     final choices = _getChoices();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('문제 풀기'),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+      appBar: AppTopBar(
+        title: '문제 풀기',
       ),
-      body: AppMainBackground(
-        applySafeArea: false,
-        child: _isLoadingAnswer
-            ? const Center(
-          child:
-          CircularProgressIndicator(),
-        )
-            : SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            20,
-            22,
-            20,
-            40,
-          ),
-          child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding:
-                const EdgeInsets.symmetric(
-                  horizontal: 11,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color:
-                  const Color(0xFFE9E4FF),
-                  borderRadius:
-                  BorderRadius.circular(15),
-                ),
-                child: const Text(
-                  '객관식 문제',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF6F58C9),
-                    fontWeight:
-                    FontWeight.w600,
-                  ),
-                ),
+      body: Stack(
+        children: [
+          AppMainBackground(
+            applySafeArea: false,
+            child: _isLoadingAnswer
+                ? AppLoadingView(
+              message: '문제 정보를 불러오는 중입니다.',
+            )
+                : SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                22,
+                20,
+                40,
               ),
-
-              const SizedBox(height: 16),
-
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 21,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              AppCard(
-                child: Text(
-                  question,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    height: 1.55,
-                    fontWeight:
-                    FontWeight.w600,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 22),
-
-              const Text(
-                '정답 선택',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              if (choices.isEmpty)
-                const AppCard(
-                  child: Text(
-                    '등록된 보기가 없습니다.',
-                    style: TextStyle(
-                      color: Color(0xFF858994),
+              child: Column(
+                crossAxisAlignment:
+                CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding:
+                    EdgeInsets.symmetric(
+                      horizontal: 11,
+                      vertical: 6,
                     ),
-                  ),
-                )
-              else
-                ...List.generate(
-                  choices.length,
-                      (index) => _buildChoice(
-                    index,
-                    choices[index],
-                  ),
-                ),
-
-              if (_isSubmitted) ...[
-                const SizedBox(height: 10),
-
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(17),
-                  decoration: BoxDecoration(
-                    color: _isCorrect
-                        ? const Color(0xFFE5F7EE)
-                        : const Color(0xFFFFECEF),
-                    borderRadius:
-                    BorderRadius.circular(17),
-                  ),
-                  child: Column(
-                    crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            _isCorrect
-                                ? Icons
-                                .check_circle_outline
-                                : Icons
-                                .cancel_outlined,
-                            color: _isCorrect
-                                ? const Color(
-                              0xFF31825E,
-                            )
-                                : const Color(
-                              0xFFD95668,
-                            ),
-                          ),
-
-                          const SizedBox(width: 8),
-
-                          Text(
-                            _isCorrect
-                                ? '정답입니다!'
-                                : '오답입니다.',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight:
-                              FontWeight.bold,
-                              color: _isCorrect
-                                  ? const Color(
-                                0xFF31825E,
-                              )
-                                  : const Color(
-                                0xFFD95668,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      if (explanation.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-
-                        Text(
-                          explanation,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            height: 1.5,
-                            color:
-                            Color(0xFF5F636B),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: 24),
-
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed:
-                  choices.isEmpty ||
-                      _isSubmitted ||
-                      _isSaving
-                      ? null
-                      : _submitAnswer,
-                  style:
-                  ElevatedButton.styleFrom(
-                    backgroundColor:
-                    const Color(0xFF8068D8),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
+                    decoration: BoxDecoration(
+                      color:
+                      _studyColors.lavender,
                       borderRadius:
                       BorderRadius.circular(15),
                     ),
-                  ),
-                  child: _isSaving
-                      ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child:
-                    CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                      : Text(
-                    _isSubmitted
-                        ? '제출 완료'
-                        : '정답 제출',
-                    style: const TextStyle(
-                      fontWeight:
-                      FontWeight.bold,
+                    child: Text(
+                      '객관식 문제',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _studyColors.pinkStart,
+                        fontWeight:
+                        FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
+
+                  SizedBox(height: 16),
+
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  SizedBox(height: 20),
+
+                  AppCard(
+                    backgroundColor: _studyColorScheme.surface,
+                    child: Text(
+                      question,
+                      style: TextStyle(
+                        fontSize: 16,
+                        height: 1.55,
+                        fontWeight:
+                        FontWeight.w600,
+                      ),
+                    ),
+                  ),
+
+                  SizedBox(height: 22),
+
+                  Text(
+                    '정답 선택',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  SizedBox(height: 12),
+
+                  if (choices.isEmpty)
+                    AppCard(
+                      backgroundColor: _studyColorScheme.surface,
+                      child: Text(
+                        '등록된 보기가 없습니다.',
+                        style: TextStyle(
+                          color: _studyColors.textSecondary,
+                        ),
+                      ),
+                    )
+                  else
+                    ...List.generate(
+                      choices.length,
+                          (index) => _buildChoice(
+                        index,
+                        choices[index],
+                      ),
+                    ),
+
+                  if (_isSubmitted) ...[
+                    SizedBox(height: 10),
+
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.all(17),
+                      decoration: BoxDecoration(
+                        color: _isCorrect
+                            ? _studyColors.mint
+                            : _studyColors.pinkSoft,
+                        borderRadius:
+                        BorderRadius.circular(17),
+                      ),
+                      child: Column(
+                        crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                _isCorrect
+                                    ? Icons
+                                    .check_circle_outline
+                                    : Icons
+                                    .cancel_outlined,
+                                color: _isCorrect
+                                    ? _studyColorScheme.tertiary
+                                    : _studyColorScheme.error,
+                              ),
+
+                              SizedBox(width: 8),
+
+                              Text(
+                                _isCorrect
+                                    ? '정답입니다!'
+                                    : '오답입니다.',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight:
+                                  FontWeight.bold,
+                                  color: _isCorrect
+                                      ? _studyColorScheme.tertiary
+                                      : _studyColorScheme.error,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          if (explanation.isNotEmpty) ...[
+                            SizedBox(height: 12),
+
+                            Text(
+                              explanation,
+                              style: TextStyle(
+                                fontSize: 13,
+                                height: 1.5,
+                                color:
+                                _studyColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  SizedBox(height: 24),
+
+                  AppButton(
+                    text: _isSubmitted ? '제출 완료' : '정답 제출',
+                    type: AppButtonType.primaryPink,
+                    height: 50,
+                    onPressed:
+                    choices.isEmpty ||
+                        _isSubmitted ||
+                        _isSaving
+                        ? null
+                        : _submitAnswer,
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+          if (_isSaving)
+            Positioned.fill(
+              child: LoadingOverlay(),
+            ),
+        ],
       ),
     );
   }
