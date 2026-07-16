@@ -1,4 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#FDF6F0</color>
+    <color name="ic_launcher_background_default">#FDF6F0</color>
+    <color name="ic_launcher_background_3">#FDF6F0</color>
+    <color name="ic_launcher_background_7">#FDF6F0</color>
+    <color name="ic_launcher_background_14">#FDF6F0</color>
+    <color name="ic_launcher_background_21">#FDF6F0</color>
+    <color name="ic_launcher_background_30">#FDF6F0</color>
+    <color name="ic_launcher_background_60">#FDF6F0</color>
+    <color name="ic_launcher_background_good">#FDF6F0</color>
 </resources>
