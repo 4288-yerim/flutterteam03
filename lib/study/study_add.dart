@@ -54,6 +54,13 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
   final TextEditingController _descriptionController =
   TextEditingController();
 
+  // 주간 목표 공부시간 입력
+  final TextEditingController _weeklyGoalHourController =
+  TextEditingController(text: '15');
+
+  // 시험일
+  DateTime? _examDate;
+
   // 최대 인원
   int _maxMemberCount = 5;
 
@@ -71,8 +78,47 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
     _groupNameController.dispose();
     _certificateNameController.dispose();
     _descriptionController.dispose();
+    _weeklyGoalHourController.dispose();
 
     super.dispose();
+  }
+
+
+  String _formatDate(DateTime dateTime) {
+    String year = dateTime.year.toString();
+    String month = dateTime.month.toString().padLeft(2, '0');
+    String day = dateTime.day.toString().padLeft(2, '0');
+
+    return '$year.$month.$day';
+  }
+
+  Future<void> _selectExamDate() async {
+    DateTime now = DateTime.now();
+
+    DateTime initialDate =
+        _examDate ?? now.add(Duration(days: 30));
+
+    DateTime? selectedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: DateTime(now.year + 10, 12, 31),
+      helpText: '시험일 선택',
+      cancelText: '취소',
+      confirmText: '선택',
+    );
+
+    if (selectedDate == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _examDate = DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+      );
+    });
   }
 
   /// Firestore에 스터디 저장
@@ -133,6 +179,15 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
               ? '공통 스터디'
               : _certificateNameController.text
               .trim(),
+
+          // 시험일과 주간 목표 공부시간
+          'examDate': _examDate == null
+              ? null
+              : Timestamp.fromDate(_examDate!),
+          'weeklyGoalMinutes':
+          (int.tryParse(
+            _weeklyGoalHourController.text.trim(),
+          ) ?? 15) * 60,
 
           // 인원 정보
           'maxMemberCount': _maxMemberCount,
@@ -371,6 +426,179 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                                 if (value == null ||
                                     value.trim().isEmpty) {
                                   return '스터디 소개를 입력해주세요.';
+                                }
+
+                                return null;
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      SizedBox(height: 18),
+
+                      AppCard(
+                        backgroundColor: _studyColorScheme.surface,
+                        child: Column(
+                          crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '시험 및 학습 목표',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight:
+                                FontWeight.bold,
+                              ),
+                            ),
+
+                            SizedBox(height: 6),
+
+                            Text(
+                              '시험일까지 남은 기간과 주간 달성률을 스터디방에 표시합니다.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                height: 1.4,
+                                color: _studyColors.textSecondary,
+                              ),
+                            ),
+
+                            SizedBox(height: 20),
+
+                            InkWell(
+                              borderRadius:
+                              BorderRadius.circular(14),
+                              onTap: _selectExamDate,
+                              child: Container(
+                                width: double.infinity,
+                                constraints: BoxConstraints(
+                                  minHeight: 58,
+                                ),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 13,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: _studyColorScheme
+                                        .outlineVariant,
+                                  ),
+                                  borderRadius:
+                                  BorderRadius.circular(14),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons
+                                          .calendar_month_outlined,
+                                      color:
+                                      _studyColors.pinkStart,
+                                    ),
+
+                                    SizedBox(width: 12),
+
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '시험일',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: _studyColors
+                                                  .textSecondary,
+                                            ),
+                                          ),
+
+                                          SizedBox(height: 4),
+
+                                          Text(
+                                            _examDate == null
+                                                ? '시험일을 선택해 주세요.'
+                                                : _formatDate(
+                                              _examDate!,
+                                            ),
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight:
+                                              FontWeight.w600,
+                                              color: _examDate ==
+                                                  null
+                                                  ? _studyColors
+                                                  .textSecondary
+                                                  : _studyColors
+                                                  .textPrimary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    if (_examDate != null)
+                                      IconButton(
+                                        tooltip: '시험일 지우기',
+                                        onPressed: () {
+                                          setState(() {
+                                            _examDate = null;
+                                          });
+                                        },
+                                        icon: Icon(
+                                          Icons.close_rounded,
+                                          size: 19,
+                                        ),
+                                      )
+                                    else
+                                      Icon(
+                                        Icons
+                                            .chevron_right_rounded,
+                                        color: _studyColors
+                                            .textSecondary,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            SizedBox(height: 18),
+
+                            TextFormField(
+                              controller:
+                              _weeklyGoalHourController,
+                              keyboardType:
+                              TextInputType.number,
+                              textInputAction:
+                              TextInputAction.done,
+                              decoration: InputDecoration(
+                                labelText:
+                                '주간 목표 공부시간',
+                                hintText: '예: 15',
+                                suffixText: '시간',
+                                prefixIcon: Icon(
+                                  Icons
+                                      .flag_outlined,
+                                ),
+                                border:
+                                OutlineInputBorder(
+                                  borderRadius:
+                                  BorderRadius.circular(
+                                    14,
+                                  ),
+                                ),
+                              ),
+                              validator: (value) {
+                                int? goalHour =
+                                int.tryParse(
+                                  value?.trim() ?? '',
+                                );
+
+                                if (goalHour == null) {
+                                  return '주간 목표시간을 숫자로 입력해주세요.';
+                                }
+
+                                if (goalHour < 1 ||
+                                    goalHour > 168) {
+                                  return '1시간 이상 168시간 이하로 입력해주세요.';
                                 }
 
                                 return null;
