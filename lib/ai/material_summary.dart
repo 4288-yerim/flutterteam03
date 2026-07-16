@@ -23,6 +23,8 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage> {
   static const Color _subTextColor = Color(0xFF817B7D);
   static const Color _pinkColor = Color(0xFFF4869D);
 
+  static const int _maxFileCount = 5;
+
   final List<String> _certificateOptions = const [
     '정보처리기사',
     '정보처리산업기사',
@@ -60,20 +62,21 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage> {
 
   bool _isSummaryGenerated = false;
 
-// 업로드한 모든 자료에 공통으로 지정한 자격증
+// 사용자가 요약 전에 직접 선택한 자격증
   String? _selectedCertificate;
 
-// 자격증별 분리 요약을 선택했는지 여부
-  bool _isSplitSummarySelected = false;
-
-// UI 테스트용
-// 추후 AI 판별 결과로 교체
-  bool _hasMixedCertificates = false;
-
-// 자격증을 판별하지 못한 경우
-  bool _isCertificateUnknown = false;
-
   Future<void> _selectFiles() async {
+    if (_selectedCertificate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('자료를 업로드하기 전에 자격증을 먼저 선택해주세요.'),
+        ),
+      );
+
+      await _showCertificateSearchDialog();
+      return;
+    }
+
     try {
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: true,
@@ -109,29 +112,51 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage> {
         return;
       }
 
+      final remainingFileCount =
+          _maxFileCount - _selectedFiles.length;
+
+      if (remainingFileCount <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('파일은 최대 5개까지 등록할 수 있습니다.'),
+          ),
+        );
+
+        return;
+      }
+
+      final filesToAdd = newFiles
+          .take(remainingFileCount)
+          .toList();
+
       setState(() {
-        _selectedFiles.addAll(newFiles);
+        _selectedFiles.addAll(filesToAdd);
         _selectedFileNames.addAll(
-          newFiles.map((file) => file.name),
+          filesToAdd.map((file) => file.name),
         );
 
         _uploadedStoragePaths.clear();
-
-        // 파일 구성이 바뀌었으므로 기존 선택 상태 초기화
-        _selectedCertificate = null;
-        _isSplitSummarySelected = false;
         _isSummaryGenerated = false;
-
-        // 현재는 팝업 테스트용 임시값
-        _hasMixedCertificates = true;
-        _isCertificateUnknown = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${newFiles.length}개 파일을 추가했습니다.'),
-        ),
-      );
+      if (newFiles.length > remainingFileCount) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '파일은 최대 5개까지 등록할 수 있어 '
+                  '${filesToAdd.length}개만 추가했습니다.',
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${filesToAdd.length}개 파일을 추가했습니다.',
+            ),
+          ),
+        );
+      }
     } catch (error, stackTrace) {
       debugPrint('파일 선택 실패: $error');
       debugPrint('$stackTrace');
@@ -158,8 +183,6 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage> {
       _selectedFiles.removeAt(fileIndex);
       _uploadedStoragePaths.clear();
 
-      _selectedCertificate = null;
-      _isSplitSummarySelected = false;
       _isSummaryGenerated = false;
     });
   }
@@ -170,8 +193,6 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage> {
       _selectedFileNames.clear();
       _uploadedStoragePaths.clear();
 
-      _selectedCertificate = null;
-      _isSplitSummarySelected = false;
       _isSummaryGenerated = false;
     });
   }
@@ -275,6 +296,17 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage> {
   }
 
   Future<void> _generateSummary() async {
+    if (_selectedCertificate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('요약할 자격증을 먼저 선택해주세요.'),
+        ),
+      );
+
+      await _showCertificateSearchDialog();
+      return;
+    }
+
     if (_selectedFileNames.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -285,32 +317,7 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage> {
       return;
     }
 
-    // 사용자가 하나의 자격증을 직접 지정한 경우
-    if (_selectedCertificate != null) {
-      await _openSummaryResultPage();
-      return;
-    }
-
-    // 자격증별 분리 요약을 선택한 경우
-    if (_isSplitSummarySelected) {
-      await _openSummaryResultPage();
-      return;
-    }
-
-    // 자격증을 판별하지 못한 경우
-    if (_isCertificateUnknown) {
-      await _showUnknownCertificateDialog();
-      return;
-    }
-
-    // 파일 하나 또는 같은 자격증 자료로 판별된 경우
-    if (_selectedFileNames.length == 1 || !_hasMixedCertificates) {
-      await _openSummaryResultPage();
-      return;
-    }
-
-    // 서로 다른 자격증 자료로 판별된 경우
-    await _showMixedCertificateDialog();
+    await _openSummaryResultPage();
   }
 
   void _saveSummaryNote() {
@@ -326,173 +333,6 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage> {
       const SnackBar(
         content: Text('요약본 다운로드 기능은 추후 연결될 예정입니다.'),
       ),
-    );
-  }
-
-  Future<void> _showMixedCertificateDialog() async {
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          insetPadding: const EdgeInsets.symmetric(
-            horizontal: 24,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          titlePadding: const EdgeInsets.fromLTRB(
-            22,
-            24,
-            22,
-            0,
-          ),
-          contentPadding: const EdgeInsets.fromLTRB(
-            22,
-            18,
-            22,
-            20,
-          ),
-          actionsPadding: const EdgeInsets.fromLTRB(
-            16,
-            0,
-            16,
-            18,
-          ),
-          title: const Row(
-            children: [
-              _DialogWarningIcon(),
-
-              SizedBox(width: 12),
-
-              Expanded(
-                child: Text(
-                  '업로드 자료를 확인해주세요',
-                  style: TextStyle(
-                    color: Color(0xFF302C2E),
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          content: const Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '업로드한 자료가 서로 다른 자격증과 관련된 것으로 보여요.',
-                style: TextStyle(
-                  color: Color(0xFF4F494B),
-                  fontSize: 15,
-                  height: 1.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-
-              SizedBox(height: 14),
-
-              _DialogNoticeBox(),
-
-              SizedBox(height: 16),
-
-              Text(
-                '자격증별로 자료를 나누어 요약하거나, '
-                    '업로드한 모든 자료에 하나의 자격증을 직접 지정할 수 있어요.',
-                style: TextStyle(
-                  color: Color(0xFF817B7D),
-                  fontSize: 14,
-                  height: 1.55,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            Column(
-              children: [
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: FilledButton(
-                    onPressed: () {
-                      Navigator.pop(dialogContext);
-
-                      setState(() {
-                        _selectedCertificate = null;
-                        _isSplitSummarySelected = true;
-                        _isSummaryGenerated = false;
-                      });
-                    },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFFF4869D),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(17),
-                      ),
-                    ),
-                    child: const Text(
-                      '자격증별로 나누어 요약',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 10),
-
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: OutlinedButton(
-                    onPressed: () async {
-                      Navigator.pop(dialogContext);
-
-                      await _showCertificateSearchDialog();
-                    },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFF4869D),
-                      side: const BorderSide(
-                        color: Color(0xFFF4869D),
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(17),
-                      ),
-                    ),
-                    child: const Text(
-                      '하나의 자격증으로 지정',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 6),
-
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(dialogContext);
-                  },
-                  child: const Text(
-                    '파일 다시 확인하기',
-                    style: TextStyle(
-                      color: Color(0xFF8E8589),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -513,7 +353,6 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage> {
 
     setState(() {
       _selectedCertificate = selectedCertificate;
-      _isSplitSummarySelected = false;
       _isSummaryGenerated = false;
     });
   }
@@ -521,157 +360,13 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage> {
   Future<void> _removeSelectedCertificate() async {
     setState(() {
       _selectedCertificate = null;
-      _isSplitSummarySelected = false;
       _isSummaryGenerated = false;
+
+      // 자격증을 변경하면 기존 파일도 다시 선택하도록 초기화
+      _selectedFiles.clear();
+      _selectedFileNames.clear();
+      _uploadedStoragePaths.clear();
     });
-
-    // 자격증 확인 불가 상태였다면 확인 불가 팝업을 다시 표시
-    if (_isCertificateUnknown) {
-      await _showUnknownCertificateDialog();
-      return;
-    }
-
-    // 서로 다른 자격증 자료 상태였다면 혼합 자료 팝업 표시
-    if (_hasMixedCertificates) {
-      await _showMixedCertificateDialog();
-    }
-  }
-
-  Future<void> _showUnknownCertificateDialog() async {
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          insetPadding: const EdgeInsets.symmetric(
-            horizontal: 24,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          titlePadding: const EdgeInsets.fromLTRB(
-            22,
-            24,
-            22,
-            0,
-          ),
-          contentPadding: const EdgeInsets.fromLTRB(
-            22,
-            18,
-            22,
-            20,
-          ),
-          actionsPadding: const EdgeInsets.fromLTRB(
-            16,
-            0,
-            16,
-            18,
-          ),
-          title: const Row(
-            children: [
-              _UnknownCertificateIcon(),
-
-              SizedBox(width: 12),
-
-              Expanded(
-                child: Text(
-                  '자격증을 확인하기 어려워요',
-                  style: TextStyle(
-                    color: Color(0xFF302C2E),
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          content: const Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '업로드한 자료만으로는 어떤 자격증과 관련된 자료인지 정확히 확인하기 어려워요.',
-                style: TextStyle(
-                  color: Color(0xFF4F494B),
-                  fontSize: 15,
-                  height: 1.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-
-              SizedBox(height: 14),
-
-              _UnknownCertificateNoticeBox(),
-
-              SizedBox(height: 16),
-
-              Text(
-                '자료와 관련된 자격증을 검색해서 선택해주세요. '
-                    '선택한 자격증은 업로드한 모든 자료에 공통으로 적용돼요.',
-                style: TextStyle(
-                  color: Color(0xFF817B7D),
-                  fontSize: 14,
-                  height: 1.55,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            Column(
-              children: [
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: FilledButton.icon(
-                    onPressed: () async {
-                      Navigator.pop(dialogContext);
-
-                      await _showCertificateSearchDialog();
-                    },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFFF4869D),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(17),
-                      ),
-                    ),
-                    icon: const Icon(
-                      Icons.search_rounded,
-                      size: 20,
-                    ),
-                    label: const Text(
-                      '자격증 검색해서 선택',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 6),
-
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(dialogContext);
-                  },
-                  child: const Text(
-                    '파일 다시 확인하기',
-                    style: TextStyle(
-                      color: Color(0xFF8E8589),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void _showSummaryLoadingDialog() {
@@ -776,7 +471,7 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage> {
         MaterialPageRoute(
           builder: (_) => MaterialSummaryResultPage(
             selectedCertificate: _selectedCertificate,
-            isSplitSummary: _isSplitSummarySelected,
+            isSplitSummary: false,
             uploadedFileNames: List<String>.from(
               _selectedFileNames,
             ),
@@ -796,11 +491,7 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage> {
           _uploadedStoragePaths.clear();
 
           _selectedCertificate = null;
-          _isSplitSummarySelected = false;
           _isSummaryGenerated = false;
-
-          _hasMixedCertificates = true;
-          _isCertificateUnknown = false;
         });
       }
     } on FirebaseException catch (error, stackTrace) {
@@ -878,39 +569,54 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage> {
                 const SizedBox(height: 30),
 
                 const _SectionTitle(
+                  title: '어떤 자격증 자료인가요?',
+                  description: '먼저 요약할 자료의 자격증을 선택해주세요.',
+                ),
+
+                const SizedBox(height: 16),
+
+                if (_selectedCertificate == null)
+                  _CertificateSelectButton(
+                    onPressed: _showCertificateSearchDialog,
+                  )
+                else
+                  _SelectedCertificateCard(
+                    certificateName: _selectedCertificate!,
+                    onRemovePressed: _removeSelectedCertificate,
+                  ),
+
+                const SizedBox(height: 28),
+
+                const _SectionTitle(
                   title: '요약할 자료를 올려주세요',
                   description: 'JPG, PNG, PDF 파일만 업로드할 수 있어요.',
                 ),
 
                 const SizedBox(height: 16),
 
-                if (_selectedFileNames.isEmpty)
+                if (_selectedCertificate == null)
+                  const _UploadDisabledArea()
+                else if (_selectedFileNames.isEmpty)
                   _UploadArea(
                     onPressed: _selectFiles,
                   )
-                else ...[
+                else
                   _SelectedFilesSection(
                     fileNames: _selectedFileNames,
+                    canAddFile:
+                    _selectedFileNames.length < _maxFileCount,
                     onAddPressed: _selectFiles,
                     onRemovePressed: _removeFile,
                     onRemoveAllPressed: _removeAllFiles,
                   ),
 
-                  if (_selectedCertificate != null) ...[
-                    const SizedBox(height: 12),
-
-                    _SelectedCertificateCard(
-                      certificateName: _selectedCertificate!,
-                      onRemovePressed: _removeSelectedCertificate,
-                    ),
-                  ],
-                ],
-
                 const SizedBox(height: 24),
 
                 _GenerateSummaryButton(
                   isEnabled:
-                  _selectedFileNames.isNotEmpty && !_isUploading,
+                  _selectedCertificate != null &&
+                      _selectedFileNames.isNotEmpty &&
+                      !_isUploading,
                   onPressed: _generateSummary,
                 ),
               ],
@@ -1021,6 +727,98 @@ class _SectionTitle extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+class _CertificateSelectButton extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const _CertificateSelectButton({
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 58,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFFF4869D),
+          backgroundColor: Colors.white.withValues(alpha: 0.9),
+          side: const BorderSide(
+            color: Color(0xFFF2CBD5),
+            width: 1.5,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(19),
+          ),
+        ),
+        icon: const Icon(
+          Icons.search_rounded,
+          size: 22,
+        ),
+        label: const Text(
+          '자격증 검색해서 선택',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _UploadDisabledArea extends StatelessWidget {
+  const _UploadDisabledArea();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(
+        minHeight: 170,
+      ),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: const Color(0xFFE6DDE0),
+          width: 1.5,
+        ),
+      ),
+      child: const Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.lock_outline_rounded,
+            color: Color(0xFFA49CA0),
+            size: 34,
+          ),
+          SizedBox(height: 13),
+          Text(
+            '자격증을 먼저 선택해주세요',
+            style: TextStyle(
+              color: Color(0xFF817B7D),
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          SizedBox(height: 7),
+          Text(
+            '자격증을 선택하면 자료를 업로드할 수 있어요.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFFA49CA0),
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1141,12 +939,14 @@ class _AllowedFileBadge extends StatelessWidget {
 
 class _SelectedFilesSection extends StatelessWidget {
   final List<String> fileNames;
+  final bool canAddFile;
   final VoidCallback onAddPressed;
   final ValueChanged<String> onRemovePressed;
   final VoidCallback onRemoveAllPressed;
 
   const _SelectedFilesSection({
     required this.fileNames,
+    required this.canAddFile,
     required this.onAddPressed,
     required this.onRemovePressed,
     required this.onRemoveAllPressed,
@@ -1228,7 +1028,7 @@ class _SelectedFilesSection extends StatelessWidget {
             width: double.infinity,
             height: 46,
             child: OutlinedButton.icon(
-              onPressed: onAddPressed,
+              onPressed: canAddFile ? onAddPressed : null,
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFFF4869D),
                 side: const BorderSide(
@@ -1242,9 +1042,11 @@ class _SelectedFilesSection extends StatelessWidget {
                 Icons.add_rounded,
                 size: 20,
               ),
-              label: const Text(
-                '파일 추가하기',
-                style: TextStyle(
+              label: Text(
+                canAddFile
+                    ? '파일 추가하기'
+                    : '최대 5개까지 등록 가능',
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
                 ),
@@ -1669,69 +1471,6 @@ class _SummaryActionButtons extends StatelessWidget {
   }
 }
 
-class _DialogWarningIcon extends StatelessWidget {
-  const _DialogWarningIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 42,
-      height: 42,
-      decoration: const BoxDecoration(
-        color: Color(0xFFFFEEF1),
-        shape: BoxShape.circle,
-      ),
-      alignment: Alignment.center,
-      child: const Icon(
-        Icons.warning_amber_rounded,
-        color: Color(0xFFF4869D),
-        size: 24,
-      ),
-    );
-  }
-}
-
-class _DialogNoticeBox extends StatelessWidget {
-  const _DialogNoticeBox();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF5F7),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: const Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.info_outline_rounded,
-            color: Color(0xFFF4869D),
-            size: 20,
-          ),
-
-          SizedBox(width: 9),
-
-          Expanded(
-            child: Text(
-              '업로드한 자료가 같은 자격증과 관련된 자료가 아닐 경우, '
-                  '내용이 섞여 정확한 요약본 생성이 어려울 수 있어요.',
-              style: TextStyle(
-                color: Color(0xFF6A6063),
-                fontSize: 13,
-                height: 1.55,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _CertificateSearchDialog extends StatefulWidget {
   final List<String> certificates;
 
@@ -2015,69 +1754,6 @@ class _SelectedCertificateCard extends StatelessWidget {
               Icons.close_rounded,
               color: Color(0xFFF4869D),
               size: 21,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _UnknownCertificateIcon extends StatelessWidget {
-  const _UnknownCertificateIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 42,
-      height: 42,
-      decoration: const BoxDecoration(
-        color: Color(0xFFFFEEF1),
-        shape: BoxShape.circle,
-      ),
-      alignment: Alignment.center,
-      child: const Icon(
-        Icons.help_outline_rounded,
-        color: Color(0xFFF4869D),
-        size: 24,
-      ),
-    );
-  }
-}
-
-class _UnknownCertificateNoticeBox extends StatelessWidget {
-  const _UnknownCertificateNoticeBox();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF5F7),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: const Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.info_outline_rounded,
-            color: Color(0xFFF4869D),
-            size: 20,
-          ),
-
-          SizedBox(width: 9),
-
-          Expanded(
-            child: Text(
-              '자격증을 지정하지 않으면 시험 범위와 핵심 출제 내용을 기준으로 '
-                  '정확한 요약본을 생성하기 어려울 수 있어요.',
-              style: TextStyle(
-                color: Color(0xFF6A6063),
-                fontSize: 13,
-                height: 1.55,
-                fontWeight: FontWeight.w500,
-              ),
             ),
           ),
         ],
