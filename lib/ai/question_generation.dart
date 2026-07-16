@@ -748,7 +748,7 @@ class _GenerationTypeCard extends StatelessWidget {
 
         _GenerationTypeItem(
           icon: Icons.description_outlined,
-          title: '내 자료 기반 문제 생성',
+          title: '자료 기반 문제 생성',
           description: '업로드한 PDF 또는 사진 자료로 문제를 생성합니다.',
           value: QuestionGenerationType.document,
           groupValue: selectedType,
