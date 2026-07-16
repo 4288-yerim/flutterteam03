@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutterteam03/mypage/screens/mypage_screen.dart';
-import 'package:flutterteam03/stydy/study_list.dart';
+import 'package:flutterteam03/study/study_list.dart';
 import '../widgets/app_bottom_bar.dart';
 import 'ai/ai_main.dart';
 import 'home/home.dart';
