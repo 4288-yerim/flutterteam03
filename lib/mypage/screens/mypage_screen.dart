@@ -12,11 +12,13 @@ import 'study_record_screen.dart';
 import 'study_plan_screen.dart';
 import 'my_posts_screen.dart';
 import 'joined_study_screen.dart';
-import 'notification_setting_screen.dart';
 import 'password_change_screen.dart';
 import 'my_comments_screen.dart';
 import 'bookmark_screen.dart';
 import 'mypage_calendar_screen.dart';
+import 'friend_screen.dart';
+import 'app_setting_screen.dart';
+import 'help_and_inquiry_screen.dart';
 
 class MyPageScreen extends StatelessWidget {
   const MyPageScreen({super.key});
@@ -29,21 +31,6 @@ class MyPageScreen extends StatelessWidget {
 
       appBar: AppTopBar(
         title: '마이페이지',
-        actions: [
-          IconButton(
-            tooltip: '설정',
-            onPressed: () {
-              _openPage(
-                context,
-                const TemporaryPage(title: '앱 설정'),
-              );
-            },
-            icon: const Icon(
-              Icons.settings_outlined,
-              color: Color(0xFF1A1A1A),
-            ),
-          ),
-        ],
       ),
 
       body: AppMainBackground(
@@ -189,6 +176,18 @@ class MyPageScreen extends StatelessWidget {
                     ),
                     const _MenuDivider(),
                     MyPageMenuTile(
+                      icon: Icons.people_outline,
+                      title: '친구',
+                      subtitle: '친구를 검색하고 친구 목록을 확인합니다.',
+                      onTap: () {
+                        _openPage(
+                          context,
+                          const FriendScreen(),
+                        );
+                      },
+                    ),
+                    const _MenuDivider(),
+                    MyPageMenuTile(
                       icon: Icons.groups_outlined,
                       title: '참여 중인 스터디',
                       subtitle: '가입한 스터디 그룹을 확인합니다.',
@@ -239,13 +238,13 @@ class MyPageScreen extends StatelessWidget {
                     ),
                     const _MenuDivider(),
                     MyPageMenuTile(
-                      icon: Icons.notifications_outlined,
-                      title: '알림 설정',
-                      subtitle: '시험 일정과 커뮤니티 알림을 설정합니다.',
+                      icon: Icons.settings_outlined,
+                      title: '설정',
+                      subtitle: '화면 표시와 알림 수신 여부를 설정합니다.',
                       onTap: () {
                         _openPage(
                           context,
-                          const NotificationSettingScreen(),
+                          const AppSettingScreen(),
                         );
                       },
                     ),
@@ -257,9 +256,7 @@ class MyPageScreen extends StatelessWidget {
                       onTap: () {
                         _openPage(
                           context,
-                          const TemporaryPage(
-                            title: '문의 및 도움말',
-                          ),
+                          const HelpAndInquiryScreen(),
                         );
                       },
                     ),
