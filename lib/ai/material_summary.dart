@@ -251,8 +251,10 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage> {
           metadata,
         );
 
+        final downloadUrl = await storageReference.getDownloadURL();
+
         uploadedReferences.add(storageReference);
-        uploadedPaths.add(storageReference.fullPath);
+        uploadedPaths.add(downloadUrl);
       }
 
       return uploadedPaths;
@@ -672,6 +674,72 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage> {
     );
   }
 
+  void _showSummaryLoadingDialog() {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return PopScope(
+          canPop: false,
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(
+                28,
+                30,
+                28,
+                28,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: const Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: CircularProgressIndicator(
+                      color: Color(0xFFF4869D),
+                      strokeWidth: 4,
+                    ),
+                  ),
+
+                  SizedBox(height: 22),
+
+                  Text(
+                    '구름iT이 요약을\n준비하고 있어요...',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xFF302C2E),
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+
+                  SizedBox(height: 9),
+
+                  Text(
+                    '잠시만 기다려주세요.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xFF817B7D),
+                      fontSize: 14,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _openSummaryResultPage() async {
     if (_isUploading) {
       return;
@@ -681,14 +749,9 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage> {
       _isUploading = true;
     });
 
-    try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('파일을 업로드하고 있습니다.'),
-          duration: Duration(seconds: 1),
-        ),
-      );
+    _showSummaryLoadingDialog();
 
+    try {
       final uploadedPaths = await _uploadSelectedFiles();
 
       if (!mounted) return;
@@ -702,6 +765,12 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage> {
       debugPrint('Storage 업로드 완료');
       debugPrint('업로드된 경로: $_uploadedStoragePaths');
 
+      // 업로드 로딩 팝업 닫기
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).pop();
+
       final shouldReset = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
@@ -710,6 +779,9 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage> {
             isSplitSummary: _isSplitSummarySelected,
             uploadedFileNames: List<String>.from(
               _selectedFileNames,
+            ),
+            uploadedFileUrls: List<String>.from(
+              _uploadedStoragePaths,
             ),
           ),
         ),
@@ -721,6 +793,7 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage> {
         setState(() {
           _selectedFiles.clear();
           _selectedFileNames.clear();
+          _uploadedStoragePaths.clear();
 
           _selectedCertificate = null;
           _isSplitSummarySelected = false;
@@ -738,6 +811,12 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage> {
 
       if (!mounted) return;
 
+      // 오류 발생 시 로딩 팝업 닫기
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).pop();
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -750,6 +829,12 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage> {
       debugPrint('$stackTrace');
 
       if (!mounted) return;
+
+      // 오류 발생 시 로딩 팝업 닫기
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).pop();
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -773,7 +858,7 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage> {
       extendBodyBehindAppBar: true,
       backgroundColor: Colors.transparent,
       appBar: const AppTopBar(
-        title: '자료 요약',
+        title: 'AI 자료 요약',
         centerTitle: false,
       ),
       body: AppMainBackground(
@@ -824,7 +909,8 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage> {
                 const SizedBox(height: 24),
 
                 _GenerateSummaryButton(
-                  isEnabled: _selectedFileNames.isNotEmpty,
+                  isEnabled:
+                  _selectedFileNames.isNotEmpty && !_isUploading,
                   onPressed: _generateSummary,
                 ),
               ],

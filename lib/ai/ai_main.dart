@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
 import 'question_generation.dart';
-import 'ai_study_plan.dart';
+import 'study_plan.dart';
 import 'subscription.dart';
 import 'certificate_roadmap.dart';
 import 'material_summary.dart';

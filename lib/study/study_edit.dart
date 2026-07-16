@@ -1,10 +1,11 @@
+import 'dart:math';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
 
-import '../widgets/app_main_background.dart';
 import '../widgets/app_card.dart';
+import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
 import '../widgets/app_button.dart';
 import '../widgets/loading_overlay.dart';
@@ -30,53 +31,229 @@ ColorScheme get _studyColorScheme {
   return lightTheme.colorScheme;
 }
 
-class StudyCreatePage extends StatefulWidget {
-  const StudyCreatePage({super.key});
+class StudyEditPage extends StatefulWidget {
+  final String studyId;
+  final Map<String, dynamic> studyData;
+
+  const StudyEditPage({
+    super.key,
+    required this.studyId,
+    required this.studyData,
+  });
 
   @override
-  State<StudyCreatePage> createState() =>
-      _StudyCreatePageState();
+  State<StudyEditPage> createState() =>
+      _StudyEditPageState();
 }
 
-class _StudyCreatePageState extends State<StudyCreatePage> {
-  // 입력값 확인용 키
+class _StudyEditPageState extends State<StudyEditPage> {
   final GlobalKey<FormState> _formKey =
   GlobalKey<FormState>();
 
-  // 입력창 컨트롤러
-  final TextEditingController _groupNameController =
-  TextEditingController();
+  late final TextEditingController
+  _groupNameController;
 
-  final TextEditingController
-  _certificateNameController =
-  TextEditingController();
+  late final TextEditingController
+  _certificateNameController;
 
-  final TextEditingController _descriptionController =
-  TextEditingController();
+  late final TextEditingController
+  _descriptionController;
 
-  // 최대 인원
-  int _maxMemberCount = 5;
+  late final TextEditingController
+  _weeklyGoalHourController;
 
-  // 공개 여부
-  bool _isPublic = true;
+  DateTime? _examDate;
 
-  // 참여 승인 필요 여부
-  bool _joinApprovalRequired = true;
+  late int _currentMemberCount;
+  late int _minimumMemberCount;
+  late int _maxMemberCount;
 
-  // 저장 중인지 확인
+  late bool _isPublic;
+  late bool _joinApprovalRequired;
+
   bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _groupNameController = TextEditingController(
+      text: widget.studyData['groupName']
+          ?.toString() ??
+          '',
+    );
+
+    _certificateNameController =
+        TextEditingController(
+          text: widget.studyData['certificateName']
+              ?.toString() ??
+              '',
+        );
+
+    _descriptionController = TextEditingController(
+      text: widget.studyData['description']
+          ?.toString() ??
+          '',
+    );
+
+    int weeklyGoalMinutes = _getInt(
+      widget.studyData,
+      'weeklyGoalMinutes',
+      fallback: 900,
+    );
+
+    int weeklyGoalHours =
+    (weeklyGoalMinutes / 60).round();
+
+    if (weeklyGoalHours < 1) {
+      weeklyGoalHours = 15;
+    }
+
+    _weeklyGoalHourController =
+        TextEditingController(
+          text: weeklyGoalHours.toString(),
+        );
+
+    dynamic examDateValue =
+    widget.studyData['examDate'];
+
+    if (examDateValue is Timestamp) {
+      DateTime savedExamDate =
+      examDateValue.toDate().toLocal();
+
+      _examDate = DateTime(
+        savedExamDate.year,
+        savedExamDate.month,
+        savedExamDate.day,
+      );
+    }
+
+    _currentMemberCount = _getInt(
+      widget.studyData,
+      'currentMemberCount',
+      fallback: 1,
+    );
+
+    // 현재 참여 인원보다 최대 인원을 작게 설정할 수 없음
+    _minimumMemberCount =
+        max(2, _currentMemberCount);
+
+    _maxMemberCount = _getInt(
+      widget.studyData,
+      'maxMemberCount',
+      fallback: 5,
+    );
+
+    if (_maxMemberCount < _minimumMemberCount) {
+      _maxMemberCount = _minimumMemberCount;
+    }
+
+    if (_maxMemberCount > 30) {
+      _maxMemberCount = 30;
+    }
+
+    _isPublic =
+    widget.studyData['isPublic'] is bool
+        ? widget.studyData['isPublic'] as bool
+        : true;
+
+    _joinApprovalRequired =
+    widget.studyData['joinApprovalRequired']
+    is bool
+        ? widget.studyData[
+    'joinApprovalRequired']
+    as bool
+        : true;
+  }
+
+  int _getInt(
+      Map<String, dynamic> data,
+      String fieldName, {
+        int fallback = 0,
+      }) {
+    final value = data[fieldName];
+
+    if (value is int) {
+      return value;
+    }
+
+    if (value is num) {
+      return value.toInt();
+    }
+
+    return fallback;
+  }
+
+
+  String _formatDate(DateTime dateTime) {
+    String year = dateTime.year.toString();
+    String month = dateTime.month.toString().padLeft(2, '0');
+    String day = dateTime.day.toString().padLeft(2, '0');
+
+    return '$year.$month.$day';
+  }
+
+  Future<void> _selectExamDate() async {
+    DateTime now = DateTime.now();
+
+    DateTime initialDate =
+        _examDate ?? now.add(Duration(days: 30));
+
+    DateTime firstDate = DateTime(
+      now.year - 1,
+      1,
+      1,
+    );
+
+    DateTime lastDate = DateTime(
+      now.year + 10,
+      12,
+      31,
+    );
+
+    if (initialDate.isBefore(firstDate)) {
+      initialDate = firstDate;
+    }
+
+    if (initialDate.isAfter(lastDate)) {
+      initialDate = lastDate;
+    }
+
+    DateTime? selectedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+      helpText: '시험일 선택',
+      cancelText: '취소',
+      confirmText: '선택',
+    );
+
+    if (selectedDate == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _examDate = DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+      );
+    });
+  }
 
   @override
   void dispose() {
     _groupNameController.dispose();
     _certificateNameController.dispose();
     _descriptionController.dispose();
+    _weeklyGoalHourController.dispose();
 
     super.dispose();
   }
 
-  /// Firestore에 스터디 저장
-  Future<void> _saveStudy() async {
+  /// 수정된 스터디 정보 저장
+  Future<void> _updateStudy() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -92,110 +269,50 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
     });
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final previousStatus =
+          widget.studyData['status']?.toString() ??
+              'RECRUITING';
 
-      if (user == null) {
-        throw Exception('로그인 정보가 없습니다.');
+      String nextStatus = previousStatus;
+
+      // 완료된 스터디가 아니라면 인원에 따라 모집 상태 변경
+      if (previousStatus != 'COMPLETED') {
+        nextStatus =
+        _currentMemberCount >= _maxMemberCount
+            ? 'CLOSED'
+            : 'RECRUITING';
       }
 
-      final String ownerNickname =
-      user.displayName?.trim().isNotEmpty == true
-          ? user.displayName!.trim()
-          : '익명 사용자';
-
-      // 스터디 문서를 먼저 직접 생성
-      final studyDocument = FirebaseFirestore.instance
+      await FirebaseFirestore.instance
           .collection('studyGroups')
-          .doc();
-
-      // 스터디와 방장 멤버 정보를 한꺼번에 저장
-      final batch = FirebaseFirestore.instance.batch();
-
-      batch.set(
-        studyDocument,
-        {
-          // 스터디 기본 정보
-          'groupName':
-          _groupNameController.text.trim(),
-          'description':
-          _descriptionController.text.trim(),
-
-          // 방장 정보
-          'ownerUid': user.uid,
-          'ownerNickname': ownerNickname,
-
-          // 자격증 정보
-          'certificateId': '',
-          'certificateName':
-          _certificateNameController.text
-              .trim()
-              .isEmpty
-              ? '공통 스터디'
-              : _certificateNameController.text
-              .trim(),
-
-          // 인원 정보
-          'maxMemberCount': _maxMemberCount,
-          'currentMemberCount': 1,
-
-          // 공개 및 승인 설정
-          'isPublic': _isPublic,
-          'joinApprovalRequired':
-          _joinApprovalRequired,
-
-          // 추후 연결할 값
-          'inviteCode': '',
-          'chatId': '',
-
-          // 모집 상태
-          'status': 'RECRUITING',
-
-          // 생성 및 수정 시간
-          'createdAt':
-          FieldValue.serverTimestamp(),
-          'updatedAt':
-          FieldValue.serverTimestamp(),
-        },
-      );
-
-      // 방장을 스터디 멤버로 저장
-      final ownerMemberDocument = studyDocument
-          .collection('members')
-          .doc(user.uid);
-
-      batch.set(
-        ownerMemberDocument,
-        {
-          'uid': user.uid,
-          'nickname': ownerNickname,
-          'role': 'OWNER',
-          'status': 'ACTIVE',
-
-          // 공부시간은 분 단위로 저장
-          'totalStudyMinutes': 0,
-
-          'joinedAt':
-          FieldValue.serverTimestamp(),
-          'updatedAt':
-          FieldValue.serverTimestamp(),
-        },
-      );
-
-      await batch.commit();
-
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('스터디가 등록되었습니다.'),
-        ),
-      );
-
-      Navigator.pop(context, true);
-    } catch (error) {
-      debugPrint('스터디 등록 오류: $error');
+          .doc(widget.studyId)
+          .update({
+        'groupName':
+        _groupNameController.text.trim(),
+        'certificateName':
+        _certificateNameController.text
+            .trim()
+            .isEmpty
+            ? '공통 스터디'
+            : _certificateNameController.text
+            .trim(),
+        'description':
+        _descriptionController.text.trim(),
+        'examDate': _examDate == null
+            ? null
+            : Timestamp.fromDate(_examDate!),
+        'weeklyGoalMinutes':
+        (int.tryParse(
+          _weeklyGoalHourController.text.trim(),
+        ) ?? 15) * 60,
+        'maxMemberCount': _maxMemberCount,
+        'isPublic': _isPublic,
+        'joinApprovalRequired':
+        _joinApprovalRequired,
+        'status': nextStatus,
+        'updatedAt':
+        FieldValue.serverTimestamp(),
+      });
 
       if (!mounted) {
         return;
@@ -204,7 +321,23 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '스터디 등록 실패: $error',
+            '스터디 정보가 수정되었습니다.',
+          ),
+        ),
+      );
+
+      Navigator.pop(context, true);
+    } catch (error) {
+      debugPrint('스터디 수정 오류: $error');
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '스터디 수정 실패: $error',
           ),
         ),
       );
@@ -223,7 +356,7 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
       resizeToAvoidBottomInset: true,
 
       appBar: AppTopBar(
-        title: '스터디 만들기',
+        title: '스터디 수정',
         centerTitle: false,
       ),
 
@@ -234,7 +367,8 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
             child: SafeArea(
               child: SingleChildScrollView(
                 keyboardDismissBehavior:
-                ScrollViewKeyboardDismissBehavior.onDrag,
+                ScrollViewKeyboardDismissBehavior
+                    .onDrag,
                 padding: EdgeInsets.fromLTRB(
                   20,
                   25,
@@ -248,7 +382,7 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                     CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '새로운 스터디를 만들어보세요',
+                        '스터디 정보를 수정해보세요',
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
@@ -258,7 +392,7 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                       SizedBox(height: 8),
 
                       Text(
-                        '스터디 정보를 입력하면 목록에 바로 등록됩니다.',
+                        '수정한 내용은 스터디 화면에 바로 반영됩니다.',
                         style: TextStyle(
                           fontSize: 14,
                           color: _studyColors.textSecondary,
@@ -284,7 +418,6 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
 
                             SizedBox(height: 20),
 
-                            // 스터디 이름
                             TextFormField(
                               controller:
                               _groupNameController,
@@ -321,7 +454,6 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
 
                             SizedBox(height: 18),
 
-                            // 자격증 이름
                             TextFormField(
                               controller:
                               _certificateNameController,
@@ -346,7 +478,6 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
 
                             SizedBox(height: 18),
 
-                            // 스터디 소개
                             TextFormField(
                               controller:
                               _descriptionController,
@@ -371,6 +502,179 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                                 if (value == null ||
                                     value.trim().isEmpty) {
                                   return '스터디 소개를 입력해주세요.';
+                                }
+
+                                return null;
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      SizedBox(height: 18),
+
+                      AppCard(
+                        backgroundColor: _studyColorScheme.surface,
+                        child: Column(
+                          crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '시험 및 학습 목표',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight:
+                                FontWeight.bold,
+                              ),
+                            ),
+
+                            SizedBox(height: 6),
+
+                            Text(
+                              '시험일까지 남은 기간과 주간 달성률을 스터디방에 표시합니다.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                height: 1.4,
+                                color: _studyColors.textSecondary,
+                              ),
+                            ),
+
+                            SizedBox(height: 20),
+
+                            InkWell(
+                              borderRadius:
+                              BorderRadius.circular(14),
+                              onTap: _selectExamDate,
+                              child: Container(
+                                width: double.infinity,
+                                constraints: BoxConstraints(
+                                  minHeight: 58,
+                                ),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 13,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: _studyColorScheme
+                                        .outlineVariant,
+                                  ),
+                                  borderRadius:
+                                  BorderRadius.circular(14),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons
+                                          .calendar_month_outlined,
+                                      color:
+                                      _studyColors.pinkStart,
+                                    ),
+
+                                    SizedBox(width: 12),
+
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '시험일',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: _studyColors
+                                                  .textSecondary,
+                                            ),
+                                          ),
+
+                                          SizedBox(height: 4),
+
+                                          Text(
+                                            _examDate == null
+                                                ? '시험일을 선택해 주세요.'
+                                                : _formatDate(
+                                              _examDate!,
+                                            ),
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight:
+                                              FontWeight.w600,
+                                              color: _examDate ==
+                                                  null
+                                                  ? _studyColors
+                                                  .textSecondary
+                                                  : _studyColors
+                                                  .textPrimary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    if (_examDate != null)
+                                      IconButton(
+                                        tooltip: '시험일 지우기',
+                                        onPressed: () {
+                                          setState(() {
+                                            _examDate = null;
+                                          });
+                                        },
+                                        icon: Icon(
+                                          Icons.close_rounded,
+                                          size: 19,
+                                        ),
+                                      )
+                                    else
+                                      Icon(
+                                        Icons
+                                            .chevron_right_rounded,
+                                        color: _studyColors
+                                            .textSecondary,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            SizedBox(height: 18),
+
+                            TextFormField(
+                              controller:
+                              _weeklyGoalHourController,
+                              keyboardType:
+                              TextInputType.number,
+                              textInputAction:
+                              TextInputAction.done,
+                              decoration: InputDecoration(
+                                labelText:
+                                '주간 목표 공부시간',
+                                hintText: '예: 15',
+                                suffixText: '시간',
+                                prefixIcon: Icon(
+                                  Icons
+                                      .flag_outlined,
+                                ),
+                                border:
+                                OutlineInputBorder(
+                                  borderRadius:
+                                  BorderRadius.circular(
+                                    14,
+                                  ),
+                                ),
+                              ),
+                              validator: (value) {
+                                int? goalHour =
+                                int.tryParse(
+                                  value?.trim() ?? '',
+                                );
+
+                                if (goalHour == null) {
+                                  return '주간 목표시간을 숫자로 입력해주세요.';
+                                }
+
+                                if (goalHour < 1 ||
+                                    goalHour > 168) {
+                                  return '1시간 이상 168시간 이하로 입력해주세요.';
                                 }
 
                                 return null;
@@ -414,7 +718,8 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                               children: [
                                 IconButton(
                                   onPressed:
-                                  _maxMemberCount > 2
+                                  _maxMemberCount >
+                                      _minimumMemberCount
                                       ? () {
                                     setState(() {
                                       _maxMemberCount--;
@@ -480,7 +785,9 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                               alignment:
                               Alignment.centerRight,
                               child: Text(
-                                '최소 2명 · 최대 30명',
+                                _currentMemberCount > 2
+                                    ? '현재 인원 $_currentMemberCount명 · 최대 30명'
+                                    : '최소 2명 · 최대 30명',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: _studyColors.textSecondary,
@@ -546,10 +853,10 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                       SizedBox(height: 25),
 
                       AppButton(
-                        text: '스터디 만들기',
+                        text: '수정 완료',
                         type: AppButtonType.primaryPink,
                         height: 54,
-                        onPressed: _isSaving ? null : _saveStudy,
+                        onPressed: _isSaving ? null : _updateStudy,
                       ),
                     ],
                   ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../stydy/study_list.dart';
+import '../../study/study_list.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
