@@ -149,190 +149,184 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     _handleAuthResult(context, result, provider);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<AppColors>()!;
-    final screenHeight = MediaQuery.of(context).size.height;
+@override
+Widget build(BuildContext context) {
+final colors = Theme.of(context).extension<AppColors>()!;
 
-    return Stack(
-      children: [
-        Scaffold(
-          body: SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return SingleChildScrollView(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                    child: Column(
-                      children: [
-                        _stagger(
-                          start: 0.0,
-                          end: 0.55,
-                          slideFrom: 0,
-                          child: _HeroIllustration(
-                            colors: colors,
-                            height: screenHeight * 0.32,
-                          ),
-                        ),
-
-                        SizedBox(height: screenHeight * 0.03),
-
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(28, 0, 28, 36),
-                          child: Column(
-                            children: [
-                              _stagger(
-                                start: 0.45,
-                                end: 0.80,
-                                child: _SocialButton(
-                                  text: '카카오로 계속하기',
-                                  backgroundColor: const Color(0xFFFEE500),
-                                  textColor: const Color(0xFF1A1A1A),
-                                  icon: Image.asset(
-                                    'assets/icons/kakaoIcon.png',
-                                    width: 22,
-                                    height: 22,
-                                  ),
-                                  onPressed: () => _handleSocialLogin(
-                                      AuthService.signInWithKakao, 'KAKAO'),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              _stagger(
-                                start: 0.52,
-                                end: 0.87,
-                                child: _SocialButton(
-                                  text: 'Google로 계속하기',
-                                  backgroundColor: Colors.white,
-                                  textColor: const Color(0xFF1A1A1A),
-                                  borderColor: const Color(0xFFE5E7EB),
-                                  icon: Image.asset(
-                                    'assets/icons/googleIcon.png',
-                                    width: 22,
-                                    height: 22,
-                                  ),
-                                  onPressed: () => _handleSocialLogin(
-                                      AuthService.signInWithGoogle, 'GOOGLE'),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              _stagger(
-                                start: 0.59,
-                                end: 0.94,
-                                child: _SocialButton(
-                                  text: '네이버로 계속하기',
-                                  backgroundColor: const Color(0xFF03C75A),
-                                  textColor: Colors.white,
-                                  icon: _BadgeIcon(
-                                    label: 'N',
-                                    backgroundColor: Colors.white,
-                                    textColor: const Color(0xFF03C75A),
-                                  ),
-                                  onPressed: () => _handleSocialLogin(
-                                      AuthService.signInWithNaver, 'NAVER'),
-                                ),
-                              ),
-
-                              const SizedBox(height: 24),
-                              _stagger(
-                                start: 0.65,
-                                end: 1.0,
-                                child: _OrDivider(colors: colors),
-                              ),
-                              const SizedBox(height: 24),
-
-                              _stagger(
-                                start: 0.70,
-                                end: 1.0,
-                                child: GestureDetector(
-                                  onTap: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                          builder: (_) => SignupScreen()),
-                                    );
-                                  },
-                                  child: Container(
-                                    width: double.infinity,
-                                    height: 56,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color: colors.pinkStart,
-                                        width: 1.4,
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Image.asset(
-                                          'assets/images/textLogo.png',
-                                          height: 20,
-                                        ),
-                                        const SizedBox(width: 2),
-                                        Text(
-                                          '시작하기',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w700,
-                                            color: colors.pinkStart,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 22),
-                              _stagger(
-                                start: 0.75,
-                                end: 1.0,
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      '이메일 회원이신가요? ',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: colors.textSecondary,
-                                      ),
-                                    ),
-                                    GestureDetector(
-                                      onTap: () {
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                              builder: (_) => LoginScreen()),
-                                        );
-                                      },
-                                      child: Text(
-                                        '로그인',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700,
-                                          color: colors.textPrimary,
-                                          decoration: TextDecoration.underline,
-                                          decorationColor: colors.textPrimary,
-                                          decorationThickness: 1.5,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-        if (_isLoading) const LoadingOverlay(),
-      ],
-    );
-  }
+return Stack(
+children: [
+Scaffold(
+body: SafeArea(
+child: LayoutBuilder(
+builder: (context, constraints) {
+return SizedBox(
+height: constraints.maxHeight,
+child: Column(
+children: [
+Expanded(
+child: _stagger(
+start: 0.0,
+end: 0.55,
+slideFrom: 0,
+child: const _HeroIllustration(),
+),
+),
+SingleChildScrollView(
+physics: const ClampingScrollPhysics(),
+child: Padding(
+padding: const EdgeInsets.fromLTRB(28, 0, 28, 36),
+child: Column(
+children: [
+_stagger(
+start: 0.45,
+end: 0.80,
+child: _SocialButton(
+text: '카카오로 계속하기',
+backgroundColor: const Color(0xFFFEE500),
+textColor: const Color(0xFF1A1A1A),
+icon: Image.asset(
+'assets/icons/kakaoIcon.png',
+width: 22,
+height: 22,
+),
+onPressed: () => _handleSocialLogin(
+AuthService.signInWithKakao, 'KAKAO'),
+),
+),
+const SizedBox(height: 12),
+_stagger(
+start: 0.52,
+end: 0.87,
+child: _SocialButton(
+text: 'Google로 계속하기',
+backgroundColor: Colors.white,
+textColor: const Color(0xFF1A1A1A),
+borderColor: const Color(0xFFE5E7EB),
+icon: Image.asset(
+'assets/icons/googleIcon.png',
+width: 22,
+height: 22,
+),
+onPressed: () => _handleSocialLogin(
+AuthService.signInWithGoogle, 'GOOGLE'),
+),
+),
+const SizedBox(height: 12),
+_stagger(
+start: 0.59,
+end: 0.94,
+child: _SocialButton(
+text: '네이버로 계속하기',
+backgroundColor: const Color(0xFF03C75A),
+textColor: Colors.white,
+icon: _BadgeIcon(
+label: 'N',
+backgroundColor: Colors.white,
+textColor: const Color(0xFF03C75A),
+),
+onPressed: () => _handleSocialLogin(
+AuthService.signInWithNaver, 'NAVER'),
+),
+),
+const SizedBox(height: 24),
+_stagger(
+start: 0.65,
+end: 1.0,
+child: _OrDivider(colors: colors),
+),
+const SizedBox(height: 24),
+_stagger(
+start: 0.70,
+end: 1.0,
+child: GestureDetector(
+onTap: () {
+Navigator.of(context).push(
+MaterialPageRoute(
+builder: (_) => SignupScreen()),
+);
+},
+child: Container(
+width: double.infinity,
+height: 56,
+decoration: BoxDecoration(
+borderRadius: BorderRadius.circular(16),
+border: Border.all(
+color: colors.pinkStart,
+width: 1.4,
+),
+),
+child: Row(
+mainAxisAlignment: MainAxisAlignment.center,
+children: [
+Image.asset(
+'assets/images/textLogo.png',
+height: 20,
+),
+const SizedBox(width: 2),
+Text(
+'시작하기',
+style: TextStyle(
+fontSize: 16,
+fontWeight: FontWeight.w700,
+color: colors.pinkStart,
+),
+),
+],
+),
+),
+),
+),
+const SizedBox(height: 22),
+_stagger(
+start: 0.75,
+end: 1.0,
+child: Row(
+mainAxisAlignment: MainAxisAlignment.center,
+children: [
+Text(
+'이메일 회원이신가요? ',
+style: TextStyle(
+fontSize: 14,
+color: colors.textSecondary,
+),
+),
+GestureDetector(
+onTap: () {
+Navigator.of(context).push(
+MaterialPageRoute(
+builder: (_) => LoginScreen()),
+);
+},
+child: Text(
+'로그인',
+style: TextStyle(
+fontSize: 14,
+fontWeight: FontWeight.w700,
+color: colors.textPrimary,
+decoration: TextDecoration.underline,
+decorationColor: colors.textPrimary,
+decorationThickness: 1.5,
+),
+),
+),
+],
+),
+),
+],
+),
+),
+),
+],
+),
+);
+},
+),
+),
+),
+if (_isLoading) const LoadingOverlay(),
+],
+);
+}
 }
 
 class _OrDivider extends StatelessWidget {
@@ -465,10 +459,7 @@ class _BadgeIcon extends StatelessWidget {
 }
 
 class _HeroIllustration extends StatelessWidget {
-  final AppColors colors;
-  final double height;
-
-  const _HeroIllustration({required this.colors, required this.height});
+  const _HeroIllustration();
 
   @override
   Widget build(BuildContext context) {
@@ -487,13 +478,9 @@ class _HeroIllustration extends StatelessWidget {
         ).createShader(bounds);
       },
       blendMode: BlendMode.dstIn,
-      child: SizedBox(
-        width: double.infinity,
-        height: height,
+      child: SizedBox.expand(
         child: Image.asset(
           'assets/images/welcome.png',
-          width: double.infinity,
-          height: height,
           fit: BoxFit.cover,
         ),
       ),
