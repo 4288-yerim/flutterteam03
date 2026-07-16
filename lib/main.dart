@@ -9,6 +9,7 @@ import 'splash/screens/splash_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'services/app_icon_service.dart';
+import 'package:flutterteam03/services/notification_service.dart';
 
 const _iconCheckTaskName = 'checkInactivityIconTask';
 
@@ -40,6 +41,8 @@ Future<void> main() async {
     clientSecret: dotenv.env['NAVER_CLIENT_SECRET']!,
     clientName: '따iT',
   );
+
+  await NotificationService.instance.initialize();
 
   Workmanager().initialize(callbackDispatcher);
   Workmanager().registerPeriodicTask(

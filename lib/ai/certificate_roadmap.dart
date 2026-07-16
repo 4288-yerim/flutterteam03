@@ -118,7 +118,7 @@ class _CertificateRoadmapPageState
       extendBodyBehindAppBar: true,
       backgroundColor: Colors.transparent,
       appBar: const AppTopBar(
-        title: '자격증 로드맵',
+        title: 'AI 자격증 로드맵',
         centerTitle: false,
       ),
       body: AppMainBackground(
