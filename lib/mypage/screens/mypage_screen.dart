@@ -19,6 +19,7 @@ import 'mypage_calendar_screen.dart';
 import 'friend_screen.dart';
 import 'app_setting_screen.dart';
 import 'help_and_inquiry_screen.dart';
+import 'account_withdrawal_screen.dart';
 
 class MyPageScreen extends StatelessWidget {
   const MyPageScreen({super.key});
@@ -280,9 +281,7 @@ class MyPageScreen extends StatelessWidget {
                 onPressed: () {
                   _openPage(
                     context,
-                    const TemporaryPage(
-                      title: '회원 탈퇴',
-                    ),
+                    const AccountWithdrawalScreen(),
                   );
                 },
                 child: const Text(

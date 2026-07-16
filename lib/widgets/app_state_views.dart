@@ -7,7 +7,7 @@ class AppLoadingView extends StatelessWidget {
   const AppLoadingView({
     super.key,
     this.message = '데이터를 불러오는 중입니다.',
-    this.imagePath = 'assets/images/loading_state.png',
+    this.imagePath = 'assets/images/loading_state_transparent.png',
   });
 
   @override
@@ -29,7 +29,7 @@ class AppEmptyView extends StatelessWidget {
 
   const AppEmptyView({
     super.key,
-    this.imagePath = 'assets/images/empty_state.png',
+    this.imagePath = 'assets/images/empty_state_transparent.png',
     required this.message,
     this.description,
     this.buttonText,
@@ -57,7 +57,7 @@ class AppErrorView extends StatelessWidget {
 
   const AppErrorView({
     super.key,
-    this.imagePath = 'assets/images/error_state.png',
+    this.imagePath = 'assets/images/error_state_transparent.png',
     this.message = '오류가 발생했습니다.',
     this.description = '잠시 후 다시 시도해 주세요.',
     this.retryButtonText = '다시 시도',
@@ -85,7 +85,7 @@ class AppNetworkErrorView extends StatelessWidget {
 
   const AppNetworkErrorView({
     super.key,
-    this.imagePath = 'assets/images/network_error.png',
+    this.imagePath = 'assets/images/network_error_transparent.png',
     this.message = '인터넷 연결을 확인해 주세요.',
     this.description = 'Wi-Fi 또는 모바일 데이터를 확인한 뒤 다시 시도해 주세요.',
     this.retryButtonText = '다시 시도',
