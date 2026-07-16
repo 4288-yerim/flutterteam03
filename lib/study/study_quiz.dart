@@ -1,13 +1,15 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import '../theme.dart';
 import 'package:flutterteam03/widgets/app_state_views.dart';
 
+import '../theme.dart';
+import '../widgets/app_button.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
-import '../widgets/app_button.dart';
 import '../widgets/loading_overlay.dart';
 import 'study_quiz_add.dart';
 
@@ -32,6 +34,7 @@ ColorScheme get _studyColorScheme {
   return lightTheme.colorScheme;
 }
 
+
 class StudyQuizPage extends StatefulWidget {
   final String studyId;
   final String groupName;
@@ -48,8 +51,10 @@ class StudyQuizPage extends StatefulWidget {
   }
 }
 
+
 class _StudyQuizPageState extends State<StudyQuizPage> {
-  Stream<QuerySnapshot<Map<String, dynamic>>>? _quizStream;
+  Stream<QuerySnapshot<Map<String, dynamic>>>?
+  _quizStream;
 
   bool _isOwner = false;
   bool _isOwnerLoading = true;
@@ -62,7 +67,8 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
     _loadOwnerStatus();
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _createQuizStream() {
+  Stream<QuerySnapshot<Map<String, dynamic>>>
+  _createQuizStream() {
     return FirebaseFirestore.instance
         .collection('studyGroups')
         .doc(widget.studyId)
@@ -70,9 +76,114 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
         .snapshots();
   }
 
-  /// 현재 로그인한 사용자가 방장인지 확인
+  bool _isNetworkError(Object? error) {
+    if (error is FirebaseException) {
+      if (error.code == 'unavailable' ||
+          error.code ==
+              'network-request-failed' ||
+          error.code ==
+              'deadline-exceeded') {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  int _getInt(
+      Map<String, dynamic> data,
+      String fieldName,
+      ) {
+    dynamic value = data[fieldName];
+
+    if (value is int) {
+      return value;
+    }
+
+    if (value is num) {
+      return value.toInt();
+    }
+
+    return 0;
+  }
+
+  DateTime? _getDateTime(dynamic value) {
+    if (value is Timestamp) {
+      return value.toDate().toLocal();
+    }
+
+    if (value is DateTime) {
+      return value.toLocal();
+    }
+
+    return null;
+  }
+
+  String _formatDateTime(dynamic value) {
+    DateTime? dateTime =
+    _getDateTime(value);
+
+    if (dateTime == null) {
+      return '';
+    }
+
+    String month =
+    dateTime.month.toString().padLeft(2, '0');
+
+    String day =
+    dateTime.day.toString().padLeft(2, '0');
+
+    String hour =
+    dateTime.hour.toString().padLeft(2, '0');
+
+    String minute =
+    dateTime.minute.toString().padLeft(2, '0');
+
+    return '${dateTime.year}.$month.$day $hour:$minute';
+  }
+
+  String _formatLimitTime(int seconds) {
+    if (seconds < 60) {
+      return '$seconds초';
+    }
+
+    int minutes = seconds ~/ 60;
+
+    return '$minutes분';
+  }
+
+  String _getQuizTypeText(
+      Map<String, dynamic> data,
+      ) {
+    String quizType =
+        data['quizType']?.toString() ??
+            'MULTIPLE_CHOICE';
+
+    if (quizType == 'OX') {
+      return 'OX';
+    }
+
+    return '객관식';
+  }
+
+  bool _isDeadlinePassed(
+      Map<String, dynamic> data,
+      ) {
+    DateTime? deadlineAt =
+    _getDateTime(data['deadlineAt']);
+
+    if (deadlineAt == null) {
+      return false;
+    }
+
+    return DateTime.now().isAfter(
+      deadlineAt,
+    );
+  }
+
   Future<void> _loadOwnerStatus() async {
-    User? currentUser = FirebaseAuth.instance.currentUser;
+    User? currentUser =
+        FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
       if (mounted) {
@@ -86,7 +197,8 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
     }
 
     try {
-      DocumentSnapshot<Map<String, dynamic>> groupSnapshot =
+      DocumentSnapshot<Map<String, dynamic>>
+      groupSnapshot =
       await FirebaseFirestore.instance
           .collection('studyGroups')
           .doc(widget.studyId)
@@ -95,19 +207,18 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
       bool isOwner = false;
 
       if (groupSnapshot.exists) {
-        Map<String, dynamic> groupData =
-            groupSnapshot.data() ?? {};
-
         String ownerUid =
-            groupData['ownerUid']?.toString() ?? '';
+            groupSnapshot.data()?['ownerUid']
+                ?.toString() ??
+                '';
 
-        if (ownerUid == currentUser.uid) {
-          isOwner = true;
-        }
+        isOwner =
+            ownerUid == currentUser.uid;
       }
 
-      if (isOwner == false) {
-        DocumentSnapshot<Map<String, dynamic>> memberSnapshot =
+      if (!isOwner) {
+        DocumentSnapshot<Map<String, dynamic>>
+        memberSnapshot =
         await FirebaseFirestore.instance
             .collection('studyGroups')
             .doc(widget.studyId)
@@ -115,17 +226,12 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
             .doc(currentUser.uid)
             .get();
 
-        if (memberSnapshot.exists) {
-          Map<String, dynamic> memberData =
-              memberSnapshot.data() ?? {};
+        String role =
+            memberSnapshot.data()?['role']
+                ?.toString() ??
+                '';
 
-          String role =
-              memberData['role']?.toString() ?? '';
-
-          if (role == 'OWNER') {
-            isOwner = true;
-          }
-        }
+        isOwner = role == 'OWNER';
       }
 
       if (mounted) {
@@ -135,7 +241,9 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
         });
       }
     } catch (error) {
-      debugPrint('문제 발송 권한 확인 오류: $error');
+      debugPrint(
+        '문제 발송 권한 확인 오류: $error',
+      );
 
       if (mounted) {
         setState(() {
@@ -146,59 +254,17 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
     }
   }
 
-  /// Firestore 숫자 필드 가져오기
-  int _getInt(
-      Map<String, dynamic> data,
-      String fieldName,
-      ) {
-    final value = data[fieldName];
-
-    if (value is int) {
-      return value;
-    }
-
-    if (value is num) {
-      return value.toInt();
-    }
-
-    return 0;
-  }
-
-  bool _isNetworkError(Object? error) {
-    if (error is FirebaseException) {
-      if (error.code == 'unavailable' ||
-          error.code == 'network-request-failed' ||
-          error.code == 'deadline-exceeded') {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  /// 문제 목록 다시 불러오기
   void _reloadQuizList() {
     setState(() {
-      _quizStream = _createQuizStream();
+      _quizStream =
+          _createQuizStream();
     });
 
     _loadOwnerStatus();
   }
 
-  /// Firestore 날짜 표시
-  String _formatDate(dynamic createdAt) {
-    if (createdAt is! Timestamp) {
-      return '';
-    }
-
-    final dateTime = createdAt.toDate().toLocal();
-
-    return '${dateTime.year}.${dateTime.month.toString().padLeft(2, '0')}.'
-        '${dateTime.day.toString().padLeft(2, '0')}';
-  }
-
-  /// 문제 작성 화면으로 이동
   Future<void> _openQuizAddPage() async {
+    bool? result =
     await Navigator.push<bool>(
       context,
       MaterialPageRoute(
@@ -210,21 +276,585 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
         },
       ),
     );
+
+    if (result == true) {
+      _reloadQuizList();
+    }
   }
 
-  /// 문제 풀이 화면으로 이동
   void _openQuiz(
-      BuildContext context,
       String quizId,
       Map<String, dynamic> quizData,
       ) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => _QuizSolvePage(
+        builder: (context) {
+          return _QuizSolvePage(
+            studyId: widget.studyId,
+            quizId: quizId,
+            quizData: quizData,
+            isOwner: _isOwner,
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _closeQuiz(
+      String quizId,
+      ) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('studyGroups')
+          .doc(widget.studyId)
+          .collection('quizzes')
+          .doc(quizId)
+          .update({
+        'status': 'CLOSED',
+        'closedAt':
+        FieldValue.serverTimestamp(),
+        'updatedAt':
+        FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            '문제 제출을 마감했습니다.',
+          ),
+        ),
+      );
+    } catch (error) {
+      debugPrint(
+        '문제 마감 오류: $error',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            '문제를 마감하지 못했습니다.',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _deleteCollection(
+      Query<Map<String, dynamic>> query,
+      ) async {
+    while (true) {
+      QuerySnapshot<Map<String, dynamic>>
+      snapshot =
+      await query.limit(200).get();
+
+      if (snapshot.docs.isEmpty) {
+        break;
+      }
+
+      WriteBatch batch =
+      FirebaseFirestore.instance.batch();
+
+      for (int i = 0;
+      i < snapshot.docs.length;
+      i++) {
+        batch.delete(
+          snapshot.docs[i].reference,
+        );
+      }
+
+      await batch.commit();
+
+      if (snapshot.docs.length < 200) {
+        break;
+      }
+    }
+  }
+
+  Future<void> _deleteQuiz(
+      String quizId,
+      String title,
+      ) async {
+    bool? shouldDelete =
+    await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text('문제 삭제'),
+          content: Text(
+            '"$title" 문제를 삭제할까요?\n'
+                '제출된 답안과 결과도 함께 삭제됩니다.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(
+                  dialogContext,
+                  false,
+                );
+              },
+              child: Text('취소'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(
+                  dialogContext,
+                  true,
+                );
+              },
+              child: Text('삭제'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete != true) {
+      return;
+    }
+
+    try {
+      DocumentReference<Map<String, dynamic>>
+      quizDocument =
+      FirebaseFirestore.instance
+          .collection('studyGroups')
+          .doc(widget.studyId)
+          .collection('quizzes')
+          .doc(quizId);
+
+      await _deleteCollection(
+        quizDocument.collection('answers'),
+      );
+
+      await quizDocument.delete();
+
+      QuerySnapshot<Map<String, dynamic>>
+      messageSnapshot =
+      await FirebaseFirestore.instance
+          .collection('chats')
+          .doc(widget.studyId)
+          .collection('messages')
+          .where(
+        'quizId',
+        isEqualTo: quizId,
+      )
+          .get();
+
+      WriteBatch batch =
+      FirebaseFirestore.instance.batch();
+
+      for (int i = 0;
+      i < messageSnapshot.docs.length;
+      i++) {
+        batch.update(
+          messageSnapshot.docs[i].reference,
+          {
+            'message':
+            '삭제된 문제입니다.',
+            'messageType': 'DELETED',
+            'isDeleted': true,
+            'updatedAt':
+            FieldValue.serverTimestamp(),
+          },
+        );
+      }
+
+      if (messageSnapshot.docs.isNotEmpty) {
+        await batch.commit();
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            '문제를 삭제했습니다.',
+          ),
+        ),
+      );
+    } catch (error) {
+      debugPrint(
+        '문제 삭제 오류: $error',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            '문제를 삭제하지 못했습니다.',
+          ),
+        ),
+      );
+    }
+  }
+
+  void _openQuizResult(
+      String quizId,
+      Map<String, dynamic> quizData,
+      ) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor:
+      _studyColorScheme.surface
+          .withOpacity(0),
+      builder: (bottomSheetContext) {
+        return _QuizResultSheet(
           studyId: widget.studyId,
           quizId: quizId,
           quizData: quizData,
+        );
+      },
+    );
+  }
+
+  Widget _buildBadge(
+      String text,
+      Color backgroundColor,
+      Color textColor,
+      ) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: 9,
+        vertical: 5,
+      ),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius:
+        BorderRadius.circular(12),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 10,
+          color: textColor,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuizCard(
+      QueryDocumentSnapshot<
+          Map<String, dynamic>>
+      quizDocument,
+      ) {
+    Map<String, dynamic> quizData =
+    quizDocument.data();
+
+    String title =
+        quizData['title']?.toString() ??
+            '제목 없는 문제';
+
+    String question =
+        quizData['question']?.toString() ??
+            '';
+
+    String subject =
+        quizData['subject']?.toString() ??
+            '과목 미지정';
+
+    String senderNickname =
+        quizData['senderNickname']
+            ?.toString() ??
+            '방장';
+
+    int point =
+    _getInt(quizData, 'point');
+
+    int timeLimitSeconds =
+    _getInt(
+      quizData,
+      'timeLimitSeconds',
+    );
+
+    int answerCount =
+    _getInt(
+      quizData,
+      'answerCount',
+    );
+
+    int correctCount =
+    _getInt(
+      quizData,
+      'correctAnswerCount',
+    );
+
+    bool isClosed =
+        quizData['status']?.toString() ==
+            'CLOSED' ||
+            _isDeadlinePassed(quizData);
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: 14,
+      ),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          _openQuiz(
+            quizDocument.id,
+            quizData,
+          );
+        },
+        child: AppCard(
+          backgroundColor:
+          _studyColorScheme.surface,
+          child: Column(
+            crossAxisAlignment:
+            CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _buildBadge(
+                    subject,
+                    _studyColors.lavender,
+                    _studyColors.pinkStart,
+                  ),
+                  SizedBox(width: 7),
+                  _buildBadge(
+                    _getQuizTypeText(
+                      quizData,
+                    ),
+                    _studyColors.pinkSoft,
+                    _studyColors.pinkStart,
+                  ),
+                  SizedBox(width: 7),
+                  _buildBadge(
+                    isClosed
+                        ? '마감'
+                        : '진행 중',
+                    isClosed
+                        ? _studyColorScheme
+                        .outlineVariant
+                        : _studyColors.mint,
+                    isClosed
+                        ? _studyColors
+                        .textSecondary
+                        : _studyColorScheme
+                        .tertiary,
+                  ),
+                  Spacer(),
+                  if (_isOwner)
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value ==
+                            'result') {
+                          _openQuizResult(
+                            quizDocument.id,
+                            quizData,
+                          );
+                        }
+
+                        if (value ==
+                            'close') {
+                          _closeQuiz(
+                            quizDocument.id,
+                          );
+                        }
+
+                        if (value ==
+                            'delete') {
+                          _deleteQuiz(
+                            quizDocument.id,
+                            title,
+                          );
+                        }
+                      },
+                      itemBuilder: (context) {
+                        return [
+                          PopupMenuItem(
+                            value: 'result',
+                            child:
+                            Text('결과 보기'),
+                          ),
+                          if (!isClosed)
+                            PopupMenuItem(
+                              value: 'close',
+                              child:
+                              Text('제출 마감'),
+                            ),
+                          PopupMenuItem(
+                            value: 'delete',
+                            child:
+                            Text('문제 삭제'),
+                          ),
+                        ];
+                      },
+                    ),
+                ],
+              ),
+              SizedBox(height: 14),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color:
+                  _studyColors.textPrimary,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                question.isEmpty
+                    ? '문제를 눌러 내용을 확인하세요.'
+                    : question,
+                maxLines: 2,
+                overflow:
+                TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.45,
+                  color: _studyColors
+                      .textSecondary,
+                ),
+              ),
+              SizedBox(height: 15),
+              Wrap(
+                spacing: 12,
+                runSpacing: 7,
+                children: [
+                  Row(
+                    mainAxisSize:
+                    MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.timer_outlined,
+                        size: 16,
+                        color: _studyColors
+                            .textSecondary,
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        _formatLimitTime(
+                          timeLimitSeconds,
+                        ),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: _studyColors
+                              .textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    mainAxisSize:
+                    MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.event_outlined,
+                        size: 16,
+                        color: _studyColors
+                            .textSecondary,
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        '마감 '
+                            '${_formatDateTime(quizData['deadlineAt'])}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: _studyColors
+                              .textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (point > 0)
+                    Row(
+                      mainAxisSize:
+                      MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.stars_outlined,
+                          size: 16,
+                          color: _studyColors
+                              .textSecondary,
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          '$point점',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: _studyColors
+                                .textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+              SizedBox(height: 13),
+              Row(
+                children: [
+                  Icon(
+                    Icons.person_outline,
+                    size: 17,
+                    color: _studyColors
+                        .textSecondary,
+                  ),
+                  SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      '$senderNickname 님이 발송',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _studyColors
+                            .textSecondary,
+                      ),
+                    ),
+                  ),
+                  if (_isOwner)
+                    Text(
+                      '참여 $answerCount · '
+                          '정답 $correctCount',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: _studyColors
+                            .pinkStart,
+                        fontWeight:
+                        FontWeight.w600,
+                      ),
+                    )
+                  else
+                    Text(
+                      isClosed
+                          ? '결과 확인'
+                          : '문제 풀기',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: _studyColors
+                            .pinkStart,
+                        fontWeight:
+                        FontWeight.bold,
+                      ),
+                    ),
+                  SizedBox(width: 3),
+                  Icon(
+                    Icons.chevron_right,
+                    color:
+                    _studyColors.pinkStart,
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -234,14 +864,16 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
   Widget build(BuildContext context) {
     List<Widget> appBarActions = [];
 
-    if (_isOwnerLoading == false && _isOwner) {
+    if (!_isOwnerLoading &&
+        _isOwner) {
       appBarActions.add(
         IconButton(
           tooltip: '문제 발송',
           onPressed: _openQuizAddPage,
           icon: Icon(
             Icons.add_rounded,
-            color: _studyColors.textPrimary,
+            color:
+            _studyColors.textPrimary,
             size: 29,
           ),
         ),
@@ -256,58 +888,66 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
       body: AppMainBackground(
         applySafeArea: false,
         child: StreamBuilder<
-            QuerySnapshot<Map<String, dynamic>>>(
+            QuerySnapshot<
+                Map<String, dynamic>>>(
           stream: _quizStream,
           builder: (context, snapshot) {
             if (snapshot.connectionState ==
                 ConnectionState.waiting) {
               return AppLoadingView(
-                message: '발송된 문제를 불러오는 중입니다.',
+                message:
+                '발송된 문제를 불러오는 중입니다.',
               );
             }
 
             if (snapshot.hasError) {
-              debugPrint(
-                '발송된 문제 조회 오류: ${snapshot.error}',
-              );
-
-              if (_isNetworkError(snapshot.error)) {
+              if (_isNetworkError(
+                snapshot.error,
+              )) {
                 return AppNetworkErrorView(
-                  message: '인터넷 연결을 확인해 주세요.',
+                  message:
+                  '인터넷 연결을 확인해 주세요.',
                   description:
                   '네트워크 연결 후 발송된 문제를 다시 불러와 주세요.',
-                  retryButtonText: '다시 시도',
-                  onRetryPressed: _reloadQuizList,
+                  onRetryPressed:
+                  _reloadQuizList,
                 );
               }
 
               return AppErrorView(
-                message: '발송된 문제를 불러오지 못했습니다.',
-                description: '잠시 후 다시 시도해 주세요.',
-                retryButtonText: '다시 시도',
-                onRetryPressed: _reloadQuizList,
+                message:
+                '발송된 문제를 불러오지 못했습니다.',
+                description:
+                '잠시 후 다시 시도해 주세요.',
+                onRetryPressed:
+                _reloadQuizList,
               );
             }
 
-            final quizList =
-                snapshot.data?.docs.toList() ?? [];
+            List<
+                QueryDocumentSnapshot<
+                    Map<String, dynamic>>>
+            quizList =
+                snapshot.data?.docs.toList() ??
+                    [];
 
-            // 최근 발송된 문제가 위로 표시되도록 정렬
             quizList.sort((a, b) {
-              final aCreatedAt =
+              dynamic aCreatedAt =
               a.data()['createdAt'];
 
-              final bCreatedAt =
+              dynamic bCreatedAt =
               b.data()['createdAt'];
 
-              final aTime =
+              int aTime =
               aCreatedAt is Timestamp
-                  ? aCreatedAt.millisecondsSinceEpoch
+                  ? aCreatedAt
+                  .millisecondsSinceEpoch
                   : 0;
 
-              final bTime =
+              int bTime =
               bCreatedAt is Timestamp
-                  ? bCreatedAt.millisecondsSinceEpoch
+                  ? bCreatedAt
+                  .millisecondsSinceEpoch
                   : 0;
 
               return bTime.compareTo(aTime);
@@ -315,7 +955,8 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
 
             if (quizList.isEmpty) {
               return AppEmptyView(
-                message: '발송된 문제가 없습니다.',
+                message:
+                '발송된 문제가 없습니다.',
                 description: _isOwner
                     ? '우측 상단의 + 버튼을 눌러 첫 문제를 발송해 보세요.'
                     : '새로운 문제가 발송되면 이곳에 표시됩니다.',
@@ -340,11 +981,10 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
                   width: double.infinity,
                   padding: EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    color: _studyColors.lavender,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: _studyColors.lavender,
-                    ),
+                    color:
+                    _studyColors.lavender,
+                    borderRadius:
+                    BorderRadius.circular(20),
                   ),
                   child: Row(
                     children: [
@@ -352,255 +992,70 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
                         width: 48,
                         height: 48,
                         decoration: BoxDecoration(
-                          color: _studyColorScheme.surface,
+                          color:
+                          _studyColorScheme
+                              .surface,
                           borderRadius:
-                          BorderRadius.circular(15),
+                          BorderRadius.circular(
+                            15,
+                          ),
                         ),
                         child: Icon(
                           Icons.edit_note_rounded,
-                          color: _studyColors.pinkStart,
+                          color: _studyColors
+                              .pinkStart,
                           size: 29,
                         ),
                       ),
-
                       SizedBox(width: 14),
-
                       Expanded(
                         child: Column(
                           crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                          CrossAxisAlignment
+                              .start,
                           children: [
                             Text(
                               widget.groupName,
                               style: TextStyle(
                                 fontSize: 15,
-                                fontWeight: FontWeight.bold,
+                                fontWeight:
+                                FontWeight.bold,
+                                color: _studyColors
+                                    .textPrimary,
                               ),
                             ),
-
                             SizedBox(height: 4),
-
                             Text(
                               '총 ${quizList.length}개의 문제가 발송되었습니다.',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: _studyColors.textSecondary,
+                                color: _studyColors
+                                    .textSecondary,
                               ),
                             ),
                           ],
                         ),
                       ),
-
-                      if (_isOwner)
-                        IconButton(
-                          tooltip: '문제 발송',
-                          onPressed: _openQuizAddPage,
-                          icon: Icon(
-                            Icons.add_circle_rounded,
-                            color: _studyColors.pinkStart,
-                            size: 28,
-                          ),
-                        ),
                     ],
                   ),
                 ),
-
                 SizedBox(height: 22),
-
                 Text(
                   '문제 목록',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
+                    color:
+                    _studyColors.textPrimary,
                   ),
                 ),
-
                 SizedBox(height: 12),
-
-                ...quizList.map((quizDocument) {
-                  final quizData =
-                  quizDocument.data();
-
-                  final title =
-                      quizData['title']?.toString() ??
-                          '제목 없는 문제';
-
-                  final question =
-                      quizData['question']?.toString() ??
-                          '';
-
-                  final senderNickname =
-                      quizData['senderNickname']
-                          ?.toString() ??
-                          '스터디원';
-
-                  final createdAt =
-                  quizData['createdAt'];
-
-                  final point =
-                  _getInt(quizData, 'point');
-
-                  return Padding(
-                    padding:
-                    EdgeInsets.only(bottom: 14),
-                    child: GestureDetector(
-                      onTap: () {
-                        _openQuiz(
-                          context,
-                          quizDocument.id,
-                          quizData,
-                        );
-                      },
-                      behavior: HitTestBehavior.opaque,
-                      child: AppCard(
-                        backgroundColor: _studyColorScheme.surface,
-                        child: Column(
-                          crossAxisAlignment:
-                          CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding:
-                                  EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 5,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color:
-                                    _studyColors.lavender,
-                                    borderRadius:
-                                    BorderRadius.circular(
-                                      14,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    '발송 문제',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color:
-                                      _studyColors.pinkStart,
-                                      fontWeight:
-                                      FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-
-                                if (point > 0) ...[
-                                  SizedBox(width: 7),
-                                  Container(
-                                    padding: EdgeInsets
-                                        .symmetric(
-                                      horizontal: 10,
-                                      vertical: 5,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: _studyColors.pinkSoft,
-                                      borderRadius:
-                                      BorderRadius.circular(
-                                        14,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      '$point점',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color:
-                                        _studyColors.pinkStart,
-                                        fontWeight:
-                                        FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-
-                                Spacer(),
-
-                                Text(
-                                  _formatDate(createdAt),
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color:
-                                    _studyColors.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            SizedBox(height: 15),
-
-                            Text(
-                              title,
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-
-                            SizedBox(height: 8),
-
-                            Text(
-                              question.isEmpty
-                                  ? '문제를 눌러 내용을 확인하세요.'
-                                  : question,
-                              maxLines: 2,
-                              overflow:
-                              TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 13,
-                                height: 1.45,
-                                color: _studyColors.textSecondary,
-                              ),
-                            ),
-
-                            SizedBox(height: 16),
-
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.person_outline,
-                                  size: 17,
-                                  color: _studyColors.textSecondary,
-                                ),
-
-                                SizedBox(width: 5),
-
-                                Expanded(
-                                  child: Text(
-                                    '$senderNickname 님이 발송',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color:
-                                      _studyColors.textSecondary,
-                                    ),
-                                  ),
-                                ),
-
-                                Text(
-                                  '문제 풀기',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color:
-                                    _studyColors.pinkStart,
-                                    fontWeight:
-                                    FontWeight.bold,
-                                  ),
-                                ),
-
-                                SizedBox(width: 3),
-
-                                Icon(
-                                  Icons.chevron_right,
-                                  color: _studyColors.pinkStart,
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }),
+                for (int i = 0;
+                i < quizList.length;
+                i++)
+                  _buildQuizCard(
+                    quizList[i],
+                  ),
               ],
             );
           },
@@ -610,56 +1065,77 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
   }
 }
 
-/// 문제 풀이 화면
+
 class _QuizSolvePage extends StatefulWidget {
   final String studyId;
   final String quizId;
   final Map<String, dynamic> quizData;
+  final bool isOwner;
 
   const _QuizSolvePage({
     required this.studyId,
     required this.quizId,
     required this.quizData,
+    required this.isOwner,
   });
 
   @override
-  State<_QuizSolvePage> createState() =>
-      _QuizSolvePageState();
+  State<_QuizSolvePage> createState() {
+    return _QuizSolvePageState();
+  }
 }
+
 
 class _QuizSolvePageState
     extends State<_QuizSolvePage> {
+  Timer? _timer;
+
   int? _selectedAnswerIndex;
+  int _remainingSeconds = 0;
+  int _timeLimitSeconds = 0;
 
   bool _isSubmitted = false;
   bool _isCorrect = false;
   bool _isLoadingAnswer = true;
   bool _isSaving = false;
+  bool _isTimedOut = false;
+
+  DateTime? _attemptStartedAt;
 
   @override
   void initState() {
     super.initState();
 
-    _loadMyAnswer();
+    _prepareAnswer();
   }
 
-  /// 보기 목록 가져오기
+  @override
+  void dispose() {
+    _timer?.cancel();
+
+    super.dispose();
+  }
+
   List<String> _getChoices() {
-    final choices = widget.quizData['choices'];
+    dynamic choices =
+    widget.quizData['choices'];
 
     if (choices is List) {
       return choices
-          .map((choice) => choice.toString())
+          .map(
+            (choice) =>
+            choice.toString(),
+      )
           .toList();
     }
 
     return [];
   }
 
-  /// 정답 번호 가져오기
   int _getCorrectAnswerIndex() {
-    final value =
-    widget.quizData['correctAnswerIndex'];
+    dynamic value =
+    widget.quizData[
+    'correctAnswerIndex'];
 
     if (value is int) {
       return value;
@@ -672,9 +1148,206 @@ class _QuizSolvePageState
     return -1;
   }
 
-  /// 기존에 제출한 답안이 있는지 확인
-  Future<void> _loadMyAnswer() async {
-    final currentUser =
+  int _getInt(
+      Map<String, dynamic> data,
+      String fieldName,
+      ) {
+    dynamic value = data[fieldName];
+
+    if (value is int) {
+      return value;
+    }
+
+    if (value is num) {
+      return value.toInt();
+    }
+
+    return 0;
+  }
+
+  DateTime? _getDateTime(dynamic value) {
+    if (value is Timestamp) {
+      return value.toDate().toLocal();
+    }
+
+    if (value is DateTime) {
+      return value.toLocal();
+    }
+
+    return null;
+  }
+
+  bool _isDeadlinePassed() {
+    DateTime? deadlineAt =
+    _getDateTime(
+      widget.quizData['deadlineAt'],
+    );
+
+    if (deadlineAt == null) {
+      return false;
+    }
+
+    return DateTime.now().isAfter(
+      deadlineAt,
+    );
+  }
+
+  bool _isQuizClosed() {
+    String status =
+        widget.quizData['status']
+            ?.toString() ??
+            'ACTIVE';
+
+    return status == 'CLOSED' ||
+        _isDeadlinePassed();
+  }
+
+  bool _canRevealAnswer() {
+    if (widget.isOwner) {
+      return true;
+    }
+
+    String revealType =
+        widget.quizData[
+        'answerRevealType']
+            ?.toString() ??
+            'AFTER_SUBMIT';
+
+    if (revealType ==
+        'AFTER_DEADLINE') {
+      return _isDeadlinePassed();
+    }
+
+    return _isSubmitted;
+  }
+
+  String _formatTimer(int seconds) {
+    if (seconds < 0) {
+      seconds = 0;
+    }
+
+    int minutes = seconds ~/ 60;
+    int remainSeconds =
+        seconds % 60;
+
+    return '${minutes.toString().padLeft(2, '0')}:'
+        '${remainSeconds.toString().padLeft(2, '0')}';
+  }
+
+  Future<Map<String, String>>
+  _getCurrentUserProfile(
+      User currentUser,
+      ) async {
+    String nickname = '';
+    String profileImageUrl = '';
+
+    DocumentSnapshot<Map<String, dynamic>>
+    memberSnapshot =
+    await FirebaseFirestore.instance
+        .collection('studyGroups')
+        .doc(widget.studyId)
+        .collection('members')
+        .doc(currentUser.uid)
+        .get();
+
+    if (memberSnapshot.exists) {
+      nickname =
+          memberSnapshot.data()?['nickname']
+              ?.toString()
+              .trim() ??
+              '';
+
+      profileImageUrl =
+          memberSnapshot
+              .data()?['profileImageUrl']
+              ?.toString()
+              .trim() ??
+              '';
+    }
+
+    if (nickname.isEmpty ||
+        profileImageUrl.isEmpty) {
+      DocumentSnapshot<Map<String, dynamic>>
+      directUserSnapshot =
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      Map<String, dynamic> userData = {};
+
+      if (directUserSnapshot.exists) {
+        userData =
+            directUserSnapshot.data() ?? {};
+      } else {
+        QuerySnapshot<Map<String, dynamic>>
+        userSnapshot =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .where(
+          'uid',
+          isEqualTo:
+          currentUser.uid,
+        )
+            .limit(1)
+            .get();
+
+        if (userSnapshot.docs.isNotEmpty) {
+          userData =
+              userSnapshot.docs.first.data();
+        }
+      }
+
+      if (nickname.isEmpty) {
+        nickname =
+            userData['nickname']
+                ?.toString()
+                .trim() ??
+                '';
+      }
+
+      if (profileImageUrl.isEmpty) {
+        profileImageUrl =
+            userData['profileImageUrl']
+                ?.toString()
+                .trim() ??
+                '';
+
+        if (profileImageUrl.isEmpty) {
+          profileImageUrl =
+              userData['photoUrl']
+                  ?.toString()
+                  .trim() ??
+                  '';
+        }
+      }
+    }
+
+    if (nickname.isEmpty) {
+      nickname =
+          currentUser.displayName?.trim() ??
+              '';
+    }
+
+    if (profileImageUrl.isEmpty) {
+      profileImageUrl =
+          currentUser.photoURL?.trim() ??
+              '';
+    }
+
+    if (nickname.isEmpty) {
+      nickname = '사용자';
+    }
+
+    return {
+      'nickname': nickname,
+      'profileImageUrl':
+      profileImageUrl,
+    };
+  }
+
+  Future<void> _prepareAnswer() async {
+    User? currentUser =
         FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
@@ -688,44 +1361,150 @@ class _QuizSolvePageState
     }
 
     try {
-      final answerSnapshot =
-      await FirebaseFirestore.instance
+      DocumentReference<Map<String, dynamic>>
+      answerDocument =
+      FirebaseFirestore.instance
           .collection('studyGroups')
           .doc(widget.studyId)
           .collection('quizzes')
           .doc(widget.quizId)
           .collection('answers')
-          .doc(currentUser.uid)
-          .get();
+          .doc(currentUser.uid);
 
-      if (answerSnapshot.exists) {
-        final answerData =
-            answerSnapshot.data() ?? {};
+      DocumentSnapshot<Map<String, dynamic>>
+      answerSnapshot =
+      await answerDocument.get();
 
-        final selectedAnswerIndex =
-        answerData['selectedAnswerIndex'];
+      Map<String, dynamic> answerData =
+          answerSnapshot.data() ?? {};
 
+      String answerStatus =
+          answerData['status']?.toString() ??
+              '';
+
+      dynamic selectedAnswerIndex =
+      answerData['selectedAnswerIndex'];
+
+      if (selectedAnswerIndex is int) {
+        _selectedAnswerIndex =
+            selectedAnswerIndex;
+      } else if (selectedAnswerIndex
+      is num) {
+        _selectedAnswerIndex =
+            selectedAnswerIndex.toInt();
+      }
+
+      if (answerStatus ==
+          'SUBMITTED' ||
+          answerData['submittedAt'] != null) {
         if (mounted) {
           setState(() {
-            if (selectedAnswerIndex is int) {
-              _selectedAnswerIndex =
-                  selectedAnswerIndex;
-            } else if (selectedAnswerIndex is num) {
-              _selectedAnswerIndex =
-                  selectedAnswerIndex.toInt();
-            }
-
             _isSubmitted = true;
             _isCorrect =
-                answerData['isCorrect'] == true;
+                answerData['isCorrect'] ==
+                    true;
+
+            _isTimedOut =
+                answerData['isTimedOut'] ==
+                    true;
+
+            _isLoadingAnswer = false;
           });
         }
+
+        return;
       }
+
+      if (_isQuizClosed()) {
+        if (mounted) {
+          setState(() {
+            _remainingSeconds = 0;
+            _isLoadingAnswer = false;
+          });
+        }
+
+        return;
+      }
+
+      _timeLimitSeconds =
+          _getInt(
+            widget.quizData,
+            'timeLimitSeconds',
+          );
+
+      if (_timeLimitSeconds <= 0) {
+        _timeLimitSeconds = 60;
+      }
+
+      DateTime startedAt =
+      DateTime.now();
+
+      DateTime? savedStartedAt =
+      _getDateTime(
+        answerData['attemptStartedAt'],
+      );
+
+      if (savedStartedAt != null) {
+        startedAt = savedStartedAt;
+      } else {
+        await answerDocument.set(
+          {
+            'userUid':
+            currentUser.uid,
+            'status': 'STARTED',
+            'attemptStartedAt':
+            Timestamp.fromDate(
+              startedAt,
+            ),
+            'updatedAt':
+            FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+      }
+
+      _attemptStartedAt = startedAt;
+
+      int elapsedSeconds =
+          DateTime.now()
+              .difference(startedAt)
+              .inSeconds;
+
+      int remainingSeconds =
+          _timeLimitSeconds -
+              elapsedSeconds;
+
+      if (_isQuizClosed()) {
+        remainingSeconds = 0;
+      }
+
+      if (remainingSeconds < 0) {
+        remainingSeconds = 0;
+      }
+
+      if (mounted) {
+        setState(() {
+          _remainingSeconds =
+              remainingSeconds;
+
+          _isLoadingAnswer = false;
+        });
+      }
+
+      if (remainingSeconds == 0) {
+        await _submitAnswer(
+          timedOut: true,
+        );
+
+        return;
+      }
+
+      _startTimer();
     } catch (error) {
       debugPrint(
-        '기존 문제 답안 조회 오류: $error',
+        '문제 답안 준비 오류: $error',
       );
-    } finally {
+
       if (mounted) {
         setState(() {
           _isLoadingAnswer = false;
@@ -734,29 +1513,132 @@ class _QuizSolvePageState
     }
   }
 
-  /// 답안 제출
-  Future<void> _submitAnswer() async {
-    if (_selectedAnswerIndex == null ||
-        _isSaving ||
-        _isSubmitted) {
-      if (_selectedAnswerIndex == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('정답을 먼저 선택해주세요.'),
-          ),
-        );
+  void _startTimer() {
+    _timer?.cancel();
+
+    _timer = Timer.periodic(
+      Duration(seconds: 1),
+          (timer) {
+        if (!mounted ||
+            _isSubmitted) {
+          timer.cancel();
+          return;
+        }
+
+        if (_remainingSeconds <= 1) {
+          setState(() {
+            _remainingSeconds = 0;
+          });
+
+          timer.cancel();
+
+          _submitAnswer(
+            timedOut: true,
+          );
+
+          return;
+        }
+
+        setState(() {
+          _remainingSeconds--;
+        });
+      },
+    );
+  }
+
+  Future<void> _saveWrongAnswer({
+    required User currentUser,
+    required bool isCorrect,
+    required int selectedIndex,
+  }) async {
+    DocumentReference<Map<String, dynamic>>
+    wrongAnswerDocument =
+    FirebaseFirestore.instance
+        .collection('studyGroups')
+        .doc(widget.studyId)
+        .collection('members')
+        .doc(currentUser.uid)
+        .collection('wrongAnswers')
+        .doc(widget.quizId);
+
+    if (isCorrect) {
+      DocumentSnapshot<Map<String, dynamic>>
+      wrongSnapshot =
+      await wrongAnswerDocument.get();
+
+      if (wrongSnapshot.exists) {
+        await wrongAnswerDocument.delete();
       }
 
       return;
     }
 
-    final currentUser =
+    await wrongAnswerDocument.set(
+      {
+        'quizId': widget.quizId,
+        'studyId': widget.studyId,
+        'title':
+        widget.quizData['title']
+            ?.toString() ??
+            '',
+        'subject':
+        widget.quizData['subject']
+            ?.toString() ??
+            '',
+        'question':
+        widget.quizData['question']
+            ?.toString() ??
+            '',
+        'choices': _getChoices(),
+        'selectedAnswerIndex':
+        selectedIndex,
+        'correctAnswerIndex':
+        _getCorrectAnswerIndex(),
+        'explanation':
+        widget.quizData['explanation']
+            ?.toString() ??
+            '',
+        'createdAt':
+        FieldValue.serverTimestamp(),
+        'updatedAt':
+        FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+  }
+
+  Future<void> _submitAnswer({
+    bool timedOut = false,
+  }) async {
+    if (_isSaving ||
+        _isSubmitted) {
+      return;
+    }
+
+    if (!timedOut &&
+        _selectedAnswerIndex == null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            '정답을 먼저 선택해 주세요.',
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    User? currentUser =
         FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
-          content: Text('로그인 정보가 없습니다.'),
+          content: Text(
+            '로그인 정보가 없습니다.',
+          ),
         ),
       );
 
@@ -767,31 +1649,151 @@ class _QuizSolvePageState
       _isSaving = true;
     });
 
+    _timer?.cancel();
+
+    int selectedIndex =
+        _selectedAnswerIndex ?? -1;
+
+    int correctAnswerIndex =
+    _getCorrectAnswerIndex();
+
+    bool isCorrect =
+        selectedIndex ==
+            correctAnswerIndex;
+
     try {
-      final correctAnswerIndex =
-      _getCorrectAnswerIndex();
+      Map<String, String> profile =
+      await _getCurrentUserProfile(
+        currentUser,
+      );
 
-      final isCorrect =
-          _selectedAnswerIndex ==
-              correctAnswerIndex;
-
-      await FirebaseFirestore.instance
+      DocumentReference<Map<String, dynamic>>
+      quizDocument =
+      FirebaseFirestore.instance
           .collection('studyGroups')
           .doc(widget.studyId)
           .collection('quizzes')
-          .doc(widget.quizId)
+          .doc(widget.quizId);
+
+      DocumentReference<Map<String, dynamic>>
+      answerDocument =
+      quizDocument
           .collection('answers')
-          .doc(currentUser.uid)
-          .set({
-        'userUid': currentUser.uid,
-        'userNickname':
-        currentUser.displayName ?? '사용자',
-        'selectedAnswerIndex':
-        _selectedAnswerIndex,
-        'isCorrect': isCorrect,
-        'submittedAt':
-        FieldValue.serverTimestamp(),
-      });
+          .doc(currentUser.uid);
+
+      await FirebaseFirestore.instance
+          .runTransaction(
+            (transaction) async {
+          DocumentSnapshot<Map<String, dynamic>>
+          quizSnapshot =
+          await transaction.get(
+            quizDocument,
+          );
+
+          DocumentSnapshot<Map<String, dynamic>>
+          answerSnapshot =
+          await transaction.get(
+            answerDocument,
+          );
+
+          if (!quizSnapshot.exists) {
+            throw Exception(
+              '문제를 찾을 수 없습니다.',
+            );
+          }
+
+          Map<String, dynamic> answerData =
+              answerSnapshot.data() ?? {};
+
+          if (answerData['status']
+              ?.toString() ==
+              'SUBMITTED') {
+            throw Exception(
+              '이미 제출한 문제입니다.',
+            );
+          }
+
+          int answerCount =
+          _getInt(
+            quizSnapshot.data() ?? {},
+            'answerCount',
+          );
+
+          int correctCount =
+          _getInt(
+            quizSnapshot.data() ?? {},
+            'correctAnswerCount',
+          );
+
+          int wrongCount =
+          _getInt(
+            quizSnapshot.data() ?? {},
+            'wrongAnswerCount',
+          );
+
+          int elapsedSeconds =
+              _timeLimitSeconds -
+                  _remainingSeconds;
+
+          if (elapsedSeconds < 0) {
+            elapsedSeconds = 0;
+          }
+
+          transaction.set(
+            answerDocument,
+            {
+              'userUid':
+              currentUser.uid,
+              'userNickname':
+              profile['nickname'],
+              'userProfileImageUrl':
+              profile[
+              'profileImageUrl'],
+              'selectedAnswerIndex':
+              selectedIndex,
+              'isCorrect': isCorrect,
+              'isTimedOut': timedOut,
+              'elapsedSeconds':
+              elapsedSeconds,
+              'status': 'SUBMITTED',
+              'attemptStartedAt':
+              Timestamp.fromDate(
+                _attemptStartedAt ??
+                    DateTime.now(),
+              ),
+              'submittedAt':
+              FieldValue.serverTimestamp(),
+              'updatedAt':
+              FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true),
+          );
+
+          transaction.update(
+            quizDocument,
+            {
+              'answerCount':
+              answerCount + 1,
+              'correctAnswerCount':
+              isCorrect
+                  ? correctCount + 1
+                  : correctCount,
+              'wrongAnswerCount':
+              isCorrect
+                  ? wrongCount
+                  : wrongCount + 1,
+              'updatedAt':
+              FieldValue.serverTimestamp(),
+            },
+          );
+        },
+      );
+
+      await _saveWrongAnswer(
+        currentUser: currentUser,
+        isCorrect: isCorrect,
+        selectedIndex: selectedIndex,
+      );
 
       if (!mounted) {
         return;
@@ -800,94 +1802,121 @@ class _QuizSolvePageState
       setState(() {
         _isSubmitted = true;
         _isCorrect = isCorrect;
+        _isTimedOut = timedOut;
+        _isSaving = false;
       });
     } catch (error) {
-      debugPrint('문제 답안 저장 오류: $error');
+      debugPrint(
+        '문제 답안 저장 오류: $error',
+      );
 
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      setState(() {
+        _isSaving = false;
+      });
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
-          content: Text('답안을 저장하지 못했습니다.'),
+          content: Text(
+            error.toString().contains(
+              '이미 제출',
+            )
+                ? '이미 제출한 문제입니다.'
+                : '답안을 저장하지 못했습니다.',
+          ),
         ),
       );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
-      }
     }
   }
 
-  /// 보기 항목
   Widget _buildChoice(
       int index,
       String choice,
       ) {
-    final isSelected =
+    bool isSelected =
         _selectedAnswerIndex == index;
 
-    final correctAnswerIndex =
+    bool revealAnswer =
+    _canRevealAnswer();
+
+    int correctAnswerIndex =
     _getCorrectAnswerIndex();
 
-    Color backgroundColor = _studyColorScheme.surface;
+    Color backgroundColor =
+        _studyColorScheme.surface;
+
     Color borderColor =
         _studyColorScheme.outlineVariant;
+
     Color numberColor =
         _studyColors.textSecondary;
 
-    if (!_isSubmitted && isSelected) {
+    if (!_isSubmitted &&
+        isSelected) {
       backgroundColor =
           _studyColors.lavender;
+
       borderColor =
           _studyColors.pinkStart;
+
       numberColor =
           _studyColors.pinkStart;
     }
 
-    if (_isSubmitted &&
+    if (revealAnswer &&
         index == correctAnswerIndex) {
       backgroundColor =
           _studyColors.mint;
+
       borderColor =
           _studyColorScheme.tertiary;
+
       numberColor =
           _studyColorScheme.tertiary;
     }
 
     if (_isSubmitted &&
+        revealAnswer &&
         isSelected &&
         index != correctAnswerIndex) {
       backgroundColor =
           _studyColors.pinkSoft;
+
       borderColor =
-          _studyColors.pinkStart;
+          _studyColorScheme.error;
+
       numberColor =
           _studyColorScheme.error;
     }
 
     return GestureDetector(
-      onTap: _isSubmitted
+      behavior: HitTestBehavior.opaque,
+      onTap: _isSubmitted ||
+          _remainingSeconds <= 0
           ? null
           : () {
         setState(() {
-          _selectedAnswerIndex = index;
+          _selectedAnswerIndex =
+              index;
         });
       },
-      behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: Duration(
           milliseconds: 180,
         ),
         width: double.infinity,
-        margin: EdgeInsets.only(bottom: 12),
+        margin: EdgeInsets.only(
+          bottom: 12,
+        ),
         padding: EdgeInsets.all(15),
         decoration: BoxDecoration(
           color: backgroundColor,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius:
+          BorderRadius.circular(16),
           border: Border.all(
             color: borderColor,
             width: 1.3,
@@ -896,44 +1925,52 @@ class _QuizSolvePageState
         child: Row(
           children: [
             Container(
-              width: 30,
-              height: 30,
+              width: 32,
+              height: 32,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: numberColor.withValues(
-                  alpha: 0.12,
-                ),
+                color: numberColor
+                    .withOpacity(0.12),
                 shape: BoxShape.circle,
               ),
               child: Text(
-                '${index + 1}',
+                widget.quizData['quizType']
+                    ?.toString() ==
+                    'OX'
+                    ? choice
+                    : '${index + 1}',
                 style: TextStyle(
                   color: numberColor,
-                  fontWeight: FontWeight.bold,
+                  fontWeight:
+                  FontWeight.bold,
                 ),
               ),
             ),
-
             SizedBox(width: 13),
-
             Expanded(
               child: Text(
                 choice,
                 style: TextStyle(
                   fontSize: 14,
                   height: 1.4,
+                  color:
+                  _studyColors.textPrimary,
                 ),
               ),
             ),
-
             if (isSelected)
               Icon(
-                _isSubmitted && !_isCorrect
+                revealAnswer &&
+                    index !=
+                        correctAnswerIndex
                     ? Icons.close_rounded
                     : Icons.check_rounded,
-                color: _isSubmitted && !_isCorrect
+                color: revealAnswer &&
+                    index !=
+                        correctAnswerIndex
                     ? _studyColorScheme.error
-                    : _studyColors.pinkStart,
+                    : _studyColors
+                    .pinkStart,
               ),
           ],
         ),
@@ -941,22 +1978,143 @@ class _QuizSolvePageState
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final title =
-        widget.quizData['title']?.toString() ??
-            '발송된 문제';
+  Widget _buildResultCard() {
+    String revealType =
+        widget.quizData[
+        'answerRevealType']
+            ?.toString() ??
+            'AFTER_SUBMIT';
 
-    final question =
-        widget.quizData['question']?.toString() ??
-            '등록된 문제 내용이 없습니다.';
+    bool revealAnswer =
+    _canRevealAnswer();
 
-    final explanation =
+    if (!_isSubmitted) {
+      return SizedBox();
+    }
+
+    if (!revealAnswer) {
+      return AppCard(
+        backgroundColor:
+        _studyColors.lavender,
+        child: Row(
+          children: [
+            Icon(
+              Icons.lock_clock_outlined,
+              color:
+              _studyColors.pinkStart,
+            ),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                revealType ==
+                    'AFTER_DEADLINE'
+                    ? '정답과 해설은 제출 마감 후 공개됩니다.'
+                    : '정답 공개를 기다리고 있습니다.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: _studyColors
+                      .textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    String explanation =
         widget.quizData['explanation']
             ?.toString() ??
             '';
 
-    final choices = _getChoices();
+    return AppCard(
+      backgroundColor: _isCorrect
+          ? _studyColors.mint
+          : _studyColors.pinkSoft,
+      child: Column(
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                _isCorrect
+                    ? Icons
+                    .check_circle_rounded
+                    : Icons.cancel_rounded,
+                color: _isCorrect
+                    ? _studyColorScheme
+                    .tertiary
+                    : _studyColorScheme
+                    .error,
+              ),
+              SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  _isTimedOut
+                      ? '시간이 종료되어 자동 제출되었습니다.'
+                      : _isCorrect
+                      ? '정답입니다.'
+                      : '오답입니다. 오답노트에 저장했어요.',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight:
+                    FontWeight.bold,
+                    color: _studyColors
+                        .textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (explanation.isNotEmpty) ...[
+            SizedBox(height: 12),
+            Text(
+              explanation,
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.5,
+                color: _studyColors
+                    .textSecondary,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    String title =
+        widget.quizData['title']
+            ?.toString() ??
+            '발송된 문제';
+
+    String subject =
+        widget.quizData['subject']
+            ?.toString() ??
+            '과목 미지정';
+
+    String question =
+        widget.quizData['question']
+            ?.toString() ??
+            '등록된 문제 내용이 없습니다.';
+
+    List<String> choices =
+    _getChoices();
+
+    if (_isLoadingAnswer) {
+      return Scaffold(
+        appBar: AppTopBar(
+          title: '문제 풀기',
+        ),
+        body: AppLoadingView(
+          message:
+          '문제 응답 상태를 확인하는 중입니다.',
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppTopBar(
@@ -966,179 +2124,193 @@ class _QuizSolvePageState
         children: [
           AppMainBackground(
             applySafeArea: false,
-            child: _isLoadingAnswer
-                ? AppLoadingView(
-              message: '문제 정보를 불러오는 중입니다.',
-            )
-                : SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
+            child:
+            SingleChildScrollView(
+              padding:
+              EdgeInsets.fromLTRB(
                 20,
-                22,
+                20,
                 20,
                 40,
               ),
               child: Column(
                 crossAxisAlignment:
-                CrossAxisAlignment.start,
+                CrossAxisAlignment
+                    .start,
                 children: [
-                  Container(
-                    padding:
-                    EdgeInsets.symmetric(
-                      horizontal: 11,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color:
-                      _studyColors.lavender,
-                      borderRadius:
-                      BorderRadius.circular(15),
-                    ),
-                    child: Text(
-                      '객관식 문제',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: _studyColors.pinkStart,
-                        fontWeight:
-                        FontWeight.w600,
-                      ),
-                    ),
-                  ),
-
-                  SizedBox(height: 16),
-
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 21,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-
-                  SizedBox(height: 20),
-
-                  AppCard(
-                    backgroundColor: _studyColorScheme.surface,
-                    child: Text(
-                      question,
-                      style: TextStyle(
-                        fontSize: 16,
-                        height: 1.55,
-                        fontWeight:
-                        FontWeight.w600,
-                      ),
-                    ),
-                  ),
-
-                  SizedBox(height: 22),
-
-                  Text(
-                    '정답 선택',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-
-                  SizedBox(height: 12),
-
-                  if (choices.isEmpty)
-                    AppCard(
-                      backgroundColor: _studyColorScheme.surface,
-                      child: Text(
-                        '등록된 보기가 없습니다.',
-                        style: TextStyle(
-                          color: _studyColors.textSecondary,
+                  Row(
+                    children: [
+                      Container(
+                        padding:
+                        EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration:
+                        BoxDecoration(
+                          color: _studyColors
+                              .lavender,
+                          borderRadius:
+                          BorderRadius.circular(
+                            13,
+                          ),
+                        ),
+                        child: Text(
+                          subject,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: _studyColors
+                                .pinkStart,
+                            fontWeight:
+                            FontWeight.w600,
+                          ),
                         ),
                       ),
-                    )
-                  else
-                    ...List.generate(
-                      choices.length,
-                          (index) => _buildChoice(
-                        index,
-                        choices[index],
-                      ),
-                    ),
-
-                  if (_isSubmitted) ...[
-                    SizedBox(height: 10),
-
-                    Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.all(17),
-                      decoration: BoxDecoration(
-                        color: _isCorrect
-                            ? _studyColors.mint
-                            : _studyColors.pinkSoft,
-                        borderRadius:
-                        BorderRadius.circular(17),
-                      ),
-                      child: Column(
-                        crossAxisAlignment:
-                        CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                      Spacer(),
+                      if (!_isSubmitted)
+                        Container(
+                          padding:
+                          EdgeInsets.symmetric(
+                            horizontal: 11,
+                            vertical: 7,
+                          ),
+                          decoration:
+                          BoxDecoration(
+                            color:
+                            _remainingSeconds <=
+                                10
+                                ? _studyColors
+                                .pinkSoft
+                                : _studyColors
+                                .lavender,
+                            borderRadius:
+                            BorderRadius.circular(
+                              14,
+                            ),
+                          ),
+                          child: Row(
                             children: [
                               Icon(
-                                _isCorrect
-                                    ? Icons
-                                    .check_circle_outline
-                                    : Icons
-                                    .cancel_outlined,
-                                color: _isCorrect
-                                    ? _studyColorScheme.tertiary
-                                    : _studyColorScheme.error,
+                                Icons.timer_outlined,
+                                size: 17,
+                                color:
+                                _remainingSeconds <=
+                                    10
+                                    ? _studyColorScheme
+                                    .error
+                                    : _studyColors
+                                    .pinkStart,
                               ),
-
-                              SizedBox(width: 8),
-
+                              SizedBox(width: 5),
                               Text(
-                                _isCorrect
-                                    ? '정답입니다!'
-                                    : '오답입니다.',
+                                _formatTimer(
+                                  _remainingSeconds,
+                                ),
                                 style: TextStyle(
-                                  fontSize: 16,
+                                  fontSize: 12,
                                   fontWeight:
                                   FontWeight.bold,
-                                  color: _isCorrect
-                                      ? _studyColorScheme.tertiary
-                                      : _studyColorScheme.error,
+                                  color:
+                                  _remainingSeconds <=
+                                      10
+                                      ? _studyColorScheme
+                                      .error
+                                      : _studyColors
+                                      .pinkStart,
                                 ),
                               ),
                             ],
                           ),
-
-                          if (explanation.isNotEmpty) ...[
-                            SizedBox(height: 12),
-
-                            Text(
-                              explanation,
-                              style: TextStyle(
-                                fontSize: 13,
-                                height: 1.5,
-                                color:
-                                _studyColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ],
+                        ),
+                    ],
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 21,
+                      fontWeight:
+                      FontWeight.bold,
+                      color: _studyColors
+                          .textPrimary,
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  AppCard(
+                    backgroundColor:
+                    _studyColorScheme
+                        .surface,
+                    child: Text(
+                      question,
+                      style: TextStyle(
+                        fontSize: 16,
+                        height: 1.6,
+                        color: _studyColors
+                            .textPrimary,
                       ),
                     ),
-                  ],
-
-                  SizedBox(height: 24),
-
-                  AppButton(
-                    text: _isSubmitted ? '제출 완료' : '정답 제출',
-                    type: AppButtonType.primaryPink,
-                    height: 50,
-                    onPressed:
-                    choices.isEmpty ||
-                        _isSubmitted ||
-                        _isSaving
-                        ? null
-                        : _submitAnswer,
                   ),
+                  SizedBox(height: 20),
+                  for (int i = 0;
+                  i < choices.length;
+                  i++)
+                    _buildChoice(
+                      i,
+                      choices[i],
+                    ),
+                  SizedBox(height: 6),
+                  _buildResultCard(),
+                  SizedBox(height: 16),
+                  if (!_isSubmitted)
+                    AppButton(
+                      text:
+                      _remainingSeconds <=
+                          0
+                          ? '제출 시간이 종료되었습니다.'
+                          : '답안 제출하기',
+                      type: AppButtonType
+                          .primaryPink,
+                      height: 52,
+                      onPressed:
+                      _remainingSeconds <=
+                          0
+                          ? null
+                          : () {
+                        _submitAnswer();
+                      },
+                    ),
+                  if (widget.isOwner) ...[
+                    SizedBox(height: 11),
+                    AppButton(
+                      text: '전체 결과 보기',
+                      type: AppButtonType
+                          .outlinePink,
+                      height: 48,
+                      onPressed: () {
+                        showModalBottomSheet<
+                            void>(
+                          context: context,
+                          isScrollControlled:
+                          true,
+                          backgroundColor:
+                          _studyColorScheme
+                              .surface
+                              .withOpacity(0),
+                          builder:
+                              (bottomSheetContext) {
+                            return _QuizResultSheet(
+                              studyId:
+                              widget.studyId,
+                              quizId:
+                              widget.quizId,
+                              quizData:
+                              widget.quizData,
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1147,6 +2319,611 @@ class _QuizSolvePageState
             Positioned.fill(
               child: LoadingOverlay(),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+
+class _QuizResultSheet
+    extends StatelessWidget {
+  final String studyId;
+  final String quizId;
+  final Map<String, dynamic> quizData;
+
+  const _QuizResultSheet({
+    required this.studyId,
+    required this.quizId,
+    required this.quizData,
+  });
+
+  List<String> _getChoices() {
+    dynamic choices =
+    quizData['choices'];
+
+    if (choices is List) {
+      return choices
+          .map(
+            (choice) =>
+            choice.toString(),
+      )
+          .toList();
+    }
+
+    return [];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height:
+      MediaQuery.of(context).size.height *
+          0.82,
+      decoration: BoxDecoration(
+        color: _studyColorScheme.surface,
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(26),
+        ),
+      ),
+      child: Column(
+        children: [
+          SizedBox(height: 11),
+          Container(
+            width: 42,
+            height: 5,
+            decoration: BoxDecoration(
+              color: _studyColorScheme
+                  .outlineVariant,
+              borderRadius:
+              BorderRadius.circular(10),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              18,
+              12,
+              14,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.analytics_outlined,
+                  color:
+                  _studyColors.pinkStart,
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '문제 결과',
+                    style: TextStyle(
+                      fontSize: 19,
+                      fontWeight:
+                      FontWeight.bold,
+                      color: _studyColors
+                          .textPrimary,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  icon: Icon(
+                    Icons.close_rounded,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1),
+          Expanded(
+            child: StreamBuilder<
+                QuerySnapshot<
+                    Map<String, dynamic>>>(
+              stream: FirebaseFirestore
+                  .instance
+                  .collection('studyGroups')
+                  .doc(studyId)
+                  .collection('members')
+                  .snapshots(),
+              builder: (
+                  context,
+                  memberSnapshot,
+                  ) {
+                if (memberSnapshot
+                    .connectionState ==
+                    ConnectionState.waiting) {
+                  return AppLoadingView(
+                    message:
+                    '그룹원 정보를 불러오는 중입니다.',
+                  );
+                }
+
+                if (memberSnapshot.hasError) {
+                  return AppErrorView(
+                    message:
+                    '그룹원 정보를 불러오지 못했습니다.',
+                    description:
+                    '잠시 후 다시 시도해 주세요.',
+                  );
+                }
+
+                int activeMemberCount = 0;
+
+                if (memberSnapshot.data !=
+                    null) {
+                  for (int i = 0;
+                  i <
+                      memberSnapshot
+                          .data!.docs.length;
+                  i++) {
+                    Map<String, dynamic>
+                    memberData =
+                    memberSnapshot
+                        .data!.docs[i]
+                        .data();
+
+                    String status =
+                        memberData['status']
+                            ?.toString() ??
+                            '';
+
+                    String role =
+                        memberData['role']
+                            ?.toString() ??
+                            'MEMBER';
+
+                    if (status ==
+                        'ACTIVE' ||
+                        role == 'OWNER') {
+                      activeMemberCount++;
+                    }
+                  }
+                }
+
+                return StreamBuilder<
+                    QuerySnapshot<
+                        Map<String, dynamic>>>(
+                  stream: FirebaseFirestore
+                      .instance
+                      .collection(
+                    'studyGroups',
+                  )
+                      .doc(studyId)
+                      .collection('quizzes')
+                      .doc(quizId)
+                      .collection('answers')
+                      .snapshots(),
+                  builder: (
+                      context,
+                      answerSnapshot,
+                      ) {
+                    if (answerSnapshot
+                        .connectionState ==
+                        ConnectionState
+                            .waiting) {
+                      return AppLoadingView(
+                        message:
+                        '문제 결과를 불러오는 중입니다.',
+                      );
+                    }
+
+                    if (answerSnapshot
+                        .hasError) {
+                      return AppErrorView(
+                        message:
+                        '문제 결과를 불러오지 못했습니다.',
+                        description:
+                        '잠시 후 다시 시도해 주세요.',
+                      );
+                    }
+
+                    List<
+                        QueryDocumentSnapshot<
+                            Map<String,
+                                dynamic>>>
+                    answerList =
+                        answerSnapshot
+                            .data?.docs
+                            .where(
+                              (document) {
+                            return document
+                                .data()[
+                            'status']
+                                ?.toString() ==
+                                'SUBMITTED';
+                          },
+                        )
+                            .toList() ??
+                            [];
+
+                    int correctCount = 0;
+                    int timedOutCount = 0;
+
+                    List<String> choices =
+                    _getChoices();
+
+                    List<int> choiceCountList =
+                    List<int>.filled(
+                      choices.length,
+                      0,
+                    );
+
+                    for (int i = 0;
+                    i < answerList.length;
+                    i++) {
+                      Map<String, dynamic>
+                      answerData =
+                      answerList[i].data();
+
+                      if (answerData[
+                      'isCorrect'] ==
+                          true) {
+                        correctCount++;
+                      }
+
+                      if (answerData[
+                      'isTimedOut'] ==
+                          true) {
+                        timedOutCount++;
+                      }
+
+                      dynamic selectedIndex =
+                      answerData[
+                      'selectedAnswerIndex'];
+
+                      int answerIndex = -1;
+
+                      if (selectedIndex is int) {
+                        answerIndex =
+                            selectedIndex;
+                      } else if (selectedIndex
+                      is num) {
+                        answerIndex =
+                            selectedIndex
+                                .toInt();
+                      }
+
+                      if (answerIndex >= 0 &&
+                          answerIndex <
+                              choiceCountList
+                                  .length) {
+                        choiceCountList[
+                        answerIndex]++;
+                      }
+                    }
+
+                    int answerCount =
+                        answerList.length;
+
+                    int wrongCount =
+                        answerCount -
+                            correctCount;
+
+                    int noAnswerCount =
+                        activeMemberCount -
+                            answerCount;
+
+                    if (noAnswerCount < 0) {
+                      noAnswerCount = 0;
+                    }
+
+                    int correctRate = 0;
+
+                    if (answerCount > 0) {
+                      correctRate =
+                          ((correctCount /
+                              answerCount) *
+                              100)
+                              .round();
+                    }
+
+                    return ListView(
+                      padding:
+                      EdgeInsets.fromLTRB(
+                        18,
+                        16,
+                        18,
+                        30,
+                      ),
+                      children: [
+                        Text(
+                          quizData['title']
+                              ?.toString() ??
+                              '발송 문제',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight:
+                            FontWeight.bold,
+                            color: _studyColors
+                                .textPrimary,
+                          ),
+                        ),
+                        SizedBox(height: 14),
+                        Row(
+                          children: [
+                            _buildResultMetric(
+                              '참여',
+                              '$answerCount / '
+                                  '$activeMemberCount명',
+                            ),
+                            SizedBox(width: 8),
+                            _buildResultMetric(
+                              '정답',
+                              '$correctCount명',
+                            ),
+                            SizedBox(width: 8),
+                            _buildResultMetric(
+                              '오답',
+                              '$wrongCount명',
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 8),
+                        Row(
+                          children: [
+                            _buildResultMetric(
+                              '미참여',
+                              '$noAnswerCount명',
+                            ),
+                            SizedBox(width: 8),
+                            _buildResultMetric(
+                              '시간 초과',
+                              '$timedOutCount명',
+                            ),
+                            SizedBox(width: 8),
+                            _buildResultMetric(
+                              '정답률',
+                              '$correctRate%',
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 24),
+                        Text(
+                          '보기별 선택 현황',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight:
+                            FontWeight.bold,
+                            color: _studyColors
+                                .textPrimary,
+                          ),
+                        ),
+                        SizedBox(height: 11),
+                        for (int i = 0;
+                        i < choices.length;
+                        i++)
+                          Container(
+                            margin:
+                            EdgeInsets.only(
+                              bottom: 9,
+                            ),
+                            padding:
+                            EdgeInsets.all(14),
+                            decoration:
+                            BoxDecoration(
+                              color:
+                              _studyColorScheme
+                                  .surface,
+                              borderRadius:
+                              BorderRadius
+                                  .circular(16),
+                              border: Border.all(
+                                color:
+                                _studyColorScheme
+                                    .outlineVariant,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 32,
+                                  height: 32,
+                                  alignment:
+                                  Alignment.center,
+                                  decoration:
+                                  BoxDecoration(
+                                    color:
+                                    _studyColors
+                                        .lavender,
+                                    shape:
+                                    BoxShape.circle,
+                                  ),
+                                  child: Text(
+                                    quizData['quizType']
+                                        ?.toString() ==
+                                        'OX'
+                                        ? choices[i]
+                                        : '${i + 1}',
+                                    style: TextStyle(
+                                      fontWeight:
+                                      FontWeight
+                                          .bold,
+                                      color: _studyColors
+                                          .pinkStart,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(width: 11),
+                                Expanded(
+                                  child: Text(
+                                    choices[i],
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: _studyColors
+                                          .textPrimary,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '${choiceCountList[i]}명',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight:
+                                    FontWeight.bold,
+                                    color: _studyColors
+                                        .pinkStart,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        SizedBox(height: 16),
+                        Text(
+                          '제출자',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight:
+                            FontWeight.bold,
+                            color: _studyColors
+                                .textPrimary,
+                          ),
+                        ),
+                        SizedBox(height: 11),
+                        if (answerList.isEmpty)
+                          SizedBox(
+                            height: 210,
+                            child: AppEmptyView(
+                              message:
+                              '제출된 답안이 없습니다.',
+                              description:
+                              '그룹원이 문제를 풀면 결과가 표시됩니다.',
+                            ),
+                          )
+                        else
+                          for (int i = 0;
+                          i < answerList.length;
+                          i++)
+                            _buildAnswerItem(
+                              answerList[i].data(),
+                            ),
+                      ],
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Widget _buildResultMetric(
+      String label,
+      String value,
+      ) {
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: 8,
+          vertical: 13,
+        ),
+        decoration: BoxDecoration(
+          color: _studyColors.lavender,
+          borderRadius:
+          BorderRadius.circular(15),
+        ),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color:
+                _studyColors.pinkStart,
+              ),
+            ),
+            SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: _studyColors
+                    .textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static Widget _buildAnswerItem(
+      Map<String, dynamic> answerData,
+      ) {
+    String nickname =
+        answerData['userNickname']
+            ?.toString() ??
+            '사용자';
+
+    bool isCorrect =
+        answerData['isCorrect'] == true;
+
+    bool isTimedOut =
+        answerData['isTimedOut'] == true;
+
+    int elapsedSeconds = 0;
+
+    dynamic elapsedValue =
+    answerData['elapsedSeconds'];
+
+    if (elapsedValue is int) {
+      elapsedSeconds = elapsedValue;
+    } else if (elapsedValue is num) {
+      elapsedSeconds =
+          elapsedValue.toInt();
+    }
+
+    return Container(
+      margin: EdgeInsets.only(
+        bottom: 9,
+      ),
+      padding: EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _studyColorScheme.surface,
+        borderRadius:
+        BorderRadius.circular(16),
+        border: Border.all(
+          color:
+          _studyColorScheme.outlineVariant,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isCorrect
+                ? Icons.check_circle_rounded
+                : Icons.cancel_rounded,
+            color: isCorrect
+                ? _studyColorScheme.tertiary
+                : _studyColorScheme.error,
+          ),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              nickname,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color:
+                _studyColors.textPrimary,
+              ),
+            ),
+          ),
+          Text(
+            isTimedOut
+                ? '시간 초과'
+                : '$elapsedSeconds초',
+            style: TextStyle(
+              fontSize: 11,
+              color:
+              _studyColors.textSecondary,
+            ),
+          ),
         ],
       ),
     );

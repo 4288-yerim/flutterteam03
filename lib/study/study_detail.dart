@@ -41,6 +41,8 @@ class StudyDetailPage extends StatelessWidget {
   final String studyId;
   final Map<String, dynamic> studyData;
 
+  static final Set<String> _ownerProfileSyncKeySet = <String>{};
+
   const StudyDetailPage({
     super.key,
     required this.studyId,
@@ -136,6 +138,122 @@ class StudyDetailPage extends StatelessWidget {
     return '$hours시간 $minutes분';
   }
 
+  /// Firestore 날짜 필드를 DateTime으로 변환
+  DateTime? _getDateTime(dynamic value) {
+    if (value is Timestamp) {
+      return value.toDate().toLocal();
+    }
+
+    if (value is DateTime) {
+      return value.toLocal();
+    }
+
+    return null;
+  }
+
+  /// 시험일 표시
+  String _formatExamDate(DateTime examDate) {
+    String year = examDate.year.toString();
+
+    String month =
+    examDate.month.toString().padLeft(2, '0');
+
+    String day =
+    examDate.day.toString().padLeft(2, '0');
+
+    return '$year.$month.$day';
+  }
+
+  /// 시험일까지 남은 날짜 표시
+  String _getDdayText(DateTime examDate) {
+    DateTime now = DateTime.now();
+
+    DateTime today = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    );
+
+    DateTime examDay = DateTime(
+      examDate.year,
+      examDate.month,
+      examDate.day,
+    );
+
+    int difference =
+        examDay.difference(today).inDays;
+
+    if (difference > 0) {
+      return 'D-$difference';
+    }
+
+    if (difference == 0) {
+      return 'D-DAY';
+    }
+
+    return 'D+${difference.abs()}';
+  }
+
+  /// 초 단위 공부시간을 화면용 문구로 변환
+  String _formatGoalTime(int totalSeconds) {
+    if (totalSeconds <= 0) {
+      return '0분';
+    }
+
+    int hours = totalSeconds ~/ 3600;
+    int minutes = (totalSeconds % 3600) ~/ 60;
+
+    if (hours > 0 && minutes > 0) {
+      return '$hours시간 $minutes분';
+    }
+
+    if (hours > 0) {
+      return '$hours시간';
+    }
+
+    return '$minutes분';
+  }
+
+  /// 공부 기록에서 초 단위 공부시간 가져오기
+  int _getRecordStudySeconds(
+      Map<String, dynamic> data,
+      ) {
+    dynamic studySecondsValue =
+    data['studySeconds'];
+
+    if (studySecondsValue is int) {
+      return studySecondsValue;
+    }
+
+    if (studySecondsValue is num) {
+      return studySecondsValue.toInt();
+    }
+
+    dynamic elapsedSecondsValue =
+    data['elapsedSeconds'];
+
+    if (elapsedSecondsValue is int) {
+      return elapsedSecondsValue;
+    }
+
+    if (elapsedSecondsValue is num) {
+      return elapsedSecondsValue.toInt();
+    }
+
+    dynamic studyMinutesValue =
+    data['studyMinutes'];
+
+    if (studyMinutesValue is int) {
+      return studyMinutesValue * 60;
+    }
+
+    if (studyMinutesValue is num) {
+      return (studyMinutesValue * 60).round();
+    }
+
+    return 0;
+  }
+
   /// 안내 메시지 표시
   void _showMessage(
       BuildContext context,
@@ -145,6 +263,166 @@ class StudyDetailPage extends StatelessWidget {
       SnackBar(
         content: Text(message),
       ),
+    );
+  }
+
+  /// users 컬렉션에서 실제 회원 닉네임과 프로필 이미지 조회
+  Future<Map<String, String>> _getUserProfile(
+      String uid,
+      ) async {
+    String nickname = '';
+    String profileImageUrl = '';
+
+    DocumentSnapshot<Map<String, dynamic>> directUserSnapshot =
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
+
+    Map<String, dynamic> userData = {};
+
+    if (directUserSnapshot.exists) {
+      userData = directUserSnapshot.data() ?? {};
+    } else {
+      QuerySnapshot<Map<String, dynamic>> userSnapshot =
+      await FirebaseFirestore.instance
+          .collection('users')
+          .where(
+        'uid',
+        isEqualTo: uid,
+      )
+          .limit(1)
+          .get();
+
+      if (userSnapshot.docs.isNotEmpty) {
+        userData = userSnapshot.docs.first.data();
+      }
+    }
+
+    nickname =
+        userData['nickname']?.toString().trim() ?? '';
+
+    profileImageUrl =
+        userData['profileImageUrl']?.toString().trim() ?? '';
+
+    if (profileImageUrl.isEmpty) {
+      profileImageUrl =
+          userData['photoUrl']?.toString().trim() ?? '';
+    }
+
+    User? currentUser =
+        FirebaseAuth.instance.currentUser;
+
+    if (currentUser != null &&
+        currentUser.uid == uid) {
+      if (nickname.isEmpty) {
+        nickname =
+            currentUser.displayName?.trim() ?? '';
+      }
+
+      if (profileImageUrl.isEmpty) {
+        profileImageUrl =
+            currentUser.photoURL?.trim() ?? '';
+      }
+    }
+
+    return {
+      'nickname': nickname,
+      'profileImageUrl': profileImageUrl,
+    };
+  }
+
+  /// 방장이 상세 화면에 들어오면 실제 회원 닉네임으로 동기화
+  void _scheduleOwnerProfileSync(
+      Map<String, dynamic> currentStudyData,
+      ) {
+    User? currentUser =
+        FirebaseAuth.instance.currentUser;
+
+    String ownerUid =
+        currentStudyData['ownerUid']?.toString() ?? '';
+
+    if (currentUser == null ||
+        ownerUid.isEmpty ||
+        currentUser.uid != ownerUid) {
+      return;
+    }
+
+    String syncKey = '$studyId:$ownerUid';
+
+    if (_ownerProfileSyncKeySet.contains(syncKey)) {
+      return;
+    }
+
+    _ownerProfileSyncKeySet.add(syncKey);
+
+    WidgetsBinding.instance.addPostFrameCallback(
+          (timeStamp) async {
+        try {
+          Map<String, String> profile =
+          await _getUserProfile(ownerUid);
+
+          String nickname =
+              profile['nickname'] ?? '';
+
+          String profileImageUrl =
+              profile['profileImageUrl'] ?? '';
+
+          if (nickname.isEmpty &&
+              profileImageUrl.isEmpty) {
+            return;
+          }
+
+          DocumentReference<Map<String, dynamic>>
+          groupDocument =
+          FirebaseFirestore.instance
+              .collection('studyGroups')
+              .doc(studyId);
+
+          DocumentReference<Map<String, dynamic>>
+          memberDocument =
+          groupDocument
+              .collection('members')
+              .doc(ownerUid);
+
+          Map<String, dynamic> memberUpdateData = {
+            'uid': ownerUid,
+            'role': 'OWNER',
+            'status': 'ACTIVE',
+            'updatedAt': FieldValue.serverTimestamp(),
+          };
+
+          if (nickname.isNotEmpty) {
+            memberUpdateData['nickname'] = nickname;
+          }
+
+          if (profileImageUrl.isNotEmpty) {
+            memberUpdateData['profileImageUrl'] =
+                profileImageUrl;
+          }
+
+          await memberDocument.set(
+            memberUpdateData,
+            SetOptions(merge: true),
+          );
+
+          if (nickname.isNotEmpty) {
+            await groupDocument.set(
+              {
+                'ownerNickname': nickname,
+                'updatedAt': FieldValue.serverTimestamp(),
+              },
+              SetOptions(merge: true),
+            );
+          }
+        } catch (error) {
+          _ownerProfileSyncKeySet.remove(syncKey);
+
+          debugPrint(
+            '방장 닉네임 동기화 오류: $error',
+          );
+        }
+      },
     );
   }
 
@@ -246,6 +524,19 @@ class StudyDetailPage extends StatelessWidget {
       throw Exception('로그인 정보가 없습니다.');
     }
 
+    Map<String, String> inviterProfile =
+    await _getUserProfile(currentUser.uid);
+
+    String inviterNickname =
+        inviterProfile['nickname'] ?? '';
+
+    if (inviterNickname.isEmpty) {
+      inviterNickname = '사용자';
+    }
+
+    String inviterProfileImageUrl =
+        inviterProfile['profileImageUrl'] ?? '';
+
     final normalizedTarget =
     target.trim().toLowerCase();
 
@@ -268,8 +559,9 @@ class StudyDetailPage extends StatelessWidget {
         'groupName': groupName,
 
         'inviterUid': currentUser.uid,
-        'inviterNickname':
-        currentUser.displayName ?? '사용자',
+        'inviterNickname': inviterNickname,
+        'inviterProfileImageUrl':
+        inviterProfileImageUrl,
 
         'inviteeUid': '',
 
@@ -316,10 +608,31 @@ class StudyDetailPage extends StatelessWidget {
       return;
     }
 
-    final ownerNickname =
+    String ownerNickname =
         currentStudyData['ownerNickname']
             ?.toString() ??
             '방장';
+
+    String ownerProfileImageUrl = '';
+
+    User? currentUser =
+        FirebaseAuth.instance.currentUser;
+
+    if (currentUser != null &&
+        currentUser.uid == ownerUid) {
+      Map<String, String> ownerProfile =
+      await _getUserProfile(ownerUid);
+
+      String actualOwnerNickname =
+          ownerProfile['nickname'] ?? '';
+
+      if (actualOwnerNickname.isNotEmpty) {
+        ownerNickname = actualOwnerNickname;
+      }
+
+      ownerProfileImageUrl =
+          ownerProfile['profileImageUrl'] ?? '';
+    }
 
     final ownerMemberDocument =
     FirebaseFirestore.instance
@@ -331,24 +644,47 @@ class StudyDetailPage extends StatelessWidget {
     final ownerMemberSnapshot =
     await ownerMemberDocument.get();
 
-    if (ownerMemberSnapshot.exists) {
-      return;
-    }
-
-    await ownerMemberDocument.set({
+    Map<String, dynamic> ownerMemberData = {
       'uid': ownerUid,
       'nickname': ownerNickname,
       'role': 'OWNER',
       'status': 'ACTIVE',
-      'totalStudyMinutes': 0,
-
-      'joinedAt':
-      currentStudyData['createdAt'] ??
-          FieldValue.serverTimestamp(),
-
       'updatedAt':
       FieldValue.serverTimestamp(),
-    });
+    };
+
+    if (ownerProfileImageUrl.isNotEmpty) {
+      ownerMemberData['profileImageUrl'] =
+          ownerProfileImageUrl;
+    }
+
+    if (ownerMemberSnapshot.exists == false) {
+      ownerMemberData['totalStudyMinutes'] = 0;
+      ownerMemberData['totalStudySeconds'] = 0;
+      ownerMemberData['joinedAt'] =
+          currentStudyData['createdAt'] ??
+              FieldValue.serverTimestamp();
+    }
+
+    await ownerMemberDocument.set(
+      ownerMemberData,
+      SetOptions(merge: true),
+    );
+
+    if (currentUser != null &&
+        currentUser.uid == ownerUid &&
+        ownerNickname.isNotEmpty) {
+      await FirebaseFirestore.instance
+          .collection('studyGroups')
+          .doc(studyId)
+          .set(
+        {
+          'ownerNickname': ownerNickname,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+    }
   }
 
   /// 스터디 수정 화면으로 이동
@@ -364,6 +700,796 @@ class StudyDetailPage extends StatelessWidget {
           studyData: currentStudyData,
         ),
       ),
+    );
+  }
+
+  /// 시험일과 주간 목표 설정 창
+  Future<void> _showStudyGoalDialog(
+      BuildContext context,
+      Map<String, dynamic> currentStudyData,
+      ) async {
+    DateTime? selectedExamDate =
+    _getDateTime(
+      currentStudyData['examDate'],
+    );
+
+    int weeklyGoalMinutes = _getInt(
+      currentStudyData,
+      'weeklyGoalMinutes',
+    );
+
+    int initialGoalHours =
+        weeklyGoalMinutes ~/ 60;
+
+    int initialGoalMinutes =
+        weeklyGoalMinutes % 60;
+
+    TextEditingController hourController =
+    TextEditingController(
+      text: initialGoalHours > 0
+          ? initialGoalHours.toString()
+          : '',
+    );
+
+    TextEditingController minuteController =
+    TextEditingController(
+      text: initialGoalMinutes > 0
+          ? initialGoalMinutes.toString()
+          : '',
+    );
+
+    bool isSaving = false;
+    String inputError = '';
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (
+              context,
+              setDialogState,
+              ) {
+            Future<void> selectExamDate() async {
+              DateTime now = DateTime.now();
+
+              DateTime initialDate =
+                  selectedExamDate ?? now;
+
+              DateTime? pickedDate =
+              await showDatePicker(
+                context: dialogContext,
+                initialDate: initialDate,
+                firstDate: DateTime(
+                  now.year - 5,
+                ),
+                lastDate: DateTime(
+                  now.year + 10,
+                  12,
+                  31,
+                ),
+                helpText: '시험일 선택',
+                cancelText: '취소',
+                confirmText: '선택',
+              );
+
+              if (pickedDate == null) {
+                return;
+              }
+
+              setDialogState(() {
+                selectedExamDate = DateTime(
+                  pickedDate.year,
+                  pickedDate.month,
+                  pickedDate.day,
+                );
+              });
+            }
+
+            Future<void> saveGoal() async {
+              int goalHours =
+                  int.tryParse(
+                    hourController.text.trim(),
+                  ) ??
+                      0;
+
+              int goalMinutes =
+                  int.tryParse(
+                    minuteController.text.trim(),
+                  ) ??
+                      0;
+
+              if (goalHours < 0 ||
+                  goalMinutes < 0) {
+                setDialogState(() {
+                  inputError =
+                  '목표시간은 0 이상으로 입력해 주세요.';
+                });
+
+                return;
+              }
+
+              if (goalMinutes >= 60) {
+                setDialogState(() {
+                  inputError =
+                  '분은 0분부터 59분까지 입력해 주세요.';
+                });
+
+                return;
+              }
+
+              int totalGoalMinutes =
+                  goalHours * 60 +
+                      goalMinutes;
+
+              if (totalGoalMinutes >
+                  7 * 24 * 60) {
+                setDialogState(() {
+                  inputError =
+                  '주간 목표는 최대 168시간까지 설정할 수 있습니다.';
+                });
+
+                return;
+              }
+
+              setDialogState(() {
+                isSaving = true;
+                inputError = '';
+              });
+
+              try {
+                await FirebaseFirestore.instance
+                    .collection('studyGroups')
+                    .doc(studyId)
+                    .update({
+                  'examDate':
+                  selectedExamDate == null
+                      ? null
+                      : Timestamp.fromDate(
+                    selectedExamDate!,
+                  ),
+                  'weeklyGoalMinutes':
+                  totalGoalMinutes,
+                  'updatedAt':
+                  FieldValue.serverTimestamp(),
+                });
+
+                if (!dialogContext.mounted) {
+                  return;
+                }
+
+                Navigator.pop(
+                  dialogContext,
+                );
+
+                if (!context.mounted) {
+                  return;
+                }
+
+                _showMessage(
+                  context,
+                  '시험일과 주간 목표를 저장했습니다.',
+                );
+              } catch (error) {
+                debugPrint(
+                  '시험일·주간 목표 저장 오류: $error',
+                );
+
+                if (!dialogContext.mounted) {
+                  return;
+                }
+
+                setDialogState(() {
+                  isSaving = false;
+                  inputError =
+                  '시험일과 주간 목표를 저장하지 못했습니다.';
+                });
+              }
+            }
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius:
+                BorderRadius.circular(22),
+              ),
+              title: Row(
+                children: [
+                  Icon(
+                    Icons
+                        .event_available_rounded,
+                    color:
+                    _studyColors.pinkStart,
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '시험일·주간 목표 설정',
+                    ),
+                  ),
+                ],
+              ),
+              content:
+              SingleChildScrollView(
+                child: Column(
+                  mainAxisSize:
+                  MainAxisSize.min,
+                  crossAxisAlignment:
+                  CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '시험일',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight:
+                        FontWeight.bold,
+                        color: _studyColors
+                            .textPrimary,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    InkWell(
+                      borderRadius:
+                      BorderRadius.circular(
+                        14,
+                      ),
+                      onTap: isSaving
+                          ? null
+                          : selectExamDate,
+                      child: Container(
+                        width: double.infinity,
+                        padding:
+                        EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        decoration:
+                        BoxDecoration(
+                          color:
+                          _studyColorScheme
+                              .surface,
+                          borderRadius:
+                          BorderRadius.circular(
+                            14,
+                          ),
+                          border: Border.all(
+                            color:
+                            _studyColorScheme
+                                .outlineVariant,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons
+                                  .calendar_month_outlined,
+                              color: _studyColors
+                                  .pinkStart,
+                            ),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                selectedExamDate ==
+                                    null
+                                    ? '시험일을 선택해 주세요.'
+                                    : _formatExamDate(
+                                  selectedExamDate!,
+                                ),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: selectedExamDate ==
+                                      null
+                                      ? _studyColors
+                                      .textSecondary
+                                      : _studyColors
+                                      .textPrimary,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              Icons
+                                  .chevron_right_rounded,
+                              color: _studyColors
+                                  .textSecondary,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (selectedExamDate !=
+                        null)
+                      Align(
+                        alignment:
+                        Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: isSaving
+                              ? null
+                              : () {
+                            setDialogState(
+                                  () {
+                                selectedExamDate =
+                                null;
+                              },
+                            );
+                          },
+                          child: Text(
+                            '시험일 삭제',
+                            style: TextStyle(
+                              color:
+                              _studyColorScheme
+                                  .error,
+                            ),
+                          ),
+                        ),
+                      ),
+                    SizedBox(height: 14),
+                    Text(
+                      '이번 주 그룹 목표',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight:
+                        FontWeight.bold,
+                        color: _studyColors
+                            .textPrimary,
+                      ),
+                    ),
+                    SizedBox(height: 5),
+                    Text(
+                      '그룹원 전체의 월요일부터 일요일까지 공부시간을 합산합니다.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        height: 1.4,
+                        color: _studyColors
+                            .textSecondary,
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller:
+                            hourController,
+                            enabled: !isSaving,
+                            keyboardType:
+                            TextInputType
+                                .number,
+                            decoration:
+                            InputDecoration(
+                              labelText: '시간',
+                              hintText: '예: 20',
+                              suffixText: '시간',
+                              border:
+                              OutlineInputBorder(
+                                borderRadius:
+                                BorderRadius
+                                    .circular(
+                                  14,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller:
+                            minuteController,
+                            enabled: !isSaving,
+                            keyboardType:
+                            TextInputType
+                                .number,
+                            decoration:
+                            InputDecoration(
+                              labelText: '분',
+                              hintText: '예: 30',
+                              suffixText: '분',
+                              border:
+                              OutlineInputBorder(
+                                borderRadius:
+                                BorderRadius
+                                    .circular(
+                                  14,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 7),
+                    Text(
+                      '시간과 분을 모두 비우거나 0으로 저장하면 주간 목표가 해제됩니다.',
+                      style: TextStyle(
+                        fontSize: 10,
+                        height: 1.4,
+                        color: _studyColors
+                            .textSecondary,
+                      ),
+                    ),
+                    if (inputError.isNotEmpty) ...[
+                      SizedBox(height: 11),
+                      Text(
+                        inputError,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color:
+                          _studyColorScheme
+                              .error,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving
+                      ? null
+                      : () {
+                    Navigator.pop(
+                      dialogContext,
+                    );
+                  },
+                  child: Text('취소'),
+                ),
+                ElevatedButton(
+                  onPressed:
+                  isSaving ? null : saveGoal,
+                  style:
+                  ElevatedButton.styleFrom(
+                    backgroundColor:
+                    _studyColors.pinkStart,
+                    foregroundColor:
+                    _studyColorScheme
+                        .onPrimary,
+                  ),
+                  child: isSaving
+                      ? SizedBox(
+                    width: 18,
+                    height: 18,
+                    child:
+                    CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color:
+                      _studyColorScheme
+                          .onPrimary,
+                    ),
+                  )
+                      : Text('저장'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    hourController.dispose();
+    minuteController.dispose();
+  }
+
+  /// 시험일과 주간 목표 카드
+  Widget _buildStudyGoalCard(
+      BuildContext context,
+      Map<String, dynamic> currentStudyData,
+      bool isOwner,
+      ) {
+    DateTime? examDate =
+    _getDateTime(
+      currentStudyData['examDate'],
+    );
+
+    int weeklyGoalMinutes = _getInt(
+      currentStudyData,
+      'weeklyGoalMinutes',
+    );
+
+    DateTime now = DateTime.now();
+
+    DateTime today = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    );
+
+    DateTime weekStart =
+    today.subtract(
+      Duration(
+        days: today.weekday - 1,
+      ),
+    );
+
+    DateTime nextWeekStart =
+    weekStart.add(
+      Duration(days: 7),
+    );
+
+    Stream<
+        QuerySnapshot<
+            Map<String, dynamic>>>
+    recordStream =
+    FirebaseFirestore.instance
+        .collection('studyGroups')
+        .doc(studyId)
+        .collection('studyRecords')
+        .where(
+      'endedAt',
+      isGreaterThanOrEqualTo:
+      Timestamp.fromDate(
+        weekStart,
+      ),
+    )
+        .where(
+      'endedAt',
+      isLessThan:
+      Timestamp.fromDate(
+        nextWeekStart,
+      ),
+    )
+        .snapshots();
+
+    return StreamBuilder<
+        QuerySnapshot<
+            Map<String, dynamic>>>(
+      stream: recordStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState ==
+            ConnectionState.waiting) {
+          return SizedBox(
+            height: 190,
+            child: AppLoadingView(
+              message:
+              '시험일과 주간 목표를 불러오는 중입니다.',
+            ),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return SizedBox(
+            height: 220,
+            child: _isNetworkError(
+              snapshot.error,
+            )
+                ? AppNetworkErrorView(
+              message:
+              '인터넷 연결을 확인해 주세요.',
+              description:
+              '네트워크 연결 후 목표 정보를 다시 불러와 주세요.',
+              onRetryPressed: () {
+                _retryDetailPage(
+                  context,
+                );
+              },
+            )
+                : AppErrorView(
+              message:
+              '목표 정보를 불러오지 못했습니다.',
+              description:
+              '잠시 후 다시 시도해 주세요.',
+              onRetryPressed: () {
+                _retryDetailPage(
+                  context,
+                );
+              },
+            ),
+          );
+        }
+
+        int weeklyStudySeconds = 0;
+
+        if (snapshot.data != null) {
+          for (int i = 0;
+          i <
+              snapshot
+                  .data!.docs.length;
+          i++) {
+            weeklyStudySeconds +=
+                _getRecordStudySeconds(
+                  snapshot.data!.docs[i]
+                      .data(),
+                );
+          }
+        }
+
+        int weeklyGoalSeconds =
+            weeklyGoalMinutes * 60;
+
+        double progress = 0;
+
+        if (weeklyGoalSeconds > 0) {
+          progress =
+              weeklyStudySeconds /
+                  weeklyGoalSeconds;
+
+          if (progress > 1) {
+            progress = 1;
+          }
+        }
+
+        int progressPercent =
+        (progress * 100).round();
+
+        String ddayText =
+        examDate == null
+            ? '시험일 미설정'
+            : _getDdayText(
+          examDate,
+        );
+
+        String examDateText =
+        examDate == null
+            ? '방장이 시험일을 설정할 수 있습니다.'
+            : '${_formatExamDate(examDate)} 시험';
+
+        String goalText =
+        weeklyGoalMinutes > 0
+            ? '${_formatGoalTime(weeklyStudySeconds)} / '
+            '${_formatGoalTime(weeklyGoalSeconds)}'
+            : '주간 목표 미설정';
+
+        bool hasGoalSetting =
+            examDate != null ||
+                weeklyGoalMinutes > 0;
+
+        return AppCard(
+          backgroundColor:
+          _studyColorScheme.surface,
+          child: Column(
+            crossAxisAlignment:
+            CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration:
+                    BoxDecoration(
+                      color:
+                      _studyColors.pinkSoft,
+                      borderRadius:
+                      BorderRadius.circular(
+                        16,
+                      ),
+                    ),
+                    child: Icon(
+                      Icons
+                          .event_available_rounded,
+                      color:
+                      _studyColors.pinkStart,
+                    ),
+                  ),
+                  SizedBox(width: 13),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                      CrossAxisAlignment
+                          .start,
+                      children: [
+                        Text(
+                          ddayText,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight:
+                            FontWeight.bold,
+                            color: _studyColors
+                                .pinkStart,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          examDateText,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: _studyColors
+                                .textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (isOwner)
+                    TextButton(
+                      onPressed: () {
+                        _showStudyGoalDialog(
+                          context,
+                          currentStudyData,
+                        );
+                      },
+                      child: Text(
+                        hasGoalSetting
+                            ? '수정'
+                            : '설정',
+                        style: TextStyle(
+                          color: _studyColors
+                              .pinkStart,
+                          fontWeight:
+                          FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '이번 주 그룹 목표',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight:
+                        FontWeight.bold,
+                        color: _studyColors
+                            .textPrimary,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    goalText,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight:
+                      FontWeight.w600,
+                      color: _studyColors
+                          .pinkStart,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 10),
+              ClipRRect(
+                borderRadius:
+                BorderRadius.circular(
+                  10,
+                ),
+                child:
+                LinearProgressIndicator(
+                  minHeight: 9,
+                  value: progress,
+                  backgroundColor:
+                  _studyColors.pinkSoft,
+                  valueColor:
+                  AlwaysStoppedAnimation<
+                      Color>(
+                    _studyColors.pinkStart,
+                  ),
+                ),
+              ),
+              SizedBox(height: 9),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      weeklyGoalMinutes > 0
+                          ? '월요일부터 일요일까지 그룹원 공부시간을 합산합니다.'
+                          : '방장이 주간 목표시간을 설정하면 달성률이 표시됩니다.',
+                      style: TextStyle(
+                        fontSize: 10,
+                        height: 1.4,
+                        color: _studyColors
+                            .textSecondary,
+                      ),
+                    ),
+                  ),
+                  if (weeklyGoalMinutes >
+                      0)
+                    Text(
+                      '$progressPercent%',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight:
+                        FontWeight.bold,
+                        color: _studyColors
+                            .pinkStart,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -2355,6 +3481,7 @@ class StudyDetailPage extends StatelessWidget {
       await memberDocument.get();
 
       int totalStudyMinutes = 0;
+      int totalStudySeconds = 0;
 
       if (memberSnapshot.exists) {
         Map<String, dynamic> oldMemberData =
@@ -2366,6 +3493,11 @@ class StudyDetailPage extends StatelessWidget {
         totalStudyMinutes = _getInt(
           oldMemberData,
           'totalStudyMinutes',
+        );
+
+        totalStudySeconds = _getInt(
+          oldMemberData,
+          'totalStudySeconds',
         );
 
         if (oldStatus == 'ACTIVE') {
@@ -2400,21 +3532,29 @@ class StudyDetailPage extends StatelessWidget {
         groupData['joinApprovalRequired'];
       }
 
-      String nickname = '사용자';
+      Map<String, String> userProfile =
+      await _getUserProfile(currentUser.uid);
 
-      if (currentUser.displayName != null &&
-          currentUser.displayName!.trim().isNotEmpty) {
-        nickname = currentUser.displayName!.trim();
+      String nickname =
+          userProfile['nickname'] ?? '';
+
+      if (nickname.isEmpty) {
+        nickname = '사용자';
       }
+
+      String profileImageUrl =
+          userProfile['profileImageUrl'] ?? '';
 
       if (joinApprovalRequired) {
         await memberDocument.set(
           {
             'uid': currentUser.uid,
             'nickname': nickname,
+            'profileImageUrl': profileImageUrl,
             'role': 'MEMBER',
             'status': 'PENDING',
             'totalStudyMinutes': totalStudyMinutes,
+            'totalStudySeconds': totalStudySeconds,
             'requestedAt': FieldValue.serverTimestamp(),
             'updatedAt': FieldValue.serverTimestamp(),
           },
@@ -2448,9 +3588,11 @@ class StudyDetailPage extends StatelessWidget {
         {
           'uid': currentUser.uid,
           'nickname': nickname,
+          'profileImageUrl': profileImageUrl,
           'role': 'MEMBER',
           'status': 'ACTIVE',
           'totalStudyMinutes': totalStudyMinutes,
+          'totalStudySeconds': totalStudySeconds,
           'joinedAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         },
@@ -2876,7 +4018,7 @@ class StudyDetailPage extends StatelessWidget {
 
             _buildMenuButton(
               icon: Icons.logout,
-              title: '스터디 나가기',
+              title: '스터디방 나가기',
               description: '현재 스터디에서 나가요.',
               onTap: () {
                 _showLeaveDialog(context);
@@ -2938,7 +4080,7 @@ class StudyDetailPage extends StatelessWidget {
             SizedBox(height: 12),
             _buildMenuButton(
               icon: Icons.logout,
-              title: '스터디 나가기',
+              title: '스터디방 나가기',
               description: '현재 스터디에서 나가요.',
               onTap: () {
                 _showLeaveDialog(context);
@@ -3377,11 +4519,14 @@ class StudyDetailPage extends StatelessWidget {
       throw Exception('본인은 신고할 수 없습니다.');
     }
 
-    String reporterNickname = '사용자';
+    Map<String, String> reporterProfile =
+    await _getUserProfile(currentUser.uid);
 
-    if (currentUser.displayName != null &&
-        currentUser.displayName!.trim().isNotEmpty) {
-      reporterNickname = currentUser.displayName!.trim();
+    String reporterNickname =
+        reporterProfile['nickname'] ?? '';
+
+    if (reporterNickname.isEmpty) {
+      reporterNickname = '사용자';
     }
 
     await FirebaseFirestore.instance
@@ -3820,7 +4965,7 @@ class StudyDetailPage extends StatelessWidget {
               setDialogState,
               ) {
             return AlertDialog(
-              title: Text('스터디 나가기'),
+              title: Text('스터디방 나가기'),
               content: Text(
                 '이 스터디에서 나가시겠습니까?\n\n'
                     '나간 뒤에는 다시 참여해야 스터디 활동을 이용할 수 있습니다.',
@@ -4201,6 +5346,12 @@ class StudyDetailPage extends StatelessWidget {
         bool isRecruiting = _isRecruiting(currentStudyData);
         User? currentUser = FirebaseAuth.instance.currentUser;
 
+        if (isOwner) {
+          _scheduleOwnerProfileSync(
+            currentStudyData,
+          );
+        }
+
         return Scaffold(
           appBar: AppTopBar(
             title: '스터디 상세',
@@ -4225,6 +5376,13 @@ class StudyDetailPage extends StatelessWidget {
 
                     if (value == 'member') {
                       _openMemberManagement(
+                        context,
+                        currentStudyData,
+                      );
+                    }
+
+                    if (value == 'goal') {
+                      _showStudyGoalDialog(
                         context,
                         currentStudyData,
                       );
@@ -4288,6 +5446,19 @@ class StudyDetailPage extends StatelessWidget {
                             ),
                             SizedBox(width: 10),
                             Text('그룹원 관리'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'goal',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.event_available_outlined,
+                              size: 20,
+                            ),
+                            SizedBox(width: 10),
+                            Text('시험일·주간 목표 설정'),
                           ],
                         ),
                       ),
@@ -4389,7 +5560,7 @@ class StudyDetailPage extends StatelessWidget {
                                 ),
                                 SizedBox(width: 10),
                                 Text(
-                                  '스터디 나가기',
+                                  '스터디방 나가기',
                                   style: TextStyle(
                                     color: _studyColorScheme.error,
                                   ),
@@ -4491,6 +5662,12 @@ class StudyDetailPage extends StatelessWidget {
                         ),
                       ],
                     ),
+                  ),
+                  SizedBox(height: 12),
+                  _buildStudyGoalCard(
+                    context,
+                    currentStudyData,
+                    isOwner,
                   ),
                   SizedBox(height: 12),
                   _buildJoinArea(

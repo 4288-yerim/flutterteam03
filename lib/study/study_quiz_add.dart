@@ -31,6 +31,7 @@ ColorScheme get _quizAddColorScheme {
   return lightTheme.colorScheme;
 }
 
+
 class StudyQuizAddPage extends StatefulWidget {
   final String studyId;
   final String groupName;
@@ -47,12 +48,15 @@ class StudyQuizAddPage extends StatefulWidget {
   }
 }
 
-class _StudyQuizAddPageState
-    extends State<StudyQuizAddPage> {
+
+class _StudyQuizAddPageState extends State<StudyQuizAddPage> {
   final GlobalKey<FormState> _formKey =
   GlobalKey<FormState>();
 
   final TextEditingController _titleController =
+  TextEditingController();
+
+  final TextEditingController _subjectController =
   TextEditingController();
 
   final TextEditingController _questionController =
@@ -78,12 +82,27 @@ class _StudyQuizAddPageState
     text: '10',
   );
 
+  String _quizType = 'MULTIPLE_CHOICE';
+  String _answerRevealType = 'AFTER_SUBMIT';
+
   int _correctAnswerIndex = 0;
+  int _timeLimitSeconds = 60;
+  int _deadlineHours = 24;
+
   bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _choice1Controller.text = '';
+    _choice2Controller.text = '';
+  }
 
   @override
   void dispose() {
     _titleController.dispose();
+    _subjectController.dispose();
     _questionController.dispose();
     _choice1Controller.dispose();
     _choice2Controller.dispose();
@@ -96,6 +115,10 @@ class _StudyQuizAddPageState
   }
 
   void _showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -107,7 +130,8 @@ class _StudyQuizAddPageState
       String? value,
       String fieldName,
       ) {
-    if (value == null || value.trim().isEmpty) {
+    if (value == null ||
+        value.trim().isEmpty) {
       return '$fieldName을 입력해 주세요.';
     }
 
@@ -116,7 +140,10 @@ class _StudyQuizAddPageState
 
   int _getPoint() {
     int point =
-        int.tryParse(_pointController.text.trim()) ?? 0;
+        int.tryParse(
+          _pointController.text.trim(),
+        ) ??
+            0;
 
     if (point < 0) {
       point = 0;
@@ -129,31 +156,52 @@ class _StudyQuizAddPageState
     return point;
   }
 
-  /// 방장 여부 확인
+  List<String> _getChoices() {
+    if (_quizType == 'OX') {
+      return [
+        'O',
+        'X',
+      ];
+    }
+
+    return [
+      _choice1Controller.text.trim(),
+      _choice2Controller.text.trim(),
+      _choice3Controller.text.trim(),
+      _choice4Controller.text.trim(),
+    ];
+  }
+
   Future<bool> _checkOwner(
       User currentUser,
       ) async {
-    DocumentSnapshot<Map<String, dynamic>> groupSnapshot =
+    DocumentSnapshot<Map<String, dynamic>>
+    groupSnapshot =
     await FirebaseFirestore.instance
         .collection('studyGroups')
         .doc(widget.studyId)
         .get();
 
-    if (groupSnapshot.exists == false) {
-      throw Exception('스터디 정보를 찾을 수 없습니다.');
+    if (!groupSnapshot.exists) {
+      throw Exception(
+        '스터디 정보를 찾을 수 없습니다.',
+      );
     }
 
     Map<String, dynamic> groupData =
         groupSnapshot.data() ?? {};
 
     String ownerUid =
-        groupData['ownerUid']?.toString() ?? '';
+        groupData['ownerUid']
+            ?.toString() ??
+            '';
 
     if (ownerUid == currentUser.uid) {
       return true;
     }
 
-    DocumentSnapshot<Map<String, dynamic>> memberSnapshot =
+    DocumentSnapshot<Map<String, dynamic>>
+    memberSnapshot =
     await FirebaseFirestore.instance
         .collection('studyGroups')
         .doc(widget.studyId)
@@ -161,30 +209,27 @@ class _StudyQuizAddPageState
         .doc(currentUser.uid)
         .get();
 
-    if (memberSnapshot.exists) {
-      Map<String, dynamic> memberData =
-          memberSnapshot.data() ?? {};
-
-      String role =
-          memberData['role']?.toString() ?? '';
-
-      if (role == 'OWNER') {
-        return true;
-      }
+    if (!memberSnapshot.exists) {
+      return false;
     }
 
-    return false;
+    String role =
+        memberSnapshot.data()?['role']
+            ?.toString() ??
+            '';
+
+    return role == 'OWNER';
   }
 
-  /// 발송자 닉네임 가져오기
-  Future<String> _getSenderNickname(
+  Future<Map<String, String>> _getSenderProfile(
       User currentUser,
       ) async {
-    String nickname =
-        currentUser.displayName?.trim() ?? '';
+    String nickname = '';
+    String profileImageUrl = '';
 
     try {
-      DocumentSnapshot<Map<String, dynamic>> memberSnapshot =
+      DocumentSnapshot<Map<String, dynamic>>
+      memberSnapshot =
       await FirebaseFirestore.instance
           .collection('studyGroups')
           .doc(widget.studyId)
@@ -196,25 +241,103 @@ class _StudyQuizAddPageState
         Map<String, dynamic> memberData =
             memberSnapshot.data() ?? {};
 
-        String memberNickname =
-            memberData['nickname']?.toString().trim() ?? '';
+        nickname =
+            memberData['nickname']
+                ?.toString()
+                .trim() ??
+                '';
 
-        if (memberNickname.isNotEmpty) {
-          nickname = memberNickname;
+        profileImageUrl =
+            memberData['profileImageUrl']
+                ?.toString()
+                .trim() ??
+                '';
+      }
+
+      if (nickname.isEmpty ||
+          profileImageUrl.isEmpty) {
+        DocumentSnapshot<Map<String, dynamic>>
+        directUserSnapshot =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .get();
+
+        Map<String, dynamic> userData = {};
+
+        if (directUserSnapshot.exists) {
+          userData =
+              directUserSnapshot.data() ?? {};
+        } else {
+          QuerySnapshot<Map<String, dynamic>>
+          userSnapshot =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .where(
+            'uid',
+            isEqualTo: currentUser.uid,
+          )
+              .limit(1)
+              .get();
+
+          if (userSnapshot.docs.isNotEmpty) {
+            userData =
+                userSnapshot.docs.first.data();
+          }
+        }
+
+        if (nickname.isEmpty) {
+          nickname =
+              userData['nickname']
+                  ?.toString()
+                  .trim() ??
+                  '';
+        }
+
+        if (profileImageUrl.isEmpty) {
+          profileImageUrl =
+              userData['profileImageUrl']
+                  ?.toString()
+                  .trim() ??
+                  '';
+
+          if (profileImageUrl.isEmpty) {
+            profileImageUrl =
+                userData['photoUrl']
+                    ?.toString()
+                    .trim() ??
+                    '';
+          }
         }
       }
     } catch (error) {
-      debugPrint('문제 발송자 닉네임 조회 오류: $error');
+      debugPrint(
+        '문제 발송자 정보 조회 오류: $error',
+      );
+    }
+
+    if (nickname.isEmpty) {
+      nickname =
+          currentUser.displayName?.trim() ??
+              '';
+    }
+
+    if (profileImageUrl.isEmpty) {
+      profileImageUrl =
+          currentUser.photoURL?.trim() ??
+              '';
     }
 
     if (nickname.isEmpty) {
       nickname = '방장';
     }
 
-    return nickname;
+    return {
+      'nickname': nickname,
+      'profileImageUrl': profileImageUrl,
+    };
   }
 
-  /// Firestore에 문제 발송
   Future<void> _sendQuiz() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -222,6 +345,21 @@ class _StudyQuizAddPageState
 
     if (_isSaving) {
       return;
+    }
+
+    if (_quizType == 'MULTIPLE_CHOICE') {
+      List<String> choices = _getChoices();
+
+      for (int i = 0;
+      i < choices.length;
+      i++) {
+        if (choices[i].isEmpty) {
+          _showMessage(
+            '${i + 1}번 보기를 입력해 주세요.',
+          );
+          return;
+        }
+      }
     }
 
     FocusScope.of(context).unfocus();
@@ -235,88 +373,205 @@ class _StudyQuizAddPageState
           FirebaseAuth.instance.currentUser;
 
       if (currentUser == null) {
-        throw Exception('로그인 정보가 없습니다.');
+        throw Exception(
+          '로그인 정보가 없습니다.',
+        );
       }
 
       bool isOwner =
       await _checkOwner(currentUser);
 
-      if (isOwner == false) {
-        throw Exception('방장만 문제를 발송할 수 있습니다.');
+      if (!isOwner) {
+        throw Exception(
+          '방장만 문제를 발송할 수 있습니다.',
+        );
       }
 
+      Map<String, String> senderProfile =
+      await _getSenderProfile(
+        currentUser,
+      );
+
       String senderNickname =
-      await _getSenderNickname(currentUser);
+          senderProfile['nickname'] ??
+              '방장';
 
-      List<String> choices = [
-        _choice1Controller.text.trim(),
-        _choice2Controller.text.trim(),
-        _choice3Controller.text.trim(),
-        _choice4Controller.text.trim(),
-      ];
+      String senderProfileImageUrl =
+          senderProfile[
+          'profileImageUrl'] ??
+              '';
 
-      await FirebaseFirestore.instance
+      DateTime now = DateTime.now();
+
+      DateTime deadlineAt =
+      now.add(
+        Duration(
+          hours: _deadlineHours,
+        ),
+      );
+
+      DocumentReference<Map<String, dynamic>>
+      quizDocument =
+      FirebaseFirestore.instance
           .collection('studyGroups')
           .doc(widget.studyId)
           .collection('quizzes')
-          .add({
-        'groupId': widget.studyId,
-        'groupName': widget.groupName,
+          .doc();
 
-        'title':
-        _titleController.text.trim(),
+      DocumentReference<Map<String, dynamic>>
+      chatDocument =
+      FirebaseFirestore.instance
+          .collection('chats')
+          .doc(widget.studyId);
 
-        'question':
-        _questionController.text.trim(),
+      DocumentReference<Map<String, dynamic>>
+      messageDocument =
+      chatDocument
+          .collection('messages')
+          .doc();
 
-        'choices': choices,
+      String title =
+      _titleController.text.trim();
 
-        'correctAnswerIndex':
-        _correctAnswerIndex,
+      String subject =
+      _subjectController.text.trim();
 
-        'explanation':
-        _explanationController.text.trim(),
+      WriteBatch batch =
+      FirebaseFirestore.instance.batch();
 
-        'point': _getPoint(),
+      batch.set(
+        quizDocument,
+        {
+          'groupId': widget.studyId,
+          'groupName': widget.groupName,
+          'title': title,
+          'subject': subject,
+          'question':
+          _questionController.text.trim(),
+          'quizType': _quizType,
+          'choices': _getChoices(),
+          'correctAnswerIndex':
+          _correctAnswerIndex,
+          'explanation':
+          _explanationController.text.trim(),
+          'point': _getPoint(),
+          'timeLimitSeconds':
+          _timeLimitSeconds,
+          'deadlineAt':
+          Timestamp.fromDate(deadlineAt),
+          'answerRevealType':
+          _answerRevealType,
+          'senderUid': currentUser.uid,
+          'senderNickname':
+          senderNickname,
+          'senderProfileImageUrl':
+          senderProfileImageUrl,
+          'status': 'ACTIVE',
+          'answerCount': 0,
+          'correctAnswerCount': 0,
+          'wrongAnswerCount': 0,
+          'createdAt':
+          FieldValue.serverTimestamp(),
+          'updatedAt':
+          FieldValue.serverTimestamp(),
+        },
+      );
 
-        'senderUid': currentUser.uid,
-        'senderNickname': senderNickname,
+      batch.set(
+        messageDocument,
+        {
+          'senderUid': currentUser.uid,
+          'senderNickname':
+          senderNickname,
+          'senderProfileImageUrl':
+          senderProfileImageUrl,
+          'message':
+          '새 문제가 발송되었습니다.',
+          'messageType': 'QUIZ',
+          'quizId': quizDocument.id,
+          'quizTitle': title,
+          'quizSubject': subject,
+          'quizType': _quizType,
+          'quizTimeLimitSeconds':
+          _timeLimitSeconds,
+          'quizDeadlineAt':
+          Timestamp.fromDate(deadlineAt),
+          'replyMessageId': '',
+          'replySenderNickname': '',
+          'replyMessage': '',
+          'readBy': [
+            currentUser.uid,
+          ],
+          'hiddenFor': [],
+          'isDeleted': false,
+          'isEdited': false,
+          'createdAt':
+          FieldValue.serverTimestamp(),
+          'updatedAt':
+          FieldValue.serverTimestamp(),
+        },
+      );
 
-        'status': 'ACTIVE',
-        'answerCount': 0,
-        'correctAnswerCount': 0,
+      batch.set(
+        chatDocument,
+        {
+          'chatType': 'GROUP',
+          'groupId': widget.studyId,
+          'groupName': widget.groupName,
+          'lastMessage':
+          '새 퀴즈: $title',
+          'lastMessageId':
+          messageDocument.id,
+          'lastSenderUid':
+          currentUser.uid,
+          'lastSenderNickname':
+          senderNickname,
+          'updatedAt':
+          FieldValue.serverTimestamp(),
+        },
+        SetOptions(
+          merge: true,
+        ),
+      );
 
-        'createdAt':
-        FieldValue.serverTimestamp(),
-
-        'updatedAt':
-        FieldValue.serverTimestamp(),
-      });
+      await batch.commit();
 
       if (!mounted) {
         return;
       }
 
-      _showMessage('문제가 발송되었습니다.');
+      _showMessage(
+        '문제가 발송되었습니다.',
+      );
 
-      Navigator.pop(context, true);
+      Navigator.pop(
+        context,
+        true,
+      );
     } catch (error) {
-      debugPrint('문제 발송 오류: $error');
+      debugPrint(
+        '문제 발송 오류: $error',
+      );
 
       if (!mounted) {
         return;
       }
 
-      String message = '문제를 발송하지 못했습니다.';
+      String message =
+          '문제를 발송하지 못했습니다.';
 
-      String errorText = error.toString();
+      String errorText =
+      error.toString();
 
       if (errorText.contains('방장만')) {
-        message = '방장만 문제를 발송할 수 있습니다.';
+        message =
+        '방장만 문제를 발송할 수 있습니다.';
       } else if (errorText.contains('로그인')) {
-        message = '로그인 정보가 없습니다.';
+        message =
+        '로그인 정보가 없습니다.';
       } else if (errorText.contains('스터디 정보')) {
-        message = '스터디 정보를 찾을 수 없습니다.';
+        message =
+        '스터디 정보를 찾을 수 없습니다.';
       }
 
       _showMessage(message);
@@ -334,14 +589,16 @@ class _StudyQuizAddPageState
       String description,
       ) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+      CrossAxisAlignment.start,
       children: [
         Text(
           title,
           style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.bold,
-            color: _quizAddColors.textPrimary,
+            color:
+            _quizAddColors.textPrimary,
           ),
         ),
         SizedBox(height: 4),
@@ -349,7 +606,8 @@ class _StudyQuizAddPageState
           description,
           style: TextStyle(
             fontSize: 12,
-            color: _quizAddColors.textSecondary,
+            color:
+            _quizAddColors.textSecondary,
           ),
         ),
       ],
@@ -362,8 +620,10 @@ class _StudyQuizAddPageState
     required String fieldName,
     int maxLines = 1,
     int? maxLength,
-    TextInputType keyboardType = TextInputType.text,
-    List<TextInputFormatter>? inputFormatters,
+    TextInputType keyboardType =
+        TextInputType.text,
+    List<TextInputFormatter>?
+    inputFormatters,
     bool required = true,
   }) {
     return TextFormField(
@@ -371,7 +631,8 @@ class _StudyQuizAddPageState
       maxLines: maxLines,
       maxLength: maxLength,
       keyboardType: keyboardType,
-      inputFormatters: inputFormatters,
+      inputFormatters:
+      inputFormatters,
       validator: required
           ? (value) {
         return _validateRequired(
@@ -383,40 +644,54 @@ class _StudyQuizAddPageState
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: TextStyle(
-          color: _quizAddColors.textSecondary,
+          color:
+          _quizAddColors.textSecondary,
           fontSize: 13,
         ),
         counterText: '',
         filled: true,
-        fillColor: _quizAddColorScheme.surface,
-        contentPadding: EdgeInsets.symmetric(
+        fillColor:
+        _quizAddColorScheme.surface,
+        contentPadding:
+        EdgeInsets.symmetric(
           horizontal: 15,
           vertical: 14,
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+        enabledBorder:
+        OutlineInputBorder(
+          borderRadius:
+          BorderRadius.circular(14),
           borderSide: BorderSide(
-            color:
-            _quizAddColorScheme.outlineVariant,
+            color: _quizAddColorScheme
+                .outlineVariant,
           ),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+        focusedBorder:
+        OutlineInputBorder(
+          borderRadius:
+          BorderRadius.circular(14),
           borderSide: BorderSide(
-            color: _quizAddColors.pinkStart,
+            color:
+            _quizAddColors.pinkStart,
             width: 1.5,
           ),
         ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+        errorBorder:
+        OutlineInputBorder(
+          borderRadius:
+          BorderRadius.circular(14),
           borderSide: BorderSide(
-            color: _quizAddColorScheme.error,
+            color:
+            _quizAddColorScheme.error,
           ),
         ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+        focusedErrorBorder:
+        OutlineInputBorder(
+          borderRadius:
+          BorderRadius.circular(14),
           borderSide: BorderSide(
-            color: _quizAddColorScheme.error,
+            color:
+            _quizAddColorScheme.error,
             width: 1.5,
           ),
         ),
@@ -432,7 +707,9 @@ class _StudyQuizAddPageState
         _correctAnswerIndex == index;
 
     return Container(
-      margin: EdgeInsets.only(bottom: 11),
+      margin: EdgeInsets.only(
+        bottom: 11,
+      ),
       padding: EdgeInsets.fromLTRB(
         10,
         9,
@@ -443,49 +720,60 @@ class _StudyQuizAddPageState
         color: isCorrect
             ? _quizAddColors.lavender
             : _quizAddColorScheme.surface,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius:
+        BorderRadius.circular(15),
         border: Border.all(
           color: isCorrect
               ? _quizAddColors.pinkStart
-              : _quizAddColorScheme.outlineVariant,
+              : _quizAddColorScheme
+              .outlineVariant,
           width: isCorrect ? 1.4 : 1,
         ),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
         children: [
           Radio<int>(
             value: index,
-            groupValue: _correctAnswerIndex,
-            activeColor: _quizAddColors.pinkStart,
+            groupValue:
+            _correctAnswerIndex,
+            activeColor:
+            _quizAddColors.pinkStart,
             onChanged: (value) {
               if (value == null) {
                 return;
               }
 
               setState(() {
-                _correctAnswerIndex = value;
+                _correctAnswerIndex =
+                    value;
               });
             },
           ),
-
           SizedBox(width: 2),
-
           Expanded(
             child: TextFormField(
               controller: controller,
               maxLength: 100,
               validator: (value) {
+                if (_quizType !=
+                    'MULTIPLE_CHOICE') {
+                  return null;
+                }
+
                 return _validateRequired(
                   value,
                   '${index + 1}번 보기',
                 );
               },
               decoration: InputDecoration(
-                hintText: '${index + 1}번 보기를 입력하세요.',
+                hintText:
+                '${index + 1}번 보기를 입력하세요.',
                 counterText: '',
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.only(
+                contentPadding:
+                EdgeInsets.only(
                   top: 13,
                   bottom: 8,
                 ),
@@ -493,6 +781,199 @@ class _StudyQuizAddPageState
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildQuizTypeButton({
+    required String value,
+    required String title,
+    required String description,
+    required IconData icon,
+  }) {
+    bool isSelected =
+        _quizType == value;
+
+    return Expanded(
+      child: InkWell(
+        borderRadius:
+        BorderRadius.circular(16),
+        onTap: () {
+          setState(() {
+            _quizType = value;
+            _correctAnswerIndex = 0;
+
+            if (value == 'OX') {
+              _choice1Controller.text =
+              'O';
+
+              _choice2Controller.text =
+              'X';
+            }
+          });
+        },
+        child: Container(
+          padding: EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? _quizAddColors.pinkSoft
+                : _quizAddColorScheme
+                .surface,
+            borderRadius:
+            BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected
+                  ? _quizAddColors
+                  .pinkStart
+                  : _quizAddColorScheme
+                  .outlineVariant,
+              width: isSelected ? 1.4 : 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                icon,
+                color: isSelected
+                    ? _quizAddColors
+                    .pinkStart
+                    : _quizAddColors
+                    .textSecondary,
+              ),
+              SizedBox(height: 7),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight:
+                  FontWeight.bold,
+                  color: isSelected
+                      ? _quizAddColors
+                      .pinkStart
+                      : _quizAddColors
+                      .textPrimary,
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                description,
+                textAlign:
+                TextAlign.center,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: _quizAddColors
+                      .textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOXAnswer() {
+    return Row(
+      children: [
+        for (int i = 0;
+        i < 2;
+        i++)
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(
+                right: i == 0 ? 8 : 0,
+              ),
+              child: InkWell(
+                borderRadius:
+                BorderRadius.circular(16),
+                onTap: () {
+                  setState(() {
+                    _correctAnswerIndex = i;
+                  });
+                },
+                child: Container(
+                  height: 72,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color:
+                    _correctAnswerIndex ==
+                        i
+                        ? _quizAddColors
+                        .lavender
+                        : _quizAddColorScheme
+                        .surface,
+                    borderRadius:
+                    BorderRadius.circular(
+                      16,
+                    ),
+                    border: Border.all(
+                      color:
+                      _correctAnswerIndex ==
+                          i
+                          ? _quizAddColors
+                          .pinkStart
+                          : _quizAddColorScheme
+                          .outlineVariant,
+                      width:
+                      _correctAnswerIndex ==
+                          i
+                          ? 1.4
+                          : 1,
+                    ),
+                  ),
+                  child: Text(
+                    i == 0 ? 'O' : 'X',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight:
+                      FontWeight.bold,
+                      color:
+                      _correctAnswerIndex ==
+                          i
+                          ? _quizAddColors
+                          .pinkStart
+                          : _quizAddColors
+                          .textPrimary,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildDropdown<T>({
+    required String label,
+    required T value,
+    required List<DropdownMenuItem<T>>
+    items,
+    required ValueChanged<T?>
+    onChanged,
+  }) {
+    return DropdownButtonFormField<T>(
+      value: value,
+      items: items,
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        labelText: label,
+        filled: true,
+        fillColor:
+        _quizAddColorScheme.surface,
+        border: OutlineInputBorder(
+          borderRadius:
+          BorderRadius.circular(14),
+        ),
+        enabledBorder:
+        OutlineInputBorder(
+          borderRadius:
+          BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: _quizAddColorScheme
+                .outlineVariant,
+          ),
+        ),
       ),
     );
   }
@@ -508,10 +989,13 @@ class _StudyQuizAddPageState
         children: [
           AppMainBackground(
             applySafeArea: false,
-            child: SingleChildScrollView(
+            child:
+            SingleChildScrollView(
               keyboardDismissBehavior:
-              ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: EdgeInsets.fromLTRB(
+              ScrollViewKeyboardDismissBehavior
+                  .onDrag,
+              padding:
+              EdgeInsets.fromLTRB(
                 20,
                 22,
                 20,
@@ -521,124 +1005,305 @@ class _StudyQuizAddPageState
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment:
-                  CrossAxisAlignment.start,
+                  CrossAxisAlignment
+                      .start,
                   children: [
                     Text(
                       widget.groupName,
                       style: TextStyle(
                         fontSize: 13,
-                        color:
-                        _quizAddColors.textSecondary,
+                        color: _quizAddColors
+                            .textSecondary,
                       ),
                     ),
-
                     SizedBox(height: 5),
-
                     Text(
                       '스터디원에게 보낼 문제를 작성해 주세요.',
                       style: TextStyle(
                         fontSize: 21,
-                        fontWeight: FontWeight.bold,
-                        color:
-                        _quizAddColors.textPrimary,
+                        fontWeight:
+                        FontWeight.bold,
+                        color: _quizAddColors
+                            .textPrimary,
                       ),
                     ),
-
                     SizedBox(height: 22),
-
                     AppCard(
                       backgroundColor:
-                      _quizAddColorScheme.surface,
+                      _quizAddColorScheme
+                          .surface,
                       child: Column(
                         crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                        CrossAxisAlignment
+                            .start,
+                        children: [
+                          _buildSectionTitle(
+                            '문제 유형',
+                            '객관식 또는 OX 문제를 선택해 주세요.',
+                          ),
+                          SizedBox(height: 15),
+                          Row(
+                            children: [
+                              _buildQuizTypeButton(
+                                value:
+                                'MULTIPLE_CHOICE',
+                                title: '객관식',
+                                description:
+                                '보기 4개 중 정답 선택',
+                                icon: Icons
+                                    .format_list_numbered_rounded,
+                              ),
+                              SizedBox(width: 10),
+                              _buildQuizTypeButton(
+                                value: 'OX',
+                                title: 'OX',
+                                description:
+                                'O 또는 X로 빠르게 응답',
+                                icon: Icons
+                                    .check_circle_outline_rounded,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 18),
+                    AppCard(
+                      backgroundColor:
+                      _quizAddColorScheme
+                          .surface,
+                      child: Column(
+                        crossAxisAlignment:
+                        CrossAxisAlignment
+                            .start,
                         children: [
                           _buildSectionTitle(
                             '문제 정보',
-                            '제목과 문제 내용을 입력해 주세요.',
+                            '과목, 제목과 문제 내용을 입력해 주세요.',
                           ),
-
                           SizedBox(height: 18),
-
+                          _buildTextField(
+                            controller:
+                            _subjectController,
+                            hintText:
+                            '예: 데이터베이스',
+                            fieldName: '과목',
+                            maxLength: 30,
+                          ),
+                          SizedBox(height: 13),
                           _buildTextField(
                             controller:
                             _titleController,
                             hintText:
-                            '예: 네트워크 기본 문제',
-                            fieldName: '문제 제목',
+                            '예: 기본키 특징 문제',
+                            fieldName:
+                            '문제 제목',
                             maxLength: 60,
                           ),
-
                           SizedBox(height: 13),
-
                           _buildTextField(
                             controller:
                             _questionController,
                             hintText:
                             '스터디원에게 출제할 문제를 입력하세요.',
-                            fieldName: '문제 내용',
+                            fieldName:
+                            '문제 내용',
                             maxLines: 5,
                             maxLength: 500,
                           ),
                         ],
                       ),
                     ),
-
                     SizedBox(height: 18),
-
                     AppCard(
                       backgroundColor:
-                      _quizAddColorScheme.surface,
+                      _quizAddColorScheme
+                          .surface,
                       child: Column(
                         crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                        CrossAxisAlignment
+                            .start,
                         children: [
                           _buildSectionTitle(
                             '보기와 정답',
-                            '정답인 보기의 동그라미를 선택해 주세요.',
+                            _quizType ==
+                                'OX'
+                                ? '정답인 O 또는 X를 선택해 주세요.'
+                                : '정답인 보기의 동그라미를 선택해 주세요.',
                           ),
-
                           SizedBox(height: 18),
-
-                          _buildChoiceInput(
-                            0,
-                            _choice1Controller,
+                          if (_quizType ==
+                              'OX')
+                            _buildOXAnswer()
+                          else ...[
+                            _buildChoiceInput(
+                              0,
+                              _choice1Controller,
+                            ),
+                            _buildChoiceInput(
+                              1,
+                              _choice2Controller,
+                            ),
+                            _buildChoiceInput(
+                              2,
+                              _choice3Controller,
+                            ),
+                            _buildChoiceInput(
+                              3,
+                              _choice4Controller,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 18),
+                    AppCard(
+                      backgroundColor:
+                      _quizAddColorScheme
+                          .surface,
+                      child: Column(
+                        crossAxisAlignment:
+                        CrossAxisAlignment
+                            .start,
+                        children: [
+                          _buildSectionTitle(
+                            '응답 설정',
+                            '제한시간과 제출 마감시간을 설정해 주세요.',
                           ),
+                          SizedBox(height: 18),
+                          _buildDropdown<int>(
+                            label: '풀이 제한시간',
+                            value:
+                            _timeLimitSeconds,
+                            items: [
+                              DropdownMenuItem(
+                                value: 30,
+                                child:
+                                Text('30초'),
+                              ),
+                              DropdownMenuItem(
+                                value: 60,
+                                child:
+                                Text('1분'),
+                              ),
+                              DropdownMenuItem(
+                                value: 180,
+                                child:
+                                Text('3분'),
+                              ),
+                              DropdownMenuItem(
+                                value: 300,
+                                child:
+                                Text('5분'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              if (value ==
+                                  null) {
+                                return;
+                              }
 
-                          _buildChoiceInput(
-                            1,
-                            _choice2Controller,
+                              setState(() {
+                                _timeLimitSeconds =
+                                    value;
+                              });
+                            },
                           ),
+                          SizedBox(height: 13),
+                          _buildDropdown<int>(
+                            label: '제출 마감',
+                            value:
+                            _deadlineHours,
+                            items: [
+                              DropdownMenuItem(
+                                value: 1,
+                                child:
+                                Text('1시간 후'),
+                              ),
+                              DropdownMenuItem(
+                                value: 6,
+                                child:
+                                Text('6시간 후'),
+                              ),
+                              DropdownMenuItem(
+                                value: 24,
+                                child:
+                                Text('24시간 후'),
+                              ),
+                              DropdownMenuItem(
+                                value: 72,
+                                child:
+                                Text('3일 후'),
+                              ),
+                              DropdownMenuItem(
+                                value: 168,
+                                child:
+                                Text('7일 후'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              if (value ==
+                                  null) {
+                                return;
+                              }
 
-                          _buildChoiceInput(
-                            2,
-                            _choice3Controller,
+                              setState(() {
+                                _deadlineHours =
+                                    value;
+                              });
+                            },
                           ),
+                          SizedBox(height: 13),
+                          _buildDropdown<String>(
+                            label: '정답 공개',
+                            value:
+                            _answerRevealType,
+                            items: [
+                              DropdownMenuItem(
+                                value:
+                                'AFTER_SUBMIT',
+                                child: Text(
+                                  '제출 즉시 공개',
+                                ),
+                              ),
+                              DropdownMenuItem(
+                                value:
+                                'AFTER_DEADLINE',
+                                child: Text(
+                                  '마감 후 공개',
+                                ),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              if (value ==
+                                  null) {
+                                return;
+                              }
 
-                          _buildChoiceInput(
-                            3,
-                            _choice4Controller,
+                              setState(() {
+                                _answerRevealType =
+                                    value;
+                              });
+                            },
                           ),
                         ],
                       ),
                     ),
-
                     SizedBox(height: 18),
-
                     AppCard(
                       backgroundColor:
-                      _quizAddColorScheme.surface,
+                      _quizAddColorScheme
+                          .surface,
                       child: Column(
                         crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                        CrossAxisAlignment
+                            .start,
                         children: [
                           _buildSectionTitle(
                             '해설과 점수',
                             '해설은 선택이며 점수는 0점부터 100점까지 입력할 수 있습니다.',
                           ),
-
                           SizedBox(height: 18),
-
                           _buildTextField(
                             controller:
                             _explanationController,
@@ -649,36 +1314,35 @@ class _StudyQuizAddPageState
                             maxLength: 500,
                             required: false,
                           ),
-
                           SizedBox(height: 13),
-
                           _buildTextField(
                             controller:
                             _pointController,
-                            hintText: '점수',
+                            hintText:
+                            '예: 10',
                             fieldName: '점수',
+                            maxLength: 3,
                             keyboardType:
-                            TextInputType.number,
+                            TextInputType
+                                .number,
                             inputFormatters: [
                               FilteringTextInputFormatter
                                   .digitsOnly,
-                              LengthLimitingTextInputFormatter(
-                                3,
-                              ),
                             ],
                           ),
                         ],
                       ),
                     ),
-
                     SizedBox(height: 24),
-
                     AppButton(
-                      text: '문제 발송하기',
-                      type:
-                      AppButtonType.primaryPink,
-                      height: 52,
-                      onPressed: _isSaving
+                      text: _isSaving
+                          ? '발송 중...'
+                          : '문제 발송하기',
+                      type: AppButtonType
+                          .primaryPink,
+                      height: 54,
+                      onPressed:
+                      _isSaving
                           ? null
                           : _sendQuiz,
                     ),
@@ -687,7 +1351,6 @@ class _StudyQuizAddPageState
               ),
             ),
           ),
-
           if (_isSaving)
             Positioned.fill(
               child: LoadingOverlay(),
