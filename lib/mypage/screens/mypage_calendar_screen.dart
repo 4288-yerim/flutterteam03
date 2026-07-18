@@ -190,7 +190,7 @@ class _MyPageCalendarScreenState
             boxShadow: isSelected
                 ? [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black..withValues(alpha: 0.04),
                 blurRadius: 8,
                 offset: const Offset(0, 3),
               ),
@@ -893,6 +893,12 @@ class _MyPageCalendarScreenState
                 );
               }
 
+              if (value == 'edit') {
+                _showAddScheduleDialog(
+                  editingSchedule: schedule,
+                );
+              }
+
               if (value == 'delete') {
                 _showDeleteScheduleDialog(
                   schedule,
@@ -918,9 +924,25 @@ class _MyPageCalendarScreenState
                   ),
                 ),
 
-                // 사용자 직접 일정에만 삭제 메뉴 표시
+                // 사용자 직접 일정에만 수정과 삭제 메뉴 표시
                 if (schedule.type ==
-                    CalendarScheduleType.user)
+                    CalendarScheduleType.user) ...[
+                  const PopupMenuItem<String>(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.edit_outlined,
+                          size: 20,
+                          color: Color(0xFF4A8F73),
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          '일정 수정',
+                        ),
+                      ],
+                    ),
+                  ),
                   const PopupMenuItem<String>(
                     value: 'delete',
                     child: Row(
@@ -937,6 +959,7 @@ class _MyPageCalendarScreenState
                       ],
                     ),
                   ),
+                ],
               ];
             },
           ),
@@ -988,7 +1011,9 @@ class _MyPageCalendarScreenState
       width: double.infinity,
       height: 52,
       child: ElevatedButton.icon(
-        onPressed: _showAddScheduleDialog,
+        onPressed: () {
+          _showAddScheduleDialog();
+        },
         style: ElevatedButton.styleFrom(
           backgroundColor:
           const Color(0xFFF0788F),
@@ -1043,18 +1068,32 @@ class _MyPageCalendarScreenState
     });
   }
 
-  Future<void> _showAddScheduleDialog() async {
+  Future<void> _showAddScheduleDialog({
+    CalendarScheduleItem? editingSchedule,
+  }) async {
+    final bool isEditing =
+        editingSchedule != null;
+
     final TextEditingController
     titleController =
-    TextEditingController();
+    TextEditingController(
+      text: editingSchedule?.title ?? '',
+    );
 
     final TextEditingController
     descriptionController =
-    TextEditingController();
+    TextEditingController(
+      text: editingSchedule?.description ?? '',
+    );
 
-    DateTime selectedDate = _selectedDate;
-    TimeOfDay? startTime;
-    TimeOfDay? endTime;
+    DateTime selectedDate =
+        editingSchedule?.date ?? _selectedDate;
+
+    TimeOfDay? startTime =
+        editingSchedule?.startTime;
+
+    TimeOfDay? endTime =
+        editingSchedule?.endTime;
 
     final bool? result =
     await showDialog<bool>(
@@ -1067,9 +1106,11 @@ class _MyPageCalendarScreenState
               ) {
             return AlertDialog(
               backgroundColor: Colors.white,
-              title: const Text(
-                '일정 추가',
-                style: TextStyle(
+              title: Text(
+                isEditing
+                    ? '일정 수정'
+                    : '일정 추가',
+                style: const TextStyle(
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1266,13 +1307,13 @@ class _MyPageCalendarScreenState
                       true,
                     );
                   },
-                  child: const Text(
-                    '추가',
-                    style: TextStyle(
-                      color:
-                      Color(0xFFF0788F),
-                      fontWeight:
-                      FontWeight.w700,
+                  child: Text(
+                    isEditing
+                        ? '수정'
+                        : '추가',
+                    style: const TextStyle(
+                      color: Color(0xFFF0788F),
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -1290,24 +1331,41 @@ class _MyPageCalendarScreenState
     }
 
     setState(() {
-      _schedules.add(
-        CalendarScheduleItem(
-          id: DateTime.now()
-              .millisecondsSinceEpoch
-              .toString(),
-          title: titleController.text.trim(),
-          description:
-          descriptionController.text.trim(),
-          date: DateTime(
-            selectedDate.year,
-            selectedDate.month,
-            selectedDate.day,
-          ),
-          startTime: startTime,
-          endTime: endTime,
-          type: CalendarScheduleType.user,
+      final CalendarScheduleItem savedSchedule =
+      CalendarScheduleItem(
+        id: editingSchedule?.id ??
+            DateTime.now()
+                .millisecondsSinceEpoch
+                .toString(),
+        title: titleController.text.trim(),
+        description:
+        descriptionController.text.trim(),
+        date: DateTime(
+          selectedDate.year,
+          selectedDate.month,
+          selectedDate.day,
         ),
+        startTime: startTime,
+        endTime: endTime,
+        type: CalendarScheduleType.user,
       );
+
+      if (isEditing) {
+        final int scheduleIndex =
+        _schedules.indexWhere(
+              (item) =>
+          item.id == editingSchedule.id,
+        );
+
+        if (scheduleIndex != -1) {
+          _schedules[scheduleIndex] =
+              savedSchedule;
+        }
+      } else {
+        _schedules.add(
+          savedSchedule,
+        );
+      }
 
       _focusedMonth = DateTime(
         selectedDate.year,
@@ -1329,9 +1387,11 @@ class _MyPageCalendarScreenState
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text(
-          '일정이 추가되었습니다.',
+          isEditing
+              ? '일정이 수정되었습니다.'
+              : '일정이 추가되었습니다.',
         ),
       ),
     );

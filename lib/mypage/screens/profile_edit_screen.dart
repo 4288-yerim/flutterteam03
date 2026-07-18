@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../widgets/app_button.dart';
@@ -467,10 +469,21 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
   Future<void> _saveProfile() async {
     final bool isValid =
-        _formKey.currentState?.validate() ??
-            false;
+        _formKey.currentState?.validate() ?? false;
 
     if (!isValid) {
+      return;
+    }
+
+    final User? currentUser =
+        FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('로그인 정보를 확인할 수 없습니다.'),
+        ),
+      );
       return;
     }
 
@@ -479,43 +492,56 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     });
 
     try {
-      await Future<void>.delayed(
-        const Duration(seconds: 1),
-      );
+      final String uid = currentUser.uid;
 
-      // 나중에 Firestore 연결
-      //
-      // final uid =
-      //     FirebaseAuth.instance.currentUser!.uid;
-      //
-      // await FirebaseFirestore.instance
-      //     .collection('users')
-      //     .doc(uid)
-      //     .update({
-      //   'nickname':
-      //       _nicknameController.text.trim(),
-      //   'phone':
-      //       _phoneController.text.trim(),
-      //   'introduction':
-      //       _introductionController.text.trim(),
-      //   'updatedAt':
-      //       FieldValue.serverTimestamp(),
-      // });
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .update({
+        'nickname': _nicknameController.text.trim(),
+        'bio': _introductionController.text.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            '회원 정보가 저장되었습니다.',
-          ),
+          content: Text('회원 정보가 저장되었습니다.'),
         ),
       );
 
-      Navigator.pop(context);
+      Navigator.pop(context, true);
+    } on FirebaseException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      String message = '회원 정보 저장에 실패했습니다.';
+
+      if (error.code == 'not-found') {
+        message = '회원 정보를 찾을 수 없습니다.';
+      } else if (error.code == 'permission-denied') {
+        message = '회원 정보를 수정할 권한이 없습니다.';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('회원 정보 저장 중 오류가 발생했습니다.'),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {
