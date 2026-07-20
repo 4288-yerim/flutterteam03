@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../study/study_list.dart';
@@ -14,45 +16,148 @@ class JoinedStudyScreen extends StatefulWidget {
 }
 
 class _JoinedStudyScreenState extends State<JoinedStudyScreen> {
-  // Firebase 연결 전 사용하는 임시 데이터
-  final List<JoinedStudyData> _studies = [
-    JoinedStudyData(
-      id: 'study_001',
-      title: '정보처리기사 실기 합격 스터디',
-      certificateName: '정보처리기사',
-      description: '주 3회 기출문제 풀이와 오답 정리를 진행합니다.',
-      memberCount: 6,
-      maxMemberCount: 8,
-      progressPercent: 72,
-      nextSchedule: '오늘 오후 8:00',
-      role: StudyMemberRole.leader,
-      status: JoinedStudyStatus.active,
-    ),
-    JoinedStudyData(
-      id: 'study_002',
-      title: 'SQLD 한 달 완성반',
-      certificateName: 'SQLD',
-      description: '개념 정리와 주말 모의고사 풀이를 함께합니다.',
-      memberCount: 5,
-      maxMemberCount: 6,
-      progressPercent: 45,
-      nextSchedule: '7월 16일 오후 7:30',
-      role: StudyMemberRole.member,
-      status: JoinedStudyStatus.active,
-    ),
-    JoinedStudyData(
-      id: 'study_003',
-      title: '컴퓨터활용능력 1급 실기',
-      certificateName: '컴퓨터활용능력 1급',
-      description: '엑셀과 액세스 실기 문제를 함께 연습합니다.',
-      memberCount: 4,
-      maxMemberCount: 5,
-      progressPercent: 100,
-      nextSchedule: '진행 일정 없음',
-      role: StudyMemberRole.member,
-      status: JoinedStudyStatus.completed,
-    ),
-  ];
+  final List<JoinedStudyData> _studies = [];
+
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadJoinedStudies();
+  }
+
+  Future<void> _loadJoinedStudies() async {
+    final User? user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoading = false;
+        _errorMessage = '로그인이 필요합니다.';
+      });
+      return;
+    }
+
+    try {
+      final QuerySnapshot<Map<String, dynamic>> groupSnapshot =
+      await FirebaseFirestore.instance
+          .collection('studyGroups')
+          .get();
+
+      final List<JoinedStudyData> loadedStudies = [];
+
+      for (final QueryDocumentSnapshot<Map<String, dynamic>> groupDocument
+      in groupSnapshot.docs) {
+        final DocumentSnapshot<Map<String, dynamic>> memberSnapshot =
+        await groupDocument.reference
+            .collection('members')
+            .doc(user.uid)
+            .get();
+
+        if (!memberSnapshot.exists) {
+          continue;
+        }
+
+        final Map<String, dynamic> memberData =
+            memberSnapshot.data() ?? <String, dynamic>{};
+
+        final String memberStatus =
+        (memberData['status'] as String? ?? 'ACTIVE')
+            .trim()
+            .toUpperCase();
+
+        if (memberStatus != 'ACTIVE') {
+          continue;
+        }
+
+        final Map<String, dynamic> groupData = groupDocument.data();
+
+        final String groupStatus =
+        (groupData['status'] as String? ?? 'ACTIVE')
+            .trim()
+            .toUpperCase();
+
+        final String role =
+        (memberData['role'] as String? ?? 'MEMBER')
+            .trim()
+            .toUpperCase();
+
+        loadedStudies.add(
+          JoinedStudyData(
+            id: groupDocument.id,
+            title:
+            (groupData['groupName'] as String? ?? '이름 없는 스터디')
+                .trim(),
+            certificateName:
+            (groupData['certificateName'] as String? ?? '자격증 미지정')
+                .trim(),
+            description:
+            (groupData['description'] as String? ?? '스터디 소개가 없습니다.')
+                .trim(),
+            memberCount:
+            (groupData['currentMemberCount'] as num?)?.toInt() ?? 0,
+            maxMemberCount:
+            (groupData['maxMemberCount'] as num?)?.toInt() ?? 0,
+            progressPercent: groupStatus == 'CLOSED' ? 100 : 0,
+            nextSchedule: groupStatus == 'CLOSED'
+                ? '종료된 스터디'
+                : '등록된 다음 일정 없음',
+            role: role == 'OWNER' || role == 'LEADER'
+                ? StudyMemberRole.leader
+                : StudyMemberRole.member,
+            status: groupStatus == 'CLOSED'
+                ? JoinedStudyStatus.completed
+                : JoinedStudyStatus.active,
+            memberDocumentId: memberSnapshot.id,
+          ),
+        );
+      }
+
+      loadedStudies.sort((a, b) {
+        if (a.status != b.status) {
+          return a.status == JoinedStudyStatus.active ? -1 : 1;
+        }
+
+        return a.title.compareTo(b.title);
+      });
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _studies
+          ..clear()
+          ..addAll(loadedStudies);
+        _isLoading = false;
+        _errorMessage = null;
+      });
+    } on FirebaseException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoading = false;
+        _errorMessage = error.code == 'permission-denied'
+            ? '참여 중인 스터디를 조회할 권한이 없습니다.'
+            : '참여 중인 스터디를 불러오지 못했습니다.';
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoading = false;
+        _errorMessage = '참여 중인 스터디를 불러오지 못했습니다.';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +192,22 @@ class _JoinedStudyScreenState extends State<JoinedStudyScreen> {
       ),
 
       body: AppMainBackground(
-        child: _studies.isEmpty
+        child: _isLoading
+            ? const AppLoadingView(
+          message: '참여 중인 스터디를 불러오는 중입니다.',
+        )
+            : _errorMessage != null
+            ? AppErrorView(
+          message: _errorMessage!,
+          onRetryPressed: () {
+            setState(() {
+              _isLoading = true;
+              _errorMessage = null;
+            });
+            _loadJoinedStudies();
+          },
+        )
+            : _studies.isEmpty
             ? AppEmptyView(
             message: "참여 중인 스터디가 없습니다",
             description: "스터디를 찾아 함께 목표를 준비해 보세요",
@@ -96,7 +216,7 @@ class _JoinedStudyScreenState extends State<JoinedStudyScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                builder: (context) => StudyListPage(),
+                  builder: (context) => StudyListPage(),
                 ),
               );
             }
@@ -148,7 +268,7 @@ class _JoinedStudyScreenState extends State<JoinedStudyScreen> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: _studies.length,
-                separatorBuilder: (_, __) {
+                separatorBuilder: (_, _) {
                   return const SizedBox(height: 12);
                 },
                 itemBuilder: (context, index) {
@@ -250,16 +370,10 @@ class _JoinedStudyScreenState extends State<JoinedStudyScreen> {
               onPressed: () {
                 Navigator.pop(dialogContext);
 
-                setState(() {
-                  _studies.removeWhere(
-                        (item) => item.id == study.id,
-                  );
-                });
-
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text(
-                      '스터디에서 나갔습니다.',
+                      '스터디 나가기 DB 처리는 스터디 기능과 연결 후 적용됩니다.',
                     ),
                   ),
                 );
@@ -683,60 +797,6 @@ class _MemberRoleChip extends StatelessWidget {
   }
 }
 
-class _EmptyStudyView extends StatelessWidget {
-  const _EmptyStudyView();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          24,
-          80,
-          24,
-          40,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 84,
-              height: 84,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Color(0xFFFCEFF3),
-              ),
-              child: const Icon(
-                Icons.groups_outlined,
-                size: 40,
-                color: Color(0xFFF0788F),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              '참여 중인 스터디가 없습니다.',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A1A),
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              '스터디를 찾아 함께 목표를 준비해 보세요.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: Color(0xFF9AA0AC),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 enum JoinedStudyStatus {
   active,
   completed,
@@ -758,6 +818,7 @@ class JoinedStudyData {
   final String nextSchedule;
   final StudyMemberRole role;
   final JoinedStudyStatus status;
+  final String memberDocumentId;
 
   const JoinedStudyData({
     required this.id,
@@ -770,6 +831,7 @@ class JoinedStudyData {
     required this.nextSchedule,
     required this.role,
     required this.status,
+    required this.memberDocumentId,
   });
 }
 

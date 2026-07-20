@@ -22,6 +22,7 @@ import 'friend_screen.dart';
 import 'app_setting_screen.dart';
 import 'help_and_inquiry_screen.dart';
 import 'account_withdrawal_screen.dart';
+import 'my_certificate_roadmap_screen.dart';
 
 class MyPageScreen extends StatefulWidget {
   const MyPageScreen({super.key});
@@ -239,7 +240,20 @@ class _MyPageScreenState extends State<MyPageScreen> {
                       },
                     ),
                     const _MenuDivider(),
-
+                    MyPageMenuTile(
+                      icon: Icons.route_outlined,
+                      title: '나의 자격증 로드맵',
+                      subtitle: '저장한 AI 추천 자격증 취득 순서를 확인합니다.',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                            const MyCertificateRoadmapScreen(),
+                          ),
+                        );
+                      },
+                    ),
                     MyPageMenuTile(
                       icon: Icons.calendar_month_outlined,
                       title: '캘린더',
