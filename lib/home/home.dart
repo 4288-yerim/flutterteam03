@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
 import '../certificate/certificate_schedule.dart';
+import '../certificate/api_test.dart';
+import '../certificate/api_download.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -181,7 +183,9 @@ class _HomePageState extends State<HomePage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const CertificateSchedulePage(),
+                    // builder: (_) => const CertificateSchedulePage(),
+                    builder: (_) => const ApiDownloadPage(),
+                    // builder: (_) => const QualificationApiTestPage(),
                   ),
                 );
               },
