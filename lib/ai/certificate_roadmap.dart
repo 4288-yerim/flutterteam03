@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../theme.dart';
@@ -14,9 +15,12 @@ class CertificateRoadmapPage extends StatefulWidget {
       _CertificateRoadmapPageState();
 }
 
-class _CertificateRoadmapPageState extends State<CertificateRoadmapPage> {
+class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
+    with SingleTickerProviderStateMixin {
   final PageController _pageController = PageController();
   int _currentStep = 0;
+
+  late final AnimationController _loadingController;
 
   final TextEditingController _jobController = TextEditingController();
   final TextEditingController _customCertController = TextEditingController();
@@ -32,11 +36,52 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage> {
   bool _isCheckingCertName = false;
   bool _isNavigatingToResult = false;
 
+  List<_PopularJob> _popularJobs = [];
+  bool _isLoadingPopularJobs = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadingController = AnimationController(vsync: this);
+    _loadPopularJobs();
+  }
+
+  Future<void> _loadPopularJobs() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('job_popularity')
+          .orderBy('count', descending: true)
+          .limit(5)
+          .get();
+
+      if (!mounted) return;
+      setState(() {
+        _popularJobs = snapshot.docs
+            .map((doc) => _PopularJob(
+          displayName: (doc.data()['displayName'] as String?) ?? doc.id,
+          count: (doc.data()['count'] as num?)?.toInt() ?? 0,
+        ))
+            .toList();
+        _isLoadingPopularJobs = false;
+      });
+    } catch (e) {
+      debugPrint('인기 직종 불러오기 에러: $e');
+      if (!mounted) return;
+      setState(() => _isLoadingPopularJobs = false);
+    }
+  }
+
+  void _selectPopularJob(String job) {
+    _jobController.text = job;
+    _jobController.selection = TextSelection.collapsed(offset: job.length);
+    if (_jobInputError != null) setState(() => _jobInputError = null);
+  }
   @override
   void dispose() {
     _pageController.dispose();
     _jobController.dispose();
     _customCertController.dispose();
+    _loadingController.dispose();
     super.dispose();
   }
 
@@ -85,8 +130,17 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage> {
       _ownedCertificates.clear();
     });
 
+    _loadingController.value = 0;
+    _loadingController.duration = const Duration(milliseconds: 1500);
+    _loadingController.animateTo(0.9, curve: Curves.easeOut);
+
     try {
       final suggestions = await CertificateApiService.suggestCertificates(job);
+
+      await _loadingController.animateTo(1.0, duration: const Duration(milliseconds: 200));
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
+
       setState(() {
         _suggestedCertificates = suggestions;
         _isLoadingSuggestions = false;
@@ -95,9 +149,11 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage> {
         setState(() => _suggestionError = '해당 직무에 대한 자격증을 찾지 못했어요. 다른 직무로 시도해주세요.');
         return;
       }
-      _goToStep(1); // 성공하면 자동으로 2단계로 슬라이드
+      _goToStep(1);
     } catch (e) {
       debugPrint('자격증 추천 에러: $e');
+      _loadingController.stop();
+      if (!mounted) return;
       setState(() {
         _isLoadingSuggestions = false;
         _suggestionError = '추천을 불러오지 못했어요. 잠시 후 다시 시도해주세요.';
@@ -188,10 +244,10 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage> {
                   height: 60,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [c.lavender, c.pinkSoft]),
+                    color: c.pinkSoft,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.help_outline_rounded, color: c.lavenderAccent, size: 30),
+                  child: Icon(Icons.help_outline_rounded, color: c.pinkStart, size: 30),
                 ),
                 const SizedBox(height: 18),
                 Text('확인되지 않는 자격증이에요',
@@ -228,7 +284,7 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage> {
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(15),
-                          gradient: LinearGradient(colors: [c.pinkStart, c.pinkDeep]),
+                          color: c.pinkStart,
                         ),
                         child: Material(
                           color: Colors.transparent,
@@ -324,23 +380,28 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage> {
         )
             : null,
       ),
+      // After
       body: AppMainBackground(
         child: SafeArea(
-          child: Column(
+          child: Stack(
             children: [
-              const SizedBox(height: 48),
-              _StepProgressBar(currentStep: _currentStep, colors: colors),
-              const SizedBox(height: 8),
-              Expanded(
+              // PageView가 화면 전체 높이를 차지 → 진짜 정중앙 센터링 가능
+              Positioned.fill(
                 child: PageView(
-                controller: _pageController,
+                  controller: _pageController,
                   physics: const NeverScrollableScrollPhysics(),
                   onPageChanged: (i) => setState(() => _currentStep = i),
                   children: [
-                    _FadeSlideIn(key: ValueKey('step0-$_currentStep'), child: _buildStep1(colors)),
-                    _FadeSlideIn(key: ValueKey('step1-$_currentStep'), child: _buildStep2(colors)),
+                    _buildStep1(colors),
+                    _buildStep2(colors),
                   ],
                 ),
+              ),
+              Positioned(
+                top: 48,
+                left: 0,
+                right: 0,
+                child: _StepProgressBar(currentStep: _currentStep, colors: colors),
               ),
             ],
           ),
@@ -349,70 +410,179 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage> {
     );
   }
 
+
+
   Widget _buildStep1(AppColors colors) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(22, 12, 22, 44),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: IntrinsicHeight(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text('원하는 직무를 입력해주세요',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: colors.textPrimary, fontSize: 21, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-                  const SizedBox(height: 8),
-                  Text('직무를 알려주시면 AI가 어울리는 자격증을 순서대로 추천해드려요.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: colors.textSecondary, fontSize: 13.5, height: 1.5)),
-                  const SizedBox(height: 24),
-                  _buildJobInput(colors),
-                  if (_isLoadingSuggestions) ...[
-                    const SizedBox(height: 34),
-                    _LoadingIndicator(label: 'AI가 자격증을 찾고 있어요', colors: colors),
-                  ],
-                  if (_suggestionError != null) ...[
-                    const SizedBox(height: 18),
-                    _InlineMessage(text: _suggestionError!, colors: colors),
-                  ],
-                ],
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 22),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 350),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              transitionBuilder: (child, anim) => FadeTransition(
+                opacity: anim,
+                child: SlideTransition(
+                  position: Tween(begin: const Offset(0, 0.03), end: Offset.zero).animate(anim),
+                  child: child,
+                ),
+              ),
+              child: KeyedSubtree(
+                key: ValueKey(_isLoadingSuggestions),
+                child: _isLoadingSuggestions ? _buildLoadingContent(colors) : _buildIdleContent(colors),
               ),
             ),
-          ),
-        );
-      },
+            if (_suggestionError != null) ...[
+              const SizedBox(height: 18),
+              _InlineMessage(text: _suggestionError!, colors: colors),
+            ],
+          ],
+        ),
+      ),
     );
   }
+
+  Widget _buildIdleContent(AppColors colors) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _FadeSlideIn(
+          delay: const Duration(milliseconds: 200),
+          duration: const Duration(milliseconds: 700),
+          child: Column(
+            children: [
+              Text('원하는 직무를 입력해주세요',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.textPrimary, fontSize: 21, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+              const SizedBox(height: 8),
+              Text('직무를 알려주시면 AI가 어울리는 자격증을 순서대로 추천해드려요.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.textSecondary, fontSize: 13.5, height: 1.5)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        _FadeSlideIn(
+          delay: const Duration(milliseconds: 400),
+          duration: const Duration(milliseconds: 900),
+          child: _buildJobInput(colors),
+        ),
+        const SizedBox(height: 22),
+        _FadeSlideIn(
+          delay: const Duration(milliseconds: 600),
+          duration: const Duration(milliseconds: 900),
+          child: _buildPopularJobs(colors),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoadingContent(AppColors colors) {
+    final job = _jobController.text.trim();
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('AI가 자격증을 찾고 있어요',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: colors.textPrimary, fontSize: 21, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+        const SizedBox(height: 8),
+        Text('$job 직무에 맞는 자격증을 분석하고 있어요.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: colors.textSecondary, fontSize: 13.5, height: 1.5)),
+        const SizedBox(height: 30),
+        _LoadingIndicator(progress: _loadingController, colors: colors),
+      ],
+    );
+  }
+  Widget _buildPopularJobs(AppColors colors) {
+    if (_isLoadingPopularJobs) {
+      return SizedBox(
+        height: 20,
+        child: Center(
+          child: SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2, color: colors.pinkSoft),
+          ),
+        ),
+      );
+    }
+    if (_popularJobs.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [colors.pinkStart, colors.pinkDeep]),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.trending_up_rounded, size: 11, color: Colors.white),
+            ),
+            const SizedBox(width: 6),
+            Text('요즘 인기있는 직종',
+                style: TextStyle(color: colors.textSecondary, fontSize: 12.5, fontWeight: FontWeight.w700)),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: List.generate(_popularJobs.length, (index) {
+            final job = _popularJobs[index];
+            return _PopularJobChip(
+              rank: index + 1,
+              job: job,
+              colors: colors,
+              onTap: _isLoadingSuggestions ? null : () => _selectPopularJob(job.displayName),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+
+
 
   Widget _buildStep2(AppColors colors) {
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(22, 12, 22, 44),
+          padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
           child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: IntrinsicHeight(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text('보유 자격증을 선택해주세요',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: colors.textPrimary, fontSize: 21, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-                  const SizedBox(height: 8),
-                  Text('이미 갖고 있는 자격증을 체크하면 추천에서 제외돼요.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: colors.textSecondary, fontSize: 13.5, height: 1.5)),
-                  const SizedBox(height: 20),
-                  _buildCertificateSelector(colors),
-                  const SizedBox(height: 12),
-                  _buildCustomCertInput(colors),
-                  const SizedBox(height: 30),
-                  _buildGenerateButton(colors),
-                ],
+            constraints: BoxConstraints(minHeight: constraints.maxHeight - 36),
+            child: Center(
+              child: _FadeSlideIn(
+                delay: const Duration(milliseconds: 300),
+                duration: const Duration(milliseconds: 800),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text('보유 자격증을 선택해주세요',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: colors.textPrimary, fontSize: 21, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+                    const SizedBox(height: 8),
+                    Text('이미 갖고 있는 자격증을 체크하면 추천에서 제외돼요.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: colors.textSecondary, fontSize: 13.5, height: 1.5)),
+                    const SizedBox(height: 20),
+                    _buildCertificateSelector(colors),
+                    const SizedBox(height: 12),
+                    _buildCustomCertInput(colors),
+                    const SizedBox(height: 30),
+                    _buildGenerateButton(colors),
+                  ],
+                ),
               ),
             ),
           ),
@@ -446,10 +616,10 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage> {
                 padding: const EdgeInsets.all(12),
                 child: Container(
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [colors.pinkSoft, colors.lavender]),
+                    color: colors.pinkSoft,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.work_outline_rounded, color: colors.pinkDeep, size: 19),
+                  child: Icon(Icons.work_outline_rounded, color: colors.pinkStart, size: 19),
                 ),
               ),
               prefixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 44),
@@ -457,7 +627,7 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage> {
                 padding: const EdgeInsets.only(right: 6),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [colors.pinkStart, colors.lavenderAccent]),
+                    color: colors.pinkStart,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Material(
@@ -481,13 +651,13 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage> {
                   ),
                 ),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 17),
+              contentPadding: EdgeInsets.fromLTRB(6, 17, 6, _jobInputError != null ? 6 : 17),
               border: InputBorder.none,
             ),
           ),
           if (_jobInputError != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 0, 18, 14),
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
               child: Text(_jobInputError!,
                   style: const TextStyle(color: Color(0xFFE05169), fontSize: 12.5, fontWeight: FontWeight.w600)),
             ),
@@ -570,7 +740,7 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage> {
             const SizedBox(width: 10),
             DecoratedBox(
               decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [colors.mintAccent, colors.softBlueAccent]),
+                color: colors.pinkStart,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Material(
@@ -606,8 +776,8 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage> {
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(21),
-          gradient: LinearGradient(colors: [colors.pinkStart, colors.lavenderAccent], begin: Alignment.centerLeft, end: Alignment.centerRight),
-          boxShadow: [BoxShadow(color: colors.pinkStart.withValues(alpha: 0.25), blurRadius: 18, offset: const Offset(0, 8))],
+          color: colors.pinkStart,
+          boxShadow: [BoxShadow(color: colors.pinkStart.withValues(alpha: 0.2), blurRadius: 18, offset: const Offset(0, 8))],
         ),
         child: Material(
           color: Colors.transparent,
@@ -652,10 +822,7 @@ class _StepProgressBar extends StatelessWidget {
           height: 5,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            gradient: (active || done)
-                ? LinearGradient(colors: [colors.pinkStart, colors.lavenderAccent])
-                : null,
-            color: (active || done) ? null : colors.pinkSoft,
+            color: (active || done) ? colors.pinkStart : colors.pinkSoft,
           ),
         );
       }),
@@ -664,19 +831,32 @@ class _StepProgressBar extends StatelessWidget {
 }
 
 class _LoadingIndicator extends StatelessWidget {
-  final String label;
+  final Animation<double> progress;
   final AppColors colors;
-  const _LoadingIndicator({required this.label, required this.colors});
+  const _LoadingIndicator({required this.progress, required this.colors});
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        children: [
-          SizedBox(width: 30, height: 30, child: CircularProgressIndicator(color: colors.pinkStart, strokeWidth: 3)),
-          const SizedBox(height: 12),
-          Text(label, style: TextStyle(color: colors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
-        ],
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 280),
+      child: AnimatedBuilder(
+        animation: progress,
+        builder: (context, _) => Column(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: LinearProgressIndicator(
+                value: progress.value,
+                minHeight: 7,
+                backgroundColor: colors.pinkSoft,
+                valueColor: AlwaysStoppedAnimation(colors.pinkStart),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text('${(progress.value * 100).toInt()}%',
+                style: TextStyle(color: colors.pinkStart, fontSize: 13, fontWeight: FontWeight.w800)),
+          ],
+        ),
       ),
     );
   }
@@ -698,10 +878,62 @@ class _InlineMessage extends StatelessWidget {
   }
 }
 
+class _PopularJob {
+  final String displayName;
+  final int count;
+  const _PopularJob({required this.displayName, required this.count});
+}
+
+class _PopularJobChip extends StatelessWidget {
+  final int rank;
+  final _PopularJob job;
+  final AppColors colors;
+  final VoidCallback? onTap;
+
+  const _PopularJobChip({required this.rank, required this.job, required this.colors, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final isTop = rank == 1;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(30),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: isTop ? colors.pinkStart : colors.pinkSoft, width: isTop ? 1.4 : 1),
+            boxShadow: const [BoxShadow(color: Color(0x0FC98198), blurRadius: 10, offset: Offset(0, 4))],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('$rank',
+                  style: TextStyle(color: isTop ? colors.pinkStart : colors.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w900)),
+              const SizedBox(width: 6),
+              Text(job.displayName,
+                  style: TextStyle(color: colors.textPrimary, fontSize: 12.5, fontWeight: FontWeight.w700)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _FadeSlideIn extends StatefulWidget {
   final Widget child;
   final Duration delay;
-  const _FadeSlideIn({super.key, required this.child, this.delay = Duration.zero});
+  final Duration duration;
+  const _FadeSlideIn({
+    super.key,
+    required this.child,
+    this.delay = Duration.zero,
+    this.duration = const Duration(milliseconds: 380),
+  });
 
   @override
   State<_FadeSlideIn> createState() => _FadeSlideInState();
@@ -709,7 +941,7 @@ class _FadeSlideIn extends StatefulWidget {
 
 class _FadeSlideInState extends State<_FadeSlideIn> with SingleTickerProviderStateMixin {
   late final AnimationController _controller =
-  AnimationController(vsync: this, duration: const Duration(milliseconds: 380));
+  AnimationController(vsync: this, duration: widget.duration);
   late final Animation<double> _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
   late final Animation<Offset> _slide = Tween(begin: const Offset(0, 0.06), end: Offset.zero)
       .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
@@ -736,3 +968,4 @@ class _FadeSlideInState extends State<_FadeSlideIn> with SingleTickerProviderSta
     );
   }
 }
+
