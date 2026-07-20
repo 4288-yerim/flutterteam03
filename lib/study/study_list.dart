@@ -292,6 +292,18 @@ class _StudyListPageState extends State<StudyListPage> {
 
       Map<String, dynamic> studyData = studyDocument.data();
 
+      bool isPublic = true;
+
+      if (studyData['isPublic'] is bool) {
+        isPublic = studyData['isPublic'];
+      }
+
+      // 비공개 스터디는 공개 검색 목록에 노출하지 않는다.
+      // 방장과 승인된 그룹원은 '내 스터디' 탭에서 확인할 수 있다.
+      if (!isPublic) {
+        continue;
+      }
+
       String groupName =
           studyData['groupName']?.toString().toLowerCase() ?? '';
 

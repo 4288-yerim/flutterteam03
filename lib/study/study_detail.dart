@@ -12,6 +12,7 @@ import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
 import 'study_chat.dart';
 import 'study_edit.dart';
+import 'study_join_requests.dart';
 import 'study_quiz.dart';
 import 'study_room.dart';
 import 'study_timer.dart';
@@ -1497,6 +1498,12 @@ class StudyDetailPage extends StatelessWidget {
   Future<void> _kickMember({
     required String memberUid,
   }) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      throw Exception('로그인 정보가 없습니다.');
+    }
+
     final groupDocument =
     FirebaseFirestore.instance
         .collection('studyGroups')
@@ -1532,6 +1539,13 @@ class StudyDetailPage extends StatelessWidget {
 
         final memberData =
             memberSnapshot.data() ?? {};
+
+        if (groupData['ownerUid']?.toString() !=
+            currentUser.uid) {
+          throw Exception(
+            '방장만 그룹원을 추방할 수 있습니다.',
+          );
+        }
 
         final role =
             memberData['role']?.toString() ??
@@ -1590,6 +1604,11 @@ class StudyDetailPage extends StatelessWidget {
             currentStatus == 'COMPLETED'
                 ? 'COMPLETED'
                 : 'RECRUITING',
+
+            'recruitmentStatus':
+            currentStatus == 'COMPLETED'
+                ? 'CLOSED'
+                : 'OPEN',
 
             'updatedAt':
             FieldValue.serverTimestamp(),
@@ -1726,91 +1745,11 @@ class StudyDetailPage extends StatelessWidget {
       BuildContext context,
       String memberUid,
       ) async {
-    DocumentReference<Map<String, dynamic>> groupDocument =
-    FirebaseFirestore.instance
-        .collection('studyGroups')
-        .doc(studyId);
-
-    DocumentReference<Map<String, dynamic>> memberDocument =
-    groupDocument
-        .collection('members')
-        .doc(memberUid);
-
     try {
-      DocumentSnapshot<Map<String, dynamic>> groupSnapshot =
-      await groupDocument.get();
-
-      DocumentSnapshot<Map<String, dynamic>> memberSnapshot =
-      await memberDocument.get();
-
-      if (groupSnapshot.exists == false ||
-          memberSnapshot.exists == false) {
-        _showMessage(
-          context,
-          '참여 신청 정보를 찾을 수 없습니다.',
-        );
-        return;
-      }
-
-      Map<String, dynamic> groupData =
-          groupSnapshot.data() ?? {};
-
-      Map<String, dynamic> memberData =
-          memberSnapshot.data() ?? {};
-
-      String memberStatus =
-          memberData['status']?.toString() ?? '';
-
-      if (memberStatus != 'PENDING') {
-        _showMessage(
-          context,
-          '이미 처리된 참여 신청입니다.',
-        );
-        return;
-      }
-
-      int currentMemberCount = _getInt(
-        groupData,
-        'currentMemberCount',
+      await StudyJoinRequestService.approve(
+        studyId: studyId,
+        memberUid: memberUid,
       );
-
-      int maxMemberCount = _getInt(
-        groupData,
-        'maxMemberCount',
-      );
-
-      if (maxMemberCount > 0 &&
-          currentMemberCount >= maxMemberCount) {
-        _showMessage(
-          context,
-          '모집 인원이 모두 찼습니다.',
-        );
-        return;
-      }
-
-      int newMemberCount = currentMemberCount + 1;
-      String nextStatus = 'RECRUITING';
-      String nextRecruitmentStatus = 'OPEN';
-
-      if (maxMemberCount > 0 &&
-          newMemberCount >= maxMemberCount) {
-        nextStatus = 'CLOSED';
-        nextRecruitmentStatus = 'CLOSED';
-      }
-
-      await memberDocument.update({
-        'status': 'ACTIVE',
-        'joinedAt': FieldValue.serverTimestamp(),
-        'approvedAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      await groupDocument.update({
-        'currentMemberCount': newMemberCount,
-        'status': nextStatus,
-        'recruitmentStatus': nextRecruitmentStatus,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
 
       _showMessage(
         context,
@@ -1823,7 +1762,7 @@ class StudyDetailPage extends StatelessWidget {
 
       _showMessage(
         context,
-        '참여 신청을 승인하지 못했습니다.',
+        error.toString().replaceFirst('Exception: ', ''),
       );
     }
   }
@@ -1833,44 +1772,11 @@ class StudyDetailPage extends StatelessWidget {
       BuildContext context,
       String memberUid,
       ) async {
-    DocumentReference<Map<String, dynamic>> memberDocument =
-    FirebaseFirestore.instance
-        .collection('studyGroups')
-        .doc(studyId)
-        .collection('members')
-        .doc(memberUid);
-
     try {
-      DocumentSnapshot<Map<String, dynamic>> memberSnapshot =
-      await memberDocument.get();
-
-      if (memberSnapshot.exists == false) {
-        _showMessage(
-          context,
-          '참여 신청 정보를 찾을 수 없습니다.',
-        );
-        return;
-      }
-
-      Map<String, dynamic> memberData =
-          memberSnapshot.data() ?? {};
-
-      String memberStatus =
-          memberData['status']?.toString() ?? '';
-
-      if (memberStatus != 'PENDING') {
-        _showMessage(
-          context,
-          '이미 처리된 참여 신청입니다.',
-        );
-        return;
-      }
-
-      await memberDocument.update({
-        'status': 'REJECTED',
-        'rejectedAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      await StudyJoinRequestService.reject(
+        studyId: studyId,
+        memberUid: memberUid,
+      );
 
       _showMessage(
         context,
@@ -1883,7 +1789,7 @@ class StudyDetailPage extends StatelessWidget {
 
       _showMessage(
         context,
-        '참여 신청을 거절하지 못했습니다.',
+        error.toString().replaceFirst('Exception: ', ''),
       );
     }
   }
@@ -3545,67 +3451,111 @@ class StudyDetailPage extends StatelessWidget {
       String profileImageUrl =
           userProfile['profileImageUrl'] ?? '';
 
-      if (joinApprovalRequired) {
-        await memberDocument.set(
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        DocumentSnapshot<Map<String, dynamic>> latestGroupSnapshot =
+        await transaction.get(groupDocument);
+        DocumentSnapshot<Map<String, dynamic>> latestMemberSnapshot =
+        await transaction.get(memberDocument);
+
+        if (!latestGroupSnapshot.exists) {
+          throw Exception('스터디 정보를 찾을 수 없습니다.');
+        }
+
+        Map<String, dynamic> latestGroupData =
+            latestGroupSnapshot.data() ?? {};
+        Map<String, dynamic> latestMemberData =
+            latestMemberSnapshot.data() ?? {};
+        String latestMemberStatus =
+            latestMemberData['status']?.toString() ?? '';
+
+        if (latestMemberStatus == 'ACTIVE') {
+          throw Exception('이미 참여 중인 스터디입니다.');
+        }
+        if (latestMemberStatus == 'PENDING') {
+          throw Exception('이미 참여 승인을 기다리고 있습니다.');
+        }
+        if (latestMemberStatus == 'BANNED') {
+          throw Exception('이 스터디에는 참여할 수 없습니다.');
+        }
+        if (latestGroupData['status']?.toString() == 'COMPLETED' ||
+            !_isRecruiting(latestGroupData)) {
+          throw Exception('모집이 마감된 스터디입니다.');
+        }
+
+        int latestMemberCount = _getInt(
+          latestGroupData,
+          'currentMemberCount',
+        );
+        int latestMaxMemberCount = _getInt(
+          latestGroupData,
+          'maxMemberCount',
+        );
+
+        if (latestMaxMemberCount > 0 &&
+            latestMemberCount >= latestMaxMemberCount) {
+          throw Exception('모집 인원이 모두 찼습니다.');
+        }
+
+        int savedStudyMinutes = _getInt(
+          latestMemberData,
+          'totalStudyMinutes',
+        );
+        int savedStudySeconds = _getInt(
+          latestMemberData,
+          'totalStudySeconds',
+        );
+
+        if (savedStudyMinutes == 0) {
+          savedStudyMinutes = totalStudyMinutes;
+        }
+        if (savedStudySeconds == 0) {
+          savedStudySeconds = totalStudySeconds;
+        }
+
+        if (joinApprovalRequired) {
+          transaction.set(
+            memberDocument,
+            {
+              'uid': currentUser.uid,
+              'nickname': nickname,
+              'profileImageUrl': profileImageUrl,
+              'role': 'MEMBER',
+              'status': 'PENDING',
+              'totalStudyMinutes': savedStudyMinutes,
+              'totalStudySeconds': savedStudySeconds,
+              'requestedAt': FieldValue.serverTimestamp(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true),
+          );
+          return;
+        }
+
+        int newMemberCount = latestMemberCount + 1;
+        bool isFull = latestMaxMemberCount > 0 &&
+            newMemberCount >= latestMaxMemberCount;
+
+        transaction.set(
+          memberDocument,
           {
             'uid': currentUser.uid,
             'nickname': nickname,
             'profileImageUrl': profileImageUrl,
             'role': 'MEMBER',
-            'status': 'PENDING',
-            'totalStudyMinutes': totalStudyMinutes,
-            'totalStudySeconds': totalStudySeconds,
-            'requestedAt': FieldValue.serverTimestamp(),
+            'status': 'ACTIVE',
+            'totalStudyMinutes': savedStudyMinutes,
+            'totalStudySeconds': savedStudySeconds,
+            'joinedAt': FieldValue.serverTimestamp(),
             'updatedAt': FieldValue.serverTimestamp(),
           },
-          SetOptions(
-            merge: true,
-          ),
+          SetOptions(merge: true),
         );
-
-        if (!context.mounted) {
-          return;
-        }
-
-        _showMessage(
-          context,
-          '참여 신청을 보냈습니다.',
-        );
-        return;
-      }
-
-      int newMemberCount = currentMemberCount + 1;
-      String nextStatus = 'RECRUITING';
-      String nextRecruitmentStatus = 'OPEN';
-
-      if (maxMemberCount > 0 &&
-          newMemberCount >= maxMemberCount) {
-        nextStatus = 'CLOSED';
-        nextRecruitmentStatus = 'CLOSED';
-      }
-
-      await memberDocument.set(
-        {
-          'uid': currentUser.uid,
-          'nickname': nickname,
-          'profileImageUrl': profileImageUrl,
-          'role': 'MEMBER',
-          'status': 'ACTIVE',
-          'totalStudyMinutes': totalStudyMinutes,
-          'totalStudySeconds': totalStudySeconds,
-          'joinedAt': FieldValue.serverTimestamp(),
+        transaction.update(groupDocument, {
+          'currentMemberCount': newMemberCount,
+          'status': isFull ? 'CLOSED' : 'RECRUITING',
+          'recruitmentStatus': isFull ? 'CLOSED' : 'OPEN',
           'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(
-          merge: true,
-        ),
-      );
-
-      await groupDocument.update({
-        'currentMemberCount': newMemberCount,
-        'status': nextStatus,
-        'recruitmentStatus': nextRecruitmentStatus,
-        'updatedAt': FieldValue.serverTimestamp(),
+        });
       });
 
       if (!context.mounted) {
@@ -3614,7 +3564,9 @@ class StudyDetailPage extends StatelessWidget {
 
       _showMessage(
         context,
-        '스터디에 참여했습니다.',
+        joinApprovalRequired
+            ? '참여 신청을 보냈습니다.'
+            : '스터디에 참여했습니다.',
       );
     } catch (error) {
       debugPrint(
@@ -3627,7 +3579,7 @@ class StudyDetailPage extends StatelessWidget {
 
       _showMessage(
         context,
-        '스터디에 참여하지 못했습니다.',
+        error.toString().replaceFirst('Exception: ', ''),
       );
     }
   }
@@ -4942,6 +4894,10 @@ class StudyDetailPage extends StatelessWidget {
           {
             'currentMemberCount': newMemberCount,
             'status': nextStatus,
+            'recruitmentStatus':
+            nextStatus == 'COMPLETED'
+                ? 'CLOSED'
+                : 'OPEN',
             'updatedAt': FieldValue.serverTimestamp(),
           },
         );
