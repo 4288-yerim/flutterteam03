@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../widgets/app_card.dart';
@@ -17,12 +19,10 @@ class _AccountWithdrawalScreenState
   final TextEditingController _reasonController =
   TextEditingController();
 
-  final TextEditingController _confirmController =
-  TextEditingController();
-
   String? _selectedReason;
 
   bool _agreeToWithdrawal = false;
+  bool _isLoading = false;
 
   final List<String> _withdrawalReasons = [
     '앱을 자주 사용하지 않아요.',
@@ -37,15 +37,43 @@ class _AccountWithdrawalScreenState
   @override
   void dispose() {
     _reasonController.dispose();
-    _confirmController.dispose();
     super.dispose();
+  }
+
+  String _getWithdrawalReasonCode(String reason) {
+    switch (reason) {
+      case '앱을 자주 사용하지 않아요.':
+        return 'NOT_USED_OFTEN';
+
+      case '원하는 기능이 부족해요.':
+        return 'LACK_OF_FEATURES';
+
+      case '앱 사용이 불편해요.':
+        return 'INCONVENIENT';
+
+      case '알림이 너무 많아요.':
+        return 'TOO_MANY_NOTIFICATIONS';
+
+      case '개인정보가 걱정돼요.':
+        return 'PRIVACY_CONCERN';
+
+      case '다른 서비스를 이용할 예정이에요.':
+        return 'USE_OTHER_SERVICE';
+
+      case '기타':
+        return 'OTHER';
+
+      default:
+        return 'UNKNOWN';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final bool canWithdraw =
-        _agreeToWithdrawal &&
-            _confirmController.text.trim() == '탈퇴합니다';
+        _selectedReason != null &&
+            _agreeToWithdrawal &&
+            !_isLoading;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -127,8 +155,17 @@ class _AccountWithdrawalScreenState
                       BorderRadius.circular(14),
                     ),
                   ),
-                  child: const Text(
-                    '회원 탈퇴',
+                  child: _isLoading
+                      ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                    ),
+                  )
+                      : const Text(
+                    '탈퇴 신청',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -183,22 +220,22 @@ class _AccountWithdrawalScreenState
           const SizedBox(height: 18),
 
           const _WithdrawalNoticeItem(
-            text: '탈퇴 후에는 현재 계정으로 로그인할 수 없습니다.',
+            text: '탈퇴 신청 후 7일 동안 계정 복구가 가능합니다.',
           ),
           const SizedBox(height: 12),
 
           const _WithdrawalNoticeItem(
-            text: '목표 자격증과 학습 기록 등 개인 데이터가 삭제될 수 있습니다.',
+            text: '7일이 지나면 계정과 개인 데이터가 최종 삭제될 수 있습니다.',
           ),
           const SizedBox(height: 12),
 
           const _WithdrawalNoticeItem(
-            text: '작성한 게시글과 댓글은 서비스 운영 정책에 따라 남을 수 있습니다.',
+            text: '작성한 게시글과 댓글은 서비스 운영 정책에 따라 익명 상태로 남을 수 있습니다.',
           ),
           const SizedBox(height: 12),
 
           const _WithdrawalNoticeItem(
-            text: '탈퇴한 계정과 데이터는 복구하지 못할 수 있습니다.',
+            text: '탈퇴 대기 중에는 로그인 후 계정 복구 또는 탈퇴 진행을 선택할 수 있습니다.',
           ),
         ],
       ),
@@ -309,7 +346,7 @@ class _AccountWithdrawalScreenState
             activeColor:
             const Color(0xFFE85D6A),
             title: const Text(
-              '회원 탈퇴 시 계정과 일부 데이터가 삭제될 수 있음을 확인했습니다.',
+              '탈퇴 신청 후 7일이 지나면 계정과 개인 데이터가 삭제될 수 있음을 확인했습니다.',
               style: TextStyle(
                 fontSize: 14,
                 height: 1.5,
@@ -328,52 +365,7 @@ class _AccountWithdrawalScreenState
           const SizedBox(height: 14),
 
           const Text(
-            '아래 입력란에 “탈퇴합니다”를 입력해주세요.',
-            style: TextStyle(
-              fontSize: 13,
-              color: Color(0xFF666A73),
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          TextField(
-            controller: _confirmController,
-            onChanged: (_) {
-              setState(() {});
-            },
-            onTapOutside: (_) {
-              FocusManager.instance.primaryFocus
-                  ?.unfocus();
-            },
-            decoration: InputDecoration(
-              hintText: '탈퇴합니다',
-              filled: true,
-              fillColor: const Color(0xFFF8F6F7),
-              border: OutlineInputBorder(
-                borderRadius:
-                BorderRadius.circular(14),
-                borderSide: BorderSide.none,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius:
-                BorderRadius.circular(14),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius:
-                BorderRadius.circular(14),
-                borderSide: const BorderSide(
-                  color: Color(0xFFE85D6A),
-                  width: 1.5,
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          const Text(
-            '실제 계정 삭제 전에는 비밀번호 또는 소셜 로그인 재인증 과정이 추가될 예정입니다.',
+            '탈퇴 신청 후 7일 이내에는 계정 복구가 가능합니다.',
             style: TextStyle(
               fontSize: 12,
               height: 1.5,
@@ -385,7 +377,160 @@ class _AccountWithdrawalScreenState
     );
   }
 
+  Future<void> _requestAccountWithdrawal() async {
+    if (_isLoading) {
+      return;
+    }
+
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('로그인 정보를 확인할 수 없습니다. 다시 로그인해주세요.'),
+        ),
+      );
+
+      return;
+    }
+
+    final String? selectedReason = _selectedReason;
+
+    if (selectedReason == null) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('탈퇴 사유를 선택해주세요.'),
+        ),
+      );
+
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final DateTime requestedDateTime = DateTime.now();
+      final DateTime scheduledDateTime = requestedDateTime.add(
+        const Duration(days: 7),
+      );
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .set(
+        {
+          'status': 'WITHDRAWAL_PENDING',
+          'withdrawalRequestedAt': Timestamp.fromDate(
+            requestedDateTime,
+          ),
+          'withdrawalScheduledAt': Timestamp.fromDate(
+            scheduledDateTime,
+          ),
+          'withdrawalReasonCode': _getWithdrawalReasonCode(
+            selectedReason,
+          ),
+          'withdrawalReason': selectedReason,
+          'withdrawalReasonDetail':
+          _reasonController.text.trim(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(
+          merge: true,
+        ),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            title: const Text(
+              '탈퇴 신청 완료',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            content: const Text(
+              '탈퇴 신청이 완료되었습니다.\n\n'
+                  '신청일로부터 7일 이내에는 계정을 복구할 수 있습니다.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                },
+                child: const Text(
+                  '확인',
+                  style: TextStyle(
+                    color: Color(0xFFF0788F),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.pop(context, true);
+    } on FirebaseException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '탈퇴 신청 저장에 실패했습니다.\n'
+                '${error.message ?? error.code}',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '오류가 발생했습니다.\n$error',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   Future<void> _showFinalWithdrawalDialog() async {
+    if (_isLoading) {
+      return;
+    }
+
     FocusManager.instance.primaryFocus?.unfocus();
 
     final bool? result = await showDialog<bool>(
@@ -394,13 +539,14 @@ class _AccountWithdrawalScreenState
         return AlertDialog(
           backgroundColor: Colors.white,
           title: const Text(
-            '정말 탈퇴하시겠습니까?',
+            '탈퇴를 신청하시겠습니까?',
             style: TextStyle(
               fontWeight: FontWeight.w700,
             ),
           ),
           content: const Text(
-            '회원 탈퇴 후에는 계정과 데이터를 복구하지 못할 수 있습니다.',
+            '탈퇴 신청 후 계정은 7일 동안 탈퇴 대기 상태가 됩니다.\n\n'
+                '7일 이내에는 직접 계정을 복구할 수 있습니다.',
           ),
           actions: [
             TextButton(
@@ -425,7 +571,7 @@ class _AccountWithdrawalScreenState
                 );
               },
               child: const Text(
-                '탈퇴',
+                '탈퇴 신청',
                 style: TextStyle(
                   color: Color(0xFFE85D6A),
                   fontWeight: FontWeight.w700,
@@ -441,50 +587,7 @@ class _AccountWithdrawalScreenState
       return;
     }
 
-    if (!mounted) {
-      return;
-    }
-
-    // 추후 실제 구현 시:
-    // 1. Firebase Auth 사용자 재인증
-    // 2. Firestore 사용자 상태 또는 탈퇴 요청 저장
-    // 3. 관련 사용자 데이터 처리
-    // 4. FirebaseAuth.currentUser?.delete()
-    // 5. 로그인 화면으로 이동
-
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          title: const Text(
-            '탈퇴 기능 안내',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          content: const Text(
-            '현재는 화면 확인용 임시 기능입니다.\n'
-                '계정 재인증 및 Firebase 탈퇴 정책이 확정된 후 실제 탈퇴 기능이 적용됩니다.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-              },
-              child: const Text(
-                '확인',
-                style: TextStyle(
-                  color: Color(0xFFF0788F),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
+    await _requestAccountWithdrawal();
   }
 }
 

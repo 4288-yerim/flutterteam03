@@ -5,16 +5,6 @@ import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
 import '../../widgets/app_state_views.dart';
 
-
-String _formatDate(DateTime date) {
-  final String month =
-  date.month.toString().padLeft(2, '0');
-  final String day =
-  date.day.toString().padLeft(2, '0');
-
-  return '${date.year}.$month.$day';
-}
-
 class MyPostsScreen extends StatefulWidget {
   const MyPostsScreen({super.key});
 
@@ -30,7 +20,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
       boardName: '질문 게시판',
       title: '정보처리기사 실기 공부 순서 질문드립니다.',
       content: '필기 합격 후 실기를 준비하려고 하는데 어떤 순서로 공부하면 좋을까요?',
-      createdAt: DateTime(2026, 7, 14),
+      createdAt: '2026.07.14',
       viewCount: 128,
       commentCount: 7,
       likeCount: 12,
@@ -41,7 +31,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
       boardName: '자유 게시판',
       title: '오늘 공부 목표 완료했습니다!',
       content: '데이터베이스 파트를 2시간 동안 공부했습니다.',
-      createdAt: DateTime(2026, 7, 12),
+      createdAt: '2026.07.12',
       viewCount: 54,
       commentCount: 3,
       likeCount: 9,
@@ -52,7 +42,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
       boardName: '스터디 모집',
       title: '정보처리기사 실기 스터디원 모집합니다.',
       content: '주 3회 온라인으로 문제 풀이를 진행할 예정입니다.',
-      createdAt: DateTime(2026, 7, 10),
+      createdAt: '2026.07.10',
       viewCount: 201,
       commentCount: 15,
       likeCount: 18,
@@ -128,7 +118,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: _posts.length,
-                separatorBuilder: (context, index) {
+                separatorBuilder: (_, __) {
                   return const SizedBox(height: 12);
                 },
                 itemBuilder: (context, index) {
@@ -209,7 +199,6 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
       ),
     );
   }
-
 
   void _openPostDetail(MyPostData post) {
     Navigator.push(
@@ -421,7 +410,7 @@ class _MyPostCard extends StatelessWidget {
               Row(
                 children: [
                   Text(
-                    _formatDate(post.createdAt),
+                    post.createdAt,
                     style: const TextStyle(
                       fontSize: 11,
                       color: Color(0xFF9AA0AC),
@@ -632,7 +621,7 @@ class MyPostData {
   final String boardName;
   final String title;
   final String content;
-  final DateTime createdAt;
+  final String createdAt;
   final int viewCount;
   final int commentCount;
   final int likeCount;
@@ -659,7 +648,6 @@ class TemporaryPostDetailScreen extends StatelessWidget {
     super.key,
     required this.post,
   });
-
 
   @override
   Widget build(BuildContext context) {
@@ -710,7 +698,7 @@ class TemporaryPostDetailScreen extends StatelessWidget {
                 const SizedBox(height: 10),
 
                 Text(
-                  _formatDate(post.createdAt),
+                  post.createdAt,
                   style: const TextStyle(
                     fontSize: 12,
                     color: Color(0xFF9AA0AC),

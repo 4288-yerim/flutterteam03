@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
-import '../../widgets/app_state_views.dart';
 
 class MyCommentsScreen extends StatefulWidget {
   const MyCommentsScreen({super.key});
@@ -17,38 +16,34 @@ class _MyCommentsScreenState extends State<MyCommentsScreen> {
   final List<MyCommentItem> _comments = [
     MyCommentItem(
       id: 'comment_001',
-      postId: 'post_101',
       boardName: '질문 게시판',
       postTitle: '정보처리기사 실기 공부 순서 어떻게 잡으셨나요?',
       content: '저는 기출문제를 먼저 풀어보고 부족한 부분을 개념서로 다시 공부했어요.',
-      createdAt: DateTime(2026, 7, 15),
+      createdAt: '2026.07.15',
       likeCount: 8,
     ),
     MyCommentItem(
       id: 'comment_002',
-      postId: 'post_102',
       boardName: '시험 후기',
       postTitle: '2026년 정보처리기사 2회 필기 후기',
       content: '저도 이번 시험에서 데이터베이스 문제가 가장 어렵게 느껴졌습니다.',
-      createdAt: DateTime(2026, 7, 13),
+      createdAt: '2026.07.13',
       likeCount: 3,
     ),
     MyCommentItem(
       id: 'comment_003',
-      postId: 'post_103',
       boardName: '스터디 모집',
       postTitle: '정보처리기사 실기 온라인 스터디 모집합니다',
       content: '평일 저녁 시간대라면 참여 가능할 것 같습니다!',
-      createdAt: DateTime(2026, 7, 10),
+      createdAt: '2026.07.10',
       likeCount: 1,
     ),
     MyCommentItem(
       id: 'comment_004',
-      postId: 'post_104',
       boardName: '자유 게시판',
       postTitle: '다들 하루 공부 시간 얼마나 잡으시나요?',
       content: '평일에는 2시간 정도 하고 주말에는 조금 더 길게 공부하고 있어요.',
-      createdAt: DateTime(2026, 7, 8),
+      createdAt: '2026.07.08',
       likeCount: 5,
     ),
   ];
@@ -59,25 +54,10 @@ class _MyCommentsScreenState extends State<MyCommentsScreen> {
       extendBodyBehindAppBar: true,
       appBar: AppTopBar(
         title: '내가 쓴 댓글',
-        leading: IconButton(
-          tooltip: '뒤로 가기',
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            size: 20,
-            color: Color(0xFF1A1A1A),
-          ),
-        ),
       ),
       body: AppMainBackground(
         child: _comments.isEmpty
-            ? const AppEmptyView(
-          message: '작성한 댓글이 없습니다.',
-          description:
-          '커뮤니티 게시글에 댓글을 작성하면 이곳에서 확인할 수 있습니다.',
-        )
+            ? _buildEmptyView()
             : SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(
             20,
@@ -297,7 +277,7 @@ class _MyCommentsScreenState extends State<MyCommentsScreen> {
                   ),
                   const SizedBox(width: 5),
                   Text(
-                    _formatDate(comment.createdAt),
+                    comment.createdAt,
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey.shade600,
@@ -364,13 +344,63 @@ class _MyCommentsScreenState extends State<MyCommentsScreen> {
     );
   }
 
-  String _formatDate(DateTime date) {
-    final String month =
-    date.month.toString().padLeft(2, '0');
-    final String day =
-    date.day.toString().padLeft(2, '0');
-
-    return '${date.year}.$month.$day';
+  Widget _buildEmptyView() {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(
+          30,
+          30,
+          30,
+          110,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 86,
+              height: 86,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.chat_bubble_outline_rounded,
+                size: 40,
+                color: Colors.grey.shade400,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              '작성한 댓글이 없습니다',
+              style: TextStyle(
+                fontSize: 19,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '커뮤니티 게시글에 댓글을 작성하면\n이곳에서 확인할 수 있습니다.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.55,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              icon: const Icon(
+                Icons.forum_outlined,
+              ),
+              label: const Text('커뮤니티 둘러보기'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _openPostDetail(MyCommentItem comment) {
@@ -448,16 +478,14 @@ class _MyCommentsScreenState extends State<MyCommentsScreen> {
 
 class MyCommentItem {
   final String id;
-  final String postId;
   final String boardName;
   final String postTitle;
   final String content;
-  final DateTime createdAt;
+  final String createdAt;
   final int likeCount;
 
   const MyCommentItem({
     required this.id,
-    required this.postId,
     required this.boardName,
     required this.postTitle,
     required this.content,
@@ -473,32 +501,12 @@ class _TemporaryPostDetailScreen extends StatelessWidget {
     required this.comment,
   });
 
-  String _formatDate(DateTime date) {
-    final String month =
-    date.month.toString().padLeft(2, '0');
-    final String day =
-    date.day.toString().padLeft(2, '0');
-
-    return '${date.year}.$month.$day';
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppTopBar(
         title: '게시글 상세',
-        leading: IconButton(
-          tooltip: '뒤로 가기',
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            size: 20,
-            color: Color(0xFF1A1A1A),
-          ),
-        ),
       ),
       body: AppMainBackground(
         child: SingleChildScrollView(
@@ -533,7 +541,7 @@ class _TemporaryPostDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  _formatDate(comment.createdAt),
+                  comment.createdAt,
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.grey.shade600,
