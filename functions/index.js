@@ -866,3 +866,144 @@ exports.cancelSubscription = onCall(async (request) => {
 
   return { success: true };
 });
+
+const QNET_SERVICE_KEY = defineSecret("QNET_SERVICE_KEY");
+
+exports.getCertificateSchedule = onCall(
+  { secrets: [QNET_SERVICE_KEY] },
+  async (request) => {
+    const year = request.data?.year || new Date().getFullYear();
+    const cacheDoc = db.collection("certSchedule").doc(`${year}`);
+
+    const cached = await cacheDoc.get();
+    if (cached.exists) {
+      const cachedAt = cached.data().cachedAt?.toDate();
+      if (cachedAt && (Date.now() - cachedAt.getTime()) < 24 * 60 * 60 * 1000) {
+        return { success: true, items: cached.data().items };
+      }
+    }
+
+    try {
+      const response = await axios.get(
+        "https://apis.data.go.kr/B490007/qualExamSchd/getQualExamSchdList",
+        {
+          params: {
+            serviceKey: QNET_SERVICE_KEY.value(),
+            numOfRows: 200,
+            pageNo: 1,
+            dataFormat: "json",
+            implYy: year,
+            qualgbCd: "T", // 국가기술자격만
+          },
+        }
+      );
+
+      const items = response.data?.response?.body?.items?.item || [];
+
+      await cacheDoc.set({
+        items,
+        cachedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return { success: true, items };
+    } catch (e) {
+      console.error("자격시험 일정 조회 실패: " + JSON.stringify(e.response?.data || { message: e.message }));
+      return { success: false, message: e.message };
+    }
+  }
+);
+
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
+
+exports.suggestCertificatesForJob = onCall(
+  { secrets: [GEMINI_API_KEY] },
+  async (request) => {
+    const job = (request.data?.job || "").trim();
+    if (!job) {
+      throw new HttpsError("invalid-argument", "직무를 입력해주세요.");
+    }
+
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value());
+    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+
+    const prompt = `"${job}"이(가) 실제 직무/직업명이 아니거나 자격증 추천이 불가능한 값이면 빈 배열 []만 반환해.
+    실제 직무라면, 이 직무를 목표로 하는 사람에게 도움이 되는 한국 자격증을 최대 6개까지 추천해줘.
+    국가기술자격, 국가전문자격, 국가공인 민간자격을 우선 고려해.
+
+    배열의 순서는 반드시 "실제로 준비하고 취득해야 하는 순서"를 따라야 해:
+    - 같은 분야에 등급이 여러 개 있는 국가기술자격은 낮은 등급부터 순서대로 나열해 (기능사 → 산업기사 → 기사 → 기능장 → 기술사).
+      예: "정보처리산업기사"는 "정보처리기사"보다 반드시 먼저 나와야 해.
+    - 등급 체계가 없는 자격증(어학시험, IT 인증 등)은 난이도나 우선순위가 낮은 것부터 배치해.
+    - 서로 다른 분야의 자격증 사이에서는 직무에 더 핵심적이고 활용도가 높은 것을 먼저 배치해.
+
+    아래 JSON 배열 형식으로만 응답하고 다른 텍스트는 절대 포함하지 마:
+    [{"name": "자격증 이름", "description": "한 문장 설명"}]`;
+
+    try {
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+      const jsonMatch = text.match(/\[[\s\S]*\]/);
+      const certs = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+
+      return { success: true, certificates: certs };
+    } catch (e) {
+      console.error("자격증 추천 실패: " + e.message);
+      return { success: false, message: "추천을 생성하지 못했어요." };
+    }
+  }
+);
+
+exports.incrementJobPopularity = onCall(async (request) => {
+  const job = (request.data?.job || "").trim().toLowerCase().replace(/\s+/g, "");
+  if (!job || job.length > 30) {
+    throw new HttpsError("invalid-argument", "잘못된 직무명입니다.");
+  }
+
+  const ref = admin.firestore().collection("job_popularity").doc(job);
+  await ref.set(
+    {
+      displayName: request.data.job.trim(), // 화면 표시용 원본
+      count: admin.firestore.FieldValue.increment(1),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+  return { success: true };
+});
+
+exports.getPopularJobs = onCall(async () => {
+  const snap = await admin.firestore()
+    .collection("job_popularity")
+    .orderBy("count", "desc")
+    .limit(5)
+    .get();
+  return { jobs: snap.docs.map(d => ({ name: d.data().displayName, count: d.data().count })) };
+});
+
+exports.validateCertificateName = onCall(
+  { secrets: [GEMINI_API_KEY] },
+  async (request) => {
+    const name = (request.data?.name || "").trim();
+    if (!name) return { valid: false };
+
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value());
+    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+
+    const prompt = `"${name}"이(가) 실제로 존재하는 자격증, 수료증, 어학/IT 인증시험 이름인지 판단해줘.
+국가기술자격, 국가전문자격, 민간자격, 어학시험(TOEIC 등), IT 인증(정보처리기사 등) 모두 포함해서 폭넓게 판단해.
+아래 JSON 형식으로만 응답하고 다른 텍스트는 포함하지 마:
+{"valid": true} 또는 {"valid": false}`;
+
+    try {
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+      return { valid: parsed.valid === true };
+    } catch (e) {
+      console.error("자격증 검증 실패: " + e.message);
+      return { valid: true }; // 검증 실패 시엔 막지 않고 통과시킴
+    }
+  }
+);

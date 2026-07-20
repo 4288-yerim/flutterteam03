@@ -1,3 +1,5 @@
+// app_colors.dart
+
 import 'package:flutter/material.dart';
 
 @immutable
@@ -13,6 +15,12 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color softBlue;
   final Color mint;
 
+  // 강조용 (아이콘, 배지, 버튼 등 배경 위에 올라가는 진한 톤)
+  final Color pinkDeep;
+  final Color lavenderAccent;
+  final Color softBlueAccent;
+  final Color mintAccent;
+
   const AppColors({
     required this.pinkStart,
     required this.pinkEnd,
@@ -23,6 +31,10 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.lavender,
     required this.softBlue,
     required this.mint,
+    required this.pinkDeep,
+    required this.lavenderAccent,
+    required this.softBlueAccent,
+    required this.mintAccent,
   });
 
   static const light = AppColors(
@@ -35,9 +47,12 @@ class AppColors extends ThemeExtension<AppColors> {
     lavender: Color(0xFFEEE9FD),
     softBlue: Color(0xFFECF0FD),
     mint: Color(0xFFECF6F3),
+    pinkDeep: Color(0xFFE9678A),
+    lavenderAccent: Color(0xFF9B7AF5),
+    softBlueAccent: Color(0xFF6C8EEB),
+    mintAccent: Color(0xFF4FAE8E),
   );
 
-  // 다크 모드 값 (배경은 어둡게, 파스텔 컬러는 채도를 낮추고 배경과 섞어서 눈부심 방지)
   static const dark = AppColors(
     pinkStart: Color(0xFFB85C6E),
     pinkEnd: Color(0xFF3A2A2E),
@@ -48,6 +63,10 @@ class AppColors extends ThemeExtension<AppColors> {
     lavender: Color(0xFF322E42),
     softBlue: Color(0xFF29304A),
     mint: Color(0xFF223A2E),
+    pinkDeep: Color(0xFFCB7A8E),
+    lavenderAccent: Color(0xFFB39DFF),
+    softBlueAccent: Color(0xFF8FA8F0),
+    mintAccent: Color(0xFF7FCBB0),
   );
 
   @override
@@ -61,6 +80,10 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? lavender,
     Color? softBlue,
     Color? mint,
+    Color? pinkDeep,
+    Color? lavenderAccent,
+    Color? softBlueAccent,
+    Color? mintAccent,
   }) {
     return AppColors(
       pinkStart: pinkStart ?? this.pinkStart,
@@ -72,6 +95,10 @@ class AppColors extends ThemeExtension<AppColors> {
       lavender: lavender ?? this.lavender,
       softBlue: softBlue ?? this.softBlue,
       mint: mint ?? this.mint,
+      pinkDeep: pinkDeep ?? this.pinkDeep,
+      lavenderAccent: lavenderAccent ?? this.lavenderAccent,
+      softBlueAccent: softBlueAccent ?? this.softBlueAccent,
+      mintAccent: mintAccent ?? this.mintAccent,
     );
   }
 
@@ -88,11 +115,19 @@ class AppColors extends ThemeExtension<AppColors> {
       lavender: Color.lerp(lavender, other.lavender, t)!,
       softBlue: Color.lerp(softBlue, other.softBlue, t)!,
       mint: Color.lerp(mint, other.mint, t)!,
+      pinkDeep: Color.lerp(pinkDeep, other.pinkDeep, t)!,
+      lavenderAccent: Color.lerp(lavenderAccent, other.lavenderAccent, t)!,
+      softBlueAccent: Color.lerp(softBlueAccent, other.softBlueAccent, t)!,
+      mintAccent: Color.lerp(mintAccent, other.mintAccent, t)!,
     );
   }
 }
 
-/// 앱 전체에서 쓰는 라이트 테마
+/// 편의용 확장 — context.colors 로 어디서든 바로 접근
+extension AppColorsX on BuildContext {
+  AppColors get colors => Theme.of(this).extension<AppColors>()!;
+}
+
 final ThemeData lightTheme = ThemeData(
   brightness: Brightness.light,
   scaffoldBackgroundColor: AppColors.light.background,
@@ -103,7 +138,6 @@ final ThemeData lightTheme = ThemeData(
   extensions: const [AppColors.light],
 );
 
-/// 앱 전체에서 쓰는 다크 테마
 final ThemeData darkTheme = ThemeData(
   brightness: Brightness.dark,
   scaffoldBackgroundColor: AppColors.dark.background,
