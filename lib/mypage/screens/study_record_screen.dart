@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
+import 'study_timer_screen.dart';
 
 class StudyRecordScreen extends StatefulWidget {
   const StudyRecordScreen({super.key});
@@ -135,6 +136,9 @@ class _StudyRecordScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              _buildStudyTimerCard(),
+              const SizedBox(height: 20),
+
               _buildPeriodSelector(),
               const SizedBox(height: 16),
 
@@ -174,6 +178,86 @@ class _StudyRecordScreenState
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildStudyTimerCard() {
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(
+                Icons.timer_outlined,
+                color: Color(0xFFF0788F),
+                size: 24,
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '공부 시간을 기록해 보세요',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            '타이머를 시작하면 공부한 시간이 학습 기록에 저장됩니다.',
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.5,
+              color: Color(0xFF777B84),
+            ),
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                final bool? saved = await Navigator.push<bool>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const StudyTimerScreen(),
+                  ),
+                );
+
+                if (saved == true && mounted) {
+                  setState(() {
+                    // 다음 단계에서 Firestore 학습 기록을 다시 조회하도록 연결합니다.
+                  });
+                }
+              },
+              icon: const Icon(
+                Icons.play_arrow_rounded,
+                color: Colors.white,
+              ),
+              label: const Text(
+                '공부 시작',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF0788F),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

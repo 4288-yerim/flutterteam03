@@ -1,8 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
+import '../../widgets/app_state_views.dart';
 
 class GoalCertificateScreen extends StatefulWidget {
   const GoalCertificateScreen({super.key});
@@ -14,30 +17,133 @@ class GoalCertificateScreen extends StatefulWidget {
 
 class _GoalCertificateScreenState
     extends State<GoalCertificateScreen> {
-  // Firebase 연결 전 테스트용 임시 데이터
-  //
-  // 실제 연결 예정 경로:
-  // userGoals/{uid}/goals/{goalId}
-  final List<GoalCertificateItem> _goals = [
-    GoalCertificateItem(
-      goalId: 'goal_001',
-      certificateId: 'cert_001',
-      certificateName: '정보처리기사',
-      examRound: '2026년 2회',
-      examDate: DateTime(2026, 9, 15),
-      calendarLinked: true,
-      alarmEnabled: true,
-    ),
-    GoalCertificateItem(
-      goalId: 'goal_002',
-      certificateId: 'cert_002',
-      certificateName: 'SQLD',
-      examRound: '2026년 3회',
-      examDate: DateTime(2026, 11, 8),
-      calendarLinked: false,
-      alarmEnabled: true,
-    ),
-  ];
+  final List<GoalCertificateItem> _goals = [];
+
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGoals();
+  }
+
+  Future<void> _loadGoals() async {
+    final User? user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoading = false;
+        _errorMessage = '로그인이 필요합니다.';
+      });
+      return;
+    }
+
+    try {
+      final QuerySnapshot<Map<String, dynamic>> snapshot =
+      await FirebaseFirestore.instance
+          .collection('userGoals')
+          .doc(user.uid)
+          .collection('goals')
+          .get();
+
+      final List<GoalCertificateItem> loadedGoals = [];
+
+      for (final QueryDocumentSnapshot<Map<String, dynamic>> document
+      in snapshot.docs) {
+        final Map<String, dynamic> data = document.data();
+
+        final String goalStatus =
+        (data['goalStatus'] as String? ?? 'ACTIVE').trim();
+
+        if (goalStatus == 'DELETED') {
+          continue;
+        }
+
+        final String certificateId =
+        (data['certificateId'] as String? ?? '').trim();
+        final String certificateName =
+        (data['certificateName'] as String? ?? '').trim();
+
+        if (certificateId.isEmpty || certificateName.isEmpty) {
+          continue;
+        }
+
+        final Timestamp? targetExamTimestamp =
+        data['targetExamDate'] as Timestamp?;
+        final DateTime? targetExamDate =
+        targetExamTimestamp?.toDate();
+
+        loadedGoals.add(
+          GoalCertificateItem(
+            goalId: document.id,
+            certificateId: certificateId,
+            certificateName: certificateName,
+            examRound:
+            (data['targetRound'] as String? ?? '시험 일정 미선택')
+                .trim(),
+            examDate: targetExamDate,
+            calendarLinked:
+            data['calendarLinked'] as bool? ?? false,
+            alarmEnabled:
+            data['alarmEnabled'] as bool? ?? false,
+          ),
+        );
+      }
+
+      loadedGoals.sort((a, b) {
+        if (a.examDate == null && b.examDate == null) {
+          return a.certificateName.compareTo(b.certificateName);
+        }
+
+        if (a.examDate == null) {
+          return 1;
+        }
+
+        if (b.examDate == null) {
+          return -1;
+        }
+
+        return a.examDate!.compareTo(b.examDate!);
+      });
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _goals
+          ..clear()
+          ..addAll(loadedGoals);
+        _isLoading = false;
+        _errorMessage = null;
+      });
+    } on FirebaseException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoading = false;
+        _errorMessage = error.code == 'permission-denied'
+            ? '목표 자격증을 조회할 권한이 없습니다.'
+            : '목표 자격증을 불러오지 못했습니다.';
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoading = false;
+        _errorMessage = '목표 자격증을 불러오지 못했습니다.';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -95,28 +201,32 @@ class _GoalCertificateScreenState
 
               const SizedBox(height: 12),
 
-              if (_goals.isEmpty)
-                _buildEmptyView()
-              else
-                ListView.separated(
-                  itemCount: _goals.length,
-                  shrinkWrap: true,
-                  physics:
-                  const NeverScrollableScrollPhysics(),
-                  separatorBuilder: (_, __) =>
-                  const SizedBox(height: 14),
-                  itemBuilder: (context, index) {
-                    final GoalCertificateItem goal =
-                    _goals[index];
+              if (_isLoading)
+                _buildLoadingView()
+              else if (_errorMessage != null)
+                _buildErrorView()
+              else if (_goals.isEmpty)
+                  _buildEmptyView()
+                else
+                  ListView.separated(
+                    itemCount: _goals.length,
+                    shrinkWrap: true,
+                    physics:
+                    const NeverScrollableScrollPhysics(),
+                    separatorBuilder: (_, __) =>
+                    const SizedBox(height: 14),
+                    itemBuilder: (context, index) {
+                      final GoalCertificateItem goal =
+                      _goals[index];
 
-                    return GoalCertificateCard(
-                      goal: goal,
-                      onDelete: () {
-                        _showDeleteDialog(index);
-                      },
-                    );
-                  },
-                ),
+                      return GoalCertificateCard(
+                        goal: goal,
+                        onDelete: () {
+                          _showDeleteDialog(index);
+                        },
+                      );
+                    },
+                  ),
             ],
           ),
         ),
@@ -160,41 +270,31 @@ class _GoalCertificateScreenState
     );
   }
 
+  Widget _buildLoadingView() {
+    return const AppLoadingView(
+      message: '목표 자격증을 불러오는 중입니다.',
+    );
+  }
+
+  Widget _buildErrorView() {
+    return AppErrorView(
+      message: _errorMessage ?? '목표 자격증을 불러오지 못했습니다.',
+      description: '잠시 후 다시 시도해 주세요.',
+      onRetryPressed: () {
+        setState(() {
+          _isLoading = true;
+          _errorMessage = null;
+        });
+
+        _loadGoals();
+      },
+    );
+  }
+
   Widget _buildEmptyView() {
-    return AppCard(
-      child: const Padding(
-        padding: EdgeInsets.symmetric(
-          vertical: 34,
-        ),
-        child: Column(
-          children: [
-            Icon(
-              Icons.flag_outlined,
-              size: 52,
-              color: Color(0xFFB4B8C2),
-            ),
-            SizedBox(height: 14),
-            Text(
-              '등록된 목표 자격증이 없습니다.',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1A1A1A),
-              ),
-            ),
-            SizedBox(height: 6),
-            Text(
-              '자격증 상세보기에서 목표 자격증을 등록할 수 있습니다.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.5,
-                color: Color(0xFF9AA0AC),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return const AppEmptyView(
+      message: '등록된 목표 자격증이 없습니다.',
+      description: '자격증 상세보기에서 목표 자격증을 등록할 수 있습니다.',
     );
   }
 
@@ -257,21 +357,87 @@ class _GoalCertificateScreenState
       return;
     }
 
-    setState(() {
-      _goals.removeAt(index);
-    });
+    final User? user = FirebaseAuth.instance.currentUser;
 
-    if (!mounted) {
+    if (user == null) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('로그인이 필요합니다.'),
+        ),
+      );
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '${goal.certificateName} 목표가 삭제되었습니다.',
+    try {
+      final DocumentReference<Map<String, dynamic>> goalDocument =
+      FirebaseFirestore.instance
+          .collection('userGoals')
+          .doc(user.uid)
+          .collection('goals')
+          .doc(goal.goalId);
+
+      final DocumentReference<Map<String, dynamic>> userDocument =
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid);
+
+      await FirebaseFirestore.instance.runTransaction(
+            (transaction) async {
+          final DocumentSnapshot<Map<String, dynamic>> userSnapshot =
+          await transaction.get(userDocument);
+
+          transaction.delete(goalDocument);
+
+          final String currentGoalCertificateId =
+          (userSnapshot.data()?['goalCertificateId'] as String? ?? '')
+              .trim();
+
+          if (currentGoalCertificateId == goal.certificateId) {
+            transaction.update(
+              userDocument,
+              {
+                'goalCertificateId': FieldValue.delete(),
+                'updatedAt': FieldValue.serverTimestamp(),
+              },
+            );
+          }
+        },
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _goals.removeAt(index);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${goal.certificateName} 목표가 삭제되었습니다.',
+          ),
         ),
-      ),
-    );
+      );
+    } on FirebaseException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      final String message = error.code == 'permission-denied'
+          ? '목표 자격증을 삭제할 권한이 없습니다.'
+          : '목표 자격증 삭제에 실패했습니다.';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+        ),
+      );
+    }
   }
 }
 
@@ -287,152 +453,156 @@ class GoalCertificateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final int dDay = _calculateDday(
-      goal.examDate,
-    );
+    final int? dDay = goal.examDate == null
+        ? null
+        : _calculateDday(goal.examDate!);
 
     return AppCard(
       padding: EdgeInsets.zero,
       child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment:
-                CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFCEFF3),
-                      borderRadius:
-                      BorderRadius.circular(15),
-                    ),
-                    child: const Icon(
-                      Icons.workspace_premium_outlined,
-                      color: Color(0xFFF0788F),
-                    ),
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment:
+          CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFCEFF3),
+                    borderRadius:
+                    BorderRadius.circular(15),
                   ),
-
-                  const SizedBox(width: 14),
-
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          goal.certificateName,
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight:
-                            FontWeight.w700,
-                            color: Color(0xFF1A1A1A),
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          goal.examRound,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF9AA0AC),
-                          ),
-                        ),
-                      ],
-                    ),
+                  child: const Icon(
+                    Icons.workspace_premium_outlined,
+                    color: Color(0xFFF0788F),
                   ),
-
-                  IconButton(
-                    tooltip: '목표 자격증 삭제',
-                    onPressed: onDelete,
-                    icon: const Icon(
-                      Icons.delete,
-                      color: Colors.red,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 18),
-
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8F8FA),
-                  borderRadius:
-                  BorderRadius.circular(14),
                 ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.calendar_month_outlined,
-                      size: 20,
-                      color: Color(0xFFF0788F),
-                    ),
 
-                    const SizedBox(width: 10),
+                const SizedBox(width: 14),
 
-                    Expanded(
-                      child: Text(
-                        _formatDate(goal.examDate),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        goal.certificateName,
                         style: const TextStyle(
-                          fontSize: 14,
+                          fontSize: 17,
                           fontWeight:
-                          FontWeight.w600,
+                          FontWeight.w700,
                           color: Color(0xFF1A1A1A),
                         ),
                       ),
-                    ),
-
-                    Text(
-                      _formatDday(dDay),
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight:
-                        FontWeight.w700,
-                        color: dDay >= 0
-                            ? const Color(0xFFF0788F)
-                            : const Color(
-                          0xFF9AA0AC,
+                      const SizedBox(height: 5),
+                      Text(
+                        goal.examRound,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF9AA0AC),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+
+                IconButton(
+                  tooltip: '목표 자격증 삭제',
+                  onPressed: onDelete,
+                  icon: const Icon(
+                    Icons.delete,
+                    color: Colors.red,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 18),
+
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F8FA),
+                borderRadius:
+                BorderRadius.circular(14),
               ),
-
-              const SizedBox(height: 14),
-
-              Row(
+              child: Row(
                 children: [
-                  _StatusLabel(
-                    icon:
+                  const Icon(
                     Icons.calendar_month_outlined,
-                    text: goal.calendarLinked
-                        ? '캘린더 연동'
-                        : '캘린더 미연동',
-                    enabled: goal.calendarLinked,
+                    size: 20,
+                    color: Color(0xFFF0788F),
                   ),
 
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 10),
 
-                  _StatusLabel(
-                    icon:
-                    Icons.notifications_none,
-                    text: goal.alarmEnabled
-                        ? '시험 알림 사용'
-                        : '시험 알림 미사용',
-                    enabled: goal.alarmEnabled,
+                  Expanded(
+                    child: Text(
+                      goal.examDate == null
+                          ? '시험 일정 미선택'
+                          : _formatDate(goal.examDate!),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight:
+                        FontWeight.w600,
+                        color: Color(0xFF1A1A1A),
+                      ),
+                    ),
+                  ),
+
+                  Text(
+                    dDay == null
+                        ? '-'
+                        : _formatDday(dDay),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight:
+                      FontWeight.w700,
+                      color: dDay != null && dDay >= 0
+                          ? const Color(0xFFF0788F)
+                          : const Color(
+                        0xFF9AA0AC,
+                      ),
+                    ),
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+
+            const SizedBox(height: 14),
+
+            Row(
+              children: [
+                _StatusLabel(
+                  icon:
+                  Icons.calendar_month_outlined,
+                  text: goal.calendarLinked
+                      ? '캘린더 연동'
+                      : '캘린더 미연동',
+                  enabled: goal.calendarLinked,
+                ),
+
+                const SizedBox(width: 16),
+
+                _StatusLabel(
+                  icon:
+                  Icons.notifications_none,
+                  text: goal.alarmEnabled
+                      ? '시험 알림 사용'
+                      : '시험 알림 미사용',
+                  enabled: goal.alarmEnabled,
+                ),
+              ],
+            ),
+          ],
         ),
+      ),
     );
   }
 
@@ -522,7 +692,7 @@ class GoalCertificateItem {
   final String certificateId;
   final String certificateName;
   final String examRound;
-  final DateTime examDate;
+  final DateTime? examDate;
 
   // 현재는 조회용 임시 데이터
   final bool calendarLinked;
