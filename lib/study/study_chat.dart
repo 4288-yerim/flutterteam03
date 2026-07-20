@@ -4,10 +4,12 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutterteam03/widgets/app_state_views.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../theme.dart';
 import '../widgets/app_main_background.dart';
@@ -64,6 +66,7 @@ class _StudyChatPageState
 
   bool _isSending = false;
   bool _isUploadingImage = false;
+  bool _isUploadingFile = false;
   bool _isMarkingRead = false;
   bool _isOwner = false;
 
@@ -82,6 +85,7 @@ class _StudyChatPageState
 
     _createChatRoom();
     _loadMyMemberInfo();
+    _recoverLostCameraImage();
   }
 
   @override
@@ -454,6 +458,15 @@ class _StudyChatPageState
       return '사진';
     }
 
+    if (messageType == 'FILE') {
+      String fileName =
+          messageData['fileName']
+              ?.toString() ??
+              '파일';
+
+      return '파일: $fileName';
+    }
+
     if (messageType == 'QUIZ') {
       String quizTitle =
           messageData['quizTitle']
@@ -530,7 +543,8 @@ class _StudyChatPageState
 
     if (message.isEmpty ||
         _isSending ||
-        _isUploadingImage) {
+        _isUploadingImage ||
+        _isUploadingFile) {
       return;
     }
 
@@ -573,6 +587,10 @@ class _StudyChatPageState
         'imageUrl': '',
         'imagePath': '',
         'imageName': '',
+        'fileUrl': '',
+        'filePath': '',
+        'fileName': '',
+        'fileSize': 0,
         'replyMessageId':
         _replyMessageId,
         'replySenderNickname':
@@ -670,7 +688,8 @@ class _StudyChatPageState
 
   void _showImageSourceSheet() {
     if (_isSending ||
-        _isUploadingImage) {
+        _isUploadingImage ||
+        _isUploadingFile) {
       return;
     }
 
@@ -729,6 +748,26 @@ class _StudyChatPageState
                   );
                 },
               ),
+              ListTile(
+                leading: Icon(
+                  Icons.attach_file_rounded,
+                  color:
+                  _studyColors.pinkStart,
+                ),
+                title: Text(
+                  '파일 선택',
+                ),
+                subtitle: Text(
+                  '최대 20MB',
+                ),
+                onTap: () {
+                  Navigator.pop(
+                    bottomSheetContext,
+                  );
+
+                  _pickAndSendFile();
+                },
+              ),
             ],
           ),
         );
@@ -736,9 +775,48 @@ class _StudyChatPageState
     );
   }
 
+  Future<void> _recoverLostCameraImage() async {
+    try {
+      LostDataResponse response =
+      await _imagePicker.retrieveLostData();
+
+      if (response.isEmpty) {
+        return;
+      }
+
+      XFile? recoveredImage;
+
+      if (response.files != null &&
+          response.files!.isNotEmpty) {
+        recoveredImage =
+            response.files!.first;
+      } else if (response.file != null) {
+        recoveredImage = response.file;
+      }
+
+      if (recoveredImage != null) {
+        await _pickAndSendImage(
+          ImageSource.camera,
+          recoveredImage:
+          recoveredImage,
+        );
+      } else if (response.exception != null) {
+        debugPrint(
+          '카메라 촬영 결과 복구 오류: '
+              '${response.exception}',
+        );
+      }
+    } catch (error) {
+      debugPrint(
+        '카메라 촬영 결과 확인 오류: $error',
+      );
+    }
+  }
+
   Future<void> _pickAndSendImage(
-      ImageSource source,
-      ) async {
+      ImageSource source, {
+        XFile? recoveredImage,
+      }) async {
     User? currentUser =
         FirebaseAuth.instance.currentUser;
 
@@ -750,25 +828,30 @@ class _StudyChatPageState
       return;
     }
 
-    XFile? pickedFile;
+    XFile? pickedFile = recoveredImage;
 
-    try {
-      pickedFile =
-      await _imagePicker.pickImage(
-        source: source,
-        imageQuality: 85,
-        maxWidth: 1800,
-      );
-    } catch (error) {
-      debugPrint(
-        '사진 선택 오류: $error',
-      );
+    if (pickedFile == null) {
+      try {
+        pickedFile =
+        await _imagePicker.pickImage(
+          source: source,
+          imageQuality: 75,
+          maxWidth: 1600,
+          maxHeight: 1600,
+        );
+      } catch (error) {
+        debugPrint(
+          '사진 선택 오류: $error',
+        );
 
-      _showSnackBar(
-        '사진을 선택하지 못했습니다.',
-      );
+        _showSnackBar(
+          source == ImageSource.camera
+              ? '카메라 촬영 사진을 가져오지 못했습니다.'
+              : '사진을 선택하지 못했습니다.',
+        );
 
-      return;
+        return;
+      }
     }
 
     if (pickedFile == null) {
@@ -963,6 +1046,312 @@ class _StudyChatPageState
       if (mounted) {
         setState(() {
           _isUploadingImage = false;
+          _uploadProgress = 0;
+        });
+      }
+    }
+  }
+
+  String _getGeneralFileExtension(
+      String fileName,
+      ) {
+    int dotIndex =
+    fileName.lastIndexOf('.');
+
+    if (dotIndex == -1 ||
+        dotIndex == fileName.length - 1) {
+      return 'file';
+    }
+
+    return fileName
+        .substring(dotIndex + 1)
+        .toLowerCase()
+        .replaceAll(
+      RegExp(r'[^a-z0-9]'),
+      '',
+    );
+  }
+
+  String _getFileContentType(
+      String extension,
+      ) {
+    if (extension == 'pdf') {
+      return 'application/pdf';
+    }
+
+    if (extension == 'txt') {
+      return 'text/plain';
+    }
+
+    if (extension == 'doc') {
+      return 'application/msword';
+    }
+
+    if (extension == 'docx') {
+      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    }
+
+    if (extension == 'xls') {
+      return 'application/vnd.ms-excel';
+    }
+
+    if (extension == 'xlsx') {
+      return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    }
+
+    if (extension == 'ppt') {
+      return 'application/vnd.ms-powerpoint';
+    }
+
+    if (extension == 'pptx') {
+      return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+    }
+
+    if (extension == 'zip') {
+      return 'application/zip';
+    }
+
+    return 'application/octet-stream';
+  }
+
+  Future<void> _pickAndSendFile() async {
+    User? currentUser =
+        FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      _showSnackBar(
+        '로그인 정보가 없습니다.',
+      );
+
+      return;
+    }
+
+    FilePickerResult? result;
+
+    try {
+      result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: [
+          'pdf',
+          'hwp',
+          'hwpx',
+          'doc',
+          'docx',
+          'xls',
+          'xlsx',
+          'ppt',
+          'pptx',
+          'txt',
+          'zip',
+        ],
+        allowMultiple: false,
+        withData: true,
+      );
+    } catch (error) {
+      debugPrint(
+        '파일 선택 오류: $error',
+      );
+
+      _showSnackBar(
+        '파일을 선택하지 못했습니다.',
+      );
+
+      return;
+    }
+
+    if (result == null ||
+        result.files.isEmpty) {
+      return;
+    }
+
+    PlatformFile pickedFile =
+        result.files.single;
+
+    Uint8List? fileBytes =
+        pickedFile.bytes;
+
+    if (fileBytes == null) {
+      _showSnackBar(
+        '파일을 읽지 못했습니다.',
+      );
+
+      return;
+    }
+
+    if (fileBytes.lengthInBytes >
+        20 * 1024 * 1024) {
+      _showSnackBar(
+        '파일은 20MB 이하만 보낼 수 있습니다.',
+      );
+
+      return;
+    }
+
+    setState(() {
+      _isUploadingFile = true;
+      _uploadProgress = 0;
+    });
+
+    DocumentReference<Map<String, dynamic>>
+    chatDocument =
+    FirebaseFirestore.instance
+        .collection('chats')
+        .doc(widget.studyId);
+
+    DocumentReference<Map<String, dynamic>>
+    messageDocument =
+    chatDocument
+        .collection('messages')
+        .doc();
+
+    String extension =
+    _getGeneralFileExtension(
+      pickedFile.name,
+    );
+
+    String storagePath =
+        'study_chats/'
+        '${widget.studyId}/'
+        '${currentUser.uid}/'
+        '${messageDocument.id}_file.$extension';
+
+    Reference storageReference =
+    FirebaseStorage.instance
+        .ref()
+        .child(storagePath);
+
+    try {
+      UploadTask uploadTask =
+      storageReference.putData(
+        fileBytes,
+        SettableMetadata(
+          contentType:
+          _getFileContentType(
+            extension,
+          ),
+          customMetadata: {
+            'studyId':
+            widget.studyId,
+            'senderUid':
+            currentUser.uid,
+            'messageId':
+            messageDocument.id,
+            'originalFileName':
+            pickedFile.name,
+          },
+        ),
+      );
+
+      StreamSubscription<TaskSnapshot>
+      subscription =
+      uploadTask.snapshotEvents.listen(
+            (snapshot) {
+          if (!mounted ||
+              snapshot.totalBytes == 0) {
+            return;
+          }
+
+          setState(() {
+            _uploadProgress =
+                snapshot.bytesTransferred /
+                    snapshot.totalBytes;
+          });
+        },
+      );
+
+      TaskSnapshot uploadSnapshot =
+      await uploadTask;
+
+      await subscription.cancel();
+
+      String fileUrl =
+      await uploadSnapshot.ref
+          .getDownloadURL();
+
+      await messageDocument.set({
+        'senderUid': currentUser.uid,
+        'senderNickname':
+        _myNickname,
+        'senderProfileImageUrl':
+        _myProfileImageUrl,
+        'message': pickedFile.name,
+        'messageType': 'FILE',
+        'imageUrl': '',
+        'imagePath': '',
+        'imageName': '',
+        'fileUrl': fileUrl,
+        'filePath': storagePath,
+        'fileName': pickedFile.name,
+        'fileSize':
+        fileBytes.lengthInBytes,
+        'replyMessageId':
+        _replyMessageId,
+        'replySenderNickname':
+        _replySenderNickname,
+        'replyMessage':
+        _replyMessage,
+        'readBy': [
+          currentUser.uid,
+        ],
+        'hiddenFor': [],
+        'isDeleted': false,
+        'isEdited': false,
+        'createdAt':
+        FieldValue.serverTimestamp(),
+        'updatedAt':
+        FieldValue.serverTimestamp(),
+      });
+
+      await _updateChatLastMessage(
+        messageId:
+        messageDocument.id,
+        lastMessage:
+        '파일: ${pickedFile.name}',
+        currentUser: currentUser,
+      );
+
+      if (mounted) {
+        setState(() {
+          _replyMessageId = '';
+          _replySenderNickname = '';
+          _replyMessage = '';
+        });
+      }
+    } on FirebaseException catch (error) {
+      debugPrint(
+        '파일 업로드 오류: '
+            '${error.code} / ${error.message}',
+      );
+
+      try {
+        await storageReference.delete();
+      } catch (_) {}
+
+      if (error.code == 'unauthorized') {
+        _showSnackBar(
+          '파일 업로드 권한이 없습니다. Storage 규칙을 확인해 주세요.',
+        );
+      } else {
+        _showSnackBar(
+          '파일을 보내지 못했습니다.',
+        );
+      }
+    } catch (error) {
+      debugPrint(
+        '파일 메시지 전송 오류: $error',
+      );
+
+      try {
+        await storageReference.delete();
+      } catch (_) {}
+
+      _showSnackBar(
+        '파일을 보내지 못했습니다.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingFile = false;
           _uploadProgress = 0;
         });
       }
@@ -1303,6 +1692,11 @@ class _StudyChatPageState
             ?.toString() ??
             '';
 
+    String filePath =
+        messageData['filePath']
+            ?.toString() ??
+            '';
+
     try {
       if (messageType == 'IMAGE' &&
           imagePath.isNotEmpty) {
@@ -1318,6 +1712,20 @@ class _StudyChatPageState
         }
       }
 
+      if (messageType == 'FILE' &&
+          filePath.isNotEmpty) {
+        try {
+          await FirebaseStorage.instance
+              .ref()
+              .child(filePath)
+              .delete();
+        } catch (error) {
+          debugPrint(
+            'Storage 파일 삭제 오류: $error',
+          );
+        }
+      }
+
       await messageDocument.reference
           .update({
         'message':
@@ -1326,6 +1734,10 @@ class _StudyChatPageState
         'imageUrl': '',
         'imagePath': '',
         'imageName': '',
+        'fileUrl': '',
+        'filePath': '',
+        'fileName': '',
+        'fileSize': 0,
         'replyMessageId': '',
         'replySenderNickname': '',
         'replyMessage': '',
@@ -2461,6 +2873,147 @@ class _StudyChatPageState
     );
   }
 
+  String _formatFileSize(
+      int fileSize,
+      ) {
+    if (fileSize < 1024) {
+      return '$fileSize B';
+    }
+
+    if (fileSize < 1024 * 1024) {
+      double sizeInKb =
+          fileSize / 1024;
+
+      return '${sizeInKb.toStringAsFixed(1)} KB';
+    }
+
+    double sizeInMb =
+        fileSize / (1024 * 1024);
+
+    return '${sizeInMb.toStringAsFixed(1)} MB';
+  }
+
+  Future<void> _openFile(
+      String fileUrl,
+      ) async {
+    if (fileUrl.isEmpty) {
+      _showSnackBar(
+        '파일 주소가 없습니다.',
+      );
+
+      return;
+    }
+
+    try {
+      bool opened = await launchUrl(
+        Uri.parse(fileUrl),
+        mode:
+        LaunchMode.externalApplication,
+      );
+
+      if (!opened) {
+        _showSnackBar(
+          '파일을 열지 못했습니다.',
+        );
+      }
+    } catch (error) {
+      debugPrint(
+        '파일 열기 오류: $error',
+      );
+
+      _showSnackBar(
+        '파일을 열지 못했습니다.',
+      );
+    }
+  }
+
+  Widget _buildFileMessage(
+      String fileUrl,
+      String fileName,
+      int fileSize,
+      ) {
+    return InkWell(
+      borderRadius:
+      BorderRadius.circular(14),
+      onTap: () {
+        _openFile(fileUrl);
+      },
+      child: Container(
+        width: 240,
+        padding: EdgeInsets.all(13),
+        decoration: BoxDecoration(
+          color:
+          _studyColors.lavender,
+          borderRadius:
+          BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color:
+                _studyColors.pinkSoft,
+                borderRadius:
+                BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.insert_drive_file_outlined,
+                color:
+                _studyColors.pinkStart,
+              ),
+            ),
+            SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment:
+                CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    fileName.isEmpty
+                        ? '파일'
+                        : fileName,
+                    maxLines: 2,
+                    overflow:
+                    TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight:
+                      FontWeight.w600,
+                      color:
+                      _studyColors.textPrimary,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    fileSize > 0
+                        ? _formatFileSize(
+                      fileSize,
+                    )
+                        : '파일 열기',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color:
+                      _studyColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(width: 6),
+            Icon(
+              Icons.open_in_new_rounded,
+              size: 19,
+              color:
+              _studyColors.pinkStart,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildQuizMessage(
       Map<String, dynamic> messageData,
       ) {
@@ -2651,6 +3204,27 @@ class _StudyChatPageState
             ?.toString() ??
             '';
 
+    String fileUrl =
+        messageData['fileUrl']
+            ?.toString() ??
+            '';
+
+    String fileName =
+        messageData['fileName']
+            ?.toString() ??
+            '';
+
+    int fileSize = 0;
+
+    dynamic fileSizeValue =
+    messageData['fileSize'];
+
+    if (fileSizeValue is int) {
+      fileSize = fileSizeValue;
+    } else if (fileSizeValue is num) {
+      fileSize = fileSizeValue.toInt();
+    }
+
     String replySenderNickname =
         messageData[
         'replySenderNickname']
@@ -2694,6 +3268,14 @@ class _StudyChatPageState
             imageUrl,
           );
     } else if (messageType ==
+        'FILE') {
+      messageContent =
+          _buildFileMessage(
+            fileUrl,
+            fileName,
+            fileSize,
+          );
+    } else if (messageType ==
         'QUIZ') {
       messageContent =
           _buildQuizMessage(
@@ -2728,6 +3310,7 @@ class _StudyChatPageState
         ),
         padding: messageType ==
             'IMAGE' ||
+            messageType == 'FILE' ||
             messageType == 'QUIZ'
             ? EdgeInsets.all(5)
             : EdgeInsets.symmetric(
@@ -3003,7 +3586,8 @@ class _StudyChatPageState
   }
 
   Widget _buildUploadProgress() {
-    if (!_isUploadingImage) {
+    if (!_isUploadingImage &&
+        !_isUploadingFile) {
       return SizedBox();
     }
 
@@ -3045,7 +3629,9 @@ class _StudyChatPageState
               SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '사진을 보내는 중입니다.',
+                  _isUploadingFile
+                      ? '파일을 보내는 중입니다.'
+                      : '사진을 보내는 중입니다.',
                   style: TextStyle(
                     fontSize: 11,
                     color: _studyColors
@@ -3112,15 +3698,15 @@ class _StudyChatPageState
             width: 44,
             height: 44,
             child: IconButton(
-              tooltip: '사진 보내기',
+              tooltip: '사진 또는 파일 보내기',
               onPressed:
               _isSending ||
-                  _isUploadingImage
+                  _isUploadingImage ||
+                  _isUploadingFile
                   ? null
                   : _showImageSourceSheet,
               icon: Icon(
-                Icons
-                    .add_photo_alternate_outlined,
+                Icons.attach_file_rounded,
                 color:
                 _studyColors.pinkStart,
               ),
@@ -3166,7 +3752,8 @@ class _StudyChatPageState
             height: 46,
             child: ElevatedButton(
               onPressed: _isSending ||
-                  _isUploadingImage
+                  _isUploadingImage ||
+                  _isUploadingFile
                   ? null
                   : _sendMessage,
               style:
