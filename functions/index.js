@@ -1007,3 +1007,113 @@ exports.validateCertificateName = onCall(
     }
   }
 );
+
+exports.getCertificateStructure = onCall(
+  { secrets: [GEMINI_API_KEY] },
+  async (request) => {
+    const name = (request.data?.name || "").trim();
+    if (!name) {
+      throw new HttpsError("invalid-argument", "자격증 이름을 입력해주세요.");
+    }
+
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value());
+    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+
+    const prompt = `"${name}"이(가) 실제 존재하는 한국의 자격증/인증시험이 맞는지 먼저 판단해.
+    존재하지 않거나 자격증이 아니면 {"valid": false}만 반환해.
+
+    실제 자격증이라면, 이 시험의 구조를 분석해서 아래 JSON 형식으로만 응답해. 다른 텍스트는 절대 포함하지 마:
+    {
+      "valid": true,
+      "hasWritten": true 또는 false,
+      "hasPractical": true 또는 false,
+      "isIntegrated": true 또는 false,
+      "writtenSubjects": ["과목1", "과목2"],
+      "practicalSubjects": ["과목1"],
+      "integratedSubjects": []
+    }
+
+    규칙:
+    - 필기/실기 구분이 있는 시험은 isIntegrated를 false로 하고, hasWritten/hasPractical과 writtenSubjects/practicalSubjects를 채워.
+    - 필기/실기 구분 없이 하나로 치러지는 시험(어학시험, 한국사능력검정시험 등)은 isIntegrated를 true로 하고 integratedSubjects만 채우고 hasWritten/hasPractical은 false로 해.
+    - 과목이 명확히 나뉘지 않는 시험은 해당 배열에 전체 시험명을 하나의 항목으로 넣어.`;
+
+    try {
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+
+      if (parsed.valid !== true) {
+        return { success: false, message: "실제 존재하는 자격증을 찾지 못했어요." };
+      }
+
+      return {
+        success: true,
+        structure: {
+          name,
+          hasWritten: !!parsed.hasWritten,
+          hasPractical: !!parsed.hasPractical,
+          isIntegrated: !!parsed.isIntegrated,
+          writtenSubjects: parsed.writtenSubjects || [],
+          practicalSubjects: parsed.practicalSubjects || [],
+          integratedSubjects: parsed.integratedSubjects || [],
+        },
+      };
+    } catch (e) {
+      console.error("자격증 구조 분석 실패: " + e.message);
+      return { success: false, message: "자격증 정보를 불러오지 못했어요." };
+    }
+  }
+);
+
+exports.generateQuestion = onCall(
+  { secrets: [GEMINI_API_KEY] },
+  async (request) => {
+    const { certificationName, examType, subject, generationType } = request.data || {};
+
+    if (!certificationName || !examType) {
+      throw new HttpsError("invalid-argument", "필수 정보가 누락되었습니다.");
+    }
+
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value());
+    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+
+    const subjectText = subject ? `"${subject}" 과목의 ` : "";
+    const prompt = `너는 "${certificationName}" 자격증 ${examType} 시험 문제를 출제하는 전문가야.
+    ${subjectText}실제 시험 난이도와 형식에 맞는 문제 1개를 만들어줘.
+
+    아래 JSON 형식으로만 응답해. 다른 텍스트는 절대 포함하지 마:
+    {
+      "question": "문제 내용",
+      "options": ["보기1", "보기2", "보기3", "보기4"],
+      "answer": "정답 (options 중 하나와 정확히 일치)",
+      "explanation": "정답에 대한 해설"
+    }
+
+    규칙:
+    - 객관식이면 보기 4개 중 하나가 정답이어야 해.
+    - 단답형/서술형에 가까운 실기 문제면 options는 빈 배열로 하고 answer에 정답을 직접 써.
+    - 한국어로 작성해.`;
+
+    try {
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+
+      return {
+        success: true,
+        question: {
+          question: parsed.question || "",
+          options: parsed.options || [],
+          answer: parsed.answer || "",
+          explanation: parsed.explanation || "",
+        },
+      };
+    } catch (e) {
+      console.error("문제 생성 실패: " + e.message);
+      return { success: false, message: "문제를 생성하지 못했어요." };
+    }
+  }
+);
