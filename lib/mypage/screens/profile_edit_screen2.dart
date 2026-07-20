@@ -1,10 +1,6 @@
-import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
@@ -24,29 +20,32 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   GlobalKey<FormState>();
 
   final TextEditingController _loginIdController =
-  TextEditingController();
+  TextEditingController(
+    text: 'user_id',
+  );
 
   final TextEditingController _nicknameController =
-  TextEditingController();
+  TextEditingController(
+    text: '사용자 닉네임',
+  );
+
+  final TextEditingController _phoneController =
+  TextEditingController(
+    text: '01012345678',
+  );
 
   final TextEditingController _introductionController =
-  TextEditingController();
+  TextEditingController(
+    text: '자격증 공부 중입니다.',
+  );
 
-  String? _profileImageUrl;
-  bool _isLoading = true;
   bool _isSaving = false;
-  bool _isUploadingImage = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadProfile();
-  }
 
   @override
   void dispose() {
     _loginIdController.dispose();
     _nicknameController.dispose();
+    _phoneController.dispose();
     _introductionController.dispose();
 
     super.dispose();
@@ -72,11 +71,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       ),
 
       body: AppMainBackground(
-        child: _isLoading
-            ? const Center(
-          child: CircularProgressIndicator(),
-        )
-            : Form(
+        child: Form(
           key: _formKey,
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(
@@ -126,34 +121,22 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               Container(
                 width: 100,
                 height: 100,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFFFCE1E8),
-                  image: _profileImageUrl != null &&
-                      _profileImageUrl!.isNotEmpty
-                      ? DecorationImage(
-                    image: NetworkImage(_profileImageUrl!),
-                    fit: BoxFit.cover,
-                  )
-                      : null,
+                  color: Color(0xFFFCE1E8),
                 ),
-                child: _profileImageUrl == null ||
-                    _profileImageUrl!.isEmpty
-                    ? const Icon(
+                child: const Icon(
                   Icons.person,
                   size: 56,
                   color: Color(0xFFF0788F),
-                )
-                    : null,
+                ),
               ),
 
               Positioned(
                 right: 0,
                 bottom: 0,
                 child: GestureDetector(
-                  onTap: _isUploadingImage
-                      ? null
-                      : _changeProfileImage,
+                  onTap: _changeProfileImage,
                   child: Container(
                     width: 34,
                     height: 34,
@@ -177,13 +160,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           ),
           const SizedBox(height: 12),
           TextButton(
-            onPressed: _isUploadingImage
-                ? null
-                : _changeProfileImage,
-            child: Text(
-              _isUploadingImage
-                  ? '사진 변경 중...'
-                  : '프로필 사진 변경',
+            onPressed: _changeProfileImage,
+            child: const Text(
+              '프로필 사진 변경',
               style: TextStyle(
                 color: Color(0xFFF0788F),
                 fontWeight: FontWeight.w600,
@@ -243,6 +222,47 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
               if (nickname.length < 2) {
                 return '닉네임은 2자 이상 입력해 주세요.';
+              }
+
+              return null;
+            },
+          ),
+          const SizedBox(height: 18),
+
+          _buildLabel('전화번호'),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _phoneController,
+            keyboardType:
+            TextInputType.phone,
+            decoration: _inputDecoration(
+              hintText: '전화번호를 입력해 주세요.',
+              prefixIcon: Icons.phone_outlined,
+              suffixIcon: TextButton(
+                onPressed: () {
+                  _showTemporaryMessage(
+                    '전화번호 인증 기능은 추후 연결합니다.',
+                  );
+                },
+                child: const Text(
+                  '인증',
+                  style: TextStyle(
+                    color: Color(0xFFF0788F),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            validator: (value) {
+              final String phone =
+                  value?.replaceAll('-', '') ?? '';
+
+              if (phone.isEmpty) {
+                return '전화번호를 입력해 주세요.';
+              }
+
+              if (phone.length < 10) {
+                return '올바른 전화번호를 입력해 주세요.';
               }
 
               return null;
@@ -411,8 +431,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                     '앨범에서 선택',
                   ),
                   onTap: () {
-                    Navigator.pop(bottomSheetContext);
-                    _pickAndUploadProfileImage();
+                    Navigator.pop(
+                      bottomSheetContext,
+                    );
+
+                    _showTemporaryMessage(
+                      '이미지 선택 기능은 추후 연결합니다.',
+                    );
                   },
                 ),
 
@@ -425,8 +450,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                     '기본 이미지로 변경',
                   ),
                   onTap: () {
-                    Navigator.pop(bottomSheetContext);
-                    _resetProfileImage();
+                    Navigator.pop(
+                      bottomSheetContext,
+                    );
+
+                    _showTemporaryMessage(
+                      '기본 이미지로 변경했습니다.',
+                    );
                   },
                 ),
               ],
@@ -435,256 +465,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         );
       },
     );
-  }
-
-  Future<void> _pickAndUploadProfileImage() async {
-    final User? currentUser = FirebaseAuth.instance.currentUser;
-
-    if (currentUser == null) {
-      _showMessage('로그인 정보를 확인할 수 없습니다.');
-      return;
-    }
-
-    try {
-      final XFile? pickedImage = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1024,
-        imageQuality: 85,
-      );
-
-      if (pickedImage == null) {
-        return;
-      }
-
-      if (mounted) {
-        setState(() {
-          _isUploadingImage = true;
-        });
-      }
-
-      final String path =
-          'profile_images/${currentUser.uid}.jpg';
-      final Reference imageReference =
-      FirebaseStorage.instance.ref().child(path);
-
-      await imageReference.putFile(File(pickedImage.path));
-      final String imageUrl =
-      await imageReference.getDownloadURL();
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .update({
-        'profileImageUrl': imageUrl,
-        'profileImagePath': path,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        // 같은 Storage 경로에 덮어써도 캐시가 남지 않도록 값을 갱신합니다.
-        _profileImageUrl =
-        '$imageUrl&updated=${DateTime.now().millisecondsSinceEpoch}';
-      });
-
-      _showMessage('프로필 사진이 변경되었습니다.');
-    } on FirebaseException catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      String message = '프로필 사진 변경에 실패했습니다.';
-
-      if (error.code == 'permission-denied' ||
-          error.code == 'unauthorized') {
-        message = '프로필 사진을 변경할 권한이 없습니다.';
-      }
-
-      _showMessage(message);
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      _showMessage('프로필 사진 변경 중 오류가 발생했습니다.');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isUploadingImage = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _resetProfileImage() async {
-    final User? currentUser = FirebaseAuth.instance.currentUser;
-
-    if (currentUser == null) {
-      _showMessage('로그인 정보를 확인할 수 없습니다.');
-      return;
-    }
-
-    try {
-      setState(() {
-        _isUploadingImage = true;
-      });
-
-      final DocumentSnapshot<Map<String, dynamic>> userDocument =
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .get();
-
-      final String? imagePath =
-      userDocument.data()?['profileImagePath'] as String?;
-
-      if (imagePath != null && imagePath.isNotEmpty) {
-        try {
-          await FirebaseStorage.instance
-              .ref()
-              .child(imagePath)
-              .delete();
-        } on FirebaseException catch (error) {
-          // Storage에 이미 파일이 없어도 Firestore 필드는 정리합니다.
-          if (error.code != 'object-not-found') {
-            rethrow;
-          }
-        }
-      }
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .update({
-        'profileImageUrl': FieldValue.delete(),
-        'profileImagePath': FieldValue.delete(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _profileImageUrl = null;
-      });
-
-      _showMessage('기본 이미지로 변경되었습니다.');
-    } on FirebaseException catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      String message = '기본 이미지 변경에 실패했습니다.';
-
-      if (error.code == 'permission-denied' ||
-          error.code == 'unauthorized') {
-        message = '프로필 사진을 변경할 권한이 없습니다.';
-      }
-
-      _showMessage(message);
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      _showMessage('기본 이미지 변경 중 오류가 발생했습니다.');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isUploadingImage = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _loadProfile() async {
-    final User? currentUser =
-        FirebaseAuth.instance.currentUser;
-
-    if (currentUser == null) {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _isLoading = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('로그인 정보를 확인할 수 없습니다.'),
-        ),
-      );
-      return;
-    }
-
-    try {
-      final DocumentSnapshot<Map<String, dynamic>> userDocument =
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .get();
-
-      final Map<String, dynamic>? userData =
-      userDocument.data();
-
-      if (!mounted) {
-        return;
-      }
-
-      final String? loginId =
-      userData?['loginId'] as String?;
-
-      _loginIdController.text =
-      loginId != null && loginId.trim().isNotEmpty
-          ? loginId
-          : (currentUser.email ?? '');
-
-      _nicknameController.text =
-          (userData?['nickname'] as String?) ?? '';
-
-      _introductionController.text =
-          (userData?['bio'] as String?) ?? '';
-
-      _profileImageUrl =
-      userData?['profileImageUrl'] as String?;
-    } on FirebaseException catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      String message = '회원 정보를 불러오지 못했습니다.';
-
-      if (error.code == 'permission-denied') {
-        message = '회원 정보를 조회할 권한이 없습니다.';
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('회원 정보 조회 중 오류가 발생했습니다.'),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
   }
 
   Future<void> _saveProfile() async {
@@ -771,7 +551,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     }
   }
 
-  void _showMessage(
+  void _showTemporaryMessage(
       String message,
       ) {
     ScaffoldMessenger.of(context)

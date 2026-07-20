@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../widgets/app_button.dart';
@@ -23,153 +21,8 @@ import 'app_setting_screen.dart';
 import 'help_and_inquiry_screen.dart';
 import 'account_withdrawal_screen.dart';
 
-class MyPageScreen extends StatefulWidget {
+class MyPageScreen extends StatelessWidget {
   const MyPageScreen({super.key});
-
-  @override
-  State<MyPageScreen> createState() => _MyPageScreenState();
-}
-
-class _MyPageScreenState extends State<MyPageScreen> {
-  String _nickname = '불러오는 중...';
-  String _bio = '';
-  String _targetCertificateName = '등록된 목표 없음';
-  String? _profileImageUrl;
-  bool _isLoadingProfile = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadMyPageData();
-  }
-
-  Future<void> _loadMyPageData() async {
-    final User? user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _nickname = '로그인이 필요합니다';
-        _bio = '';
-        _targetCertificateName = '등록된 목표 없음';
-        _profileImageUrl = null;
-        _isLoadingProfile = false;
-      });
-      return;
-    }
-
-    try {
-      final DocumentSnapshot<Map<String, dynamic>> userDocument =
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-
-      final Map<String, dynamic>? userData = userDocument.data();
-
-      String nickname = user.displayName ?? '닉네임 없음';
-      String bio = '';
-      String targetCertificateName = '등록된 목표 없음';
-      String? profileImageUrl;
-
-      if (userData != null) {
-        final dynamic savedNickname = userData['nickname'];
-        final dynamic savedBio = userData['bio'];
-        final dynamic savedProfileImageUrl = userData['profileImageUrl'];
-        final dynamic goalCertificateId = userData['goalCertificateId'];
-
-        if (savedNickname is String && savedNickname.trim().isNotEmpty) {
-          nickname = savedNickname.trim();
-        }
-
-        if (savedBio is String && savedBio.trim().isNotEmpty) {
-          bio = savedBio.trim();
-        }
-
-        if (savedProfileImageUrl is String &&
-            savedProfileImageUrl.trim().isNotEmpty) {
-          profileImageUrl = savedProfileImageUrl.trim();
-        }
-
-        // users/{uid}의 goalCertificateId로 certificates/{id}를 조회합니다.
-        if (goalCertificateId is String &&
-            goalCertificateId.trim().isNotEmpty) {
-          final String certificateId = goalCertificateId.trim();
-
-          final DocumentSnapshot<Map<String, dynamic>> certificateDocument =
-          await FirebaseFirestore.instance
-              .collection('certificates')
-              .doc(certificateId)
-              .get();
-
-          final Map<String, dynamic>? certificateData =
-          certificateDocument.data();
-
-          if (certificateData != null) {
-            final dynamic savedCertificateName =
-                certificateData['certificateName'] ??
-                    certificateData['name'] ??
-                    certificateData['title'];
-
-            if (savedCertificateName is String &&
-                savedCertificateName.trim().isNotEmpty) {
-              targetCertificateName = savedCertificateName.trim();
-            }
-          }
-
-          // 자격증 문서나 이름 필드가 아직 없다면 ID라도 표시합니다.
-          if (targetCertificateName == '등록된 목표 없음') {
-            targetCertificateName = certificateId.toUpperCase();
-          }
-        }
-      }
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _nickname = nickname;
-        _bio = bio;
-        _targetCertificateName = targetCertificateName;
-        _profileImageUrl = profileImageUrl;
-        _isLoadingProfile = false;
-      });
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _nickname = user.displayName ?? '닉네임 없음';
-        _bio = '';
-        _targetCertificateName = '등록된 목표 없음';
-        _profileImageUrl = null;
-        _isLoadingProfile = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('마이페이지 정보를 불러오지 못했습니다: $error'),
-        ),
-      );
-    }
-  }
-
-  Future<void> _openProfileEdit(BuildContext context) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const ProfileEditScreen(),
-      ),
-    );
-
-    // 프로필 수정 화면에서 돌아오면 최신 정보를 다시 조회합니다.
-    await _loadMyPageData();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -196,9 +49,9 @@ class _MyPageScreenState extends State<MyPageScreen> {
               const SizedBox(height: 16),
 
               MyPageSummaryCard(
-                studyMinutes: 0,
-                studyGroupCount: 0,
-                postCount: 0,
+                studyMinutes: 320,
+                studyGroupCount: 2,
+                postCount: 5,
                 onStudyTap: () {
                   _openPage(
                     context,
@@ -363,7 +216,13 @@ class _MyPageScreenState extends State<MyPageScreen> {
                       title: '내 정보 관리',
                       subtitle: '닉네임, 프로필 이미지 등을 변경합니다.',
                       onTap: () {
-                        _openProfileEdit(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                            const ProfileEditScreen(),
+                          ),
+                        );
                       },
                     ),
                     const _MenuDivider(),
@@ -468,296 +327,392 @@ class _MyPageScreenState extends State<MyPageScreen> {
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          24,
-          28,
-          24,
-          26,
-        ),
-        child: Column(
-          children: [
-            // 프로필 이미지
-            Container(
-              width: 104,
-              height: 104,
-              padding: const EdgeInsets.all(5),
+      child: Stack(
+        children: [
+          // 왼쪽 연한 원 장식
+          Positioned(
+            left: -38,
+            top: 82,
+            child: Container(
+              width: 110,
+              height: 110,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white,
-                border: Border.all(
-                  color: const Color(0xFFFFDCE4),
-                  width: 2,
+                color: const Color(0xFFFCE1E8).withValues(
+                  alpha: 0.45,
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFF0788F)
-                        .withValues(alpha: 0.18),
-                    blurRadius: 18,
-                    offset: const Offset(0, 7),
-                  ),
-                ],
               ),
-              child: ClipOval(
-                child: _profileImageUrl != null &&
-                    _profileImageUrl!.isNotEmpty
-                    ? Image.network(
-                  _profileImageUrl!,
-                  width: 94,
-                  height: 94,
-                  fit: BoxFit.cover,
-                  errorBuilder: (
-                      context,
-                      error,
-                      stackTrace,
-                      ) {
-                    return Container(
-                      decoration: const BoxDecoration(
+            ),
+          ),
+
+          // 오른쪽 큰 원 장식
+          Positioned(
+            right: -48,
+            top: 70,
+            child: Container(
+              width: 140,
+              height: 140,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFFFCE1E8).withValues(
+                  alpha: 0.35,
+                ),
+              ),
+            ),
+          ),
+
+          // 오른쪽 작은 원 장식
+          Positioned(
+            right: 74,
+            top: 175,
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFFF8BFCB).withValues(
+                  alpha: 0.22,
+                ),
+              ),
+            ),
+          ),
+
+          // 왼쪽 반짝이 장식
+          const Positioned(
+            left: 76,
+            top: 62,
+            child: Icon(
+              Icons.auto_awesome,
+              size: 18,
+              color: Color(0xFFF7A3B5),
+            ),
+          ),
+
+          // 오른쪽 반짝이 장식
+          const Positioned(
+            right: 78,
+            top: 58,
+            child: Icon(
+              Icons.auto_awesome,
+              size: 18,
+              color: Color(0xFFF7A3B5),
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              24,
+              28,
+              24,
+              26,
+            ),
+            child: Column(
+              children: [
+                // 프로필 이미지
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 104,
+                      height: 104,
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Color(0xFFFFE8EE),
-                            Color(0xFFFFF6F8),
-                          ],
+                        color: Colors.white,
+                        border: Border.all(
+                          color: const Color(0xFFFFDCE4),
+                          width: 2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFF0788F)
+                                .withValues(
+                              alpha: 0.18,
+                            ),
+                            blurRadius: 18,
+                            offset: const Offset(0, 7),
+                          ),
+                        ],
+                      ),
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Color(0xFFFFE8EE),
+                              Color(0xFFFFF6F8),
+                            ],
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.person,
+                          size: 58,
+                          color: Color(0xFFF0788F),
                         ),
                       ),
-                      child: const Icon(
-                        Icons.person,
-                        size: 58,
-                        color: Color(0xFFF0788F),
+                    ),
+
+                    // 카메라 버튼
+                    Positioned(
+                      right: -3,
+                      bottom: 0,
+                      child: GestureDetector(
+                        onTap: () {
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                '프로필 이미지 변경 기능은 추후 연결합니다.',
+                              ),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFFF0788F),
+                            border: Border.all(
+                              color: Colors.white,
+                              width: 2.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFF0788F)
+                                    .withValues(
+                                  alpha: 0.28,
+                                ),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt_outlined,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
-                    );
-                  },
-                )
-                    : Container(
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFFFFE8EE),
-                        Color(0xFFFFF6F8),
-                      ],
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.person,
-                    size: 58,
-                    color: Color(0xFFF0788F),
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 18),
-
-            // 현재 로그인한 사용자의 닉네임
-            Text(
-              _nickname,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 23,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF1A1A1A),
-              ),
-            ),
-
-            const SizedBox(height: 7),
-
-            // 현재 로그인한 사용자의 자기소개
-            Text(
-              _isLoadingProfile
-                  ? ''
-                  : (_bio.isEmpty ? '자기소개가 없습니다.' : _bio),
-              textAlign: TextAlign.center,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 14,
-                height: 1.45,
-                color: Color(0xFF777B84),
-              ),
-            ),
-
-            const SizedBox(height: 18),
-
-            // 목표 자격증 칩
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 11,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(
-                  alpha: 0.82,
-                ),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: const Color(0xFFFFD5DF),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFF0788F)
-                        .withValues(
-                      alpha: 0.08,
-                    ),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.track_changes_outlined,
-                    size: 20,
-                    color: Color(0xFFF0788F),
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    '목표 자격증',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF44474E),
-                    ),
-                  ),
-                  SizedBox(width: 5),
-                  Text(
-                    '·',
-                    style: TextStyle(
-                      color: Color(0xFFB5B7BE),
-                    ),
-                  ),
-                  SizedBox(width: 5),
-                  Flexible(
-                    child: Text(
-                      _targetCertificateName,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFFF0788F),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 22),
-
-            // 입체적인 프로필 수정 버튼
-            GestureDetector(
-              onTap: () {
-                _openProfileEdit(context);
-              },
-              child: Container(
-                width: 230,
-                height: 54,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(28),
-                  gradient: const LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0xFFFF9BB0),
-                      Color(0xFFF76F8D),
-                      Color(0xFFF25778),
-                    ],
-                  ),
-                  border: Border.all(
-                    color: const Color(0xFFFFB4C3),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    // 버튼 아래쪽 진한 그림자
-                    BoxShadow(
-                      color: const Color(0xFFE5496B)
-                          .withValues(
-                        alpha: 0.42,
-                      ),
-                      blurRadius: 13,
-                      offset: const Offset(0, 8),
-                    ),
-
-                    // 주변에 퍼지는 연한 핑크 그림자
-                    BoxShadow(
-                      color: const Color(0xFFF0788F)
-                          .withValues(
-                        alpha: 0.20,
-                      ),
-                      blurRadius: 22,
-                      offset: const Offset(0, 10),
                     ),
                   ],
                 ),
-                child: Stack(
-                  children: [
-                    // 버튼 위쪽 빛 반사
-                    Positioned(
-                      top: 2,
-                      left: 18,
-                      right: 18,
-                      child: Container(
-                        height: 14,
-                        decoration: BoxDecoration(
-                          borderRadius:
-                          BorderRadius.circular(20),
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.white.withValues(
-                                alpha: 0.42,
+
+                const SizedBox(height: 18),
+
+                // 닉네임
+                const Text(
+                  '밤티라미수',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 23,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+
+                const SizedBox(height: 7),
+
+                // bio 자기소개
+                const Text(
+                  '먹고싶다',
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.45,
+                    color: Color(0xFF777B84),
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                // 목표 자격증 칩
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 11,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(
+                      alpha: 0.82,
+                    ),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: const Color(0xFFFFD5DF),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFF0788F)
+                            .withValues(
+                          alpha: 0.08,
+                        ),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.track_changes_outlined,
+                        size: 20,
+                        color: Color(0xFFF0788F),
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        '목표 자격증',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF44474E),
+                        ),
+                      ),
+                      SizedBox(width: 5),
+                      Text(
+                        '·',
+                        style: TextStyle(
+                          color: Color(0xFFB5B7BE),
+                        ),
+                      ),
+                      SizedBox(width: 5),
+                      Flexible(
+                        child: Text(
+                          '정보처리기사',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFF0788F),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 22),
+
+                // 입체적인 프로필 수정 버튼
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                        const ProfileEditScreen(),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    width: 230,
+                    height: 54,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(28),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Color(0xFFFF9BB0),
+                          Color(0xFFF76F8D),
+                          Color(0xFFF25778),
+                        ],
+                      ),
+                      border: Border.all(
+                        color: const Color(0xFFFFB4C3),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        // 버튼 아래쪽 진한 그림자
+                        BoxShadow(
+                          color: const Color(0xFFE5496B)
+                              .withValues(
+                            alpha: 0.42,
+                          ),
+                          blurRadius: 13,
+                          offset: const Offset(0, 8),
+                        ),
+
+                        // 주변에 퍼지는 연한 핑크 그림자
+                        BoxShadow(
+                          color: const Color(0xFFF0788F)
+                              .withValues(
+                            alpha: 0.20,
+                          ),
+                          blurRadius: 22,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Stack(
+                      children: [
+                        // 버튼 위쪽 빛 반사
+                        Positioned(
+                          top: 2,
+                          left: 18,
+                          right: 18,
+                          child: Container(
+                            height: 14,
+                            decoration: BoxDecoration(
+                              borderRadius:
+                              BorderRadius.circular(20),
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.white.withValues(
+                                    alpha: 0.42,
+                                  ),
+                                  Colors.white.withValues(
+                                    alpha: 0,
+                                  ),
+                                ],
                               ),
-                              Colors.white.withValues(
-                                alpha: 0,
+                            ),
+                          ),
+                        ),
+
+                        const Center(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '프로필 수정',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                  shadows: [
+                                    Shadow(
+                                      color: Color(0x55000000),
+                                      offset: Offset(0, 1),
+                                      blurRadius: 2,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Icon(
+                                Icons.edit_outlined,
+                                size: 18,
+                                color: Colors.white,
                               ),
                             ],
                           ),
                         ),
-                      ),
+                      ],
                     ),
-
-                    const Center(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '프로필 수정',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              shadows: [
-                                Shadow(
-                                  color: Color(0x55000000),
-                                  offset: Offset(0, 1),
-                                  blurRadius: 2,
-                                ),
-                              ],
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Icon(
-                            Icons.edit_outlined,
-                            size: 18,
-                            color: Colors.white,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
