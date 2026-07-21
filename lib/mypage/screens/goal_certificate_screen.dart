@@ -46,7 +46,7 @@ class _GoalCertificateScreenState
     try {
       final QuerySnapshot<Map<String, dynamic>> snapshot =
       await FirebaseFirestore.instance
-          .collection('userGoals')
+          .collection('users')
           .doc(user.uid)
           .collection('goals')
           .get();
@@ -375,7 +375,7 @@ class _GoalCertificateScreenState
     try {
       final DocumentReference<Map<String, dynamic>> goalDocument =
       FirebaseFirestore.instance
-          .collection('userGoals')
+          .collection('users')
           .doc(user.uid)
           .collection('goals')
           .doc(goal.goalId);
