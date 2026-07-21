@@ -4,24 +4,30 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
-import 'quiz_result_page.dart';
-import 'question_generation.dart' show AnswerCheckMode;
 import 'services/question_generation_api_service.dart';
+import 'quiz_result_page.dart';
+import 'question_generation.dart' show AnswerCheckMode, QuizSourceType;
 
 class QuizSessionPage extends StatefulWidget {
-  final String certificationName;
+  final QuizSourceType sourceType;
+  final String? certificationName;
+  final String? pdfFileName;
   final String examType;
   final String? subject;
   final List<GeneratedQuestion> questions;
   final AnswerCheckMode checkMode;
+  final int generationDurationSeconds;
 
   const QuizSessionPage({
     super.key,
+    required this.sourceType,
     required this.certificationName,
+    required this.pdfFileName,
     required this.examType,
     required this.subject,
     required this.questions,
     required this.checkMode,
+    required this.generationDurationSeconds,
   });
 
   @override
@@ -95,7 +101,9 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
       final userAnswer = _userAnswers[i];
       if (userAnswer != q.answer) {
         wrongAnswers.add(WrongAnswer(
+          sourceType: widget.sourceType,
           certificationName: widget.certificationName,
+          pdfFileName: widget.pdfFileName,
           examType: widget.examType,
           subject: widget.subject,
           question: q.question,
@@ -107,8 +115,24 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
       }
     }
 
+    final correctCount = widget.questions.length - wrongAnswers.length;
+
     QuestionGenerationApiService.saveWrongAnswers(wrongAnswers).catchError((e) {
       debugPrint('오답노트 저장 실패: $e');
+    });
+
+    QuestionGenerationApiService.saveQuizSession(QuizSession(
+      sourceType: widget.sourceType,
+      certificationName: widget.certificationName,
+      pdfFileName: widget.pdfFileName,
+      examType: widget.examType,
+      subject: widget.subject,
+      totalCount: widget.questions.length,
+      correctCount: correctCount,
+      generationDurationSeconds: widget.generationDurationSeconds,
+      solvingDurationSeconds: _elapsed.inSeconds,
+    )).catchError((e) {
+      debugPrint('퀴즈 세션 저장 실패: $e');
     });
 
     Navigator.of(context).pushReplacement(
@@ -117,6 +141,11 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
           totalCount: widget.questions.length,
           wrongAnswers: wrongAnswers,
           elapsed: _elapsed,
+          sourceType: widget.sourceType,
+          certificationName: widget.certificationName,
+          examType: widget.examType,
+          subject: widget.subject,
+          checkMode: widget.checkMode,
         ),
       ),
     );
@@ -125,19 +154,118 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   void _confirmExit() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('퀴즈를 종료할까요?'),
-        content: const Text('지금까지 푼 문제는 저장되지 않아요.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('계속 풀기')),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-            child: const Text('종료'),
+      barrierColor: Colors.black.withValues(alpha: 0.4),
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: context.colors.pinkDeep.withValues(alpha: 0.18),
+                blurRadius: 30,
+                offset: const Offset(0, 16),
+              ),
+            ],
           ),
-        ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: context.colors.pinkStart,
+                ),
+                child: const Icon(
+                  Icons.close_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                '퀴즈를 종료할까요?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: context.colors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                '지금까지 푼 문제는 저장되지 않아요.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: context.colors.textSecondary,
+                  fontSize: 13.5,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 50,
+                      child: Material(
+                        color: const Color(0xFFF6F1F2),
+                        borderRadius: BorderRadius.circular(16),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () => Navigator.pop(dialogContext),
+                          child: Center(
+                            child: Text(
+                              '계속 풀기',
+                              style: TextStyle(
+                                color: context.colors.textPrimary,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: SizedBox(
+                      height: 50,
+                      child: Material(
+                        color: context.colors.pinkStart,
+                        borderRadius: BorderRadius.circular(16),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () {
+                            Navigator.pop(dialogContext);
+                            Navigator.pop(context);
+                          },
+                          child: const Center(
+                            child: Text(
+                              '종료',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

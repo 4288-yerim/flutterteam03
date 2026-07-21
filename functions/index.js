@@ -1236,3 +1236,182 @@ exports.generateQuestionsFromText = onCall(
     }
   }
 );
+
+exports.generateQuestionsFromWrongAnswers = onCall(
+  { secrets: [GEMINI_API_KEY], timeoutSeconds: 180 },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+    }
+
+    const uid = request.auth.uid;
+    const count = request.data?.count || 20;
+    const certificationName = request.data?.certificationName || null;
+
+    const snap = await db
+      .collection("users")
+      .doc(uid)
+      .collection("wrong_answers")
+      .orderBy("createdAt", "desc")
+      .limit(50)
+      .get();
+
+    let docs = snap.docs.map((d) => d.data());
+
+    // 특정 자격증으로 필터링 가능하면 필터링, 결과가 없으면 전체로 폴백
+    if (certificationName) {
+      const filtered = docs.filter((d) => d.certificationName === certificationName);
+      if (filtered.length > 0) docs = filtered;
+    }
+
+    if (docs.length === 0) {
+      return { success: false, message: "아직 오답 기록이 없어요. 먼저 문제를 풀어주세요." };
+    }
+
+    const summary = docs
+      .slice(0, 30)
+      .map((d, i) =>
+        `${i + 1}. 문제: ${d.question}\n   정답: ${d.correctAnswer}\n   내가 고른 답: ${d.userAnswer}\n   해설: ${d.explanation || ""}`
+      )
+      .join("\n\n");
+
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value());
+    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+
+    const prompt = `아래는 학습자가 과거에 틀렸던 문제들이야:
+    ---
+    ${summary}
+    ---
+
+    이 문제들이 다루는 개념과 비슷하지만, 완전히 새로운 문제 ${count}개를 만들어줘.
+    같은 개념을 다른 방식으로 물어보거나, 학습자가 헷갈려했던 지점을 다시 확인할 수 있는 문제로 구성해.
+
+    아래 JSON 배열 형식으로만 응답해. 다른 텍스트는 절대 포함하지 마:
+    [
+      {
+        "question": "문제 내용",
+        "options": ["보기1", "보기2", "보기3", "보기4"],
+        "answer": "정답 (options 중 하나와 정확히 일치)",
+        "explanation": "정답에 대한 해설"
+      }
+    ]
+
+    규칙:
+    - 객관식이면 보기 4개 중 하나가 정답이어야 해.
+    - 문제끼리 내용이 겹치지 않아야 해.
+    - 정확히 ${count}개를 만들어야 해.
+    - 한국어로 작성해.`;
+
+    const tryGenerate = async () => {
+      const result = await model.generateContent(prompt);
+      let text = result.response.text();
+      text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+
+      const jsonMatch = text.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        throw new Error("JSON 배열 형식을 찾지 못했습니다: " + text.slice(0, 200));
+      }
+      return JSON.parse(jsonMatch[0]);
+    };
+
+    try {
+      let parsed;
+      try {
+        parsed = await tryGenerate();
+      } catch (firstError) {
+        console.error("1차 파싱 실패, 재시도: " + firstError.message);
+        parsed = await tryGenerate();
+      }
+
+      const questions = (Array.isArray(parsed) ? parsed : []).map((q) => ({
+        question: q.question || "",
+        options: q.options || [],
+        answer: q.answer || "",
+        explanation: q.explanation || "",
+      }));
+
+      if (questions.length === 0) {
+        return { success: false, message: "문제를 생성하지 못했어요." };
+      }
+
+      return { success: true, questions };
+    } catch (e) {
+      console.error("오답 기반 문제 생성 실패: " + e.message);
+      return { success: false, message: "문제를 생성하지 못했어요." };
+    }
+  }
+);
+
+exports.generateQuestionsForCertification = onCall(
+  { secrets: [GEMINI_API_KEY], timeoutSeconds: 180 },
+  async (request) => {
+    const { certificationName, examType, subject, count } = request.data || {};
+    const questionCount = count || 20;
+
+    if (!certificationName || !examType) {
+      throw new HttpsError("invalid-argument", "필수 정보가 누락되었습니다.");
+    }
+
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value());
+    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+
+    const subjectText = subject ? `"${subject}" 과목의 ` : "";
+    const prompt = `너는 "${certificationName}" 자격증 ${examType} 시험 문제를 출제하는 전문가야.
+    ${subjectText}실제 시험 난이도와 형식에 맞는, 서로 겹치지 않는 문제 ${questionCount}개를 만들어줘.
+
+    아래 JSON 배열 형식으로만 응답해. 다른 텍스트는 절대 포함하지 마:
+    [
+      {
+        "question": "문제 내용",
+        "options": ["보기1", "보기2", "보기3", "보기4"],
+        "answer": "정답 (options 중 하나와 정확히 일치)",
+        "explanation": "정답에 대한 해설"
+      }
+    ]
+
+    규칙:
+    - 객관식이면 보기 4개 중 하나가 정답이어야 해.
+    - 단답형/서술형에 가까운 실기 문제면 options는 빈 배열로 하고 answer에 정답을 직접 써.
+    - 문제끼리 내용이 겹치지 않아야 해.
+    - 정확히 ${questionCount}개를 만들어야 해.
+    - 한국어로 작성해.`;
+
+    const tryGenerate = async () => {
+      const result = await model.generateContent(prompt);
+      let text = result.response.text();
+      text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+
+      const jsonMatch = text.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        throw new Error("JSON 배열 형식을 찾지 못했습니다: " + text.slice(0, 200));
+      }
+      return JSON.parse(jsonMatch[0]);
+    };
+
+    try {
+      let parsed;
+      try {
+        parsed = await tryGenerate();
+      } catch (firstError) {
+        console.error("1차 파싱 실패, 재시도: " + firstError.message);
+        parsed = await tryGenerate();
+      }
+
+      const questions = (Array.isArray(parsed) ? parsed : []).map((q) => ({
+        question: q.question || "",
+        options: q.options || [],
+        answer: q.answer || "",
+        explanation: q.explanation || "",
+      }));
+
+      if (questions.length === 0) {
+        return { success: false, message: "문제를 생성하지 못했어요." };
+      }
+
+      return { success: true, questions };
+    } catch (e) {
+      console.error("자격증 기반 문제 생성 실패: " + e.message);
+      return { success: false, message: "문제를 생성하지 못했어요." };
+    }
+  }
+);

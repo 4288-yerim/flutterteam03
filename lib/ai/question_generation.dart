@@ -5,6 +5,7 @@ import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
 import 'services/question_generation_api_service.dart';
 import 'dart:async';
+import 'dart:math' as math;
 
 class QuestionGenerationPage extends StatefulWidget {
   const QuestionGenerationPage({super.key});
@@ -20,6 +21,37 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
   static const Color _subTextColor = Color(0xFF8E8589);
   static const Color _pinkColor = Color(0xFFF4869D);
   static const Color _pinkSoft = Color(0xFFFFE4EA);
+  static const Color _pinkAccent = Color(0xFFFF8FA3);
+
+  static const List<String> _pdfMessages = [
+    '구름iT이 자료를 분석하고 있어요',
+    'PDF 내용을 꼼꼼히 읽고 있어요',
+    '핵심 내용을 정리하고 있어요',
+    '문제를 만들고 있어요',
+    '거의 다 됐어요',
+    '이제 보여드릴게요',
+  ];
+  static const List<int> _pdfDurations = [2800, 3200, 3200, 3600, 2200, 900];
+
+  static const List<String> _genMessages = [
+    'AI가 자격증 정보를 분석하고 있어요',
+    '출제 경향을 파악하고 있어요',
+    '문제를 만들고 있어요',
+    '보기와 정답을 정리하고 있어요',
+    '거의 다 됐어요',
+    '이제 보여드릴게요',
+  ];
+  static const List<int> _genDurations = [2800, 3200, 3600, 3200, 2200, 900];
+
+  static const List<String> _wrongAnswerMessages = [
+    '오답 기록을 분석하고 있어요',
+    '틀렸던 개념을 정리하고 있어요',
+    '유사 문제를 만들고 있어요',
+    '보기와 정답을 정리하고 있어요',
+    '거의 다 됐어요',
+    '이제 보여드릴게요',
+  ];
+  static const List<int> _wrongAnswerDurations = [2800, 3200, 3600, 3200, 2200, 900];
 
   final PageController _pageController = PageController();
   int _currentStep = 0;
@@ -128,6 +160,7 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
       setState(() {
         _certification = certification;
         _isLoadingStructure = false;
+        _selectedSubject = '전체';
 
         // 기본 시험 유형 결정
         if (certification.isIntegrated) {
@@ -152,16 +185,20 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
       });
     }
   }
-
-  /// 필기·실기·통합 시험 유형 선택
   void _selectExamType(ExamType examType) {
     setState(() {
       _selectedExamType = examType;
-      _selectedSubject = null;
+      _selectedSubject = '전체';
     });
   }
 
   Future<void> _onGeneratePressed() async {
+    // 자료 기반 생성을 선택했으면 PDF 피커 플로우로 바로 이동
+    if (_selectedGenerationType == QuestionGenerationType.document) {
+      await _pickAndProcessPdf();
+      return;
+    }
+
     final certification = _certification;
 
     if (certification == null) {
@@ -172,48 +209,86 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
       _showMessage('시험 유형을 선택해주세요.');
       return;
     }
-    if (_currentSubjects.isNotEmpty && _selectedSubject == null) {
-      _showMessage('과목을 선택해주세요.');
-      return;
-    }
 
     setState(() {
       _isGenerating = true;
       _generatedCount = 0;
     });
 
-    try {
-      final questions = await QuestionGenerationApiService.generateQuestionBatch(
-        certificationName: certification.name,
-        examType: _selectedExamType!.label,
-        subject: _selectedSubject,
-        count: 20,
-        onProgress: (done, total) {
-          if (mounted) setState(() => _generatedCount = done);
-        },
-      );
+    final stopwatch = Stopwatch()..start();
 
+    try {
+      final List<GeneratedQuestion> questions;
+      final QuizSourceType sourceType;
+      final String examTypeLabel;
+      if (_selectedGenerationType == QuestionGenerationType.wrongAnswer) {
+        sourceType = QuizSourceType.wrongAnswerReview;
+        examTypeLabel = '오답 기반';
+        questions = await QuestionGenerationApiService
+            .generateQuestionsFromWrongAnswers(
+          certificationName: certification.name,
+          count: 20,
+        );
+        if (mounted) setState(() => _generatedCount = 20);
+      } else {
+        sourceType = QuizSourceType.certification;
+        examTypeLabel = _selectedExamType!.label;
+        questions = await QuestionGenerationApiService.generateQuestionBatch(
+          certificationName: certification.name,
+          examType: _selectedExamType!.label,
+          subject: _selectedSubject == '전체' ? null : _selectedSubject,
+          count: 20,
+          onProgress: (done, total) {
+            if (mounted) setState(() => _generatedCount = done);
+          },
+        );
+      }
+
+      if (!mounted) return;
+      if (_cancelled) return;
+
+      stopwatch.stop();
+
+      final durations = _selectedGenerationType == QuestionGenerationType.wrongAnswer
+          ? _wrongAnswerDurations
+          : _genDurations;
+      final minDuration = _minLoadingDuration(durations);
+      if (stopwatch.elapsed < minDuration) {
+        await Future.delayed(minDuration - stopwatch.elapsed);
+      }
       if (!mounted) return;
       if (_cancelled) return;
 
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => QuizSessionPage(
+            sourceType: sourceType,
             certificationName: certification.name,
-            examType: _selectedExamType!.label,
+            pdfFileName: null,
+            examType: examTypeLabel,
             subject: _selectedSubject,
             questions: questions,
             checkMode: _checkMode,
+            generationDurationSeconds: stopwatch.elapsed.inSeconds,
           ),
         ),
       );
     } catch (e) {
       debugPrint('문제 생성 에러: $e');
       if (!mounted) return;
-      _showMessage('문제 생성에 실패했어요. 잠시 후 다시 시도해주세요.');
+      if (_selectedGenerationType == QuestionGenerationType.wrongAnswer &&
+          e.toString().contains('오답 기록이 없어요')) {
+        _showNoWrongAnswerDialog(certification.name);
+      } else {
+        _showMessage('문제 생성에 실패했어요. 잠시 후 다시 시도해주세요.');
+      }
     } finally {
       if (mounted) setState(() => _isGenerating = false);
     }
+  }
+  Duration _minLoadingDuration(List<int> durations) {
+    final sum = durations.fold<int>(0, (a, b) => a + b);
+    return Duration(milliseconds: sum + 900 + 500);
   }
 
   void _showMessage(String message) {
@@ -221,9 +296,107 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
       SnackBar(content: Text(message)),
     );
   }
+
+  void _showNoWrongAnswerDialog(String certificationName) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.4),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: _pinkColor.withValues(alpha: 0.18),
+                blurRadius: 30,
+                offset: const Offset(0, 16),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(colors: [_pinkColor, _pinkAccent]),
+                ),
+                child: const Icon(
+                  Icons.info_outline_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                '아직 오답 기록이 없어요',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _textColor,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                '$certificationName에 대한 오답 기록이 아직 없어요.\n'
+                    '기본 문제를 먼저 풀어보면 오답 기반 문제를\n만들어드릴 수 있어요!',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: _subTextColor,
+                  fontSize: 13.5,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    gradient: const LinearGradient(colors: [_pinkColor, _pinkAccent]),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => Navigator.pop(context),
+                      child: const Center(
+                        child: Text(
+                          '확인',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
   Future<void> _onPdfShortcutPressed() async {
     if (_isPickingPdf || _isGenerating) return;
+    await _pickAndProcessPdf();
+  }
 
+  /// PDF 선택 -> 텍스트 추출 -> 문제 생성까지의 전체 흐름.
+  /// 상단 바로가기 버튼과, 2단계의 "자료 기반 문제 생성" 카드 양쪽에서 공용으로 쓴다.
+  Future<void> _pickAndProcessPdf() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
@@ -242,6 +415,8 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
         _cancelled = false;
       });
 
+      final stopwatch = Stopwatch()..start();
+
       final questions = await QuestionGenerationApiService.generateQuestionsFromDocument(
         file: picked,
         count: 20,
@@ -250,17 +425,29 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
         },
       );
 
+      stopwatch.stop();
+
+      if (!mounted) return;
+      if (_cancelled) return;
+
+      final minDuration = _minLoadingDuration(_pdfDurations);
+      if (stopwatch.elapsed < minDuration) {
+        await Future.delayed(minDuration - stopwatch.elapsed);
+      }
       if (!mounted) return;
       if (_cancelled) return;
 
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => QuizSessionPage(
-            certificationName: picked.name.replaceAll('.pdf', ''),
+            sourceType: QuizSourceType.document,
+            certificationName: null,
+            pdfFileName: _stripPdfExtension(picked.name),
             examType: '자료 기반',
             subject: null,
             questions: questions,
             checkMode: _checkMode,
+            generationDurationSeconds: stopwatch.elapsed.inSeconds,
           ),
         ),
       );
@@ -282,23 +469,127 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
   void _confirmCancelGeneration() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('문제를 생성 중이에요!'),
-        content: const Text('지금 나가면 생성 중인 문제가 취소돼요. 그래도 나가시겠어요?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('계속 생성')),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _isGenerating = false;
-                _cancelled = true;
-              });
-              Navigator.pop(context); // 다이얼로그 닫기
-              Navigator.pop(context); // 실제 뒤로가기
-            },
-            child: const Text('나가기'),
+      barrierColor: Colors.black.withValues(alpha: 0.4),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: _pinkColor.withValues(alpha: 0.18),
+                blurRadius: 30,
+                offset: const Offset(0, 16),
+              ),
+            ],
           ),
-        ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(colors: [_pinkColor, _pinkAccent]),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                '문제를 생성 중이에요!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _textColor,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                '지금 나가면 생성 중인 문제가 취소돼요.\n그래도 나가시겠어요?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _subTextColor,
+                  fontSize: 13.5,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 50,
+                      child: Material(
+                        color: const Color(0xFFF6F1F2),
+                        borderRadius: BorderRadius.circular(16),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () => Navigator.pop(context),
+                          child: const Center(
+                            child: Text(
+                              '계속 생성',
+                              style: TextStyle(
+                                color: _textColor,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: SizedBox(
+                      height: 50,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          gradient: const LinearGradient(colors: [_pinkColor, _pinkAccent]),
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: () {
+                              setState(() {
+                                _isGenerating = false;
+                                _cancelled = true;
+                              });
+                              Navigator.pop(context); // 다이얼로그 닫기
+                              Navigator.pop(context); // 실제 뒤로가기
+                            },
+                            child: const Center(
+                              child: Text(
+                                '나가기',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -325,28 +616,52 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
               : null,
         ),
         body: AppMainBackground(
-          child: SafeArea(
-            child: Stack(
-              children: [
+          child: Stack(
+            children: [
+              SafeArea(
+                child: Column(
+                  children: [
+                    const SizedBox(height: 8),
+                    _StepProgressBar(currentStep: _currentStep),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: PageView(
+                        controller: _pageController,
+                        physics: const NeverScrollableScrollPhysics(),
+                        onPageChanged: (i) => setState(() => _currentStep = i),
+                        children: [
+                          _buildStep1(),
+                          _buildStep2(),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_isGenerating &&
+                  _selectedGenerationType != QuestionGenerationType.document)
                 Positioned.fill(
-                  child: PageView(
-                    controller: _pageController,
-                    physics: const NeverScrollableScrollPhysics(),
-                    onPageChanged: (i) => setState(() => _currentStep = i),
-                    children: [
-                      _buildStep1(),
-                      _buildStep2(),
-                    ],
+                  child: Container(
+                    color: Colors.white.withValues(alpha: 0.92),
+                    child: Align(
+                      alignment: const Alignment(0, -0.15),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: _RotatingLoadingContent(
+                          messages: _selectedGenerationType ==
+                              QuestionGenerationType.wrongAnswer
+                              ? _wrongAnswerMessages
+                              : _genMessages,
+                          durations: _selectedGenerationType ==
+                              QuestionGenerationType.wrongAnswer
+                              ? _wrongAnswerDurations
+                              : _genDurations,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-                Positioned(
-                  top: 48,
-                  left: 0,
-                  right: 0,
-                  child: _StepProgressBar(currentStep: _currentStep),
-                ),
-              ],
-            ),
+            ],
           ),
         ),
       ),
@@ -378,7 +693,10 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
               child: KeyedSubtree(
                 key: ValueKey(_isProcessingPdf ? 'pdf' : (_isLoadingStructure ? 'loading' : 'idle')),
                 child: _isProcessingPdf
-                    ? const _PdfProcessingContent()
+                    ? const _RotatingLoadingContent(
+                  messages: _pdfMessages,
+                  durations: _pdfDurations,
+                )
                     : (_isLoadingStructure ? _buildLoadingContent() : _buildIdleContent()),
               ),
             ),
@@ -392,6 +710,12 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        _FadeSlideIn(
+          delay: Duration.zero,
+          duration: const Duration(milliseconds: 600),
+          child: _HeroBadge(),
+        ),
+        const SizedBox(height: 18),
         _FadeSlideIn(
           delay: const Duration(milliseconds: 200),
           duration: const Duration(milliseconds: 700),
@@ -441,21 +765,35 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
   }
 
   Widget _buildPdfShortcutButton() {
-    return TextButton.icon(
-      onPressed: _isPickingPdf ? null : _onPdfShortcutPressed,
-      style: TextButton.styleFrom(
-        foregroundColor: _subTextColor,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      ),
-      icon: _isPickingPdf
-          ? const SizedBox(
-        width: 15, height: 15,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      )
-          : const Icon(Icons.picture_as_pdf_outlined, size: 17),
-      label: const Text(
-        'PDF로 바로 문제 생성',
-        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(30),
+        onTap: _isPickingPdf ? null : _onPdfShortcutPressed,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(30),
+            gradient: const LinearGradient(colors: [_pinkSoft, Color(0xFFFFF1F4)]),
+            border: Border.all(color: const Color(0xFFFBD9E1)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _isPickingPdf
+                  ? const SizedBox(
+                width: 15, height: 15,
+                child: CircularProgressIndicator(strokeWidth: 2, color: _pinkColor),
+              )
+                  : const Icon(Icons.picture_as_pdf_rounded, size: 17, color: _pinkColor),
+              const SizedBox(width: 8),
+              const Text(
+                'PDF로 바로 문제 생성',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: _pinkColor),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -529,12 +867,12 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
             padding: const EdgeInsets.all(12),
             child: Container(
               decoration: const BoxDecoration(
-                color: _pinkSoft,
+                gradient: LinearGradient(colors: [_pinkColor, _pinkAccent]),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.badge_outlined,
-                color: _pinkColor,
+                color: Colors.white,
                 size: 19,
               ),
             ),
@@ -544,8 +882,15 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
             padding: const EdgeInsets.only(right: 6),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: _pinkColor,
+                gradient: const LinearGradient(colors: [_pinkColor, _pinkAccent]),
                 borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: _pinkColor.withValues(alpha: 0.35),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
               child: Material(
                 color: Colors.transparent,
@@ -583,7 +928,6 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
       ),
     );
   }
-
   Widget _buildStep2() {
     final certification = _certification;
     final subjects = _currentSubjects;
@@ -591,7 +935,7 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 84, 24, 40),
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 40),
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: constraints.maxHeight - 36),
             child: _FadeSlideIn(
@@ -601,34 +945,45 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (certification != null) ...[
-                    Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          alignment: Alignment.center,
-                          decoration: const BoxDecoration(
-                            color: _pinkSoft,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.badge_outlined,
-                            color: _pinkColor,
-                            size: 20,
-                          ),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        gradient: const LinearGradient(
+                          colors: [_pinkSoft, Color(0xFFFFF3F5)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            certification.name,
-                            style: const TextStyle(
-                              color: _textColor,
-                              fontSize: 19,
-                              fontWeight: FontWeight.w800,
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            alignment: Alignment.center,
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(colors: [_pinkColor, _pinkAccent]),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.badge_rounded,
+                              color: Colors.white,
+                              size: 21,
                             ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              certification.name,
+                              style: const TextStyle(
+                                color: _textColor,
+                                fontSize: 19,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 26),
 
@@ -651,7 +1006,6 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
 
                     const _SectionTitle(
                       title: '과목 선택',
-                      isRequired: true,
                     ),
 
                     const SizedBox(height: 12),
@@ -669,12 +1023,18 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
                           ),
                         ),
                         icon: const Icon(Icons.keyboard_arrow_down_rounded),
-                        items: subjects.map((subject) {
-                          return DropdownMenuItem<String>(
-                            value: subject,
-                            child: Text(subject),
-                          );
-                        }).toList(),
+                        items: [
+                          const DropdownMenuItem<String>(
+                            value: '전체',
+                            child: Text('전체'),
+                          ),
+                          ...subjects.map((subject) {
+                            return DropdownMenuItem<String>(
+                              value: subject,
+                              child: Text(subject),
+                            );
+                          }),
+                        ],
                         onChanged: (value) {
                           setState(() => _selectedSubject = value);
                         },
@@ -732,23 +1092,50 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
                   SizedBox(
                     width: double.infinity,
                     height: 58,
-                    child: FilledButton.icon(
-                      onPressed: _isGenerating ? null : _onGeneratePressed,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _pinkColor,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(18),
+                        gradient: const LinearGradient(colors: [_pinkColor, _pinkAccent]),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _pinkColor.withValues(alpha: 0.35),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
                       ),
-                      icon: _isGenerating
-                          ? const SizedBox(
-                        width: 18, height: 18,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.2),
-                      )
-                          : const Icon(Icons.auto_awesome_rounded),
-                      label: Text(
-                        _isGenerating ? '$_generatedCount / 20 생성 중...' : 'AI 문제 생성하기',
-                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(18),
+                          onTap: _isGenerating ? null : _onGeneratePressed,
+                          child: Center(
+                            child: _isGenerating
+                                ? const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  width: 18, height: 18,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.2),
+                                ),
+                                SizedBox(width: 10),
+                                Text(
+                                  '생성 중...',
+                                  style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800),
+                                ),
+                              ],
+                            )
+                                : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Icon(Icons.auto_awesome_rounded, color: Colors.white),
+                                SizedBox(width: 8),
+                                Text('AI 문제 생성하기',
+                                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Colors.white)),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -761,8 +1148,14 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
     );
   }
 }
+String _stripPdfExtension(String fileName) {
+  final lower = fileName.toLowerCase();
+  if (lower.endsWith('.pdf')) {
+    return fileName.substring(0, fileName.length - 4);
+  }
+  return fileName;
+}
 
-/// 시험 유형
 enum ExamType {
   written('필기'),
   practical('실기'),
@@ -773,13 +1166,44 @@ enum ExamType {
   const ExamType(this.label);
 }
 
-/// 문제 생성 방식
 enum QuestionGenerationType {
   general,
   wrongAnswer,
   document,
 }
 enum AnswerCheckMode { immediate, afterAll }
+
+class _HeroBadge extends StatelessWidget {
+  const _HeroBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 68,
+      height: 68,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const LinearGradient(
+          colors: [
+            _QuestionGenerationPageState._pinkColor,
+            _QuestionGenerationPageState._pinkAccent,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _QuestionGenerationPageState._pinkColor.withValues(alpha: 0.35),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 30),
+    );
+  }
+}
 
 class _StepProgressBar extends StatelessWidget {
   final int currentStep;
@@ -800,9 +1224,13 @@ class _StepProgressBar extends StatelessWidget {
           height: 5,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            color: (active || done)
-                ? _QuestionGenerationPageState._pinkColor
-                : _QuestionGenerationPageState._pinkSoft,
+            gradient: (active || done)
+                ? const LinearGradient(colors: [
+              _QuestionGenerationPageState._pinkColor,
+              _QuestionGenerationPageState._pinkAccent,
+            ])
+                : null,
+            color: (active || done) ? null : _QuestionGenerationPageState._pinkSoft,
           ),
         );
       }),
@@ -1026,9 +1454,7 @@ class _ExamTypeButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: isSelected
-          ? const Color(0xFFFFE4EA)
-          : Colors.white.withValues(alpha: 0.85),
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onPressed,
@@ -1040,21 +1466,57 @@ class _ExamTypeButton extends StatelessWidget {
           padding: const EdgeInsets.all(15),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
+            gradient: isSelected
+                ? const LinearGradient(
+              colors: [
+                _QuestionGenerationPageState._pinkSoft,
+                Color(0xFFFFF3F5),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            )
+                : null,
+            color: isSelected ? null : Colors.white.withValues(alpha: 0.85),
             border: Border.all(
               color: isSelected
                   ? _QuestionGenerationPageState._pinkColor
                   : const Color(0xFFF1EBEE),
               width: isSelected ? 1.5 : 1,
             ),
+            boxShadow: isSelected
+                ? [
+              BoxShadow(
+                color: _QuestionGenerationPageState._pinkColor.withValues(alpha: 0.18),
+                blurRadius: 14,
+                offset: const Offset(0, 8),
+              ),
+            ]
+                : null,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                icon,
-                color: isSelected
-                    ? _QuestionGenerationPageState._pinkColor
-                    : _QuestionGenerationPageState._subTextColor,
+              Container(
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: isSelected
+                      ? const LinearGradient(colors: [
+                    _QuestionGenerationPageState._pinkColor,
+                    _QuestionGenerationPageState._pinkAccent,
+                  ])
+                      : null,
+                  color: isSelected ? null : const Color(0xFFF2EEF0),
+                ),
+                child: Icon(
+                  icon,
+                  size: 16,
+                  color: isSelected
+                      ? Colors.white
+                      : _QuestionGenerationPageState._subTextColor,
+                ),
               ),
 
               const SizedBox(height: 10),
@@ -1105,7 +1567,6 @@ class _GenerationTypeCard extends StatelessWidget {
           description: '선택한 자격증과 과목을 기준으로 문제를 생성합니다.',
           value: QuestionGenerationType.general,
           groupValue: selectedType,
-          isEnabled: true,
           onChanged: onChanged,
         ),
 
@@ -1117,19 +1578,6 @@ class _GenerationTypeCard extends StatelessWidget {
           description: '기존에 틀린 내용을 기준으로 새 문제를 생성합니다.',
           value: QuestionGenerationType.wrongAnswer,
           groupValue: selectedType,
-          isEnabled: false,
-          onChanged: onChanged,
-        ),
-
-        const SizedBox(height: 10),
-
-        _GenerationTypeItem(
-          icon: Icons.description_outlined,
-          title: '자료 기반 문제 생성',
-          description: '업로드한 PDF 또는 사진 자료로 문제를 생성합니다.',
-          value: QuestionGenerationType.document,
-          groupValue: selectedType,
-          isEnabled: false,
           onChanged: onChanged,
         ),
       ],
@@ -1143,7 +1591,6 @@ class _GenerationTypeItem extends StatelessWidget {
   final String description;
   final QuestionGenerationType value;
   final QuestionGenerationType groupValue;
-  final bool isEnabled;
   final ValueChanged<QuestionGenerationType> onChanged;
 
   const _GenerationTypeItem({
@@ -1152,7 +1599,6 @@ class _GenerationTypeItem extends StatelessWidget {
     required this.description,
     required this.value,
     required this.groupValue,
-    required this.isEnabled,
     required this.onChanged,
   });
 
@@ -1161,41 +1607,61 @@ class _GenerationTypeItem extends StatelessWidget {
     final isSelected = value == groupValue;
 
     return Material(
-      color: isEnabled
-          ? Colors.white.withValues(alpha: 0.85)
-          : Colors.white.withValues(alpha: 0.45),
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
-        onTap: isEnabled
-            ? () {
-          onChanged(value);
-        }
-            : null,
+        onTap: () => onChanged(value),
         borderRadius: BorderRadius.circular(18),
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
+            gradient: isSelected
+                ? const LinearGradient(
+              colors: [
+                _QuestionGenerationPageState._pinkSoft,
+                Color(0xFFFFF3F5),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            )
+                : null,
+            color: isSelected ? null : Colors.white.withValues(alpha: 0.85),
             border: Border.all(
               color: isSelected
                   ? _QuestionGenerationPageState._pinkColor
                   : const Color(0xFFF1EBEE),
               width: isSelected ? 1.5 : 1,
             ),
+            boxShadow: isSelected
+                ? [
+              BoxShadow(
+                color: _QuestionGenerationPageState._pinkColor.withValues(alpha: 0.16),
+                blurRadius: 14,
+                offset: const Offset(0, 8),
+              ),
+            ]
+                : null,
           ),
           child: Row(
             children: [
               Container(
                 width: 46,
                 height: 46,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFFFE4EA),
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
+                  gradient: isSelected
+                      ? const LinearGradient(colors: [
+                    _QuestionGenerationPageState._pinkColor,
+                    _QuestionGenerationPageState._pinkAccent,
+                  ])
+                      : null,
+                  color: isSelected ? null : const Color(0xFFFFE4EA),
                 ),
                 alignment: Alignment.center,
                 child: Icon(
                   icon,
-                  color: _QuestionGenerationPageState._pinkColor,
+                  color: isSelected ? Colors.white : _QuestionGenerationPageState._pinkColor,
                   size: 24,
                 ),
               ),
@@ -1206,55 +1672,19 @@ class _GenerationTypeItem extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            title,
-                            style: TextStyle(
-                              color: isEnabled
-                                  ? _QuestionGenerationPageState
-                                  ._textColor
-                                  : _QuestionGenerationPageState
-                                  ._subTextColor,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-
-                        if (!isEnabled) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF2EEF0),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Text(
-                              '준비 중',
-                              style: TextStyle(
-                                color: _QuestionGenerationPageState
-                                    ._subTextColor,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: _QuestionGenerationPageState._textColor,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-
                     const SizedBox(height: 6),
-
                     Text(
                       description,
                       style: const TextStyle(
-                        color: _QuestionGenerationPageState
-                            ._subTextColor,
+                        color: _QuestionGenerationPageState._subTextColor,
                         fontSize: 12,
                         height: 1.4,
                       ),
@@ -1329,27 +1759,140 @@ class _FadeSlideInState extends State<_FadeSlideIn>
   }
 }
 
+class _WaveLoadingIndicator extends StatefulWidget {
+  final double size;
+  final double progress; // 0(빔) ~ 1(가득 참) — 목표 채움 정도
 
-class _PdfProcessingContent extends StatefulWidget {
-  const _PdfProcessingContent();
+  const _WaveLoadingIndicator({this.size = 72, required this.progress});
 
   @override
-  State<_PdfProcessingContent> createState() => _PdfProcessingContentState();
+  State<_WaveLoadingIndicator> createState() => _WaveLoadingIndicatorState();
 }
 
-class _PdfProcessingContentState extends State<_PdfProcessingContent>
+class _WaveLoadingIndicatorState extends State<_WaveLoadingIndicator>
+    with TickerProviderStateMixin {
+  late final AnimationController _levelController;
+  late Animation<double> _levelAnimation;
+  late final AnimationController _waveController;
+
+  @override
+  void initState() {
+    super.initState();
+    _levelController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _levelAnimation = Tween<double>(begin: 0, end: widget.progress).animate(
+      CurvedAnimation(parent: _levelController, curve: Curves.easeOut),
+    );
+    _levelController.forward();
+
+    _waveController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat();
+  }
+
+  @override
+  void didUpdateWidget(covariant _WaveLoadingIndicator oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.progress != widget.progress) {
+      _levelAnimation = Tween<double>(
+        begin: _levelAnimation.value,
+        end: widget.progress,
+      ).animate(CurvedAnimation(parent: _levelController, curve: Curves.easeOut));
+      _levelController
+        ..reset()
+        ..forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _levelController.dispose();
+    _waveController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: widget.size,
+      height: widget.size,
+      decoration: const BoxDecoration(shape: BoxShape.circle),
+      child: ClipOval(
+        child: AnimatedBuilder(
+          animation: Listenable.merge([_levelController, _waveController]),
+          builder: (context, _) {
+            return CustomPaint(
+              size: Size(widget.size, widget.size),
+              painter: _WavePainter(
+                level: _levelAnimation.value,
+                wavePhase: _waveController.value,
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _WavePainter extends CustomPainter {
+  final double level; // 0(빈 상태) ~ 1(가득 참), 반복적으로 차오름
+  final double wavePhase; // 물결 표면 움직임용, 0~1 반복
+
+  const _WavePainter({required this.level, required this.wavePhase});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bgPaint = Paint()..color = const Color(0xFFFFF3F5);
+    canvas.drawRect(Offset.zero & size, bgPaint);
+
+    final baseY = size.height * (1 - level);
+    final waveHeight = size.height * 0.045;
+
+    final path = Path()..moveTo(0, baseY);
+    for (double x = 0; x <= size.width; x += 2) {
+      final y = baseY +
+          math.sin((x / size.width * 2 * math.pi) + wavePhase * 2 * math.pi) *
+              waveHeight;
+      path.lineTo(x, y);
+    }
+    path.lineTo(size.width, size.height);
+    path.lineTo(0, size.height);
+    path.close();
+
+    final wavePaint = Paint()
+      ..shader = const LinearGradient(
+        colors: [Color(0xFFF4869D), Color(0xFFFF8FA3)],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      ).createShader(Offset.zero & size);
+
+    canvas.drawPath(path, wavePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _WavePainter oldDelegate) =>
+      oldDelegate.level != level || oldDelegate.wavePhase != wavePhase;
+}
+
+class _RotatingLoadingContent extends StatefulWidget {
+  final List<String> messages;
+  final List<int> durations;
+
+  const _RotatingLoadingContent({
+    required this.messages,
+    required this.durations,
+  });
+
+  @override
+  State<_RotatingLoadingContent> createState() => _RotatingLoadingContentState();
+}
+
+class _RotatingLoadingContentState extends State<_RotatingLoadingContent>
     with SingleTickerProviderStateMixin {
-  static const List<String> _messages = [
-    '구름iT이 자료를 분석하고 있어요',
-    'PDF 내용을 꼼꼼히 읽고 있어요',
-    '핵심 내용을 정리하고 있어요',
-    '문제를 만들고 있어요',
-    '거의 다 됐어요',
-    '이제 보여드릴게요',
-  ];
-
-  static const List<int> _durations = [2800, 3200, 3200, 3600, 2200, 900];
-
   late final AnimationController _rotationController;
   Timer? _messageTimer;
   int _messageIndex = 0;
@@ -1364,10 +1907,11 @@ class _PdfProcessingContentState extends State<_PdfProcessingContent>
   }
 
   void _scheduleNextMessage() {
-    final duration = _durations[_messageIndex.clamp(0, _durations.length - 1)];
+    final duration =
+    widget.durations[_messageIndex.clamp(0, widget.durations.length - 1)];
     _messageTimer = Timer(Duration(milliseconds: duration), () {
       if (!mounted) return;
-      if (_messageIndex < _messages.length - 1) {
+      if (_messageIndex < widget.messages.length - 1) {
         setState(() => _messageIndex++);
         _scheduleNextMessage();
       }
@@ -1386,32 +1930,9 @@ class _PdfProcessingContentState extends State<_PdfProcessingContent>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        RotationTransition(
-          turns: _rotationController,
-          child: Container(
-            width: 64,
-            height: 64,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: SweepGradient(
-                colors: [
-                  Color(0xFFF4869D),
-                  Color(0xFFFFE4EA),
-                  Color(0xFFF4869D),
-                ],
-              ),
-            ),
-            child: Center(
-              child: Container(
-                width: 46,
-                height: 46,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-          ),
+        _WaveLoadingIndicator(
+          size: 72,
+          progress: _messageIndex / (widget.messages.length - 1),
         ),
         const SizedBox(height: 26),
         AnimatedSwitcher(
@@ -1426,7 +1947,7 @@ class _PdfProcessingContentState extends State<_PdfProcessingContent>
             ),
           ),
           child: Text(
-            _messages[_messageIndex],
+            widget.messages[_messageIndex],
             key: ValueKey(_messageIndex),
             textAlign: TextAlign.center,
             style: const TextStyle(

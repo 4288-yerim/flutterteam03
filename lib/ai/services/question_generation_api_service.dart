@@ -52,8 +52,12 @@ class GeneratedQuestion {
   }
 }
 
+enum QuizSourceType { certification, document, wrongAnswerReview }
+
 class WrongAnswer {
-  final String certificationName;
+  final QuizSourceType sourceType;
+  final String? certificationName;
+  final String? pdfFileName;
   final String examType;
   final String? subject;
   final String question;
@@ -63,7 +67,9 @@ class WrongAnswer {
   final String explanation;
 
   const WrongAnswer({
-    required this.certificationName,
+    required this.sourceType,
+    this.certificationName,
+    this.pdfFileName,
     required this.examType,
     this.subject,
     required this.question,
@@ -75,7 +81,9 @@ class WrongAnswer {
 
   Map<String, dynamic> toMap() {
     return {
+      'sourceType': sourceType.name,
       'certificationName': certificationName,
+      'pdfFileName': pdfFileName,
       'examType': examType,
       'subject': subject,
       'question': question,
@@ -83,6 +91,45 @@ class WrongAnswer {
       'correctAnswer': correctAnswer,
       'userAnswer': userAnswer,
       'explanation': explanation,
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+  }
+}
+
+class QuizSession {
+  final QuizSourceType sourceType;
+  final String? certificationName;
+  final String? pdfFileName;
+  final String examType;
+  final String? subject;
+  final int totalCount;
+  final int correctCount;
+  final int generationDurationSeconds;
+  final int solvingDurationSeconds;
+
+  const QuizSession({
+    required this.sourceType,
+    this.certificationName,
+    this.pdfFileName,
+    required this.examType,
+    this.subject,
+    required this.totalCount,
+    required this.correctCount,
+    required this.generationDurationSeconds,
+    required this.solvingDurationSeconds,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'sourceType': sourceType.name,
+      'certificationName': certificationName,
+      'pdfFileName': pdfFileName,
+      'examType': examType,
+      'subject': subject,
+      'totalCount': totalCount,
+      'correctCount': correctCount,
+      'generationDurationSeconds': generationDurationSeconds,
+      'solvingDurationSeconds': solvingDurationSeconds,
       'createdAt': FieldValue.serverTimestamp(),
     };
   }
@@ -147,20 +194,25 @@ class QuestionGenerationApiService {
     int count = 20,
     void Function(int completed, int total)? onProgress,
   }) async {
-    final questions = <GeneratedQuestion>[];
+    final callable = FirebaseFunctions.instance
+        .httpsCallable('generateQuestionsForCertification');
+    final result = await callable.call({
+      'certificationName': certificationName,
+      'examType': examType,
+      'subject': subject,
+      'count': count,
+    });
 
-    for (var i = 0; i < count; i++) {
-      final question = await generateQuestion(
-        certificationName: certificationName,
-        examType: examType,
-        subject: subject,
-        generationType: generationType,
-      );
-      questions.add(question);
-      onProgress?.call(i + 1, count);
+    if (result.data['success'] == true) {
+      final list = List<dynamic>.from(result.data['questions']);
+      final questions = list
+          .map((q) => GeneratedQuestion.fromJson(Map<String, dynamic>.from(q)))
+          .toList();
+
+      onProgress?.call(questions.length, count);
+      return questions;
     }
-
-    return questions;
+    throw Exception(result.data['message'] ?? '문제를 생성하지 못했어요.');
   }
 
   static Future<String> _uploadDocument(PlatformFile file) async {
@@ -241,6 +293,26 @@ class QuestionGenerationApiService {
     return questions;
   }
 
+  static Future<List<GeneratedQuestion>> generateQuestionsFromWrongAnswers({
+    String? certificationName,
+    int count = 20,
+  }) async {
+    final callable = FirebaseFunctions.instance
+        .httpsCallable('generateQuestionsFromWrongAnswers');
+    final result = await callable.call({
+      'certificationName': certificationName,
+      'count': count,
+    });
+
+    if (result.data['success'] == true) {
+      final list = List<dynamic>.from(result.data['questions']);
+      return list
+          .map((q) => GeneratedQuestion.fromJson(Map<String, dynamic>.from(q)))
+          .toList();
+    }
+    throw Exception(result.data['message'] ?? '문제를 생성하지 못했어요.');
+  }
+
   static Future<void> saveWrongAnswers(List<WrongAnswer> wrongAnswers) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null || wrongAnswers.isEmpty) return;
@@ -255,5 +327,16 @@ class QuestionGenerationApiService {
       batch.set(collection.doc(), wa.toMap());
     }
     await batch.commit();
+  }
+
+  static Future<void> saveQuizSession(QuizSession session) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('quiz_sessions')
+        .add(session.toMap());
   }
 }
