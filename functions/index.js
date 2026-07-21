@@ -1117,3 +1117,122 @@ exports.generateQuestion = onCall(
     }
   }
 );
+
+exports.extractDocumentText = onCall(
+  { secrets: [GEMINI_API_KEY], timeoutSeconds: 120 },
+  async (request) => {
+    const { documentUrl } = request.data || {};
+
+    if (!documentUrl) {
+      throw new HttpsError("invalid-argument", "문서 URL이 없습니다.");
+    }
+
+    try {
+      const fileResponse = await axios.get(documentUrl, {
+        responseType: "arraybuffer",
+      });
+      const base64Pdf = Buffer.from(fileResponse.data).toString("base64");
+
+      const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value());
+      const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+
+      const prompt = `첨부된 문서의 내용을 문제 출제에 쓸 수 있도록 핵심 개념, 용어, 수치, 정의를 빠짐없이 정리해줘.
+      원문의 문장을 요약하지 말고, 출제 가능한 세부 정보를 최대한 많이 남겨줘.
+      다른 설명 없이 정리된 텍스트만 출력해.`;
+
+      const result = await model.generateContent([
+        { inlineData: { mimeType: "application/pdf", data: base64Pdf } },
+        { text: prompt },
+      ]);
+
+      const extractedText = result.response.text();
+
+      if (!extractedText || extractedText.trim().length < 30) {
+        return { success: false, message: "문서에서 내용을 추출하지 못했어요." };
+      }
+
+      return { success: true, extractedText };
+    } catch (e) {
+      console.error("문서 텍스트 추출 실패: " + (e.response?.data ? JSON.stringify(e.response.data) : e.message));
+      return { success: false, message: "문서를 분석하지 못했어요." };
+    }
+  }
+);
+
+exports.generateQuestionsFromText = onCall(
+  { secrets: [GEMINI_API_KEY], timeoutSeconds: 180 },
+  async (request) => {
+    const { extractedText, count } = request.data || {};
+    const questionCount = count || 20;
+
+    if (!extractedText) {
+      throw new HttpsError("invalid-argument", "추출된 텍스트가 없습니다.");
+    }
+
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value());
+    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+
+    const prompt = `아래는 학습 자료에서 정리한 내용이야:
+    ---
+    ${extractedText}
+    ---
+
+    이 내용을 바탕으로 서로 겹치지 않는 문제 ${questionCount}개를 만들어줘.
+    자료에 실제로 나온 개념·용어·수치를 기반으로 다양한 부분에서 골고루 출제해야 해.
+
+    아래 JSON 배열 형식으로만 응답해. 다른 텍스트는 절대 포함하지 마:
+    [
+      {
+        "question": "문제 내용",
+        "options": ["보기1", "보기2", "보기3", "보기4"],
+        "answer": "정답 (options 중 하나와 정확히 일치)",
+        "explanation": "정답에 대한 해설"
+      }
+    ]
+
+    규칙:
+    - 객관식이면 보기 4개 중 하나가 정답이어야 해.
+    - 자료 내용만으로 답할 수 있는 문제여야 해.
+    - 문제끼리 내용이 겹치지 않아야 해.
+    - 정확히 ${questionCount}개를 만들어야 해.
+    - 한국어로 작성해.`;
+
+    const tryGenerate = async () => {
+      const result = await model.generateContent(prompt);
+      let text = result.response.text();
+      text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+
+      const jsonMatch = text.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        throw new Error("JSON 배열 형식을 찾지 못했습니다: " + text.slice(0, 200));
+      }
+      return JSON.parse(jsonMatch[0]);
+    };
+
+    try {
+      let parsed;
+      try {
+        parsed = await tryGenerate();
+      } catch (firstError) {
+        console.error("1차 파싱 실패, 재시도: " + firstError.message);
+        parsed = await tryGenerate();
+      }
+
+      const questions = (Array.isArray(parsed) ? parsed : []).map((q) => ({
+        question: q.question || "",
+        options: q.options || [],
+        answer: q.answer || "",
+        explanation: q.explanation || "",
+      }));
+
+      if (questions.length === 0) {
+        return { success: false, message: "문제를 생성하지 못했어요." };
+      }
+
+      return { success: true, questions };
+    } catch (e) {
+      console.error("문서 기반 문제 생성 실패: " + e.message);
+      return { success: false, message: "문제를 생성하지 못했어요." };
+    }
+  }
+);

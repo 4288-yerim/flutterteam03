@@ -413,7 +413,8 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
 
 
   Widget _buildStep1(AppColors colors) {
-    return Center(
+    return Align(
+      alignment: const Alignment(0, -0.15),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 22),
         child: Column(
