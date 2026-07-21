@@ -4,6 +4,12 @@ import 'package:table_calendar/table_calendar.dart';
 import '../services/certificate_schedule_service.dart';
 import 'certificate_common_widgets.dart';
 
+const Color certificateTechnicalMarkerColor =
+Color(0xFF5B8DEF);
+
+const Color certificateProfessionalMarkerColor =
+Color(0xFF65AF91);
+
 class CertificateScheduleTabSelector extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onChanged;
@@ -92,7 +98,8 @@ class CertificateCalendarCard extends StatelessWidget {
   final DateTime focusedDay;
   final DateTime selectedDay;
 
-  final List<CertificateSchedule> Function(DateTime day) eventLoader;
+  final List<CertificateSchedule> Function(DateTime day)
+  eventLoader;
 
   final void Function(
       DateTime selectedDay,
@@ -134,6 +141,49 @@ class CertificateCalendarCard extends StatelessWidget {
         shouldFillViewport: false,
         onDaySelected: onDaySelected,
         onPageChanged: onPageChanged,
+        calendarBuilders:
+        CalendarBuilders<CertificateSchedule>(
+          markerBuilder: (
+              context,
+              day,
+              events,
+              ) {
+            if (events.isEmpty) {
+              return null;
+            }
+
+            final hasTechnical =
+            events.any((event) => event.isTechnical);
+
+            final hasProfessional =
+            events.any((event) => event.isProfessional);
+
+            if (!hasTechnical && !hasProfessional) {
+              return null;
+            }
+
+            return Positioned(
+              bottom: 5,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (hasTechnical)
+                    const _CalendarMarkerDot(
+                      color:
+                      certificateTechnicalMarkerColor,
+                    ),
+                  if (hasTechnical && hasProfessional)
+                    const SizedBox(width: 3),
+                  if (hasProfessional)
+                    const _CalendarMarkerDot(
+                      color:
+                      certificateProfessionalMarkerColor,
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
         daysOfWeekStyle: const DaysOfWeekStyle(
           weekdayStyle: TextStyle(
             color: certificateGrayText,
@@ -149,7 +199,9 @@ class CertificateCalendarCard extends StatelessWidget {
         calendarStyle: CalendarStyle(
           outsideDaysVisible: true,
           outsideTextStyle: TextStyle(
-            color: certificateGrayText.withValues(alpha: 0.35),
+            color: certificateGrayText.withValues(
+              alpha: 0.35,
+            ),
             fontSize: 14,
           ),
           defaultTextStyle: const TextStyle(
@@ -178,13 +230,7 @@ class CertificateCalendarCard extends StatelessWidget {
             color: Colors.white,
             fontWeight: FontWeight.w700,
           ),
-          markerDecoration: const BoxDecoration(
-            color: certificatePrimaryPink,
-            shape: BoxShape.circle,
-          ),
-          markerSize: 5,
-          markersMaxCount: 3,
-          markerMargin: const EdgeInsets.symmetric(horizontal: 1),
+          markersMaxCount: 0,
         ),
       ),
     );
@@ -216,13 +262,15 @@ class CertificateScheduleDateTitle extends StatelessWidget {
             ),
           ),
         ),
-        if (count != null) _ScheduleCountBadge(count: count!),
+        if (count != null)
+          _ScheduleCountBadge(count: count!),
       ],
     );
   }
 }
 
-class CertificateScheduleListDateHeader extends StatelessWidget {
+class CertificateScheduleListDateHeader
+    extends StatelessWidget {
   final DateTime date;
 
   const CertificateScheduleListDateHeader({
@@ -254,7 +302,10 @@ class CertificateScheduleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = _getScheduleStyle(schedule.scheduleType);
+    final style = _getScheduleStyle(
+      schedule.scheduleType,
+      schedule.qualificationCode,
+    );
 
     return Container(
       width: double.infinity,
@@ -264,14 +315,16 @@ class CertificateScheduleCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+            CrossAxisAlignment.start,
             children: [
               Container(
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
                   color: style.backgroundColor,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius:
+                  BorderRadius.circular(14),
                 ),
                 child: Icon(
                   style.icon,
@@ -282,7 +335,8 @@ class CertificateScheduleCard extends StatelessWidget {
               const SizedBox(width: 13),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 2),
+                  padding:
+                  const EdgeInsets.only(top: 2),
                   child: Text(
                     schedule.certificateName,
                     style: const TextStyle(
@@ -296,7 +350,7 @@ class CertificateScheduleCard extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Text(
-                '${schedule.date.month}.${schedule.date.day}',
+                schedule.dateText,
                 style: const TextStyle(
                   color: certificateGrayText,
                   fontSize: 12,
@@ -306,53 +360,58 @@ class CertificateScheduleCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment:
+            WrapCrossAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: style.backgroundColor,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  schedule.scheduleType,
-                  style: TextStyle(
-                    color: style.foregroundColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+              _ScheduleBadge(
+                text: schedule.scheduleType,
+                backgroundColor:
+                style.backgroundColor,
+                foregroundColor:
+                style.foregroundColor,
               ),
-              if (schedule.description.isNotEmpty) ...[
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    schedule.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: certificateGrayText,
-                      fontSize: 13,
-                      height: 1.4,
-                    ),
-                  ),
+              if (schedule.qualificationName.isNotEmpty)
+                _ScheduleBadge(
+                  text: schedule.qualificationName,
+                  backgroundColor:
+                  schedule.isProfessional
+                      ? certificateMint
+                      : certificateSoftBlue,
+                  foregroundColor:
+                  schedule.isProfessional
+                      ? certificateProfessionalMarkerColor
+                      : certificateTechnicalMarkerColor,
                 ),
-              ],
             ],
           ),
+          if (schedule.description.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              schedule.description,
+              style: const TextStyle(
+                color: certificateGrayText,
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  _ScheduleStyle _getScheduleStyle(String scheduleType) {
+  _ScheduleStyle _getScheduleStyle(
+      String scheduleType,
+      String qualificationCode,
+      ) {
     if (scheduleType.contains('시험')) {
       return const _ScheduleStyle(
         backgroundColor: certificateSoftBlue,
-        foregroundColor: Color(0xFF5B7FC4),
+        foregroundColor:
+        certificateTechnicalMarkerColor,
         icon: Icons.assignment_outlined,
       );
     }
@@ -360,7 +419,8 @@ class CertificateScheduleCard extends StatelessWidget {
     if (scheduleType.contains('발표')) {
       return const _ScheduleStyle(
         backgroundColor: certificateMint,
-        foregroundColor: Color(0xFF4D9678),
+        foregroundColor:
+        certificateProfessionalMarkerColor,
         icon: Icons.campaign_outlined,
       );
     }
@@ -373,7 +433,8 @@ class CertificateScheduleCard extends StatelessWidget {
   }
 }
 
-class EmptyCertificateScheduleCard extends StatelessWidget {
+class EmptyCertificateScheduleCard
+    extends StatelessWidget {
   final String message;
 
   const EmptyCertificateScheduleCard({
@@ -411,7 +472,8 @@ class EmptyCertificateScheduleCard extends StatelessWidget {
   }
 }
 
-class CertificateScheduleLoading extends StatelessWidget {
+class CertificateScheduleLoading
+    extends StatelessWidget {
   const CertificateScheduleLoading({super.key});
 
   @override
@@ -424,7 +486,8 @@ class CertificateScheduleLoading extends StatelessWidget {
   }
 }
 
-class CertificateScheduleLoadError extends StatelessWidget {
+class CertificateScheduleLoadError
+    extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
 
@@ -439,6 +502,60 @@ class CertificateScheduleLoadError extends StatelessWidget {
     return CertificateLoadError(
       message: message,
       onRetry: onRetry,
+    );
+  }
+}
+
+class _CalendarMarkerDot extends StatelessWidget {
+  final Color color;
+
+  const _CalendarMarkerDot({
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 6,
+      height: 6,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+}
+
+class _ScheduleBadge extends StatelessWidget {
+  final String text;
+  final Color backgroundColor;
+  final Color foregroundColor;
+
+  const _ScheduleBadge({
+    required this.text,
+    required this.backgroundColor,
+    required this.foregroundColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 5,
+      ),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: foregroundColor,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }
@@ -464,7 +581,8 @@ class _ScheduleTabButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration:
+          const Duration(milliseconds: 180),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: selected
@@ -473,21 +591,27 @@ class _ScheduleTabButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment:
+            MainAxisAlignment.center,
             children: [
               Icon(
                 icon,
                 size: 19,
-                color: selected ? Colors.white : certificateBodyText,
+                color: selected
+                    ? Colors.white
+                    : certificateBodyText,
               ),
               const SizedBox(width: 7),
               Text(
                 label,
                 style: TextStyle(
-                  color: selected ? Colors.white : certificateBodyText,
+                  color: selected
+                      ? Colors.white
+                      : certificateBodyText,
                   fontSize: 15,
-                  fontWeight:
-                  selected ? FontWeight.w700 : FontWeight.w500,
+                  fontWeight: selected
+                      ? FontWeight.w700
+                      : FontWeight.w500,
                 ),
               ),
             ],
