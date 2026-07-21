@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
-import '../certificate/certificate_schedule.dart';
+import '../certificate/screens/certificate_schedule.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
