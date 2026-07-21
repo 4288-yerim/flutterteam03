@@ -11,6 +11,8 @@ import 'login_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../main_page.dart';
+import '../../mypage/screens/withdrawal_pending_screen.dart';
+import '../../mypage/services/withdrawal_status_service.dart';
 import 'goal_certificate_screen.dart';
 import 'profile_setup_screen.dart';
 
@@ -69,7 +71,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
   }
 
-  void _handleAuthResult(BuildContext context, AuthResult? result, String provider) {
+  Future<void> _handleAuthResult(
+      BuildContext context,
+      AuthResult? result,
+      String provider,
+      ) async {
     if (result == null || !context.mounted) return;
 
     if (result.isNewUser && result.signupTicket != null) {
@@ -125,15 +131,36 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       );
     } else {
       // 기존 유저: 즉시 로그인 완료
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-          'lastLoginAt': FieldValue.serverTimestamp(),
-        });
+      try {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+            'lastLoginAt': FieldValue.serverTimestamp(),
+          });
+        }
+
+        final bool isWithdrawalPending =
+        await WithdrawalStatusService.isCurrentUserWithdrawalPending();
+
+        if (!context.mounted) return;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => isWithdrawalPending
+                ? const WithdrawalPendingScreen()
+                : const MainPage(),
+          ),
+        );
+      } catch (_) {
+        await FirebaseAuth.instance.signOut();
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              '회원 상태를 확인하지 못했습니다. 잠시 후 다시 로그인해주세요.',
+            ),
+          ),
+        );
       }
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const MainPage()),
-      );
     }
   }
 
@@ -146,187 +173,187 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     if (!mounted) return;
     setState(() => _isLoading = false);
     if (!context.mounted) return;
-    _handleAuthResult(context, result, provider);
+    await _handleAuthResult(context, result, provider);
   }
 
-@override
-Widget build(BuildContext context) {
-final colors = Theme.of(context).extension<AppColors>()!;
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<AppColors>()!;
 
-return Stack(
-children: [
-Scaffold(
-body: SafeArea(
-child: LayoutBuilder(
-builder: (context, constraints) {
-return SizedBox(
-height: constraints.maxHeight,
-child: Column(
-children: [
-Expanded(
-child: _stagger(
-start: 0.0,
-end: 0.55,
-slideFrom: 0,
-child: const _HeroIllustration(),
-),
-),
-SingleChildScrollView(
-physics: const ClampingScrollPhysics(),
-child: Padding(
-padding: const EdgeInsets.fromLTRB(28, 0, 28, 36),
-child: Column(
-children: [
-_stagger(
-start: 0.45,
-end: 0.80,
-child: _SocialButton(
-text: '카카오로 계속하기',
-backgroundColor: const Color(0xFFFEE500),
-textColor: const Color(0xFF1A1A1A),
-icon: Image.asset(
-'assets/icons/kakaoIcon.png',
-width: 22,
-height: 22,
-),
-onPressed: () => _handleSocialLogin(
-AuthService.signInWithKakao, 'KAKAO'),
-),
-),
-const SizedBox(height: 12),
-_stagger(
-start: 0.52,
-end: 0.87,
-child: _SocialButton(
-text: 'Google로 계속하기',
-backgroundColor: Colors.white,
-textColor: const Color(0xFF1A1A1A),
-borderColor: const Color(0xFFE5E7EB),
-icon: Image.asset(
-'assets/icons/googleIcon.png',
-width: 22,
-height: 22,
-),
-onPressed: () => _handleSocialLogin(
-AuthService.signInWithGoogle, 'GOOGLE'),
-),
-),
-const SizedBox(height: 12),
-_stagger(
-start: 0.59,
-end: 0.94,
-child: _SocialButton(
-text: '네이버로 계속하기',
-backgroundColor: const Color(0xFF03C75A),
-textColor: Colors.white,
-icon: _BadgeIcon(
-label: 'N',
-backgroundColor: Colors.white,
-textColor: const Color(0xFF03C75A),
-),
-onPressed: () => _handleSocialLogin(
-AuthService.signInWithNaver, 'NAVER'),
-),
-),
-const SizedBox(height: 24),
-_stagger(
-start: 0.65,
-end: 1.0,
-child: _OrDivider(colors: colors),
-),
-const SizedBox(height: 24),
-_stagger(
-start: 0.70,
-end: 1.0,
-child: GestureDetector(
-onTap: () {
-Navigator.of(context).push(
-MaterialPageRoute(
-builder: (_) => SignupScreen()),
-);
-},
-child: Container(
-width: double.infinity,
-height: 56,
-decoration: BoxDecoration(
-borderRadius: BorderRadius.circular(16),
-border: Border.all(
-color: colors.pinkStart,
-width: 1.4,
-),
-),
-child: Row(
-mainAxisAlignment: MainAxisAlignment.center,
-children: [
-Image.asset(
-'assets/images/textLogo.png',
-height: 20,
-),
-const SizedBox(width: 2),
-Text(
-'시작하기',
-style: TextStyle(
-fontSize: 16,
-fontWeight: FontWeight.w700,
-color: colors.pinkStart,
-),
-),
-],
-),
-),
-),
-),
-const SizedBox(height: 22),
-_stagger(
-start: 0.75,
-end: 1.0,
-child: Row(
-mainAxisAlignment: MainAxisAlignment.center,
-children: [
-Text(
-'이메일 회원이신가요? ',
-style: TextStyle(
-fontSize: 14,
-color: colors.textSecondary,
-),
-),
-GestureDetector(
-onTap: () {
-Navigator.of(context).push(
-MaterialPageRoute(
-builder: (_) => LoginScreen()),
-);
-},
-child: Text(
-'로그인',
-style: TextStyle(
-fontSize: 14,
-fontWeight: FontWeight.w700,
-color: colors.textPrimary,
-decoration: TextDecoration.underline,
-decorationColor: colors.textPrimary,
-decorationThickness: 1.5,
-),
-),
-),
-],
-),
-),
-],
-),
-),
-),
-],
-),
-);
-},
-),
-),
-),
-if (_isLoading) const LoadingOverlay(),
-],
-);
-}
+    return Stack(
+      children: [
+        Scaffold(
+          body: SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SizedBox(
+                  height: constraints.maxHeight,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: _stagger(
+                          start: 0.0,
+                          end: 0.55,
+                          slideFrom: 0,
+                          child: const _HeroIllustration(),
+                        ),
+                      ),
+                      SingleChildScrollView(
+                        physics: const ClampingScrollPhysics(),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(28, 0, 28, 36),
+                          child: Column(
+                            children: [
+                              _stagger(
+                                start: 0.45,
+                                end: 0.80,
+                                child: _SocialButton(
+                                  text: '카카오로 계속하기',
+                                  backgroundColor: const Color(0xFFFEE500),
+                                  textColor: const Color(0xFF1A1A1A),
+                                  icon: Image.asset(
+                                    'assets/icons/kakaoIcon.png',
+                                    width: 22,
+                                    height: 22,
+                                  ),
+                                  onPressed: () => _handleSocialLogin(
+                                      AuthService.signInWithKakao, 'KAKAO'),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              _stagger(
+                                start: 0.52,
+                                end: 0.87,
+                                child: _SocialButton(
+                                  text: 'Google로 계속하기',
+                                  backgroundColor: Colors.white,
+                                  textColor: const Color(0xFF1A1A1A),
+                                  borderColor: const Color(0xFFE5E7EB),
+                                  icon: Image.asset(
+                                    'assets/icons/googleIcon.png',
+                                    width: 22,
+                                    height: 22,
+                                  ),
+                                  onPressed: () => _handleSocialLogin(
+                                      AuthService.signInWithGoogle, 'GOOGLE'),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              _stagger(
+                                start: 0.59,
+                                end: 0.94,
+                                child: _SocialButton(
+                                  text: '네이버로 계속하기',
+                                  backgroundColor: const Color(0xFF03C75A),
+                                  textColor: Colors.white,
+                                  icon: _BadgeIcon(
+                                    label: 'N',
+                                    backgroundColor: Colors.white,
+                                    textColor: const Color(0xFF03C75A),
+                                  ),
+                                  onPressed: () => _handleSocialLogin(
+                                      AuthService.signInWithNaver, 'NAVER'),
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              _stagger(
+                                start: 0.65,
+                                end: 1.0,
+                                child: _OrDivider(colors: colors),
+                              ),
+                              const SizedBox(height: 24),
+                              _stagger(
+                                start: 0.70,
+                                end: 1.0,
+                                child: GestureDetector(
+                                  onTap: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                          builder: (_) => SignupScreen()),
+                                    );
+                                  },
+                                  child: Container(
+                                    width: double.infinity,
+                                    height: 56,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: colors.pinkStart,
+                                        width: 1.4,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Image.asset(
+                                          'assets/images/textLogo.png',
+                                          height: 20,
+                                        ),
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          '시작하기',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w700,
+                                            color: colors.pinkStart,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 22),
+                              _stagger(
+                                start: 0.75,
+                                end: 1.0,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      '이메일 회원이신가요? ',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: colors.textSecondary,
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () {
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                              builder: (_) => LoginScreen()),
+                                        );
+                                      },
+                                      child: Text(
+                                        '로그인',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                          color: colors.textPrimary,
+                                          decoration: TextDecoration.underline,
+                                          decorationColor: colors.textPrimary,
+                                          decorationThickness: 1.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        if (_isLoading) const LoadingOverlay(),
+      ],
+    );
+  }
 }
 
 class _OrDivider extends StatelessWidget {

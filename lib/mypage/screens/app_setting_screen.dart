@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../widgets/app_card.dart';
@@ -14,10 +16,8 @@ class AppSettingScreen extends StatefulWidget {
 
 class _AppSettingScreenState
     extends State<AppSettingScreen> {
-  // Firebase 연결 전 임시 설정값
-  //
-  // 추후 저장 경로:
-  // users/{uid}/settings/app
+  bool _isLoadingSettings = true;
+  bool _isSavingSettings = false;
 
   // 기존 DB 설계 필드
   String _themeMode = 'SYSTEM';
@@ -53,6 +53,175 @@ class _AppSettingScreenState
   bool _studyScheduleAlertEnabled = true;
 
   @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final User? user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoadingSettings = false;
+      });
+
+      _showMessage('로그인 정보를 확인할 수 없습니다.');
+      return;
+    }
+
+    try {
+      final DocumentSnapshot<Map<String, dynamic>> snapshot =
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('settings')
+          .doc('app')
+          .get();
+
+      final Map<String, dynamic> data = snapshot.data() ?? {};
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _themeMode = _readString(data, 'themeMode', 'SYSTEM');
+        _fontSizeMode = _readString(data, 'fontSizeMode', 'MEDIUM');
+        _pushEnabled = _readBool(data, 'pushEnabled', true);
+        _certificateAlertEnabled =
+            _readBool(data, 'certificateAlertEnabled', true);
+        _applicationStartAlertEnabled =
+            _readBool(data, 'applicationStartAlertEnabled', true);
+        _examD7AlertEnabled =
+            _readBool(data, 'examD7AlertEnabled', true);
+        _examDayAlertEnabled =
+            _readBool(data, 'examDayAlertEnabled', true);
+        _resultAlertEnabled =
+            _readBool(data, 'resultAlertEnabled', true);
+        _studyAlertEnabled =
+            _readBool(data, 'studyAlertEnabled', true);
+        _dailyStudyPlanAlertEnabled =
+            _readBool(data, 'dailyStudyPlanAlertEnabled', true);
+        _studyStartTimeAlertEnabled =
+            _readBool(data, 'studyStartTimeAlertEnabled', true);
+        _incompleteStudyAlertEnabled =
+            _readBool(data, 'incompleteStudyAlertEnabled', true);
+        _studyGroupAlertEnabled =
+            _readBool(data, 'studyGroupAlertEnabled', true);
+        _studyNoticeAlertEnabled =
+            _readBool(data, 'studyNoticeAlertEnabled', true);
+        _studyJoinApprovalAlertEnabled =
+            _readBool(data, 'studyJoinApprovalAlertEnabled', true);
+        _studyNewMemberAlertEnabled =
+            _readBool(data, 'studyNewMemberAlertEnabled', true);
+        _studyScheduleAlertEnabled =
+            _readBool(data, 'studyScheduleAlertEnabled', true);
+        _communityAlertEnabled =
+            _readBool(data, 'communityAlertEnabled', true);
+        _friendAlertEnabled =
+            _readBool(data, 'friendAlertEnabled', true);
+        _chatsAlertEnabled =
+            _readBool(data, 'chatsAlertEnabled', true);
+        _marketingAlertEnabled =
+            _readBool(data, 'marketingAlertEnabled', false);
+        _isLoadingSettings = false;
+      });
+
+      if (!snapshot.exists) {
+        await _saveSettings();
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoadingSettings = false;
+      });
+
+      _showMessage('설정을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    }
+  }
+
+  bool _readBool(
+      Map<String, dynamic> data,
+      String fieldName,
+      bool defaultValue,
+      ) {
+    final dynamic value = data[fieldName];
+    return value is bool ? value : defaultValue;
+  }
+
+  String _readString(
+      Map<String, dynamic> data,
+      String fieldName,
+      String defaultValue,
+      ) {
+    final dynamic value = data[fieldName];
+    return value is String ? value : defaultValue;
+  }
+
+  Future<void> _saveSettings() async {
+    final User? user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      _showMessage('로그인 정보를 확인할 수 없습니다.');
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isSavingSettings = true;
+      });
+    }
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('settings')
+          .doc('app')
+          .set({
+        'themeMode': _themeMode,
+        'fontSizeMode': _fontSizeMode,
+        'pushEnabled': _pushEnabled,
+        'certificateAlertEnabled': _certificateAlertEnabled,
+        'applicationStartAlertEnabled': _applicationStartAlertEnabled,
+        'examD7AlertEnabled': _examD7AlertEnabled,
+        'examDayAlertEnabled': _examDayAlertEnabled,
+        'resultAlertEnabled': _resultAlertEnabled,
+        'studyAlertEnabled': _studyAlertEnabled,
+        'dailyStudyPlanAlertEnabled': _dailyStudyPlanAlertEnabled,
+        'studyStartTimeAlertEnabled': _studyStartTimeAlertEnabled,
+        'incompleteStudyAlertEnabled': _incompleteStudyAlertEnabled,
+        'studyGroupAlertEnabled': _studyGroupAlertEnabled,
+        'studyNoticeAlertEnabled': _studyNoticeAlertEnabled,
+        'studyJoinApprovalAlertEnabled': _studyJoinApprovalAlertEnabled,
+        'studyNewMemberAlertEnabled': _studyNewMemberAlertEnabled,
+        'studyScheduleAlertEnabled': _studyScheduleAlertEnabled,
+        'communityAlertEnabled': _communityAlertEnabled,
+        'friendAlertEnabled': _friendAlertEnabled,
+        'chatsAlertEnabled': _chatsAlertEnabled,
+        'marketingAlertEnabled': _marketingAlertEnabled,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (error) {
+      _showMessage('설정을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSavingSettings = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -60,7 +229,13 @@ class _AppSettingScreenState
         title: '설정',
       ),
       body: AppMainBackground(
-        child: ListView(
+        child: _isLoadingSettings
+            ? const Center(
+          child: CircularProgressIndicator(
+            color: Color(0xFFF0788F),
+          ),
+        )
+            : ListView(
           padding: const EdgeInsets.fromLTRB(
             20,
             16,
@@ -72,7 +247,7 @@ class _AppSettingScreenState
             const SizedBox(height: 26),
             _buildNotificationSettingSection(),
             const SizedBox(height: 22),
-            _buildTemporaryNotice(),
+            _buildStorageNotice(),
           ],
         ),
       ),
@@ -170,9 +345,7 @@ class _AppSettingScreenState
                   _themeMode = value;
                 });
 
-                _showTemporaryMessage(
-                  '테마 설정은 Firebase와 앱 전체 테마 연결 후 적용됩니다.',
-                );
+                _saveSettings();
               },
             ),
           ),
@@ -248,9 +421,7 @@ class _AppSettingScreenState
                   _fontSizeMode = value;
                 });
 
-                _showTemporaryMessage(
-                  '글자 크기는 앱 전체 설정 연결 후 적용됩니다.',
-                );
+                _saveSettings();
               },
             ),
           ),
@@ -282,6 +453,8 @@ class _AppSettingScreenState
               setState(() {
                 _pushEnabled = value;
               });
+
+              _saveSettings();
             },
           ),
         ),
@@ -321,6 +494,8 @@ class _AppSettingScreenState
               setState(() {
                 _certificateAlertEnabled = value;
               });
+
+              _saveSettings();
             },
           ),
 
@@ -337,6 +512,8 @@ class _AppSettingScreenState
               setState(() {
                 _applicationStartAlertEnabled = value;
               });
+
+              _saveSettings();
             },
           ),
 
@@ -353,6 +530,8 @@ class _AppSettingScreenState
               setState(() {
                 _examD7AlertEnabled = value;
               });
+
+              _saveSettings();
             },
           ),
 
@@ -369,6 +548,8 @@ class _AppSettingScreenState
               setState(() {
                 _examDayAlertEnabled = value;
               });
+
+              _saveSettings();
             },
           ),
 
@@ -385,6 +566,8 @@ class _AppSettingScreenState
               setState(() {
                 _resultAlertEnabled = value;
               });
+
+              _saveSettings();
             },
           ),
         ],
@@ -412,6 +595,8 @@ class _AppSettingScreenState
               setState(() {
                 _studyAlertEnabled = value;
               });
+
+              _saveSettings();
             },
           ),
 
@@ -428,6 +613,8 @@ class _AppSettingScreenState
               setState(() {
                 _dailyStudyPlanAlertEnabled = value;
               });
+
+              _saveSettings();
             },
           ),
 
@@ -444,6 +631,8 @@ class _AppSettingScreenState
               setState(() {
                 _studyStartTimeAlertEnabled = value;
               });
+
+              _saveSettings();
             },
           ),
 
@@ -460,6 +649,8 @@ class _AppSettingScreenState
               setState(() {
                 _incompleteStudyAlertEnabled = value;
               });
+
+              _saveSettings();
             },
           ),
 
@@ -474,6 +665,8 @@ class _AppSettingScreenState
               setState(() {
                 _studyGroupAlertEnabled = value;
               });
+
+              _saveSettings();
             },
           ),
 
@@ -490,6 +683,8 @@ class _AppSettingScreenState
               setState(() {
                 _studyNoticeAlertEnabled = value;
               });
+
+              _saveSettings();
             },
           ),
 
@@ -506,6 +701,8 @@ class _AppSettingScreenState
               setState(() {
                 _studyJoinApprovalAlertEnabled = value;
               });
+
+              _saveSettings();
             },
           ),
 
@@ -522,6 +719,8 @@ class _AppSettingScreenState
               setState(() {
                 _studyNewMemberAlertEnabled = value;
               });
+
+              _saveSettings();
             },
           ),
 
@@ -538,6 +737,8 @@ class _AppSettingScreenState
               setState(() {
                 _studyScheduleAlertEnabled = value;
               });
+
+              _saveSettings();
             },
           ),
         ],
@@ -565,6 +766,8 @@ class _AppSettingScreenState
               setState(() {
                 _communityAlertEnabled = value;
               });
+
+              _saveSettings();
             },
           ),
 
@@ -579,6 +782,8 @@ class _AppSettingScreenState
               setState(() {
                 _friendAlertEnabled = value;
               });
+
+              _saveSettings();
             },
           ),
 
@@ -593,6 +798,8 @@ class _AppSettingScreenState
               setState(() {
                 _chatsAlertEnabled = value;
               });
+
+              _saveSettings();
             },
           ),
         ],
@@ -620,6 +827,8 @@ class _AppSettingScreenState
               setState(() {
                 _marketingAlertEnabled = value;
               });
+
+              _saveSettings();
             },
           ),
         ],
@@ -627,7 +836,7 @@ class _AppSettingScreenState
     );
   }
 
-  Widget _buildTemporaryNotice() {
+  Widget _buildStorageNotice() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -637,20 +846,21 @@ class _AppSettingScreenState
           color: const Color(0xFFFFE5B2),
         ),
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
+          const Icon(
             Icons.info_outline_rounded,
             size: 20,
             color: Color(0xFFE59B2E),
           ),
-          SizedBox(width: 10),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
-              '현재 설정은 화면 확인용 임시 데이터입니다. '
-                  'Firebase 연결 후 users/{uid}/settings/app 문서에 저장됩니다.',
-              style: TextStyle(
+              _isSavingSettings
+                  ? '설정 변경 내용을 저장하고 있습니다.'
+                  : '설정 변경 내용은 계정에 자동으로 저장됩니다.',
+              style: const TextStyle(
                 fontSize: 12,
                 height: 1.5,
                 color: Color(0xFF8A6429),
@@ -662,7 +872,11 @@ class _AppSettingScreenState
     );
   }
 
-  void _showTemporaryMessage(String message) {
+  void _showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
