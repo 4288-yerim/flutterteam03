@@ -304,8 +304,15 @@ class CertificateScheduleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = _getScheduleStyle(
       schedule.scheduleType,
-      schedule.qualificationCode,
     );
+
+    final iconBackgroundColor = schedule.isProfessional
+        ? certificateMint
+        : certificateSoftBlue;
+
+    final iconColor = schedule.isProfessional
+        ? certificateProfessionalMarkerColor
+        : certificateTechnicalMarkerColor;
 
     return Container(
       width: double.infinity,
@@ -322,13 +329,12 @@ class CertificateScheduleCard extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: style.backgroundColor,
-                  borderRadius:
-                  BorderRadius.circular(14),
+                  color: iconBackgroundColor,
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
                   style.icon,
-                  color: style.foregroundColor,
+                  color: iconColor,
                   size: 21,
                 ),
               ),
@@ -405,7 +411,6 @@ class CertificateScheduleCard extends StatelessWidget {
 
   _ScheduleStyle _getScheduleStyle(
       String scheduleType,
-      String qualificationCode,
       ) {
     if (scheduleType.contains('시험')) {
       return const _ScheduleStyle(
