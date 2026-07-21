@@ -20,6 +20,12 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color lavenderAccent;
   final Color softBlueAccent;
   final Color mintAccent;
+  // 퀴즈 정답/오답 피드백용
+  final Color correct;
+  final Color correctSoft;
+  final Color incorrect;
+  final Color incorrectSoft;
+
 
   const AppColors({
     required this.pinkStart,
@@ -35,6 +41,10 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.lavenderAccent,
     required this.softBlueAccent,
     required this.mintAccent,
+    required this.correct,
+    required this.correctSoft,
+    required this.incorrect,
+    required this.incorrectSoft,
   });
 
   static const light = AppColors(
@@ -51,6 +61,10 @@ class AppColors extends ThemeExtension<AppColors> {
     lavenderAccent: Color(0xFF9B7AF5),
     softBlueAccent: Color(0xFF6C8EEB),
     mintAccent: Color(0xFF4FAE8E),
+    correct: Color(0xFF4CAF7D),
+    correctSoft: Color(0xFFE9F7EF),
+    incorrect: Color(0xFFE96B7A),
+    incorrectSoft: Color(0xFFFFE9EC),
   );
 
   static const dark = AppColors(
@@ -67,6 +81,10 @@ class AppColors extends ThemeExtension<AppColors> {
     lavenderAccent: Color(0xFFB39DFF),
     softBlueAccent: Color(0xFF8FA8F0),
     mintAccent: Color(0xFF7FCBB0),
+    correct: Color(0xFF7FCBB0),
+    correctSoft: Color(0xFF1F3A2E),
+    incorrect: Color(0xFFE08A94),
+    incorrectSoft: Color(0xFF4A2A2E),
   );
 
   @override
@@ -99,6 +117,10 @@ class AppColors extends ThemeExtension<AppColors> {
       lavenderAccent: lavenderAccent ?? this.lavenderAccent,
       softBlueAccent: softBlueAccent ?? this.softBlueAccent,
       mintAccent: mintAccent ?? this.mintAccent,
+      correct: correct ?? this.correct,
+      correctSoft: correctSoft ?? this.correctSoft,
+      incorrect: incorrect ?? this.incorrect,
+      incorrectSoft: incorrectSoft ?? this.incorrectSoft,
     );
   }
 
@@ -119,6 +141,10 @@ class AppColors extends ThemeExtension<AppColors> {
       lavenderAccent: Color.lerp(lavenderAccent, other.lavenderAccent, t)!,
       softBlueAccent: Color.lerp(softBlueAccent, other.softBlueAccent, t)!,
       mintAccent: Color.lerp(mintAccent, other.mintAccent, t)!,
+      correct: Color.lerp(correct, other.correct, t)!,
+      correctSoft: Color.lerp(correctSoft, other.correctSoft, t)!,
+      incorrect: Color.lerp(incorrect, other.incorrect, t)!,
+      incorrectSoft: Color.lerp(incorrectSoft, other.incorrectSoft, t)!,
     );
   }
 }
