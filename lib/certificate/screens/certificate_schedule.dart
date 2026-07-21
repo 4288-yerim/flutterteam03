@@ -51,7 +51,17 @@ class _CertificateSchedulePageState extends State<CertificateSchedulePage> {
         _schedules
           ..clear()
           ..addAll(schedules);
+
         _isLoading = false;
+      });
+    } on CertificateScheduleException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoading = false;
+        _loadError = error.message;
       });
     } catch (_) {
       if (!mounted) {
@@ -67,20 +77,43 @@ class _CertificateSchedulePageState extends State<CertificateSchedulePage> {
 
   List<CertificateSchedule> _getSchedulesForDay(DateTime day) {
     final schedules = _schedules.where((schedule) {
-      return DateUtils.isSameDay(schedule.date, day);
+      return schedule.occursOn(day);
     }).toList();
 
-    schedules.sort((a, b) => a.date.compareTo(b.date));
+    schedules.sort((a, b) {
+      final typeCompare =
+      a.scheduleType.compareTo(b.scheduleType);
+
+      if (typeCompare != 0) {
+        return typeCompare;
+      }
+
+      return a.certificateName.compareTo(b.certificateName);
+    });
+
     return schedules;
   }
 
   List<CertificateSchedule> _getSchedulesForMonth(DateTime month) {
+    final firstDay = DateTime(month.year, month.month, 1);
+    final lastDay = DateTime(month.year, month.month + 1, 0);
+
     final schedules = _schedules.where((schedule) {
-      return schedule.date.year == month.year &&
-          schedule.date.month == month.month;
+      return !schedule.endDate.isBefore(firstDay) &&
+          !schedule.startDate.isAfter(lastDay);
     }).toList();
 
-    schedules.sort((a, b) => a.date.compareTo(b.date));
+    schedules.sort((a, b) {
+      final dateCompare =
+      a.startDate.compareTo(b.startDate);
+
+      if (dateCompare != 0) {
+        return dateCompare;
+      }
+
+      return a.certificateName.compareTo(b.certificateName);
+    });
+
     return schedules;
   }
 
@@ -101,7 +134,8 @@ class _CertificateSchedulePageState extends State<CertificateSchedulePage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const CertificateSearchPage(),
+        builder: (context) =>
+        const CertificateSearchPage(),
       ),
     );
   }
@@ -180,7 +214,8 @@ class _CertificateSchedulePageState extends State<CertificateSchedulePage> {
   }
 
   Widget _buildCalendarTab() {
-    final selectedSchedules = _getSchedulesForDay(_selectedDay);
+    final selectedSchedules =
+    _getSchedulesForDay(_selectedDay);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
@@ -241,7 +276,8 @@ class _CertificateSchedulePageState extends State<CertificateSchedulePage> {
   }
 
   Widget _buildListTab() {
-    final monthlySchedules = _getSchedulesForMonth(_focusedDay);
+    final monthlySchedules =
+    _getSchedulesForMonth(_focusedDay);
 
     return Column(
       children: [
@@ -263,29 +299,38 @@ class _CertificateSchedulePageState extends State<CertificateSchedulePage> {
             ),
           )
               : ListView.builder(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
+            padding: const EdgeInsets.fromLTRB(
+              24,
+              0,
+              24,
+              40,
+            ),
             itemCount: monthlySchedules.length,
             itemBuilder: (context, index) {
-              final schedule = monthlySchedules[index];
+              final schedule =
+              monthlySchedules[index];
 
               final showDateHeader = index == 0 ||
-                  !DateUtils.isSameDay(
-                    schedule.date,
-                    monthlySchedules[index - 1].date,
+                  !_isSameScheduleStartDay(
+                    schedule,
+                    monthlySchedules[index - 1],
                   );
 
               return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                CrossAxisAlignment.start,
                 children: [
                   if (showDateHeader) ...[
-                    if (index != 0) const SizedBox(height: 18),
+                    if (index != 0)
+                      const SizedBox(height: 18),
                     CertificateScheduleListDateHeader(
-                      date: schedule.date,
+                      date: schedule.startDate,
                     ),
                     const SizedBox(height: 10),
                   ],
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
+                    padding:
+                    const EdgeInsets.only(bottom: 12),
                     child: CertificateScheduleCard(
                       schedule: schedule,
                     ),
@@ -296,6 +341,16 @@ class _CertificateSchedulePageState extends State<CertificateSchedulePage> {
           ),
         ),
       ],
+    );
+  }
+
+  bool _isSameScheduleStartDay(
+      CertificateSchedule first,
+      CertificateSchedule second,
+      ) {
+    return DateUtils.isSameDay(
+      first.startDate,
+      second.startDate,
     );
   }
 }
