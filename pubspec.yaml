@@ -49,6 +49,7 @@ dependencies:
   workmanager: ^0.9.0+3
   shared_preferences: ^2.3.0
   file_picker: 10.3.10
+  url_launcher: ^6.3.2
   add_2_calendar: ^3.1.1
   flutter_local_notifications: ^22.0.1
   dio: ^5.4.0
