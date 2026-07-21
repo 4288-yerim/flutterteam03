@@ -2,6 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../auth/screens/welcome_screen.dart';
+import '../../auth/services/auth_service.dart';
+import '../../main_page.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
@@ -18,6 +21,7 @@ class _WithdrawalPendingScreenState
     extends State<WithdrawalPendingScreen> {
   bool _isLoading = true;
   bool _isRecovering = false;
+  bool _canRecover = false;
 
   String? _errorMessage;
   String? _withdrawalScheduledText;
@@ -100,6 +104,8 @@ class _WithdrawalPendingScreenState
       setState(() {
         _withdrawalScheduledText =
             scheduledText;
+        _canRecover = scheduledTimestamp != null &&
+            DateTime.now().isBefore(scheduledTimestamp.toDate());
         _isLoading = false;
       });
     } on FirebaseException catch (error) {
@@ -147,7 +153,7 @@ class _WithdrawalPendingScreenState
   }
 
   Future<void> _showRecoveryDialog() async {
-    if (_isRecovering) {
+    if (_isRecovering || !_canRecover) {
       return;
     }
 
@@ -295,7 +301,12 @@ class _WithdrawalPendingScreenState
         return;
       }
 
-      Navigator.pop(context, true);
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => const MainPage(),
+        ),
+            (route) => false,
+      );
     } on FirebaseException catch (error) {
       if (!mounted) {
         return;
@@ -430,7 +441,7 @@ class _WithdrawalPendingScreenState
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  '탈퇴 신청 후 7일 동안은\n'
+                  '탈퇴 신청 후 7일 이내에는\n'
                       '계정을 다시 복구할 수 있습니다.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -487,7 +498,9 @@ class _WithdrawalPendingScreenState
             child: ElevatedButton(
               onPressed: _isRecovering
                   ? null
-                  : _showRecoveryDialog,
+                  : _canRecover
+                  ? _showRecoveryDialog
+                  : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor:
                 const Color(0xFFF0788F),
@@ -510,8 +523,8 @@ class _WithdrawalPendingScreenState
                   color: Colors.white,
                 ),
               )
-                  : const Text(
-                '계정 복구',
+                  : Text(
+                _canRecover ? '계정 복구' : '복구 기간 만료',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight:
@@ -520,8 +533,38 @@ class _WithdrawalPendingScreenState
               ),
             ),
           ),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: _isRecovering ? null : _signOut,
+            child: const Text(
+              '로그인 화면으로 돌아가기',
+              style: TextStyle(
+                color: Color(0xFF9AA0AC),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
         ],
       ),
+    );
+  }
+
+  Future<void> _signOut() async {
+    try {
+      await AuthService.signOut();
+    } catch (error) {
+      await FirebaseAuth.instance.signOut();
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => const WelcomeScreen(),
+      ),
+          (route) => false,
     );
   }
 }

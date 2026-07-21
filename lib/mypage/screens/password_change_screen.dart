@@ -1,5 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../auth/screens/welcome_screen.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
@@ -32,6 +35,59 @@ class _PasswordChangeScreenState
   bool _hideConfirmPassword = true;
 
   bool _isSubmitting = false;
+  bool _isCheckingProvider = true;
+  bool _isPasswordAccount = false;
+  String _loginProvider = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginProvider();
+  }
+
+  Future<void> _checkLoginProvider() async {
+    final User? user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isCheckingProvider = false;
+      });
+      return;
+    }
+
+    String provider = '';
+
+    try {
+      final DocumentSnapshot<Map<String, dynamic>> snapshot =
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      provider =
+          (snapshot.data()?['loginProvider'] as String? ?? '').toUpperCase();
+    } catch (error) {
+      provider = '';
+    }
+
+    final bool hasPasswordProvider = user.providerData.any(
+          (userInfo) => userInfo.providerId == 'password',
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _loginProvider = provider;
+      _isPasswordAccount = provider == 'PASSWORD' || hasPasswordProvider;
+      _isCheckingProvider = false;
+    });
+  }
 
   @override
   void dispose() {
@@ -63,7 +119,15 @@ class _PasswordChangeScreenState
       ),
 
       body: AppMainBackground(
-        child: SingleChildScrollView(
+        child: _isCheckingProvider
+            ? const Center(
+          child: CircularProgressIndicator(
+            color: Color(0xFFF0788F),
+          ),
+        )
+            : !_isPasswordAccount
+            ? _buildSocialAccountNotice()
+            : SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(
             20,
             16,
@@ -73,8 +137,7 @@ class _PasswordChangeScreenState
           child: Form(
             key: _formKey,
             child: Column(
-              crossAxisAlignment:
-              CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const _PasswordGuideCard(),
 
@@ -260,17 +323,70 @@ class _PasswordChangeScreenState
                 ),
 
                 const SizedBox(height: 16),
-
-                const Text(
-                  '현재 화면은 Firebase Authentication 연결 전 테스트용입니다.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF9AA0AC),
-                  ),
-                ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSocialAccountNotice() {
+    String providerName = '소셜 로그인';
+
+    switch (_loginProvider) {
+      case 'GOOGLE':
+        providerName = 'Google 로그인';
+        break;
+      case 'KAKAO':
+        providerName = '카카오 로그인';
+        break;
+      case 'NAVER':
+        providerName = '네이버 로그인';
+        break;
+    }
+
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: AppCard(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFCEFF3),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Icon(
+                  Icons.lock_outline_rounded,
+                  color: Color(0xFFF0788F),
+                  size: 30,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                '비밀번호를 변경할 수 없습니다.',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '$providerName 계정은 앱에서 사용하는 별도 비밀번호가 없습니다. '
+                    '비밀번호 관리는 해당 로그인 서비스에서 진행해 주세요.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 1.5,
+                  color: Color(0xFF666A73),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -361,55 +477,118 @@ class _PasswordChangeScreenState
       return;
     }
 
-    setState(() {
-      _isSubmitting = true;
-    });
+    final User? user = FirebaseAuth.instance.currentUser;
+    final String? email = user?.email;
 
-    // Firebase 연결 전 임시 처리
-    await Future<void>.delayed(
-      const Duration(milliseconds: 500),
-    );
-
-    if (!mounted) {
+    if (user == null || email == null || email.isEmpty) {
+      _showMessage('로그인 정보를 확인할 수 없습니다. 다시 로그인해 주세요.');
       return;
     }
 
     setState(() {
-      _isSubmitting = false;
+      _isSubmitting = true;
     });
 
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          title: const Text(
-            '변경 완료',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          content: const Text(
-            '비밀번호가 변경된 것으로 임시 처리했습니다.\n'
-                'Firebase 연결 후 실제 변경 기능이 적용됩니다.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                Navigator.pop(context);
-              },
-              child: const Text(
-                '확인',
-                style: TextStyle(
-                  color: Color(0xFFF0788F),
-                  fontWeight: FontWeight.w700,
-                ),
+    try {
+      final AuthCredential credential = EmailAuthProvider.credential(
+        email: email,
+        password: _currentPasswordController.text,
+      );
+
+      await user.reauthenticateWithCredential(credential);
+      await user.updatePassword(_newPasswordController.text);
+
+      if (!mounted) {
+        return;
+      }
+
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            title: const Text(
+              '변경 완료',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
               ),
             ),
-          ],
-        );
-      },
+            content: const Text(
+              '비밀번호가 변경되었습니다.\n새 비밀번호로 다시 로그인해 주세요.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(dialogContext);
+                  await FirebaseAuth.instance.signOut();
+
+                  if (!mounted) {
+                    return;
+                  }
+
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (_) => const WelcomeScreen(),
+                    ),
+                        (route) => false,
+                  );
+                },
+                child: const Text(
+                  '확인',
+                  style: TextStyle(
+                    color: Color(0xFFF0788F),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    } on FirebaseAuthException catch (error) {
+      String message = '비밀번호를 변경하지 못했습니다. 잠시 후 다시 시도해 주세요.';
+
+      switch (error.code) {
+        case 'wrong-password':
+        case 'invalid-credential':
+          message = '현재 비밀번호가 올바르지 않습니다.';
+          break;
+        case 'weak-password':
+          message = '새 비밀번호가 너무 약합니다.';
+          break;
+        case 'requires-recent-login':
+          message = '보안을 위해 다시 로그인한 후 변경해 주세요.';
+          break;
+        case 'network-request-failed':
+          message = '네트워크 연결을 확인해 주세요.';
+          break;
+        case 'too-many-requests':
+          message = '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.';
+          break;
+      }
+
+      _showMessage(message);
+    } catch (error) {
+      _showMessage('비밀번호를 변경하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+      ),
     );
   }
 }

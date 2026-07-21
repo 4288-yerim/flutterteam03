@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../auth/screens/welcome_screen.dart';
+import '../../auth/services/auth_service.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
@@ -491,7 +493,22 @@ class _AccountWithdrawalScreenState
         return;
       }
 
-      Navigator.pop(context, true);
+      try {
+        await AuthService.signOut();
+      } catch (error) {
+        await FirebaseAuth.instance.signOut();
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => const WelcomeScreen(),
+        ),
+            (route) => false,
+      );
     } on FirebaseException catch (error) {
       if (!mounted) {
         return;

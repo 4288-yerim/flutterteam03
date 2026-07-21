@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../auth/screens/welcome_screen.dart';
+import '../../auth/services/auth_service.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
@@ -37,11 +39,157 @@ class _MyPageScreenState extends State<MyPageScreen> {
   String _targetCertificateName = '등록된 목표 없음';
   String? _profileImageUrl;
   bool _isLoadingProfile = true;
+  int _weeklyStudyMinutes = 0;
+  int _joinedStudyCount = 0;
 
   @override
   void initState() {
     super.initState();
     _loadMyPageData();
+    _loadSummaryData();
+  }
+
+  Future<void> _loadSummaryData() async {
+    final User? user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _weeklyStudyMinutes = 0;
+        _joinedStudyCount = 0;
+      });
+      return;
+    }
+
+    int weeklyStudyMinutes = _weeklyStudyMinutes;
+    int joinedStudyCount = _joinedStudyCount;
+    bool hasLoadError = false;
+
+    try {
+      weeklyStudyMinutes = await _loadWeeklyStudyMinutes(user.uid);
+    } catch (error) {
+      hasLoadError = true;
+    }
+
+    try {
+      joinedStudyCount = await _loadJoinedStudyCount(user.uid);
+    } catch (error) {
+      hasLoadError = true;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _weeklyStudyMinutes = weeklyStudyMinutes;
+      _joinedStudyCount = joinedStudyCount;
+    });
+
+    if (hasLoadError) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '마이페이지 요약 정보를 일부 불러오지 못했습니다.',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<int> _loadWeeklyStudyMinutes(String uid) async {
+    final DateTime now = DateTime.now();
+    final DateTime today = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    );
+
+    final DateTime monday = today.subtract(
+      Duration(days: today.weekday - DateTime.monday),
+    );
+
+    int totalSeconds = 0;
+    final int elapsedDayCount =
+        today.weekday - DateTime.monday + 1;
+
+    for (int dayIndex = 0;
+    dayIndex < elapsedDayCount;
+    dayIndex++) {
+      final DateTime date = monday.add(
+        Duration(days: dayIndex),
+      );
+
+      final DocumentSnapshot<Map<String, dynamic>> document =
+      await FirebaseFirestore.instance
+          .collection('userStudyLogs')
+          .doc(uid)
+          .collection('logs')
+          .doc(_formatDateId(date))
+          .get();
+
+      final Map<String, dynamic>? data = document.data();
+
+      if (data == null) {
+        continue;
+      }
+
+      final int? savedTotalSeconds =
+      (data['totalSeconds'] as num?)?.toInt();
+
+      if (savedTotalSeconds != null) {
+        totalSeconds += savedTotalSeconds;
+      } else {
+        final int savedTotalMinutes =
+            (data['totalMinutes'] as num?)?.toInt() ?? 0;
+        totalSeconds += savedTotalMinutes * 60;
+      }
+    }
+
+    return totalSeconds ~/ 60;
+  }
+
+  Future<int> _loadJoinedStudyCount(String uid) async {
+    final QuerySnapshot<Map<String, dynamic>> groupSnapshot =
+    await FirebaseFirestore.instance
+        .collection('studyGroups')
+        .get();
+
+    int joinedStudyCount = 0;
+
+    for (final QueryDocumentSnapshot<Map<String, dynamic>> groupDocument
+    in groupSnapshot.docs) {
+      final DocumentSnapshot<Map<String, dynamic>> memberDocument =
+      await groupDocument.reference
+          .collection('members')
+          .doc(uid)
+          .get();
+
+      if (!memberDocument.exists) {
+        continue;
+      }
+
+      final String memberStatus =
+      (memberDocument.data()?['status'] as String? ?? 'ACTIVE')
+          .trim()
+          .toUpperCase();
+
+      if (memberStatus == 'ACTIVE') {
+        joinedStudyCount++;
+      }
+    }
+
+    return joinedStudyCount;
+  }
+
+  String _formatDateId(DateTime date) {
+    final String month = date.month.toString().padLeft(2, '0');
+    final String day = date.day.toString().padLeft(2, '0');
+
+    return '${date.year}-$month-$day';
   }
 
   Future<void> _loadMyPageData() async {
@@ -197,17 +345,17 @@ class _MyPageScreenState extends State<MyPageScreen> {
               const SizedBox(height: 16),
 
               MyPageSummaryCard(
-                studyMinutes: 0,
-                studyGroupCount: 0,
+                studyMinutes: _weeklyStudyMinutes,
+                studyGroupCount: _joinedStudyCount,
                 postCount: 0,
-                onStudyTap: () {
-                  _openPage(
+                onStudyTap: () async {
+                  await _openPageAndRefreshSummary(
                     context,
                     const StudyRecordScreen(),
                   );
                 },
-                onGroupTap: () {
-                  _openPage(
+                onGroupTap: () async {
+                  await _openPageAndRefreshSummary(
                     context,
                     const JoinedStudyScreen(),
                   );
@@ -788,6 +936,20 @@ class _MyPageScreenState extends State<MyPageScreen> {
     );
   }
 
+  Future<void> _openPageAndRefreshSummary(
+      BuildContext context,
+      Widget page,
+      ) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => page,
+      ),
+    );
+
+    await _loadSummaryData();
+  }
+
   static void _showLogoutDialog(
       BuildContext context,
       ) {
@@ -821,20 +983,32 @@ class _MyPageScreenState extends State<MyPageScreen> {
               onPressed: () async {
                 Navigator.pop(dialogContext);
 
-                // 나중에 Firebase Auth 연결
-                // await FirebaseAuth.instance.signOut();
+                try {
+                  await AuthService.signOut();
 
-                if (!context.mounted) {
-                  return;
-                }
+                  if (!context.mounted) {
+                    return;
+                  }
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      '로그아웃 기능은 Firebase 연결 후 적용됩니다.',
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (_) => const WelcomeScreen(),
                     ),
-                  ),
-                );
+                        (route) => false,
+                  );
+                } catch (error) {
+                  if (!context.mounted) {
+                    return;
+                  }
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        '로그아웃에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+                      ),
+                    ),
+                  );
+                }
               },
               child: const Text(
                 '로그아웃',

@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../main_page.dart';
+import '../../mypage/screens/withdrawal_pending_screen.dart';
+import '../../mypage/services/withdrawal_status_service.dart';
 import '../../theme.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/app_button.dart';
@@ -199,9 +201,16 @@ class _LoginScreenState extends State<LoginScreen>
         'lastLoginAt': FieldValue.serverTimestamp(),
       });
 
+      final bool isWithdrawalPending =
+      await WithdrawalStatusService.isCurrentUserWithdrawalPending();
+
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => MainPage()),
+        MaterialPageRoute(
+          builder: (_) => isWithdrawalPending
+              ? const WithdrawalPendingScreen()
+              : const MainPage(),
+        ),
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -226,6 +235,12 @@ class _LoginScreenState extends State<LoginScreen>
         if (e.code == 'wrong-password') _passwordServerError = modalMessage;
       });
       _showLoginFailedModal(modalMessage);
+    } catch (_) {
+      await FirebaseAuth.instance.signOut();
+      if (!mounted) return;
+      _showLoginFailedModal(
+        '회원 상태를 확인하지 못했습니다. 잠시 후 다시 로그인해주세요.',
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
