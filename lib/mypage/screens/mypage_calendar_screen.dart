@@ -44,7 +44,7 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
     return FirebaseFirestore.instance
         .collection('users')
         .doc(currentUser.uid)
-        .collection('calendarSchedules');
+        .collection('calendarEvents');
   }
 
   Future<void> _loadSchedules() async {
@@ -71,73 +71,51 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
     }
 
     try {
-      final List<QuerySnapshot<Map<String, dynamic>>> snapshots =
-          await Future.wait([
-            FirebaseFirestore.instance
-                .collection('users')
-                .doc(currentUser.uid)
-                .collection('calendarSchedules')
-                .get(),
-            FirebaseFirestore.instance
-                .collection('userGoals')
-                .doc(currentUser.uid)
-                .collection('goals')
-                .get(),
-          ]);
+      final QuerySnapshot<Map<String, dynamic>> snapshot =
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('calendarEvents')
+          .get();
 
       final List<CalendarScheduleItem> loadedSchedules = [];
 
       for (final QueryDocumentSnapshot<Map<String, dynamic>> document
-          in snapshots[0].docs) {
+      in snapshot.docs) {
         final Map<String, dynamic> data = document.data();
-        final Timestamp? dateTimestamp = data['date'] as Timestamp?;
+        final Timestamp? startTimestamp = data['startAt'] as Timestamp?;
 
-        if (dateTimestamp == null) {
+        if (startTimestamp == null) {
           continue;
         }
+
+        final DateTime startAt = startTimestamp.toDate();
+        final Timestamp? endTimestamp = data['endAt'] as Timestamp?;
+        final DateTime? endAt = endTimestamp?.toDate();
+        final bool allDay = data['allDay'] as bool? ?? false;
+        final String eventType =
+        ((data['eventType'] as String?) ?? 'CUSTOM').trim().toUpperCase();
+        final String certificateName =
+        ((data['certificateName'] as String?) ?? '').trim();
+        final String scheduleName =
+        ((data['scheduleName'] as String?) ?? '').trim();
+        final String description = scheduleName.isNotEmpty
+            ? scheduleName
+            : certificateName;
 
         loadedSchedules.add(
           CalendarScheduleItem(
             id: document.id,
             title: (data['title'] as String?)?.trim().isNotEmpty == true
                 ? (data['title'] as String).trim()
-                : '내 일정',
-            description: (data['description'] as String?)?.trim() ?? '',
-            date: _dateOnly(dateTimestamp.toDate()),
-            startTime: _minutesToTimeOfDay(data['startMinutes']),
-            endTime: _minutesToTimeOfDay(data['endMinutes']),
-            type: CalendarScheduleType.user,
-          ),
-        );
-      }
-
-      for (final QueryDocumentSnapshot<Map<String, dynamic>> document
-          in snapshots[1].docs) {
-        final Map<String, dynamic> data = document.data();
-        final Timestamp? targetExamDate = data['targetExamDate'] as Timestamp?;
-        final String goalStatus = ((data['goalStatus'] as String?) ?? '')
-            .trim();
-
-        if (targetExamDate == null || goalStatus == 'DELETED') {
-          continue;
-        }
-
-        final String certificateName =
-            (data['certificateName'] as String?)?.trim().isNotEmpty == true
-            ? (data['certificateName'] as String).trim()
-            : '목표 자격증';
-        final String targetRound =
-            (data['targetRound'] as String?)?.trim() ?? '';
-
-        loadedSchedules.add(
-          CalendarScheduleItem(
-            id: 'goal_${document.id}_exam',
-            title: '$certificateName 시험',
-            description: targetRound.isEmpty
-                ? '목표 자격증 시험일입니다.'
-                : '$targetRound 시험일입니다.',
-            date: _dateOnly(targetExamDate.toDate()),
-            type: CalendarScheduleType.certificate,
+                : '일정',
+            description: description,
+            date: _dateOnly(startAt),
+            startTime: allDay ? null : TimeOfDay.fromDateTime(startAt),
+            endTime: allDay || endAt == null
+                ? null
+                : TimeOfDay.fromDateTime(endAt),
+            type: _calendarTypeFromEventType(eventType),
           ),
         );
       }
@@ -171,17 +149,17 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
     return DateTime(date.year, date.month, date.day);
   }
 
-  TimeOfDay? _minutesToTimeOfDay(dynamic value) {
-    if (value is! num) {
-      return null;
+  CalendarScheduleType _calendarTypeFromEventType(String eventType) {
+    switch (eventType) {
+      case 'EXAM':
+      case 'APPLICATION':
+        return CalendarScheduleType.certificate;
+      case 'STUDY':
+        return CalendarScheduleType.aiPlan;
+      case 'CUSTOM':
+      default:
+        return CalendarScheduleType.user;
     }
-
-    final int minutes = value.toInt();
-    if (minutes < 0 || minutes >= 24 * 60) {
-      return null;
-    }
-
-    return TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60);
   }
 
   int _compareSchedules(CalendarScheduleItem a, CalendarScheduleItem b) {
@@ -250,11 +228,22 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
 
   Widget _buildTabSelector() {
     return Container(
-      height: 50,
-      padding: const EdgeInsets.all(4),
+      height: 52,
+      padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
-        color: const Color(0xFFF6F2F3),
-        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFFFFF0F5),
+            Color(0xFFF7F2FF),
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFFF8DCE5),
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
@@ -284,54 +273,51 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
   }) {
     final bool isSelected = _selectedTabIndex == index;
 
-    return Material(
-      color: isSelected ? Colors.white : Colors.transparent,
-      borderRadius: BorderRadius.circular(13),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(13),
-        onTap: () {
-          setState(() {
-            _selectedTabIndex = index;
-          });
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(13),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: Colors.black..withValues(alpha: 0.04),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 19,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        if (_selectedTabIndex == index) {
+          return;
+        }
+
+        setState(() {
+          _selectedTabIndex = index;
+        });
+      },
+      child: Container(
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(13),
+          border: isSelected
+              ? Border.all(
+            color: const Color(0xFFF4C3D0),
+            width: 1,
+          )
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 19,
+              color: isSelected
+                  ? const Color(0xFFED6F8D)
+                  : const Color(0xFF837985),
+            ),
+            const SizedBox(width: 7),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 color: isSelected
-                    ? const Color(0xFFF0788F)
-                    : const Color(0xFF666A73),
+                    ? const Color(0xFFED6F8D)
+                    : const Color(0xFF837985),
               ),
-              const SizedBox(width: 7),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: isSelected
-                      ? const Color(0xFFF0788F)
-                      : const Color(0xFF666A73),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -358,7 +344,7 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
                   _buildEmptyScheduleCard()
                 else
                   ...selectedSchedules.map(
-                    (schedule) => Padding(
+                        (schedule) => Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: _buildScheduleCard(schedule),
                     ),
@@ -390,39 +376,39 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
         Expanded(
           child: monthlySchedules.isEmpty
               ? SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                  child: _buildEmptyMonthlyScheduleCard(),
-                )
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: _buildEmptyMonthlyScheduleCard(),
+          )
               : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                  itemCount: monthlySchedules.length,
-                  itemBuilder: (context, index) {
-                    final CalendarScheduleItem schedule =
-                        monthlySchedules[index];
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            itemCount: monthlySchedules.length,
+            itemBuilder: (context, index) {
+              final CalendarScheduleItem schedule =
+              monthlySchedules[index];
 
-                    final bool showDateHeader =
-                        index == 0 ||
-                        !_isSameDate(
-                          schedule.date,
-                          monthlySchedules[index - 1].date,
-                        );
+              final bool showDateHeader =
+                  index == 0 ||
+                      !_isSameDate(
+                        schedule.date,
+                        monthlySchedules[index - 1].date,
+                      );
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (showDateHeader) ...[
-                          if (index != 0) const SizedBox(height: 10),
-                          _buildListDateHeader(schedule.date),
-                          const SizedBox(height: 10),
-                        ],
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _buildScheduleCard(schedule),
-                        ),
-                      ],
-                    );
-                  },
-                ),
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (showDateHeader) ...[
+                    if (index != 0) const SizedBox(height: 10),
+                    _buildListDateHeader(schedule.date),
+                    const SizedBox(height: 10),
+                  ],
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _buildScheduleCard(schedule),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
@@ -447,7 +433,7 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
         Expanded(
           child: Text(
             '${_focusedMonth.year}년 '
-            '${_focusedMonth.month}월',
+                '${_focusedMonth.month}월',
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 19,
@@ -710,9 +696,9 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
   }
 
   Widget _buildScheduleDots(
-    List<CalendarScheduleItem> schedules,
-    bool isSelected,
-  ) {
+      List<CalendarScheduleItem> schedules,
+      bool isSelected,
+      ) {
     if (schedules.isEmpty) {
       return const SizedBox(height: 6);
     }
@@ -1002,10 +988,6 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
       text: editingSchedule?.title ?? '',
     );
 
-    final TextEditingController descriptionController = TextEditingController(
-      text: editingSchedule?.description ?? '',
-    );
-
     DateTime selectedDate = editingSchedule?.date ?? _selectedDate;
 
     TimeOfDay? startTime = editingSchedule?.startTime;
@@ -1040,22 +1022,6 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
                       decoration: const InputDecoration(
                         labelText: '일정 이름',
                         hintText: '예: 스터디 모임',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: descriptionController,
-                      maxLines: 3,
-
-                      // Flutter의 기본 onTapOutside Action 대신 직접 포커스 해제
-                      onTapOutside: (_) {
-                        FocusManager.instance.primaryFocus?.unfocus();
-                      },
-
-                      decoration: const InputDecoration(
-                        labelText: '일정 설명',
-                        hintText: '일정에 대한 설명을 입력하세요.',
                         border: OutlineInputBorder(),
                       ),
                     ),
@@ -1194,14 +1160,11 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
 
     if (result != true) {
       titleController.dispose();
-      descriptionController.dispose();
       return;
     }
 
     final String title = titleController.text.trim();
-    final String description = descriptionController.text.trim();
     titleController.dispose();
-    descriptionController.dispose();
 
     final CollectionReference<Map<String, dynamic>>? collection =
         _userScheduleCollection;
@@ -1219,17 +1182,36 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
           ? collection.doc(editingSchedule!.id)
           : collection.doc();
 
+      final bool allDay = startTime == null;
+      final DateTime startAt = DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+        startTime?.hour ?? 0,
+        startTime?.minute ?? 0,
+      );
+      final DateTime? endAt = endTime == null
+          ? null
+          : DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+        endTime!.hour,
+        endTime!.minute,
+      );
+
       final Map<String, dynamic> data = {
+        'eventType': 'CUSTOM',
         'title': title,
-        'description': description,
-        'date': Timestamp.fromDate(_dateOnly(selectedDate)),
-        'startMinutes': startTime == null
-            ? null
-            : startTime!.hour * 60 + startTime!.minute,
-        'endMinutes': endTime == null
-            ? null
-            : endTime!.hour * 60 + endTime!.minute,
-        'type': 'USER',
+        'certificateId': null,
+        'certificateName': null,
+        'scheduleId': null,
+        'scheduleName': null,
+        'goalId': null,
+        'colorCode': '#4A8F73',
+        'startAt': Timestamp.fromDate(startAt),
+        'endAt': endAt == null ? null : Timestamp.fromDate(endAt),
+        'allDay': allDay,
         'updatedAt': FieldValue.serverTimestamp(),
         if (!isEditing) 'createdAt': FieldValue.serverTimestamp(),
       };
@@ -1267,8 +1249,8 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
   }
 
   Future<void> _addScheduleToPhoneCalendar(
-    CalendarScheduleItem schedule,
-  ) async {
+      CalendarScheduleItem schedule,
+      ) async {
     // 시작 시간이 없는 일정은 종일 일정으로 처리
     final bool isAllDay = schedule.startTime == null;
 
