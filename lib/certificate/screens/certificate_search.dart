@@ -5,7 +5,8 @@ import '../../widgets/app_top_bar.dart';
 import '../services/certificate_search_service.dart';
 import '../widgets/certificate_common_widgets.dart';
 import '../widgets/certificate_search_widgets.dart';
-import 'certificate_detail.dart';
+import 'professional_certificate_detail.dart';
+import 'technical_certificate_detail.dart';
 
 class CertificateSearchPage extends StatefulWidget {
   const CertificateSearchPage({super.key});
@@ -320,13 +321,26 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
     }
   }
 
-  void _openCertificateDetail(String certificationId) {
+  void _openCertificateDetail({
+    required String certificationId,
+    required String qualificationCode,
+  }) {
+    final Widget detailPage;
+
+    if (qualificationCode == 'T') {
+      detailPage = TechnicalCertificateDetailPage(
+        certificationId: certificationId,
+      );
+    } else {
+      detailPage = ProfessionalCertificateDetailPage(
+        certificationId: certificationId,
+      );
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => CertificateDetailPage(
-          certificationId: certificationId,
-        ),
+        builder: (context) => detailPage,
       ),
     );
   }
@@ -686,7 +700,10 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
                   detailText: certificate.listDetailText,
                   qualificationCode: certificate.qualgbcd,
                   onTap: () {
-                    _openCertificateDetail(certificate.id);
+                    _openCertificateDetail(
+                      certificationId: certificate.id,
+                      qualificationCode: certificate.qualgbcd,
+                    );
                   },
                 ),
                 if (!isLast)
@@ -766,7 +783,8 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
                         result.qualificationCode,
                         onTap: () {
                           _openCertificateDetail(
-                            result.certificationId,
+                            certificationId: result.certificationId,
+                            qualificationCode: result.qualificationCode,
                           );
                         },
                       ),
