@@ -6,6 +6,7 @@ import '../widgets/app_main_background.dart';
 import '../widgets/app_state_views.dart';
 import '../widgets/app_top_bar.dart';
 import 'community_models.dart';
+import 'community_post_detail.dart';
 import 'community_service.dart';
 
 // theme.dart를 수정하지 않고 커뮤니티에서 테마 색상 사용
@@ -66,11 +67,15 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          '게시글 상세 화면은 다음 단계에서 연결할게요.',
-        ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) {
+          return CommunityPostDetailPage(
+            postId: postId,
+            service: _service,
+          );
+        },
       ),
     );
   }
