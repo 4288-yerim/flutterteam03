@@ -59,6 +59,7 @@ class Certification {
 
   /// 자격증 이름
   final String name;
+  final String jmcd;
 
   const Certification({
     required this.id,
@@ -71,6 +72,7 @@ class Certification {
     required this.seriescd,
     required this.seriesnm,
     required this.name,
+    required this.jmcd,
   });
 
   bool get isTechnical {
@@ -127,6 +129,7 @@ class Certification {
       seriescd: _readString(data['seriescd']),
       seriesnm: _readString(data['seriesnm']),
       name: _readString(data['jmfldnm']),
+      jmcd: _readString(data['jmcd']),
     );
   }
 

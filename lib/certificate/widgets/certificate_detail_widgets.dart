@@ -165,3 +165,25 @@ class CertificateInfoItem {
     required this.value,
   });
 }
+
+class CertificateDetailSectionTitle extends StatelessWidget {
+  final String title;
+
+  const CertificateDetailSectionTitle({
+    super.key,
+    required this.title,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: const TextStyle(
+        color: certificateDarkText,
+        fontSize: 20,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.4,
+      ),
+    );
+  }
+}

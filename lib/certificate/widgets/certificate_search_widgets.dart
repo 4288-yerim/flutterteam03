@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'certificate_common_widgets.dart';
 
-/// 자격증 이름 검색 필드.
 class CertificateSearchField extends StatelessWidget {
   final TextEditingController controller;
   final bool isSearching;
@@ -65,7 +64,6 @@ class CertificateSearchField extends StatelessWidget {
   }
 }
 
-/// 국가기술자격 / 국가전문자격 선택 영역.
 class QualificationTypeSelector extends StatelessWidget {
   final Map<String, String> qualificationTypes;
   final String selectedCode;
@@ -130,7 +128,6 @@ class QualificationTypeSelector extends StatelessWidget {
   }
 }
 
-/// 직무 분야 및 전문자격 분야 선택 카드.
 class CertificateCategoryCard extends StatelessWidget {
   final String label;
   final bool selected;
@@ -202,7 +199,6 @@ class CertificateCategoryCard extends StatelessWidget {
   }
 }
 
-/// 선택한 직무 분야 또는 전문자격 분야 요약 카드.
 class CollapsedSelectionCard extends StatelessWidget {
   final String title;
   final String value;
@@ -283,7 +279,6 @@ class CollapsedSelectionCard extends StatelessWidget {
   }
 }
 
-/// 기술자격 세부 분류 선택 칩.
 class CertificateSelectionChip extends StatelessWidget {
   final String label;
   final bool selected;
@@ -329,7 +324,6 @@ class CertificateSelectionChip extends StatelessWidget {
   }
 }
 
-/// 현재 선택한 경로를 간단하게 표시한다.
 class SelectedPathCard extends StatelessWidget {
   final String text;
 
@@ -375,7 +369,6 @@ class SelectedPathCard extends StatelessWidget {
   }
 }
 
-/// 분야 선택 이후 표시되는 자격증 목록 항목.
 class CertificateListTile extends StatelessWidget {
   final String certificateName;
   final String detailText;
@@ -465,7 +458,6 @@ class CertificateListTile extends StatelessWidget {
   }
 }
 
-/// 이름 검색 결과 항목.
 class CertificateSearchResultTile extends StatelessWidget {
   final String certificateName;
   final String qualificationType;
@@ -559,7 +551,6 @@ class CertificateSearchResultTile extends StatelessWidget {
   }
 }
 
-/// 이름 검색 결과가 없을 때 표시한다.
 class EmptySearchResult extends StatelessWidget {
   const EmptySearchResult({super.key});
 

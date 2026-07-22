@@ -13,9 +13,6 @@ const Color certificateBodyText = Color(0xFF4A4A4A);
 const Color certificateGrayText = Color(0xFF9AA0AC);
 const Color certificateBorderColor = Color(0xFFF0EDF0);
 
-/// UI System의 AppCard 스타일과 동일한 자격증 공통 카드 장식.
-///
-/// AppCard를 직접 사용하기 어려운 목록·검색 필드 등에 사용한다.
 BoxDecoration certificateCardDecoration({
   Color backgroundColor = Colors.white,
   Color borderColor = certificateBorderColor,
@@ -33,9 +30,6 @@ BoxDecoration certificateCardDecoration({
   );
 }
 
-/// 화면 내부의 큰 제목과 설명.
-///
-/// AppTopBar 아래에서 해당 화면의 목적을 안내할 때 사용한다.
 class CertificatePageHeader extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -74,10 +68,6 @@ class CertificatePageHeader extends StatelessWidget {
   }
 }
 
-/// 각 선택 영역의 제목.
-///
-/// 기존의 단계별 번호 박스와 서로 다른 색상은 제거하고
-/// UI System의 단순한 섹션 제목 형태로 통일한다.
 class CertificateSectionTitle extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -143,7 +133,6 @@ class CertificateSectionTitle extends StatelessWidget {
   }
 }
 
-/// Firestore 목록 조회 실패 화면.
 class CertificateLoadError extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
@@ -193,7 +182,6 @@ class CertificateLoadError extends StatelessWidget {
   }
 }
 
-/// 카드 형태의 빈 결과 화면.
 class EmptyFilterResult extends StatelessWidget {
   final String message;
 
@@ -232,7 +220,6 @@ class EmptyFilterResult extends StatelessWidget {
   }
 }
 
-/// 카드 내부에서 간단하게 표시하는 빈 결과 문구.
 class EmptyInlineResult extends StatelessWidget {
   final String message;
 
@@ -259,7 +246,6 @@ class EmptyInlineResult extends StatelessWidget {
   }
 }
 
-/// 빈 결과 및 오류 화면용 공통 아이콘.
 class CertificateEmptyIcon extends StatelessWidget {
   final IconData icon;
 
