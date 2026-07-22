@@ -228,7 +228,6 @@ class _MyPageScreenState extends State<MyPageScreen> {
         final dynamic savedNickname = userData['nickname'];
         final dynamic savedBio = userData['bio'];
         final dynamic savedProfileImageUrl = userData['profileImageUrl'];
-        final dynamic goalCertificateId = userData['goalCertificateId'];
 
         if (savedNickname is String && savedNickname.trim().isNotEmpty) {
           nickname = savedNickname.trim();
@@ -243,35 +242,33 @@ class _MyPageScreenState extends State<MyPageScreen> {
           profileImageUrl = savedProfileImageUrl.trim();
         }
 
-        // users/{uid}의 goalCertificateId로 certificates/{id}를 조회합니다.
-        if (goalCertificateId is String &&
-            goalCertificateId.trim().isNotEmpty) {
-          final String certificateId = goalCertificateId.trim();
+        // isMainGoal이 true인 목표를 대표 목표로 표시합니다.
+        final QuerySnapshot<Map<String, dynamic>>
+        mainGoalSnapshot =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('goals')
+            .where(
+          'isMainGoal',
+          isEqualTo: true,
+        )
+            .limit(1)
+            .get();
 
-          final DocumentSnapshot<Map<String, dynamic>> certificateDocument =
-          await FirebaseFirestore.instance
-              .collection('certifications')
-              .doc(certificateId)
-              .get();
+        if (mainGoalSnapshot.docs.isNotEmpty) {
+          final Map<String, dynamic> mainGoalData =
+          mainGoalSnapshot.docs.first.data();
 
-          final Map<String, dynamic>? certificateData =
-          certificateDocument.data();
+          final String mainCertificateName =
+          (mainGoalData['certificateName']
+          as String? ??
+              '')
+              .trim();
 
-          if (certificateData != null) {
-            final dynamic savedCertificateName =
-                certificateData['certificateName'] ??
-                    certificateData['name'] ??
-                    certificateData['title'];
-
-            if (savedCertificateName is String &&
-                savedCertificateName.trim().isNotEmpty) {
-              targetCertificateName = savedCertificateName.trim();
-            }
-          }
-
-          // 자격증 문서나 이름 필드가 아직 없다면 ID라도 표시합니다.
-          if (targetCertificateName == '등록된 목표 없음') {
-            targetCertificateName = certificateId.toUpperCase();
+          if (mainCertificateName.isNotEmpty) {
+            targetCertificateName =
+                mainCertificateName;
           }
         }
       }
@@ -317,6 +314,18 @@ class _MyPageScreenState extends State<MyPageScreen> {
     );
 
     // 프로필 수정 화면에서 돌아오면 최신 정보를 다시 조회합니다.
+    await _loadMyPageData();
+  }
+
+  Future<void> _openGoalCertificate(BuildContext context) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const GoalCertificateScreen(),
+      ),
+    );
+
+    // 대표 목표를 변경하고 돌아오면 마이페이지를 다시 조회
     await _loadMyPageData();
   }
 
@@ -381,10 +390,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                       title: '목표 자격증 관리',
                       subtitle: '준비 중인 자격증과 시험일을 관리합니다.',
                       onTap: () {
-                        _openPage(
-                          context,
-                          const GoalCertificateScreen(),
-                        );
+                        _openGoalCertificate(context);
                       },
                     ),
                     const _MenuDivider(),
@@ -520,15 +526,6 @@ class _MyPageScreenState extends State<MyPageScreen> {
                 padding: EdgeInsets.zero,
                 child: Column(
                   children: [
-                    MyPageMenuTile(
-                      icon: Icons.person_outline,
-                      title: '내 정보 관리',
-                      subtitle: '닉네임, 프로필 이미지 등을 변경합니다.',
-                      onTap: () {
-                        _openProfileEdit(context);
-                      },
-                    ),
-                    const _MenuDivider(),
                     MyPageMenuTile(
                       icon: Icons.lock_outline,
                       title: '비밀번호 변경',
@@ -747,67 +744,72 @@ class _MyPageScreenState extends State<MyPageScreen> {
             const SizedBox(height: 18),
 
             // 목표 자격증 칩
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 11,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(
-                  alpha: 0.82,
+            GestureDetector(
+              onTap: (){
+                _openGoalCertificate(context);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 11,
                 ),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: const Color(0xFFFFD5DF),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(
+                    alpha: 0.82,
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: const Color(0xFFFFD5DF),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFF0788F)
+                          .withValues(
+                        alpha: 0.08,
+                      ),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFF0788F)
-                        .withValues(
-                      alpha: 0.08,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.track_changes_outlined,
+                      size: 20,
+                      color: Color(0xFFF0788F),
                     ),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.track_changes_outlined,
-                    size: 20,
-                    color: Color(0xFFF0788F),
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    '목표 자격증',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF44474E),
-                    ),
-                  ),
-                  SizedBox(width: 5),
-                  Text(
-                    '·',
-                    style: TextStyle(
-                      color: Color(0xFFB5B7BE),
-                    ),
-                  ),
-                  SizedBox(width: 5),
-                  Flexible(
-                    child: Text(
-                      _targetCertificateName,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                    SizedBox(width: 8),
+                    Text(
+                      '목표 자격증',
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFFF0788F),
+                        color: Color(0xFF44474E),
                       ),
                     ),
-                  ),
-                ],
+                    SizedBox(width: 5),
+                    Text(
+                      '·',
+                      style: TextStyle(
+                        color: Color(0xFFB5B7BE),
+                      ),
+                    ),
+                    SizedBox(width: 5),
+                    Flexible(
+                      child: Text(
+                        _targetCertificateName,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFF0788F),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
 

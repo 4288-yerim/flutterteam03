@@ -58,7 +58,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       extendBodyBehindAppBar: true,
 
       appBar: AppTopBar(
-        title: '내 정보 관리',
+        title: '프로필 수정',
         leading: IconButton(
           onPressed: () {
             Navigator.pop(context);
