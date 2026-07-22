@@ -72,15 +72,9 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
     try {
       final QuerySnapshot<Map<String, dynamic>> snapshot =
       await FirebaseFirestore.instance
-          .collection('userGoals')
-          .doc(user.uid)
-          .collection('goals')
-          .get();
-
-      final DocumentSnapshot<Map<String, dynamic>> userSnapshot =
-      await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
+          .collection('goals')
           .get();
 
       final List<_GoalOption> goals = [];
@@ -107,45 +101,29 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
 
         goals.add(
           _GoalOption(
+            goalId: document.id,
             certificateId: certificateId,
             certificateName: certificateName,
+            isMainGoal: data['isMainGoal'] as bool? ?? false,
           ),
         );
       }
 
-      final String primaryGoalCertificateId =
-      (userSnapshot.data()?['goalCertificateId'] as String? ?? '')
-          .trim();
+      goals.sort((a, b) {
+        if (a.isMainGoal != b.isMainGoal) {
+          return a.isMainGoal ? -1 : 1;
+        }
+        return a.certificateName.compareTo(b.certificateName);
+      });
 
-      if (primaryGoalCertificateId.isNotEmpty &&
-          !goals.any(
-                (goal) => goal.certificateId == primaryGoalCertificateId,
-          )) {
-        final DocumentSnapshot<Map<String, dynamic>> certificateSnapshot =
-        await FirebaseFirestore.instance
-            .collection('certificates')
-            .doc(primaryGoalCertificateId)
-            .get();
-
-        final Map<String, dynamic> certificateData =
-            certificateSnapshot.data() ?? <String, dynamic>{};
-        final String certificateName =
-        (certificateData['certificateName'] ??
-            certificateData['name'] ??
-            certificateData['title'] ??
-            primaryGoalCertificateId.toUpperCase())
-            .toString()
-            .trim();
-
-        goals.add(
-          _GoalOption(
-            certificateId: primaryGoalCertificateId,
-            certificateName: certificateName.isEmpty
-                ? primaryGoalCertificateId.toUpperCase()
-                : certificateName,
-          ),
-        );
+      _GoalOption? mainGoal;
+      for (final _GoalOption goal in goals) {
+        if (goal.isMainGoal) {
+          mainGoal = goal;
+          break;
+        }
       }
+      final String? mainGoalId = mainGoal?.goalId;
 
       if (!mounted) {
         return;
@@ -153,14 +131,11 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
 
       setState(() {
         _goalOptions = goals;
-        if (primaryGoalCertificateId.isNotEmpty &&
-            goals.any(
-                  (goal) => goal.certificateId == primaryGoalCertificateId,
-            )) {
-          _selectedGoalValue = primaryGoalCertificateId;
+        if (mainGoalId != null) {
+          _selectedGoalValue = mainGoalId;
         } else if (_selectedGoalValue != _freeStudyValue &&
             !goals.any(
-                  (goal) => goal.certificateId == _selectedGoalValue,
+                  (goal) => goal.goalId == _selectedGoalValue,
             )) {
           _selectedGoalValue = _freeStudyValue;
         }
@@ -350,7 +325,7 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
           ? null
           : _goalOptions.cast<_GoalOption?>().firstWhere(
             (goal) =>
-        goal?.certificateId == _selectedGoalValue,
+        goal?.goalId == _selectedGoalValue,
         orElse: () => null,
       );
 
@@ -541,7 +516,7 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
     if (_selectedGoalValue == _freeStudyValue) return '자유 학습';
 
     for (final _GoalOption goal in _goalOptions) {
-      if (goal.certificateId == _selectedGoalValue) {
+      if (goal.goalId == _selectedGoalValue) {
         return goal.certificateName;
       }
     }
@@ -972,7 +947,7 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
               ),
               ..._goalOptions.map(
                     (goal) => DropdownMenuItem<String>(
-                  value: goal.certificateId,
+                  value: goal.goalId,
                   child: Text(
                     goal.certificateName,
                     overflow: TextOverflow.ellipsis,
@@ -1177,12 +1152,16 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
 
 
 class _GoalOption {
+  final String goalId;
   final String certificateId;
   final String certificateName;
+  final bool isMainGoal;
 
   const _GoalOption({
+    required this.goalId,
     required this.certificateId,
     required this.certificateName,
+    required this.isMainGoal,
   });
 }
 

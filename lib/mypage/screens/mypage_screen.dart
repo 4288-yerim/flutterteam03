@@ -250,7 +250,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
           final DocumentSnapshot<Map<String, dynamic>> certificateDocument =
           await FirebaseFirestore.instance
-              .collection('certificates')
+              .collection('certifications')
               .doc(certificateId)
               .get();
 
