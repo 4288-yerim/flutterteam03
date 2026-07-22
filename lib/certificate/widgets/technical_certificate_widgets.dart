@@ -940,13 +940,27 @@ class _TechnicalExamSubjectLookupCardState
                         ),
                       ),
                       child: widget.isLoading
-                          ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.2,
-                          color: Colors.white,
-                        ),
+                          ? const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.2,
+                              color: Colors.white,
+                            ),
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            '조회 중...',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
                       )
                           : Text(
                         widget.hasRequested
@@ -960,7 +974,13 @@ class _TechnicalExamSubjectLookupCardState
                       ),
                     ),
                   ),
-                  if (widget.errorMessage != null) ...[
+                  if (widget.isLoading) ...[
+                    const SizedBox(height: 18),
+                    const _ExamSubjectMessage(
+                      icon: Icons.hourglass_top_rounded,
+                      message: '시험 교시·과목 정보를 조회하고 있습니다.',
+                    ),
+                  ] else if (widget.errorMessage != null) ...[
                     const SizedBox(height: 18),
                     _ExamSubjectMessage(
                       icon: Icons.error_outline_rounded,

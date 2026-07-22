@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:add_2_calendar/add_2_calendar.dart';
 
+import '../../widgets/app_button.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
 import '../services/certificate_detail_service.dart';
@@ -9,6 +11,7 @@ import '../services/certificate_search_service.dart';
 import '../widgets/certificate_common_widgets.dart';
 import '../widgets/certificate_detail_widgets.dart';
 import '../widgets/technical_certificate_widgets.dart';
+
 
 class TechnicalCertificateDetailPage extends StatefulWidget {
   final String certificationId;
@@ -80,6 +83,8 @@ class _TechnicalCertificateDetailPageState
   bool _hasRequestedExamSubjects = false;
   String? _examSubjectError;
   List<TechnicalExamSubject> _examSubjects = [];
+
+  bool _isRegisteringGoal = false;
 
   @override
   void initState() {
@@ -240,6 +245,636 @@ class _TechnicalCertificateDetailPageState
     }
   }
 
+  Future<void> _openGoalSettingSheet() async {
+    final certificate = _certificate;
+
+    if (certificate == null || _isRegisteringGoal) {
+      return;
+    }
+
+    final options = _buildGoalExamOptions();
+
+    if (options.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '목표로 등록할 수 있는 예정 시험이 없습니다.',
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    _GoalExamOption? selectedOption;
+
+    final result = await showModalBottomSheet<_GoalExamOption>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (bottomSheetContext) {
+        return StatefulBuilder(
+          builder: (context, setBottomSheetState) {
+            return SafeArea(
+              top: false,
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight:
+                  MediaQuery.of(context).size.height * 0.82,
+                ),
+                padding: EdgeInsets.fromLTRB(
+                  24,
+                  14,
+                  24,
+                  24 + MediaQuery.of(context).viewInsets.bottom,
+                ),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(26),
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 42,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: certificateBorderColor,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    const Text(
+                      '목표 시험 선택',
+                      style: TextStyle(
+                        color: certificateDarkText,
+                        fontSize: 21,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    const Text(
+                      '목표로 준비할 회차와 시험 유형을 선택해주세요.',
+                      style: TextStyle(
+                        color: certificateGrayText,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Flexible(
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: options.length,
+                        separatorBuilder: (_, __) {
+                          return const SizedBox(height: 10);
+                        },
+                        itemBuilder: (context, index) {
+                          final option = options[index];
+                          final isSelected =
+                              selectedOption == option;
+
+                          return InkWell(
+                            onTap: () {
+                              setBottomSheetState(() {
+                                selectedOption = option;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(16),
+                            child: AnimatedContainer(
+                              duration:
+                              const Duration(milliseconds: 160),
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? certificatePinkSoft
+                                    : const Color(0xFFFAFAFC),
+                                borderRadius:
+                                BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? certificatePrimaryPink
+                                      : certificateBorderColor,
+                                  width: isSelected ? 1.4 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    width: 22,
+                                    height: 22,
+                                    margin:
+                                    const EdgeInsets.only(top: 1),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: isSelected
+                                          ? certificatePrimaryPink
+                                          : Colors.white,
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? certificatePrimaryPink
+                                            : certificateGrayText,
+                                      ),
+                                    ),
+                                    child: isSelected
+                                        ? const Icon(
+                                      Icons.check_rounded,
+                                      size: 15,
+                                      color: Colors.white,
+                                    )
+                                        : null,
+                                  ),
+                                  const SizedBox(width: 13),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          option.targetRound,
+                                          style: const TextStyle(
+                                            color:
+                                            certificateDarkText,
+                                            fontSize: 15,
+                                            fontWeight:
+                                            FontWeight.w800,
+                                            height: 1.35,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 7),
+                                        Row(
+                                          children: [
+                                            Container(
+                                              padding:
+                                              const EdgeInsets
+                                                  .symmetric(
+                                                horizontal: 9,
+                                                vertical: 5,
+                                              ),
+                                              decoration:
+                                              BoxDecoration(
+                                                color: Colors.white,
+                                                borderRadius:
+                                                BorderRadius
+                                                    .circular(20),
+                                              ),
+                                              child: Text(
+                                                option.examTypeName,
+                                                style:
+                                                const TextStyle(
+                                                  color:
+                                                  certificatePrimaryPink,
+                                                  fontSize: 12,
+                                                  fontWeight:
+                                                  FontWeight.w700,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 9),
+                                            Expanded(
+                                              child: Text(
+                                                _formatGoalExamDate(
+                                                  option.examDate,
+                                                ),
+                                                style:
+                                                const TextStyle(
+                                                  color:
+                                                  certificateBodyText,
+                                                  fontSize: 13,
+                                                  fontWeight:
+                                                  FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: AppButton(
+                            text: '취소',
+                            type: AppButtonType.gray,
+                            height: 52,
+                            onPressed: () {
+                              Navigator.pop(bottomSheetContext);
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: AppButton(
+                            text: '목표 등록',
+                            type: selectedOption == null
+                                ? AppButtonType.gray
+                                : AppButtonType.primaryPink,
+                            height: 52,
+                            onPressed: selectedOption == null
+                                ? null
+                                : () {
+                              Navigator.pop(
+                                bottomSheetContext,
+                                selectedOption,
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (result == null || !mounted) {
+      return;
+    }
+
+    await _registerGoal(result);
+  }
+
+  List<_GoalExamOption> _buildGoalExamOptions() {
+    final options = <_GoalExamOption>[];
+    final today = _dateOnly(DateTime.now());
+
+    for (final schedule in _schedules) {
+      final writtenExamDate = schedule.writtenExamStartAt;
+
+      if (writtenExamDate != null &&
+          !_dateOnly(writtenExamDate).isBefore(today)) {
+        options.add(
+          _GoalExamOption(
+            scheduleId: schedule.id,
+            targetRound: schedule.title,
+            examType: 'WRITTEN',
+            examTypeName: '필기',
+            examDate: writtenExamDate,
+            passAnnouncementDate: schedule.writtenPassAt,
+            passAnnouncementEndDate: null,
+          ),
+        );
+      }
+
+      final practicalExamDate = schedule.practicalExamStartAt;
+
+      if (practicalExamDate != null &&
+          !_dateOnly(practicalExamDate).isBefore(today)) {
+        options.add(
+          _GoalExamOption(
+            scheduleId: schedule.id,
+            targetRound: schedule.title,
+            examType: 'PRACTICAL',
+            examTypeName: '실기',
+            examDate: practicalExamDate,
+            passAnnouncementDate:
+            schedule.practicalPassStartAt,
+            passAnnouncementEndDate:
+            schedule.practicalPassEndAt,
+          ),
+        );
+      }
+    }
+
+    options.sort(
+          (a, b) => a.examDate.compareTo(b.examDate),
+    );
+
+    return options;
+  }
+
+  Future<void> _registerGoal(
+      _GoalExamOption option,
+      ) async {
+    final certificate = _certificate;
+
+    if (certificate == null || _isRegisteringGoal) {
+      return;
+    }
+
+    setState(() {
+      _isRegisteringGoal = true;
+    });
+
+    try {
+      final goalId = await _technicalCertificateService
+          .addTechnicalCertificateGoal(
+        certificateId: widget.certificationId,
+        scheduleId: option.scheduleId,
+        certificateName: certificate.name,
+        targetExamDate: option.examDate,
+        targetRound: option.targetRound,
+        targetExamType: option.examType,
+        targetPassAnnouncementDate:
+        option.passAnnouncementDate,
+        targetPassAnnouncementEndDate:
+        option.passAnnouncementEndDate,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      await _showCalendarLinkDialog(
+        option: option,
+        goalId: goalId,
+        certificateName: certificate.name,
+      );
+    } on TechnicalCertificateGoalException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.message),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '목표 자격증을 등록하지 못했습니다.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRegisteringGoal = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _showCalendarLinkDialog({
+    required _GoalExamOption option,
+    required String goalId,
+    required String certificateName,
+  }) async {
+    if (!mounted) {
+      return;
+    }
+
+    final shouldLinkCalendar = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+          ),
+          titlePadding: const EdgeInsets.fromLTRB(
+            24,
+            24,
+            24,
+            0,
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(
+            24,
+            16,
+            24,
+            0,
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            20,
+          ),
+          title: const Row(
+            children: [
+              Icon(
+                Icons.event_available_outlined,
+                color: certificatePrimaryPink,
+                size: 24,
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '캘린더에 추가할까요?',
+                  style: TextStyle(
+                    color: certificateDarkText,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            '${option.targetRound} ${option.examTypeName} 시험이 '
+                '목표로 등록되었습니다.\n\n'
+                '시험일: ${_formatGoalExamDate(option.examDate)}\n'
+                '휴대폰 캘린더에도 시험 일정을 추가하시겠습니까?',
+            style: const TextStyle(
+              color: certificateBodyText,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              height: 1.6,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+              },
+              child: const Text(
+                '연동 안 함',
+                style: TextStyle(
+                  color: certificateGrayText,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: certificatePrimaryPink,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(
+                Icons.calendar_month_outlined,
+                size: 18,
+              ),
+              label: const Text(
+                '캘린더에 추가',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (shouldLinkCalendar != true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${option.targetRound} ${option.examTypeName} 시험을 '
+                '목표로 등록했습니다.',
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    await _addGoalToDeviceCalendar(
+      option: option,
+      goalId: goalId,
+      certificateName: certificateName,
+    );
+  }
+
+  Future<void> _addGoalToDeviceCalendar({
+    required _GoalExamOption option,
+    required String goalId,
+    required String certificateName,
+  }) async {
+    final localExamDate = option.examDate.toLocal();
+
+    final calendarStartDate = DateTime(
+      localExamDate.year,
+      localExamDate.month,
+      localExamDate.day,
+    );
+
+    final calendarEndDate = calendarStartDate.add(
+      const Duration(days: 1),
+    );
+
+    final event = Event(
+      title: '$certificateName ${option.examTypeName} 시험',
+      description:
+      '목표 자격증: $certificateName\n'
+          '시험 회차: ${option.targetRound}\n'
+          '시험 유형: ${option.examTypeName}',
+      startDate: calendarStartDate,
+      endDate: calendarEndDate,
+      allDay: true,
+    );
+
+    try {
+      final added = await Add2Calendar.addEvent2Cal(event);
+
+      if (!mounted) {
+        return;
+      }
+
+      if (!added) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              '캘린더 일정 추가가 취소되었습니다.',
+            ),
+          ),
+        );
+
+        return;
+      }
+
+      await _technicalCertificateService.updateGoalCalendarLinked(
+        goalId: goalId,
+        calendarLinked: true,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '시험 일정을 휴대폰 캘린더에 추가했습니다.',
+          ),
+        ),
+      );
+    } on TechnicalCertificateGoalException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.message),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '휴대폰 캘린더에 일정을 추가하지 못했습니다.',
+          ),
+        ),
+      );
+    }
+  }
+
+  static DateTime _dateOnly(DateTime date) {
+    final localDate = date.toLocal();
+
+    return DateTime(
+      localDate.year,
+      localDate.month,
+      localDate.day,
+    );
+  }
+
+  static String _formatGoalExamDate(DateTime date) {
+    final localDate = date.toLocal();
+
+    final year = localDate.year.toString();
+    final month =
+    localDate.month.toString().padLeft(2, '0');
+    final day =
+    localDate.day.toString().padLeft(2, '0');
+
+    return '$year.$month.$day';
+  }
+
   Future<void> _openExamStandard() async {
     try {
       final opened = await launchUrl(
@@ -352,6 +987,66 @@ class _TechnicalCertificateDetailPageState
     );
   }
 
+  Widget _buildGoalSettingButton() {
+    return InkWell(
+      onTap: _isRegisteringGoal
+          ? null
+          : _openGoalSettingSheet,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 15,
+          vertical: 10,
+        ),
+        decoration: BoxDecoration(
+          color: _isRegisteringGoal
+              ? const Color(0xFFF3F4F7)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: _isRegisteringGoal
+                ? certificateBorderColor
+                : certificatePrimaryPink.withValues(alpha: 0.5),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_isRegisteringGoal)
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: certificateGrayText,
+                ),
+              )
+            else
+              const Icon(
+                Icons.flag_outlined,
+                size: 18,
+                color: certificatePrimaryPink,
+              ),
+            const SizedBox(width: 7),
+            Text(
+              _isRegisteringGoal
+                  ? '등록 중...'
+                  : '목표 자격증 설정',
+              style: TextStyle(
+                color: _isRegisteringGoal
+                    ? certificateGrayText
+                    : certificatePrimaryPink,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final certificateName = _certificate?.name.trim() ?? '';
@@ -411,7 +1106,9 @@ class _TechnicalCertificateDetailPageState
           name: certificate.name,
           qualificationName: certificate.qualificationName,
           isTechnical: true,
+          action: _buildGoalSettingButton(),
         ),
+
         const SizedBox(height: 24),
 
         CertificateInfoCard(
@@ -733,4 +1430,25 @@ class _TechnicalDetailEmptyTab extends StatelessWidget {
       ),
     );
   }
+}
+
+class _GoalExamOption {
+  final String scheduleId;
+  final String targetRound;
+  final String examType;
+  final String examTypeName;
+  final DateTime examDate;
+
+  final DateTime? passAnnouncementDate;
+  final DateTime? passAnnouncementEndDate;
+
+  const _GoalExamOption({
+    required this.scheduleId,
+    required this.targetRound,
+    required this.examType,
+    required this.examTypeName,
+    required this.examDate,
+    required this.passAnnouncementDate,
+    required this.passAnnouncementEndDate,
+  });
 }

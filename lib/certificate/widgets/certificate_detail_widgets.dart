@@ -6,12 +6,14 @@ class CertificateDetailHeader extends StatelessWidget {
   final String name;
   final String qualificationName;
   final bool isTechnical;
+  final Widget? action;
 
   const CertificateDetailHeader({
     super.key,
     required this.name,
     required this.qualificationName,
     required this.isTechnical,
+    this.action,
   });
 
   @override
@@ -73,6 +75,11 @@ class CertificateDetailHeader extends StatelessWidget {
               ),
             ),
           ),
+
+          if (action != null) ...[
+            const SizedBox(height: 16),
+            action!,
+          ],
         ],
       ),
     );
