@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'community_comment_models.dart';
 import 'community_models.dart';
 
 class CommunityService {
@@ -7,29 +8,19 @@ class CommunityService {
 
   CommunityService({
     FirebaseFirestore? firestore,
-  }) : _firestore =
-      firestore ?? FirebaseFirestore.instance;
+  }) : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  // 게시글 목록 실시간 조회
   Stream<List<CommunityPost>> watchPosts() {
     return _firestore
         .collection('posts')
-        .where(
-      'postStatus',
-      isEqualTo: 'NORMAL',
-    )
-        .where(
-      'visibility',
-      isEqualTo: 'PUBLIC',
-    )
+        .where('postStatus', isEqualTo: 'NORMAL')
+        .where('visibility', isEqualTo: 'PUBLIC')
         .snapshots()
         .map((snapshot) {
       List<CommunityPost> posts = [];
 
-      for (
-      QueryDocumentSnapshot<Map<String, dynamic>>
-      document in snapshot.docs
-      ) {
+      for (QueryDocumentSnapshot<Map<String, dynamic>> document
+      in snapshot.docs) {
         CommunityPost post =
         CommunityPost.fromDocument(document);
 
@@ -39,7 +30,6 @@ class CommunityService {
       posts.sort((a, b) {
         int aTime =
             a.createdAt?.millisecondsSinceEpoch ?? 0;
-
         int bTime =
             b.createdAt?.millisecondsSinceEpoch ?? 0;
 
@@ -50,10 +40,7 @@ class CommunityService {
     });
   }
 
-  // 게시글 한 개 실시간 조회
-  Stream<CommunityPost?> watchPost(
-      String postId,
-      ) {
+  Stream<CommunityPost?> watchPost(String postId) {
     return _firestore
         .collection('posts')
         .where(
@@ -81,7 +68,6 @@ class CommunityService {
     });
   }
 
-  // 조회수 증가
   Future<void> increaseViewCount(
       String postId,
       ) async {
@@ -93,7 +79,6 @@ class CommunityService {
     });
   }
 
-  // 게시글 등록
   Future<String> addPost({
     required CommunityBoardType boardType,
     required String title,
@@ -102,8 +87,8 @@ class CommunityService {
     required String writerNickname,
     required String writerProfileImageUrl,
     required bool isCertifiedWriter,
-    List<CommunityCertificateTag>
-    certificateTags = const [],
+    List<CommunityCertificateTag> certificateTags =
+    const [],
   }) async {
     DocumentReference<Map<String, dynamic>>
     document =
@@ -118,52 +103,38 @@ class CommunityService {
       'writerProfileImageUrl':
       writerProfileImageUrl,
       'isCertifiedWriter': isCertifiedWriter,
-
       'certificateTags':
       certificateTags.map((tag) {
         return tag.toMap();
       }).toList(),
-
       'imageAttachments':
       <Map<String, dynamic>>[],
-
       'fileAttachments':
       <Map<String, dynamic>>[],
-
       'viewCount': 0,
       'commentCount': 0,
       'likeCount': 0,
       'bookmarkCount': 0,
-
       'questionStatus':
-      boardType ==
-          CommunityBoardType.question
+      boardType == CommunityBoardType.question
           ? 'WAITING'
           : '',
-
       'recruitStatus':
       boardType ==
           CommunityBoardType.groupRecruit
           ? 'OPEN'
           : '',
-
       'postStatus': 'NORMAL',
       'visibility': 'PUBLIC',
       'studyGroupId': '',
-
-      'createdAt':
-      FieldValue.serverTimestamp(),
-
-      'updatedAt':
-      FieldValue.serverTimestamp(),
-
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
       'deletedAt': null,
     });
 
     return document.id;
   }
 
-  // 게시글 수정
   Future<void> updatePost({
     required String postId,
     required CommunityBoardType boardType,
@@ -177,26 +148,19 @@ class CommunityService {
       'boardType': boardType.code,
       'title': title,
       'content': content,
-
       'questionStatus':
-      boardType ==
-          CommunityBoardType.question
+      boardType == CommunityBoardType.question
           ? 'WAITING'
           : '',
-
       'recruitStatus':
       boardType ==
           CommunityBoardType.groupRecruit
           ? 'OPEN'
           : '',
-
-      'updatedAt':
-      FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
-  // 게시글 삭제
-  // 문서를 완전히 지우지 않고 삭제 상태로 변경
   Future<void> deletePost(
       String postId,
       ) async {
@@ -206,16 +170,246 @@ class CommunityService {
         .update({
       'postStatus': 'DELETED',
       'visibility': 'PRIVATE',
-
-      'updatedAt':
-      FieldValue.serverTimestamp(),
-
-      'deletedAt':
-      FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+      'deletedAt': FieldValue.serverTimestamp(),
     });
   }
 
-  // 게시글 검색, 필터, 정렬
+  Stream<List<CommunityComment>> watchComments(
+      String postId,
+      ) {
+    return _firestore
+        .collection('posts')
+        .doc(postId)
+        .collection('comments')
+        .where(
+      'commentStatus',
+      isEqualTo: 'NORMAL',
+    )
+        .snapshots()
+        .map((snapshot) {
+      List<CommunityComment> comments = [];
+
+      for (QueryDocumentSnapshot<
+          Map<String, dynamic>>
+      document in snapshot.docs) {
+        CommunityComment comment =
+        CommunityComment.fromDocument(
+          document,
+        );
+
+        comments.add(comment);
+      }
+
+      comments.sort((a, b) {
+        int aTime =
+            a.createdAt?.millisecondsSinceEpoch ?? 0;
+        int bTime =
+            b.createdAt?.millisecondsSinceEpoch ?? 0;
+
+        return aTime.compareTo(bTime);
+      });
+
+      return comments;
+    });
+  }
+
+  Future<String> addComment({
+    required String postId,
+    required String content,
+    required String writerUid,
+    required String writerNickname,
+    required String writerProfileImageUrl,
+    String parentCommentId = '',
+  }) async {
+    DocumentReference<Map<String, dynamic>>
+    postReference =
+    _firestore
+        .collection('posts')
+        .doc(postId);
+
+    DocumentReference<Map<String, dynamic>>
+    commentReference =
+    postReference
+        .collection('comments')
+        .doc();
+
+    WriteBatch batch = _firestore.batch();
+
+    batch.set(commentReference, {
+      'parentCommentId': parentCommentId,
+      'writerUid': writerUid,
+      'writerNickname': writerNickname,
+      'writerProfileImageUrl':
+      writerProfileImageUrl,
+      'content': content,
+      'isAccepted': false,
+      'commentStatus': 'NORMAL',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+      'deletedAt': null,
+    });
+
+    batch.update(postReference, {
+      'commentCount': FieldValue.increment(1),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+
+    return commentReference.id;
+  }
+
+  Future<void> deleteComment({
+    required String postId,
+    required String commentId,
+  }) async {
+    DocumentReference<Map<String, dynamic>>
+    postReference =
+    _firestore
+        .collection('posts')
+        .doc(postId);
+
+    CollectionReference<Map<String, dynamic>>
+    commentsReference =
+    postReference.collection('comments');
+
+    DocumentReference<Map<String, dynamic>>
+    commentReference =
+    commentsReference.doc(commentId);
+
+    DocumentSnapshot<Map<String, dynamic>>
+    commentSnapshot =
+    await commentReference.get();
+
+    if (!commentSnapshot.exists) {
+      return;
+    }
+
+    Map<String, dynamic>? commentData =
+    commentSnapshot.data();
+
+    if (commentData == null ||
+        commentData['commentStatus'] != 'NORMAL') {
+      return;
+    }
+
+    QuerySnapshot<Map<String, dynamic>>
+    replySnapshot =
+    await commentsReference
+        .where(
+      'parentCommentId',
+      isEqualTo: commentId,
+    )
+        .get();
+
+    List<QueryDocumentSnapshot<
+        Map<String, dynamic>>> normalReplies = [];
+
+    for (QueryDocumentSnapshot<
+        Map<String, dynamic>>
+    document in replySnapshot.docs) {
+      if (document.data()['commentStatus'] ==
+          'NORMAL') {
+        normalReplies.add(document);
+      }
+    }
+
+    bool wasAccepted =
+        commentData['isAccepted'] == true;
+
+    WriteBatch batch = _firestore.batch();
+
+    batch.update(commentReference, {
+      'commentStatus': 'DELETED',
+      'isAccepted': false,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'deletedAt': FieldValue.serverTimestamp(),
+    });
+
+    for (QueryDocumentSnapshot<
+        Map<String, dynamic>>
+    reply in normalReplies) {
+      batch.update(reply.reference, {
+        'commentStatus': 'DELETED',
+        'isAccepted': false,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'deletedAt':
+        FieldValue.serverTimestamp(),
+      });
+    }
+
+    Map<String, dynamic> postUpdateData = {
+      'commentCount': FieldValue.increment(
+        -(1 + normalReplies.length),
+      ),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    if (wasAccepted) {
+      postUpdateData['questionStatus'] =
+      'WAITING';
+    }
+
+    batch.update(
+      postReference,
+      postUpdateData,
+    );
+
+    await batch.commit();
+  }
+
+  Future<void> acceptAnswer({
+    required String postId,
+    required String commentId,
+  }) async {
+    DocumentReference<Map<String, dynamic>>
+    postReference =
+    _firestore
+        .collection('posts')
+        .doc(postId);
+
+    CollectionReference<Map<String, dynamic>>
+    commentsReference =
+    postReference.collection('comments');
+
+    QuerySnapshot<Map<String, dynamic>>
+    acceptedComments =
+    await commentsReference
+        .where(
+      'isAccepted',
+      isEqualTo: true,
+    )
+        .get();
+
+    WriteBatch batch = _firestore.batch();
+
+    for (QueryDocumentSnapshot<
+        Map<String, dynamic>>
+    document in acceptedComments.docs) {
+      batch.update(document.reference, {
+        'isAccepted': false,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    batch.update(
+      commentsReference.doc(commentId),
+      {
+        'isAccepted': true,
+        'updatedAt':
+        FieldValue.serverTimestamp(),
+      },
+    );
+
+    batch.update(postReference, {
+      'questionStatus': 'RESOLVED',
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+  }
+
   List<CommunityPost> filterAndSortPosts({
     required List<CommunityPost> posts,
     required CommunityBoardType boardType,
@@ -253,9 +447,9 @@ class CommunityService {
         post.title,
         post.content,
         post.writerNickname,
-        ...post.certificateTags.map(
-              (tag) => tag.certificateName,
-        ),
+        ...post.certificateTags.map((tag) {
+          return tag.certificateName;
+        }),
       ].join(' ').toLowerCase();
 
       return searchableText.contains(
@@ -282,13 +476,10 @@ class CommunityService {
 
         case CommunityPostSort.latest:
           int aTime =
-              a.createdAt
-                  ?.millisecondsSinceEpoch ??
+              a.createdAt?.millisecondsSinceEpoch ??
                   0;
-
           int bTime =
-              b.createdAt
-                  ?.millisecondsSinceEpoch ??
+              b.createdAt?.millisecondsSinceEpoch ??
                   0;
 
           return bTime.compareTo(aTime);
@@ -298,7 +489,6 @@ class CommunityService {
     return result;
   }
 
-  // 인기 게시글 최대 3개
   List<CommunityPost> getPopularPosts(
       List<CommunityPost> posts,
       ) {
@@ -324,7 +514,6 @@ class CommunityService {
     return result;
   }
 
-  // 자격증 태그 목록 수집
   List<CommunityCertificateTag>
   collectCertificateTags(
       List<CommunityPost> posts,
@@ -333,10 +522,8 @@ class CommunityService {
     tagMap = {};
 
     for (CommunityPost post in posts) {
-      for (
-      CommunityCertificateTag tag
-      in post.certificateTags
-      ) {
+      for (CommunityCertificateTag tag
+      in post.certificateTags) {
         if (tag.certificateId.isEmpty ||
             tag.certificateName.isEmpty) {
           continue;
