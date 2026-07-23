@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 import '../services/technical_certificate_service.dart';
 import 'certificate_common_widgets.dart';
@@ -834,7 +836,7 @@ class TechnicalExamSubjectLookupCard extends StatefulWidget {
 
 class _TechnicalExamSubjectLookupCardState
     extends State<TechnicalExamSubjectLookupCard> {
-  bool _isExpanded = false;
+  bool _isExpanded = true;
 
   @override
   Widget build(BuildContext context) {
@@ -1115,7 +1117,7 @@ class _TechnicalExamSubjectItem extends StatelessWidget {
             const SizedBox(height: 14),
             ...List.generate(
               items.length,
-              (index) => Padding(
+                  (index) => Padding(
                 padding: EdgeInsets.only(
                   bottom: index == items.length - 1 ? 0 : 10,
                 ),
@@ -1197,4 +1199,1949 @@ class _ExamSubjectMessage extends StatelessWidget {
       ),
     );
   }
+}
+
+
+
+class TechnicalPracticalMaterialLookupCard extends StatefulWidget {
+  final bool isLoading;
+  final bool hasRequested;
+  final String? errorMessage;
+  final List<TechnicalPracticalExamMaterial> materials;
+  final bool usesStoredData;
+  final int? storedImplementationYear;
+  final PracticalMaterialPrecautions precautions;
+
+  final Future<void> Function({
+  required String implementationYear,
+  required String implementationSequence,
+  }) onLookup;
+
+  const TechnicalPracticalMaterialLookupCard({
+    super.key,
+    required this.isLoading,
+    required this.hasRequested,
+    required this.errorMessage,
+    required this.materials,
+    required this.usesStoredData,
+    required this.storedImplementationYear,
+    required this.precautions,
+    required this.onLookup,
+  });
+
+  @override
+  State<TechnicalPracticalMaterialLookupCard> createState() =>
+      _TechnicalPracticalMaterialLookupCardState();
+}
+
+class _TechnicalPracticalMaterialLookupCardState
+    extends State<TechnicalPracticalMaterialLookupCard> {
+  final TextEditingController _yearController =
+  TextEditingController(text: '2026');
+  final TextEditingController _sequenceController =
+  TextEditingController(text: '1');
+
+  bool _isExpanded = true;
+  String? _inputError;
+
+  @override
+  void dispose() {
+    _yearController.dispose();
+    _sequenceController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleLookup() async {
+    FocusScope.of(context).unfocus();
+
+    final year = _yearController.text.trim();
+    final sequence = _sequenceController.text.trim();
+
+    if (!RegExp(r'^\d{4}$').hasMatch(year)) {
+      setState(() {
+        _inputError = '시행년도는 4자리 숫자로 입력해주세요.';
+      });
+      return;
+    }
+
+    final sequenceNumber = int.tryParse(sequence);
+    if (sequenceNumber == null || sequenceNumber <= 0) {
+      setState(() {
+        _inputError = '시행회차는 1 이상의 숫자로 입력해주세요.';
+      });
+      return;
+    }
+
+    setState(() {
+      _inputError = null;
+    });
+
+    await widget.onLookup(
+      implementationYear: year,
+      implementationSequence: sequenceNumber.toString(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: certificateCardDecoration(),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () {
+              setState(() {
+                _isExpanded = !_isExpanded;
+              });
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 18,
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.handyman_outlined,
+                    color: certificatePrimaryPink,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 9),
+                  const Expanded(
+                    child: Text(
+                      '실기시험 지참 준비물',
+                      style: TextStyle(
+                        color: certificateDarkText,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  AnimatedRotation(
+                    turns: _isExpanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: certificateGrayText,
+                      size: 27,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox(
+              width: double.infinity,
+              height: 0,
+            ),
+            secondChild: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Divider(
+                    height: 1,
+                    color: certificateBorderColor,
+                  ),
+                  const SizedBox(height: 16),
+                  if (widget.usesStoredData)
+                    Text(
+                      widget.storedImplementationYear == null
+                          ? '저장된 실기시험 지참 준비물입니다.'
+                          : '${widget.storedImplementationYear}년 기준으로 저장된 실기시험 지참 준비물입니다.',
+                      style: const TextStyle(
+                        color: certificateGrayText,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        height: 1.5,
+                      ),
+                    )
+                  else ...[
+                    const Text(
+                      '시행년도와 시행회차를 입력해 현재 자격증의 실기시험 지참 준비물을 조회합니다.\n'
+                          '실기시험 지참 준비물이 있는 경우에만 조회할 수 있습니다.',
+                      style: TextStyle(
+                        color: certificateGrayText,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: _PracticalMaterialInput(
+                            controller: _yearController,
+                            label: '시행년도',
+                            hintText: '2026',
+                            maxLength: 4,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _PracticalMaterialInput(
+                            controller: _sequenceController,
+                            label: '시행회차',
+                            hintText: '1',
+                            maxLength: 3,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_inputError != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        _inputError!,
+                        style: const TextStyle(
+                          color: certificatePrimaryPink,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: widget.isLoading ? null : _handleLookup,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: certificatePrimaryPink,
+                          disabledBackgroundColor:
+                          certificatePrimaryPink.withValues(alpha: 0.55),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: widget.isLoading
+                            ? const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                                color: Colors.white,
+                              ),
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              '조회 중...',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        )
+                            : Text(
+                          widget.hasRequested
+                              ? '다시 조회하기'
+                              : '지참 준비물 조회하기',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (widget.isLoading) ...[
+                    const SizedBox(height: 18),
+                    const _ExamSubjectMessage(
+                      icon: Icons.hourglass_top_rounded,
+                      message: '실기시험 지참 준비물을 조회하고 있습니다.',
+                    ),
+                  ] else if (widget.errorMessage != null) ...[
+                    const SizedBox(height: 18),
+                    _ExamSubjectMessage(
+                      icon: Icons.error_outline_rounded,
+                      message: widget.errorMessage!,
+                    ),
+                  ] else if (widget.hasRequested &&
+                      widget.materials.isEmpty) ...[
+                    const SizedBox(height: 18),
+                    const _ExamSubjectMessage(
+                      icon: Icons.search_off_rounded,
+                      message: '조회된 실기시험 지참 준비물이 없습니다.',
+                    ),
+                  ] else if (widget.materials.isNotEmpty) ...[
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Divider(
+                        height: 1,
+                        color: certificateBorderColor,
+                      ),
+                    ),
+                    _PracticalMaterialsTable(
+                      materials: widget.materials,
+                    ),
+                    if (widget.precautions.isNotEmpty) ...[
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20),
+                        child: Divider(
+                          height: 1,
+                          color: certificateBorderColor,
+                        ),
+                      ),
+                      _PracticalMaterialPrecautionsView(
+                        precautions: widget.precautions,
+                      ),
+                    ],
+                  ],
+                ],
+              ),
+            ),
+            crossFadeState: _isExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 200),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PracticalMaterialPrecautionsView
+    extends StatelessWidget {
+  final PracticalMaterialPrecautions precautions;
+
+  const _PracticalMaterialPrecautionsView({
+    required this.precautions,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: List.generate(
+        precautions.blocks.length,
+            (index) {
+          final block = precautions.blocks[index];
+
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom:
+              index == precautions.blocks.length - 1
+                  ? 0
+                  : 24,
+            ),
+            child: _PracticalMaterialPrecautionBlockView(
+              block: block,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _PracticalMaterialPrecautionBlockView
+    extends StatelessWidget {
+  final PracticalMaterialPrecautionBlock block;
+
+  const _PracticalMaterialPrecautionBlockView({
+    required this.block,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    switch (block.type) {
+      case 'table':
+        return _PracticalMaterialPrecautionTable(
+          block: block,
+        );
+
+      case 'section':
+      default:
+        return _PracticalMaterialPrecautionSection(
+          block: block,
+        );
+    }
+  }
+}
+
+class _PracticalMaterialPrecautionSection
+    extends StatelessWidget {
+  final PracticalMaterialPrecautionBlock block;
+
+  const _PracticalMaterialPrecautionSection({
+    required this.block,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (block.items.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          block.title.isEmpty
+              ? '주의사항'
+              : block.title,
+          style: const TextStyle(
+            color: certificateDarkText,
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...List.generate(
+          block.items.length,
+              (index) {
+            final item = block.items[index];
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom:
+                index == block.items.length - 1
+                    ? 0
+                    : 10,
+              ),
+              child: _PracticalMaterialPrecautionItemView(
+                item: item,
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _PracticalMaterialPrecautionItemView
+    extends StatelessWidget {
+  final PracticalMaterialPrecautionItem item;
+  final bool showBullet;
+
+  const _PracticalMaterialPrecautionItemView({
+    required this.item,
+    this.showBullet = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = _textColor(item.type);
+    final fontWeight = _fontWeight(item.type);
+
+    if (!showBullet) {
+      return Text(
+        item.text,
+        style: TextStyle(
+          color: textColor,
+          fontSize: 12,
+          fontWeight: fontWeight,
+          height: 1.55,
+        ),
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Icon(
+            Icons.circle,
+            size: 5,
+            color: textColor,
+          ),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Text(
+            item.text,
+            style: TextStyle(
+              color: textColor,
+              fontSize: 13,
+              fontWeight: fontWeight,
+              height: 1.55,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  static Color _textColor(String type) {
+    switch (type) {
+      case 'disqualification':
+      case 'zeroScore':
+        return const Color(0xFFE53935);
+
+      case 'warning':
+        return certificatePrimaryPink;
+
+      case 'prohibited':
+        return certificateDarkText;
+
+      case 'normal':
+      default:
+        return certificateBodyText;
+    }
+  }
+
+  static FontWeight _fontWeight(String type) {
+    switch (type) {
+      case 'disqualification':
+      case 'zeroScore':
+      case 'warning':
+        return FontWeight.w700;
+
+      case 'prohibited':
+        return FontWeight.w600;
+
+      case 'normal':
+      default:
+        return FontWeight.w500;
+    }
+  }
+}
+
+class _PracticalMaterialPrecautionTable
+    extends StatelessWidget {
+  final PracticalMaterialPrecautionBlock block;
+
+  const _PracticalMaterialPrecautionTable({
+    required this.block,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (block.rows.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          block.title.isEmpty
+              ? '주의사항'
+              : block.title,
+          style: const TextStyle(
+            color: certificateDarkText,
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 13),
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: certificateBorderColor,
+            ),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: 930,
+              child: Table(
+                border: TableBorder.all(
+                  color: certificateBorderColor,
+                  width: 1,
+                ),
+                columnWidths: const {
+                  0: FixedColumnWidth(58),
+                  1: FixedColumnWidth(130),
+                  2: FixedColumnWidth(155),
+                  3: FixedColumnWidth(587),
+                },
+                defaultVerticalAlignment:
+                TableCellVerticalAlignment.middle,
+                children: [
+                  _buildHeaderRow(),
+                  ...List.generate(
+                    block.rows.length,
+                        (index) => _buildDataRow(
+                      row: block.rows[index],
+                      previousRow:
+                      index == 0
+                          ? null
+                          : block.rows[index - 1],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (block.footerNotes.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          ...List.generate(
+            block.footerNotes.length,
+                (index) {
+              final item = block.footerNotes[index];
+
+              return Padding(
+                padding: EdgeInsets.only(
+                  bottom:
+                  index ==
+                      block.footerNotes.length - 1
+                      ? 0
+                      : 9,
+                ),
+                child:
+                _PracticalMaterialPrecautionItemView(
+                  item: item,
+                ),
+              );
+            },
+          ),
+        ],
+      ],
+    );
+  }
+
+  TableRow _buildHeaderRow() {
+    final columns = block.columns.length >= 4
+        ? block.columns
+        : const [
+      '순번',
+      '구분',
+      '세부 구분',
+      '세부기준',
+    ];
+
+    return TableRow(
+      decoration: BoxDecoration(
+        color: certificatePinkSoft.withValues(
+          alpha: 0.7,
+        ),
+      ),
+      children: [
+        _buildHeaderCell(columns[0]),
+        _buildHeaderCell(columns[1]),
+        _buildHeaderCell(columns[2]),
+        _buildHeaderCell(columns[3]),
+      ],
+    );
+  }
+
+  TableRow _buildDataRow({
+    required PracticalMaterialPrecautionRow row,
+    required PracticalMaterialPrecautionRow?
+    previousRow,
+  }) {
+    final isSameGroup =
+        row.group.isNotEmpty &&
+            previousRow?.group == row.group;
+
+    return TableRow(
+      children: [
+        _buildCell(
+          Text(
+            row.number?.toString() ?? '-',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: certificateDarkText,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        _buildCell(
+          isSameGroup
+              ? const SizedBox.shrink()
+              : Column(
+            mainAxisAlignment:
+            MainAxisAlignment.center,
+            children: [
+              Text(
+                row.group.isEmpty
+                    ? '-'
+                    : row.group,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: certificateDarkText,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  height: 1.4,
+                ),
+              ),
+              if (row.groupNote.isNotEmpty) ...[
+                const SizedBox(height: 5),
+                Text(
+                  row.groupNote,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFFE53935),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        _buildCell(
+          Text(
+            row.category.isEmpty
+                ? '-'
+                : row.category,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: certificateDarkText,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              height: 1.4,
+            ),
+          ),
+        ),
+        _buildCell(
+          Column(
+            crossAxisAlignment:
+            CrossAxisAlignment.start,
+            children: List.generate(
+              row.contents.length,
+                  (index) {
+                final item = row.contents[index];
+
+                return Padding(
+                  padding: EdgeInsets.only(
+                    bottom:
+                    index ==
+                        row.contents.length - 1
+                        ? 0
+                        : 7,
+                  ),
+                  child:
+                  _PracticalMaterialPrecautionItemView(
+                    item: item,
+                    showBullet: false,
+                  ),
+                );
+              },
+            ),
+          ),
+          alignment: Alignment.centerLeft,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeaderCell(String text) {
+    return Container(
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 13,
+      ),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: certificateDarkText,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCell(
+      Widget child, {
+        Alignment alignment = Alignment.center,
+      }) {
+    return Container(
+      alignment: alignment,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 11,
+        vertical: 13,
+      ),
+      child: child,
+    );
+  }
+}
+
+class _PracticalMaterialInput extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final String hintText;
+  final int maxLength;
+
+  const _PracticalMaterialInput({
+    required this.controller,
+    required this.label,
+    required this.hintText,
+    required this.maxLength,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      keyboardType: TextInputType.number,
+      textInputAction: TextInputAction.next,
+      maxLength: maxLength,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hintText,
+        counterText: '',
+        filled: true,
+        fillColor: const Color(0xFFFAFAFC),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: certificateBorderColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: certificatePrimaryPink,
+            width: 1.4,
+          ),
+        ),
+      ),
+      style: const TextStyle(
+        color: certificateDarkText,
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+  }
+}
+
+class _PracticalMaterialsTable extends StatelessWidget {
+  final List<TechnicalPracticalExamMaterial> materials;
+
+  const _PracticalMaterialsTable({
+    required this.materials,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: certificateBorderColor,
+        ),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          horizontalMargin: 14,
+          columnSpacing: 22,
+          headingRowHeight: 48,
+          dataRowMinHeight: 52,
+          dataRowMaxHeight: 100,
+          headingRowColor: WidgetStateProperty.all(
+            certificatePinkSoft.withValues(alpha: 0.7),
+          ),
+          border: const TableBorder(
+            horizontalInside: BorderSide(
+              color: certificateBorderColor,
+            ),
+            verticalInside: BorderSide(
+              color: certificateBorderColor,
+            ),
+          ),
+          columns: const [
+            DataColumn(
+              numeric: true,
+              label: _PracticalMaterialTableHeader(
+                text: '번호',
+              ),
+            ),
+            DataColumn(
+              label: _PracticalMaterialTableHeader(
+                text: '준비물명',
+              ),
+            ),
+            DataColumn(
+              label: _PracticalMaterialTableHeader(
+                text: '규격',
+              ),
+            ),
+            DataColumn(
+              label: _PracticalMaterialTableHeader(
+                text: '단위',
+              ),
+            ),
+            DataColumn(
+              label: _PracticalMaterialTableHeader(
+                text: '수량',
+              ),
+            ),
+            DataColumn(
+              label: _PracticalMaterialTableHeader(
+                text: '비고',
+              ),
+            ),
+          ],
+          rows: List.generate(
+            materials.length,
+                (index) {
+              final material = materials[index];
+
+              return DataRow(
+                cells: [
+                  DataCell(
+                    Text(
+                      '${index + 1}',
+                      style: _cellTextStyle,
+                    ),
+                  ),
+                  DataCell(
+                    SizedBox(
+                      width: 130,
+                      child: Text(
+                        _displayValue(material.materialName),
+                        style: _importantCellTextStyle,
+                      ),
+                    ),
+                  ),
+                  DataCell(
+                    SizedBox(
+                      width: 180,
+                      child: Text(
+                        _displayValue(material.specification),
+                        style: _cellTextStyle,
+                      ),
+                    ),
+                  ),
+                  DataCell(
+                    SizedBox(
+                      width: 60,
+                      child: Text(
+                        _displayValue(material.unitCode),
+                        style: _cellTextStyle,
+                      ),
+                    ),
+                  ),
+                  DataCell(
+                    SizedBox(
+                      width: 60,
+                      child: Text(
+                        _displayValue(material.commonUseQuantity),
+                        style: _cellTextStyle,
+                      ),
+                    ),
+                  ),
+                  DataCell(
+                    SizedBox(
+                      width: 190,
+                      child: Text(
+                        _buildRemark(material),
+                        style: _cellTextStyle,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _buildRemark(
+      TechnicalPracticalExamMaterial material,
+      ) {
+    final values = <String>[
+      if (material.standardRemark.trim().isNotEmpty)
+        material.standardRemark.trim(),
+      if (material.selectionFieldName.trim().isNotEmpty &&
+          material.selectionFieldName.trim() != '선택분야없음')
+        '선택분야: ${material.selectionFieldName.trim()}',
+      if (material.drawingYn.trim().isNotEmpty)
+        material.drawingYn.trim().toUpperCase() == 'Y'
+            ? '도면 있음'
+            : '도면 없음',
+    ];
+
+    return values.isEmpty ? '-' : values.join('\n');
+  }
+
+  static String _displayValue(String value) {
+    final trimmedValue = value.trim();
+    return trimmedValue.isEmpty ? '-' : trimmedValue;
+  }
+
+  static const TextStyle _cellTextStyle = TextStyle(
+    color: certificateBodyText,
+    fontSize: 12,
+    fontWeight: FontWeight.w500,
+    height: 1.45,
+  );
+
+  static const TextStyle _importantCellTextStyle = TextStyle(
+    color: certificateDarkText,
+    fontSize: 12,
+    fontWeight: FontWeight.w700,
+    height: 1.45,
+  );
+}
+
+class _PracticalMaterialTableHeader extends StatelessWidget {
+  final String text;
+
+  const _PracticalMaterialTableHeader({
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: certificateDarkText,
+        fontSize: 12,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+  }
+}
+
+class _TechnicalPracticalMaterialItem extends StatelessWidget {
+  final TechnicalPracticalExamMaterial material;
+
+  const _TechnicalPracticalMaterialItem({
+    required this.material,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final detailItems = <CertificateInfoItem>[
+      if (material.examDate.isNotEmpty)
+        CertificateInfoItem(
+          label: '시험일',
+          value: material.formattedExamDate,
+        ),
+      if (material.quantityText.isNotEmpty)
+        CertificateInfoItem(
+          label: '수량',
+          value: material.quantityText,
+        ),
+      if (material.specification.isNotEmpty)
+        CertificateInfoItem(
+          label: '규격',
+          value: material.specification,
+        ),
+      if (material.standardRemark.isNotEmpty)
+        CertificateInfoItem(
+          label: '비고',
+          value: material.standardRemark,
+        ),
+      if (material.selectionFieldName.isNotEmpty &&
+          material.selectionFieldName != '선택분야없음')
+        CertificateInfoItem(
+          label: '선택분야',
+          value: material.selectionFieldName,
+        ),
+      if (material.drawingYn.isNotEmpty)
+        CertificateInfoItem(
+          label: '도면 여부',
+          value: material.drawingYn == 'Y' ? '있음' : '없음',
+        ),
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: certificatePinkSoft.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: certificateBorderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            material.materialName.isEmpty
+                ? '지참 준비물'
+                : material.materialName,
+            style: const TextStyle(
+              color: certificateDarkText,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (material.implementationPlanName.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              material.implementationPlanName,
+              style: const TextStyle(
+                color: certificateGrayText,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+          ],
+          if (detailItems.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            ...List.generate(
+              detailItems.length,
+                  (index) => Padding(
+                padding: EdgeInsets.only(
+                  bottom: index == detailItems.length - 1 ? 0 : 10,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 76,
+                      child: Text(
+                        detailItems[index].label,
+                        style: const TextStyle(
+                          color: certificateGrayText,
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        detailItems[index].value,
+                        style: const TextStyle(
+                          color: certificateDarkText,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class TechnicalCertificateStatisticsSection extends StatelessWidget {
+  final int baseYear;
+
+  final bool isLoadingWritten;
+  final String? writtenError;
+  final List<TechnicalExamStatistic> writtenStatistics;
+  final VoidCallback onRetryWritten;
+
+  final bool isLoadingPractical;
+  final String? practicalError;
+  final List<TechnicalExamStatistic> practicalStatistics;
+  final VoidCallback onRetryPractical;
+
+  const TechnicalCertificateStatisticsSection({
+    super.key,
+    required this.baseYear,
+    required this.isLoadingWritten,
+    required this.writtenError,
+    required this.writtenStatistics,
+    required this.onRetryWritten,
+    required this.isLoadingPractical,
+    required this.practicalError,
+    required this.practicalStatistics,
+    required this.onRetryPractical,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasTableData =
+        writtenStatistics.isNotEmpty || practicalStatistics.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$baseYear년 기준 최근 5개년 통계',
+          style: const TextStyle(
+            color: certificateGrayText,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 12),
+        TechnicalExamStatisticsCard(
+          title: '필기시험 현황',
+          icon: Icons.edit_note_rounded,
+          isLoading: isLoadingWritten,
+          errorMessage: writtenError,
+          statistics: writtenStatistics,
+          emptyMessage: '해당 종목의 필기시험 통계가 없습니다.',
+          onRetry: onRetryWritten,
+        ),
+        const SizedBox(height: 14),
+        TechnicalExamStatisticsCard(
+          title: '실기시험 현황',
+          icon: Icons.build_outlined,
+          isLoading: isLoadingPractical,
+          errorMessage: practicalError,
+          statistics: practicalStatistics,
+          emptyMessage: '해당 종목의 실기시험 통계가 없습니다.',
+          onRetry: onRetryPractical,
+        ),
+        if (hasTableData) ...[
+          const SizedBox(height: 14),
+          TechnicalExamStatisticsTablesCard(
+            writtenStatistics: writtenStatistics,
+            practicalStatistics: practicalStatistics,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class TechnicalExamStatisticsCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final bool isLoading;
+  final String? errorMessage;
+  final List<TechnicalExamStatistic> statistics;
+  final String emptyMessage;
+  final VoidCallback onRetry;
+
+  const TechnicalExamStatisticsCard({
+    super.key,
+    required this.title,
+    required this.icon,
+    required this.isLoading,
+    required this.errorMessage,
+    required this.statistics,
+    required this.emptyMessage,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _StatisticsCardShell(
+      title: title,
+      icon: icon,
+      child: _buildContent(),
+    );
+  }
+
+  Widget _buildContent() {
+    if (isLoading) {
+      return const _StatisticsLoading();
+    }
+
+    if (errorMessage != null) {
+      return _StatisticsError(
+        message: errorMessage!,
+        onRetry: onRetry,
+      );
+    }
+
+    if (statistics.isEmpty) {
+      return _StatisticsEmpty(message: emptyMessage);
+    }
+
+    return TechnicalExamStatisticsLineChart(
+      statistics: statistics,
+    );
+  }
+}
+
+class TechnicalExamStatisticsTablesCard extends StatelessWidget {
+  final List<TechnicalExamStatistic> writtenStatistics;
+  final List<TechnicalExamStatistic> practicalStatistics;
+
+  const TechnicalExamStatisticsTablesCard({
+    super.key,
+    required this.writtenStatistics,
+    required this.practicalStatistics,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _StatisticsCardShell(
+      title: '연도별 합격 현황',
+      icon: Icons.table_chart_outlined,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (writtenStatistics.isNotEmpty)
+            _ExamStatisticsTable(
+              title: '필기',
+              statistics: writtenStatistics,
+            ),
+          if (writtenStatistics.isNotEmpty &&
+              practicalStatistics.isNotEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 22),
+              child: Divider(
+                height: 1,
+                color: certificateBorderColor,
+              ),
+            ),
+          if (practicalStatistics.isNotEmpty)
+            _ExamStatisticsTable(
+              title: '실기',
+              statistics: practicalStatistics,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExamStatisticsTable extends StatelessWidget {
+  final String title;
+  final List<TechnicalExamStatistic> statistics;
+
+  const _ExamStatisticsTable({
+    required this.title,
+    required this.statistics,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sortedStatistics = [...statistics]
+      ..sort((a, b) => b.year.compareTo(a.year));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: certificateDarkText,
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: certificateBorderColor),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              const _ExamStatisticsTableRow(
+                isHeader: true,
+                year: '연도',
+                examineeCount: '응시수',
+                passerCount: '합격수',
+                passRate: '합격률',
+              ),
+              ...List.generate(
+                sortedStatistics.length,
+                    (index) {
+                  final statistic = sortedStatistics[index];
+
+                  return _ExamStatisticsTableRow(
+                    year: '${statistic.year}',
+                    examineeCount:
+                    '${_formatCount(statistic.examineeCount)}명',
+                    passerCount:
+                    '${_formatCount(statistic.passerCount)}명',
+                    passRate:
+                    '${statistic.passRate.toStringAsFixed(1)}%',
+                    showTopBorder: true,
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ExamStatisticsTableRow extends StatelessWidget {
+  final bool isHeader;
+  final String year;
+  final String examineeCount;
+  final String passerCount;
+  final String passRate;
+  final bool showTopBorder;
+
+  const _ExamStatisticsTableRow({
+    this.isHeader = false,
+    required this.year,
+    required this.examineeCount,
+    required this.passerCount,
+    required this.passRate,
+    this.showTopBorder = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textStyle = TextStyle(
+      color: isHeader ? certificateDarkText : certificateBodyText,
+      fontSize: isHeader ? 12 : 11,
+      fontWeight: isHeader ? FontWeight.w800 : FontWeight.w600,
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isHeader
+            ? certificatePinkSoft.withValues(alpha: 0.55)
+            : Colors.white,
+        border: showTopBorder
+            ? const Border(
+          top: BorderSide(color: certificateBorderColor),
+        )
+            : null,
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 12,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 17,
+            child: Text(
+              year,
+              textAlign: TextAlign.center,
+              style: textStyle,
+            ),
+          ),
+          Expanded(
+            flex: 28,
+            child: Text(
+              examineeCount,
+              textAlign: TextAlign.center,
+              style: textStyle,
+            ),
+          ),
+          Expanded(
+            flex: 28,
+            child: Text(
+              passerCount,
+              textAlign: TextAlign.center,
+              style: textStyle,
+            ),
+          ),
+          Expanded(
+            flex: 27,
+            child: Text(
+              passRate,
+              textAlign: TextAlign.center,
+              style: textStyle.copyWith(
+                color: isHeader
+                    ? certificateDarkText
+                    : certificatePrimaryPink,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatisticsCardShell extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Widget child;
+
+  const _StatisticsCardShell({
+    required this.title,
+    required this.icon,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: certificateCardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: certificatePrimaryPink, size: 22),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: certificateDarkText,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          const Divider(height: 1, color: certificateBorderColor),
+          const SizedBox(height: 18),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _StatisticsLoading extends StatelessWidget {
+  const _StatisticsLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 24),
+      child: Center(
+        child: Column(
+          children: [
+            SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: certificatePrimaryPink,
+              ),
+            ),
+            SizedBox(height: 12),
+            Text(
+              '조회 중...',
+              style: TextStyle(
+                color: certificateGrayText,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatisticsEmpty extends StatelessWidget {
+  final String message;
+
+  const _StatisticsEmpty({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 22),
+      child: Center(
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: certificateGrayText,
+            fontSize: 13,
+            height: 1.5,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatisticsError extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _StatisticsError({
+    required this.message,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.error_outline_rounded,
+            color: certificatePrimaryPink,
+            size: 30,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: certificateBodyText,
+              fontSize: 13,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 14),
+          OutlinedButton.icon(
+            onPressed: onRetry,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: certificatePrimaryPink,
+              side: const BorderSide(color: certificatePrimaryPink),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(11),
+              ),
+            ),
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text(
+              '다시 조회',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _formatCount(int value) {
+  return value.toString().replaceAllMapped(
+    RegExp(r'\B(?=(\d{3})+(?!\d))'),
+        (match) => ',',
+  );
+}
+
+class TechnicalExamStatisticsLineChart extends StatelessWidget {
+  final List<TechnicalExamStatistic> statistics;
+
+  const TechnicalExamStatisticsLineChart({
+    super.key,
+    required this.statistics,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (statistics.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final sortedStatistics = [...statistics]
+      ..sort((a, b) => a.year.compareTo(b.year));
+
+    final maximumValue = sortedStatistics.fold<double>(
+      0,
+          (maximum, statistic) {
+        final currentMaximum = [
+          statistic.registrationCount,
+          statistic.examineeCount,
+          statistic.passerCount,
+        ].reduce((a, b) => a > b ? a : b);
+
+        return currentMaximum > maximum
+            ? currentMaximum.toDouble()
+            : maximum;
+      },
+    );
+
+    final chartMaximumY = maximumValue <= 0
+        ? 10.0
+        : maximumValue * 1.2;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _StatisticsChartLegend(
+          items: [
+            _StatisticsLegendItem(
+              label: '접수자',
+              color: certificatePrimaryPink,
+            ),
+            _StatisticsLegendItem(
+              label: '응시자',
+              color: Color(0xFF7191D8),
+            ),
+            _StatisticsLegendItem(
+              label: '합격자',
+              color: Color(0xFF65AF91),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          height: 290,
+          child: Padding(
+            padding: const EdgeInsets.only(
+              left: 4,
+              right: 12,
+              top: 8,
+            ),
+            child: LineChart(
+              LineChartData(
+                minX: 0,
+                maxX: (sortedStatistics.length - 1).toDouble(),
+                minY: 0,
+                maxY: chartMaximumY,
+                clipData: const FlClipData(
+                  top: false,
+                  bottom: false,
+                  left: false,
+                  right: false,
+                ),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: _calculateChartInterval(
+                    chartMaximumY,
+                  ),
+                  getDrawingHorizontalLine: (_) {
+                    return FlLine(
+                      color: certificateBorderColor,
+                      strokeWidth: 1,
+                    );
+                  },
+                ),
+                borderData: FlBorderData(show: false),
+                titlesData: FlTitlesData(
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 34,
+                      interval: 1,
+                      getTitlesWidget: (value, meta) {
+                        if (value % 1 != 0) {
+                          return const SizedBox.shrink();
+                        }
+
+                        final index = value.toInt();
+                        if (index < 0 ||
+                            index >= sortedStatistics.length) {
+                          return const SizedBox.shrink();
+                        }
+
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            '${sortedStatistics[index].year}',
+                            style: const TextStyle(
+                              color: certificateGrayText,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 48,
+                      interval: _calculateChartInterval(chartMaximumY),
+                      getTitlesWidget: (value, meta) {
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: Text(
+                            _formatCompactNumber(value),
+                            style: const TextStyle(
+                              color: certificateGrayText,
+                              fontSize: 10,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                lineTouchData: LineTouchData(
+                  enabled: true,
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipItems: (touchedSpots) {
+                      return touchedSpots.map((spot) {
+                        final labels = [
+                          '접수자',
+                          '응시자',
+                          '합격자',
+                        ];
+
+                        final statisticIndex = spot.x.round();
+                        final statistic =
+                        statisticIndex >= 0 &&
+                            statisticIndex <
+                                sortedStatistics.length
+                            ? sortedStatistics[statisticIndex]
+                            : null;
+
+                        final passRateText =
+                        spot.barIndex == 2 && statistic != null
+                            ? '\n합격률 '
+                            '${statistic.passRate.toStringAsFixed(1)}%'
+                            : '';
+
+                        return LineTooltipItem(
+                          '${labels[spot.barIndex]}\n'
+                              '${_formatCount(spot.y.round())}명'
+                              '$passRateText',
+                          TextStyle(
+                            color:
+                            spot.bar.color ?? certificateDarkText,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        );
+                      }).toList();
+                    },
+                  ),
+                ),
+                lineBarsData: [
+                  _buildStatisticsLine(
+                    statistics: sortedStatistics,
+                    color: certificatePrimaryPink,
+                    valueSelector: (item) => item.registrationCount,
+                  ),
+                  _buildStatisticsLine(
+                    statistics: sortedStatistics,
+                    color: const Color(0xFF7191D8),
+                    valueSelector: (item) => item.examineeCount,
+                  ),
+                  _buildStatisticsLine(
+                    statistics: sortedStatistics,
+                    color: const Color(0xFF65AF91),
+                    valueSelector: (item) => item.passerCount,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  static LineChartBarData _buildStatisticsLine({
+    required List<TechnicalExamStatistic> statistics,
+    required Color color,
+    required int Function(TechnicalExamStatistic item)
+    valueSelector,
+  }) {
+    return LineChartBarData(
+      isCurved: false,
+      color: color,
+      barWidth: 3,
+      isStrokeCapRound: true,
+      dotData: FlDotData(
+        show: true,
+        getDotPainter: (
+            spot,
+            percent,
+            barData,
+            index,
+            ) {
+          return FlDotCirclePainter(
+            radius: 4,
+            color: Colors.white,
+            strokeWidth: 2,
+            strokeColor: color,
+          );
+        },
+      ),
+      belowBarData: BarAreaData(show: false),
+      spots: List.generate(
+        statistics.length,
+            (index) {
+          return FlSpot(
+            index.toDouble(),
+            valueSelector(statistics[index]).toDouble(),
+          );
+        },
+      ),
+    );
+  }
+
+  static double _calculateChartInterval(double maximumY) {
+    if (maximumY <= 10) return 2;
+    if (maximumY <= 100) return 20;
+    if (maximumY <= 1000) return 200;
+    if (maximumY <= 10000) return 2000;
+    if (maximumY <= 100000) return 20000;
+    return maximumY / 5;
+  }
+
+  static String _formatCompactNumber(double value) {
+    if (value >= 1000000) {
+      return '${(value / 1000000).toStringAsFixed(1)}백만';
+    }
+    if (value >= 10000) {
+      return '${(value / 10000).toStringAsFixed(1)}만';
+    }
+    if (value >= 1000) {
+      return '${(value / 1000).toStringAsFixed(1)}천';
+    }
+    return value.round().toString();
+  }
+}
+
+class _StatisticsChartLegend extends StatelessWidget {
+  final List<_StatisticsLegendItem> items;
+
+  const _StatisticsChartLegend({
+    required this.items,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 16,
+      runSpacing: 8,
+      children: items.map((item) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: item.color,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              item.label,
+              style: const TextStyle(
+                color: certificateBodyText,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _StatisticsLegendItem {
+  final String label;
+  final Color color;
+
+  const _StatisticsLegendItem({
+    required this.label,
+    required this.color,
+  });
 }
