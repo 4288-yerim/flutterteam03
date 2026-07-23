@@ -3,7 +3,7 @@ import 'package:flutterteam03/mypage/screens/mypage_screen.dart';
 import 'package:flutterteam03/study/study_list.dart';
 import '../widgets/app_bottom_bar.dart';
 import 'ai/ai_main.dart';
-import 'home/home.dart';
+import 'home/screens/home.dart';
 import 'package:flutterteam03/community/community_main.dart';
 
 class MyApp extends StatelessWidget {

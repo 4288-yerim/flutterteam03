@@ -8,6 +8,7 @@ import '../services/certificate_search_service.dart';
 import '../services/professional_certificate_service.dart';
 import '../services/technical_certificate_service.dart';
 import '../widgets/certificate_common_widgets.dart';
+import '../widgets/certificate_detail_widgets.dart';
 import '../widgets/professional_certificate_widgets.dart';
 import '../widgets/technical_certificate_widgets.dart';
 
@@ -29,6 +30,9 @@ class ProfessionalCertificateDetailPage
 class _ProfessionalCertificateDetailPageState
     extends State<ProfessionalCertificateDetailPage>
     with SingleTickerProviderStateMixin {
+  final CertificateDetailService _certificateDetailService =
+      CertificateDetailService();
+
   final ProfessionalCertificateService
   _professionalCertificateService =
   ProfessionalCertificateService();
@@ -260,7 +264,7 @@ class _ProfessionalCertificateDetailPageState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Q-Net 시험 정보 연결값이 등록되지 않았습니다.',
+            'Q-Net 자격 정보 연결값이 등록되지 않았습니다.',
           ),
         ),
       );
@@ -284,7 +288,7 @@ class _ProfessionalCertificateDetailPageState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Q-Net 시험 정보 페이지를 열지 못했습니다.',
+            'Q-Net 자격 정보 페이지를 열지 못했습니다.',
           ),
         ),
       );
@@ -585,64 +589,116 @@ class _ProfessionalCertificateDetailPageState
   }
 
   Future<void> _registerGoal(
-      ProfessionalCertificateSchedule schedule,
-      ) async {
+    ProfessionalCertificateSchedule schedule,
+  ) async {
     final certificate = _certificate;
+    final examDate = schedule.examStartAt ?? schedule.examEndAt;
 
-    if (certificate == null) {
+    if (certificate == null || examDate == null || _isRegisteringGoal) {
       return;
     }
+
+    final examType =
+        schedule.description.contains('필기') ? 'WRITTEN' : 'PRACTICAL';
+
+    final option = CertificateGoalOption(
+      scheduleId: schedule.id,
+      targetRound: schedule.description,
+      examType: examType,
+      examTypeName: examType == 'WRITTEN' ? '필기' : '실기·면접',
+      examDate: examDate,
+      passAnnouncementDate: schedule.passStartAt,
+      passAnnouncementEndDate: schedule.passEndAt,
+    );
 
     setState(() {
       _isRegisteringGoal = true;
     });
 
     try {
-      await _professionalCertificateService
-          .addProfessionalCertificateGoal(
-        certificateId:
-        widget.certificationId,
+      final goalId = await _certificateDetailService.addCertificateGoal(
+        certificateId: widget.certificationId,
         scheduleId: schedule.id,
-        certificateName:
-        certificate.name,
-        schedule: schedule,
+        certificateName: certificate.name,
+        qualificationType: 'PROFESSIONAL',
+        targetExamDate: examDate,
+        targetRound: schedule.description,
+        targetExamType: examType,
+        targetPassAnnouncementDate: schedule.passStartAt,
+        targetPassAnnouncementEndDate: schedule.passEndAt,
+        includeExamTypeInDuplicateCheck: false,
       );
 
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content: Text(
-            '목표 자격증으로 등록했습니다.',
+      final shouldLinkCalendar = await showCertificateCalendarLinkDialog(
+        context: context,
+        option: option,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      if (shouldLinkCalendar != true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('목표 자격증으로 등록했습니다.'),
           ),
-        ),
+        );
+        return;
+      }
+
+      final added = await addCertificateGoalToDeviceCalendar(
+        certificateName: certificate.name,
+        option: option,
       );
-    } on ProfessionalCertificateGoalException
-    catch (error) {
+
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        SnackBar(
-          content: Text(error.message),
+      if (!added) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('캘린더 일정 추가가 취소되었습니다.'),
+          ),
+        );
+        return;
+      }
+
+      await _certificateDetailService.updateGoalCalendarLinked(
+        goalId: goalId,
+        calendarLinked: true,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('시험 일정을 휴대폰 캘린더에 추가했습니다.'),
         ),
+      );
+    } on CertificateGoalException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
       );
     } catch (_) {
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            '목표 자격증을 등록하지 못했습니다.',
-          ),
+          content: Text('목표 자격증을 등록하지 못했습니다.'),
         ),
       );
     } finally {
@@ -859,7 +915,7 @@ class _ProfessionalCertificateDetailPageState
           ),
           Tab(
             height: 44,
-            text: '시험 정보',
+            text: '자격 정보',
           ),
           Tab(
             height: 44,
@@ -915,7 +971,7 @@ class _ProfessionalCertificateDetailPageState
               ),
               SizedBox(width: 9),
               Text(
-                '시험 정보',
+                '자격 정보',
                 style: TextStyle(
                   color: certificateDarkText,
                   fontSize: 17,
@@ -926,7 +982,7 @@ class _ProfessionalCertificateDetailPageState
           ),
           const SizedBox(height: 17),
           const Text(
-            '시험 정보는 Q-Net에서 확인 바랍니다.',
+            '자격 정보는 Q-Net에서 확인 바랍니다.',
             style: TextStyle(
               color: certificateDarkText,
               fontSize: 14,
@@ -953,7 +1009,7 @@ class _ProfessionalCertificateDetailPageState
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Q-Net에서 시험 정보 확인하기',
+                      'Q-Net에서 자격 정보 확인하기',
                       style: TextStyle(
                         color: certificatePrimaryPink,
                         fontSize: 13,

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:add_2_calendar/add_2_calendar.dart';
 
 import '../../widgets/app_button.dart';
 import '../../widgets/app_main_background.dart';
@@ -451,9 +450,9 @@ class _TechnicalCertificateDetailPageState
       return;
     }
 
-    _GoalExamOption? selectedOption;
+    CertificateGoalOption? selectedOption;
 
-    final result = await showModalBottomSheet<_GoalExamOption>(
+    final result = await showModalBottomSheet<CertificateGoalOption>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -628,7 +627,7 @@ class _TechnicalCertificateDetailPageState
                                             const SizedBox(width: 9),
                                             Expanded(
                                               child: Text(
-                                                _formatGoalExamDate(
+                                                formatCertificateGoalDate(
                                                   option.examDate,
                                                 ),
                                                 style:
@@ -702,8 +701,8 @@ class _TechnicalCertificateDetailPageState
     await _registerGoal(result);
   }
 
-  List<_GoalExamOption> _buildGoalExamOptions() {
-    final options = <_GoalExamOption>[];
+  List<CertificateGoalOption> _buildGoalExamOptions() {
+    final options = <CertificateGoalOption>[];
     final today = _dateOnly(DateTime.now());
 
     for (final schedule in _schedules) {
@@ -712,7 +711,7 @@ class _TechnicalCertificateDetailPageState
       if (writtenExamDate != null &&
           !_dateOnly(writtenExamDate).isBefore(today)) {
         options.add(
-          _GoalExamOption(
+          CertificateGoalOption(
             scheduleId: schedule.id,
             targetRound: schedule.title,
             examType: 'WRITTEN',
@@ -729,7 +728,7 @@ class _TechnicalCertificateDetailPageState
       if (practicalExamDate != null &&
           !_dateOnly(practicalExamDate).isBefore(today)) {
         options.add(
-          _GoalExamOption(
+          CertificateGoalOption(
             scheduleId: schedule.id,
             targetRound: schedule.title,
             examType: 'PRACTICAL',
@@ -752,7 +751,7 @@ class _TechnicalCertificateDetailPageState
   }
 
   Future<void> _registerGoal(
-      _GoalExamOption option,
+      CertificateGoalOption option,
       ) async {
     final certificate = _certificate;
 
@@ -765,30 +764,29 @@ class _TechnicalCertificateDetailPageState
     });
 
     try {
-      final goalId = await _technicalCertificateService
-          .addTechnicalCertificateGoal(
+      final goalId = await _certificateDetailService.addCertificateGoal(
         certificateId: widget.certificationId,
         scheduleId: option.scheduleId,
         certificateName: certificate.name,
+        qualificationType: 'TECHNICAL',
         targetExamDate: option.examDate,
         targetRound: option.targetRound,
         targetExamType: option.examType,
-        targetPassAnnouncementDate:
-        option.passAnnouncementDate,
-        targetPassAnnouncementEndDate:
-        option.passAnnouncementEndDate,
+        targetPassAnnouncementDate: option.passAnnouncementDate,
+        targetPassAnnouncementEndDate: option.passAnnouncementEndDate,
+        includeExamTypeInDuplicateCheck: true,
       );
 
       if (!mounted) {
         return;
       }
 
-      await _showCalendarLinkDialog(
+      await _handleCalendarLink(
         option: option,
         goalId: goalId,
         certificateName: certificate.name,
       );
-    } on TechnicalCertificateGoalException catch (error) {
+    } on CertificateGoalException catch (error) {
       if (!mounted) {
         return;
       }
@@ -819,111 +817,14 @@ class _TechnicalCertificateDetailPageState
     }
   }
 
-  Future<void> _showCalendarLinkDialog({
-    required _GoalExamOption option,
+  Future<void> _handleCalendarLink({
+    required CertificateGoalOption option,
     required String goalId,
     required String certificateName,
   }) async {
-    if (!mounted) {
-      return;
-    }
-
-    final shouldLinkCalendar = await showDialog<bool>(
+    final shouldLinkCalendar = await showCertificateCalendarLinkDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
-          ),
-          titlePadding: const EdgeInsets.fromLTRB(
-            24,
-            24,
-            24,
-            0,
-          ),
-          contentPadding: const EdgeInsets.fromLTRB(
-            24,
-            16,
-            24,
-            0,
-          ),
-          actionsPadding: const EdgeInsets.fromLTRB(
-            20,
-            20,
-            20,
-            20,
-          ),
-          title: const Row(
-            children: [
-              Icon(
-                Icons.event_available_outlined,
-                color: certificatePrimaryPink,
-                size: 24,
-              ),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  '캘린더에 추가할까요?',
-                  style: TextStyle(
-                    color: certificateDarkText,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          content: Text(
-            '${option.targetRound} ${option.examTypeName} 시험이 '
-                '목표로 등록되었습니다.\n\n'
-                '시험일: ${_formatGoalExamDate(option.examDate)}\n'
-                '휴대폰 캘린더에도 시험 일정을 추가하시겠습니까?',
-            style: const TextStyle(
-              color: certificateBodyText,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              height: 1.6,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, false);
-              },
-              child: const Text(
-                '연동 안 함',
-                style: TextStyle(
-                  color: certificateGrayText,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            FilledButton.icon(
-              onPressed: () {
-                Navigator.pop(dialogContext, true);
-              },
-              style: FilledButton.styleFrom(
-                backgroundColor: certificatePrimaryPink,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              icon: const Icon(
-                Icons.calendar_month_outlined,
-                size: 18,
-              ),
-              label: const Text(
-                '캘린더에 추가',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+      option: option,
     );
 
     if (!mounted) {
@@ -935,51 +836,18 @@ class _TechnicalCertificateDetailPageState
         SnackBar(
           content: Text(
             '${option.targetRound} ${option.examTypeName} 시험을 '
-                '목표로 등록했습니다.',
+            '목표로 등록했습니다.',
           ),
         ),
       );
-
       return;
     }
 
-    await _addGoalToDeviceCalendar(
-      option: option,
-      goalId: goalId,
-      certificateName: certificateName,
-    );
-  }
-
-  Future<void> _addGoalToDeviceCalendar({
-    required _GoalExamOption option,
-    required String goalId,
-    required String certificateName,
-  }) async {
-    final localExamDate = option.examDate.toLocal();
-
-    final calendarStartDate = DateTime(
-      localExamDate.year,
-      localExamDate.month,
-      localExamDate.day,
-    );
-
-    final calendarEndDate = calendarStartDate.add(
-      const Duration(days: 1),
-    );
-
-    final event = Event(
-      title: '$certificateName ${option.examTypeName} 시험',
-      description:
-      '목표 자격증: $certificateName\n'
-          '시험 회차: ${option.targetRound}\n'
-          '시험 유형: ${option.examTypeName}',
-      startDate: calendarStartDate,
-      endDate: calendarEndDate,
-      allDay: true,
-    );
-
     try {
-      final added = await Add2Calendar.addEvent2Cal(event);
+      final added = await addCertificateGoalToDeviceCalendar(
+        certificateName: certificateName,
+        option: option,
+      );
 
       if (!mounted) {
         return;
@@ -988,16 +856,13 @@ class _TechnicalCertificateDetailPageState
       if (!added) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              '캘린더 일정 추가가 취소되었습니다.',
-            ),
+            content: Text('캘린더 일정 추가가 취소되었습니다.'),
           ),
         );
-
         return;
       }
 
-      await _technicalCertificateService.updateGoalCalendarLinked(
+      await _certificateDetailService.updateGoalCalendarLinked(
         goalId: goalId,
         calendarLinked: true,
       );
@@ -1008,20 +873,16 @@ class _TechnicalCertificateDetailPageState
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            '시험 일정을 휴대폰 캘린더에 추가했습니다.',
-          ),
+          content: Text('시험 일정을 휴대폰 캘린더에 추가했습니다.'),
         ),
       );
-    } on TechnicalCertificateGoalException catch (error) {
+    } on CertificateGoalException catch (error) {
       if (!mounted) {
         return;
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error.message),
-        ),
+        SnackBar(content: Text(error.message)),
       );
     } catch (_) {
       if (!mounted) {
@@ -1030,9 +891,7 @@ class _TechnicalCertificateDetailPageState
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            '휴대폰 캘린더에 일정을 추가하지 못했습니다.',
-          ),
+          content: Text('휴대폰 캘린더에 일정을 추가하지 못했습니다.'),
         ),
       );
     }
@@ -1046,18 +905,6 @@ class _TechnicalCertificateDetailPageState
       localDate.month,
       localDate.day,
     );
-  }
-
-  static String _formatGoalExamDate(DateTime date) {
-    final localDate = date.toLocal();
-
-    final year = localDate.year.toString();
-    final month =
-    localDate.month.toString().padLeft(2, '0');
-    final day =
-    localDate.day.toString().padLeft(2, '0');
-
-    return '$year.$month.$day';
   }
 
   Future<void> _openExamStandard() async {
@@ -1374,7 +1221,7 @@ class _TechnicalCertificateDetailPageState
           ),
           Tab(
             height: 44,
-            text: '시험 정보',
+            text: '자격 정보',
           ),
           Tab(
             height: 44,
@@ -1635,25 +1482,4 @@ class _TechnicalDetailEmptyTab extends StatelessWidget {
       ),
     );
   }
-}
-
-class _GoalExamOption {
-  final String scheduleId;
-  final String targetRound;
-  final String examType;
-  final String examTypeName;
-  final DateTime examDate;
-
-  final DateTime? passAnnouncementDate;
-  final DateTime? passAnnouncementEndDate;
-
-  const _GoalExamOption({
-    required this.scheduleId,
-    required this.targetRound,
-    required this.examType,
-    required this.examTypeName,
-    required this.examDate,
-    required this.passAnnouncementDate,
-    required this.passAnnouncementEndDate,
-  });
 }
