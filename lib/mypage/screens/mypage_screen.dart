@@ -41,6 +41,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
   bool _isLoadingProfile = true;
   int _weeklyStudyMinutes = 0;
   int _joinedStudyCount = 0;
+  int _postCount = 0;
 
   @override
   void initState() {
@@ -60,12 +61,14 @@ class _MyPageScreenState extends State<MyPageScreen> {
       setState(() {
         _weeklyStudyMinutes = 0;
         _joinedStudyCount = 0;
+        _postCount = 0;
       });
       return;
     }
 
     int weeklyStudyMinutes = _weeklyStudyMinutes;
     int joinedStudyCount = _joinedStudyCount;
+    int postCount = _postCount;
     bool hasLoadError = false;
 
     try {
@@ -80,6 +83,12 @@ class _MyPageScreenState extends State<MyPageScreen> {
       hasLoadError = true;
     }
 
+    try {
+      postCount = await _loadMyPostCount(user.uid);
+    } catch (error) {
+      hasLoadError = true;
+    }
+
     if (!mounted) {
       return;
     }
@@ -87,6 +96,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
     setState(() {
       _weeklyStudyMinutes = weeklyStudyMinutes;
       _joinedStudyCount = joinedStudyCount;
+      _postCount = postCount;
     });
 
     if (hasLoadError) {
@@ -183,6 +193,52 @@ class _MyPageScreenState extends State<MyPageScreen> {
     }
 
     return joinedStudyCount;
+  }
+
+  Future<int> _loadMyPostCount(String uid) async {
+    final QuerySnapshot<Map<String, dynamic>> postSnapshot =
+    await FirebaseFirestore.instance
+        .collection('posts')
+        .where(
+      'writerUid',
+      isEqualTo: uid,
+    )
+        .get();
+
+    int postCount = 0;
+
+    for (final QueryDocumentSnapshot<Map<String, dynamic>> document
+    in postSnapshot.docs) {
+      final Map<String, dynamic> data = document.data();
+
+      final String postStatus =
+      (data['postStatus'] as String? ?? 'NORMAL')
+          .trim()
+          .toUpperCase();
+
+      final String visibility =
+      (data['visibility'] as String? ?? 'PUBLIC')
+          .trim()
+          .toUpperCase();
+
+      final dynamic deletedAt = data['deletedAt'];
+
+      if (postStatus != 'NORMAL') {
+        continue;
+      }
+
+      if (visibility != 'PUBLIC') {
+        continue;
+      }
+
+      if (deletedAt != null) {
+        continue;
+      }
+
+      postCount++;
+    }
+
+    return postCount;
   }
 
   String _formatDateId(DateTime date) {
@@ -356,7 +412,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
               MyPageSummaryCard(
                 studyMinutes: _weeklyStudyMinutes,
                 studyGroupCount: _joinedStudyCount,
-                postCount: 0,
+                postCount: _postCount,
                 onStudyTap: () async {
                   await _openPageAndRefreshSummary(
                     context,
@@ -369,8 +425,8 @@ class _MyPageScreenState extends State<MyPageScreen> {
                     const JoinedStudyScreen(),
                   );
                 },
-                onPostTap: () {
-                  _openPage(
+                onPostTap: () async {
+                  await _openPageAndRefreshSummary(
                     context,
                     const MyPostsScreen(),
                   );
@@ -459,8 +515,8 @@ class _MyPageScreenState extends State<MyPageScreen> {
                       icon: Icons.article_outlined,
                       title: '내가 쓴 글',
                       subtitle: '작성한 게시글을 확인합니다.',
-                      onTap: () {
-                        _openPage(
+                      onTap: () async {
+                        await _openPageAndRefreshSummary(
                           context,
                           const MyPostsScreen(),
                         );
