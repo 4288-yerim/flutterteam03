@@ -11,6 +11,7 @@ import '../widgets/app_card.dart';
 import '../widgets/app_top_bar.dart';
 import 'study_add.dart';
 import 'study_detail.dart';
+import 'study_join_requests.dart';
 import 'study_room.dart';
 
 /// 스터디 목록 페이지만 단독 실행할 때 사용
@@ -227,6 +228,21 @@ class _StudyListPageState extends State<StudyListPage> {
           return StudyRoomPage(
             studyId: studyId,
             groupName: groupName,
+          );
+        },
+      ),
+    );
+  }
+
+  void _openJoinRequests(String studyId) {
+    FocusScope.of(context).unfocus();
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) {
+          return StudyJoinRequestsPage(
+            studyId: studyId,
           );
         },
       ),
@@ -591,6 +607,10 @@ class _StudyListPageState extends State<StudyListPage> {
                           ),
                         ],
                       ),
+                      if (isOwner)
+                        _buildJoinRequestNotice(
+                          studyDocument.id,
+                        ),
                       SizedBox(height: 8),
                       Text(
                         groupName,
@@ -678,6 +698,119 @@ class _StudyListPageState extends State<StudyListPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildJoinRequestNotice(
+      String studyId,
+      ) {
+    return StreamBuilder<
+        QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('studyGroups')
+          .doc(studyId)
+          .collection('members')
+          .where(
+        'status',
+        isEqualTo: 'PENDING',
+      )
+          .snapshots(),
+      builder: (context, snapshot) {
+        int pendingCount = 0;
+
+        if (snapshot.hasData) {
+          pendingCount = snapshot.data!.docs.length;
+        }
+
+        if (pendingCount == 0) {
+          return SizedBox();
+        }
+
+        return Padding(
+          padding: EdgeInsets.only(top: 9),
+          child: Material(
+            color: _studyColors.pinkSoft,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              onTap: () {
+                _openJoinRequests(studyId);
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: 11,
+                  vertical: 9,
+                ),
+                child: Row(
+                  children: [
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Icon(
+                          Icons.notifications_active_outlined,
+                          size: 21,
+                          color: _studyColors.pinkStart,
+                        ),
+                        Positioned(
+                          right: -5,
+                          top: -6,
+                          child: Container(
+                            constraints: BoxConstraints(
+                              minWidth: 17,
+                              minHeight: 17,
+                            ),
+                            alignment: Alignment.center,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _studyColors.pinkStart,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              '$pendingCount',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        '새 참여 신청이 $pendingCount건 있어요.',
+                        style: TextStyle(
+                          color: _studyColors.textPrimary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '확인',
+                      style: TextStyle(
+                        color: _studyColors.pinkStart,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(width: 2),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 19,
+                      color: _studyColors.pinkStart,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
