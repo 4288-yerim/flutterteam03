@@ -6,6 +6,7 @@ import '../widgets/app_main_background.dart';
 import '../widgets/app_state_views.dart';
 import '../widgets/app_top_bar.dart';
 import 'community_models.dart';
+import 'community_post_add.dart';
 import 'community_post_detail.dart';
 import 'community_service.dart';
 
@@ -80,19 +81,28 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
     );
   }
 
-  void _openWriter() {
+  Future<void> _openWriter() async {
     if (widget.onWritePressed != null) {
       widget.onWritePressed!();
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          '게시글 작성 화면은 다음 단계에서 연결할게요.',
-        ),
+    String? postId = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (context) {
+          return CommunityPostAddPage(
+            service: _service,
+          );
+        },
       ),
     );
+
+    if (!mounted || postId == null) {
+      return;
+    }
+
+    _openPost(postId);
   }
 
   void _resetFilters() {
@@ -107,26 +117,11 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
 
   @override
   Widget build(BuildContext context) {
-    final AppColors colors = context.communityColors;
-
     return Scaffold(
       extendBodyBehindAppBar: true,
 
-      appBar: AppTopBar(
+      appBar: const AppTopBar(
         title: '커뮤니티',
-        actions: [
-          IconButton(
-            tooltip: '검색',
-            onPressed: () {
-              _searchFocusNode.requestFocus();
-            },
-            icon: Icon(
-              Icons.search_rounded,
-              color: colors.textPrimary,
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
       ),
 
       body: AppMainBackground(
@@ -165,7 +160,7 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
 
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openWriter,
-        backgroundColor: colors.pinkStart,
+        backgroundColor: context.communityColors.pinkStart,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.edit_rounded),
         label: const Text(
@@ -204,155 +199,127 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
           const Duration(milliseconds: 300),
         );
       },
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          20,
-          16,
-          20,
-          110,
-        ),
-        children: [
-          _buildIntroCard(),
-
-          const SizedBox(height: 16),
-
-          _buildSearchField(),
-
-          const SizedBox(height: 14),
-
-          _buildBoardChips(),
-
-          if (certificates.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _buildCertificateChips(certificates),
-          ],
-
-          const SizedBox(height: 24),
-
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                  CrossAxisAlignment.start,
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(
+              20,
+              16,
+              20,
+              0,
+            ),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                _buildSearchField(),
+                const SizedBox(height: 14),
+                _buildBoardChips(),
+                if (certificates.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _buildCertificateChips(certificates),
+                ],
+                const SizedBox(height: 24),
+                Row(
                   children: [
-                    Text(
-                      _selectedBoard ==
-                          CommunityBoardType.all
-                          ? '전체 게시글'
-                          : '${_selectedBoard.label} 게시판',
-                      style: TextStyle(
-                        color: context
-                            .communityColors.textPrimary,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _selectedBoard ==
+                                CommunityBoardType.all
+                                ? '전체 게시글'
+                                : '${_selectedBoard.label} 게시판',
+                            style: TextStyle(
+                              color: context
+                                  .communityColors.textPrimary,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            '${posts.length}개의 글',
+                            style: TextStyle(
+                              color: context
+                                  .communityColors.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '${posts.length}개의 글',
-                      style: TextStyle(
-                        color: context
-                            .communityColors.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
+                    _buildSortMenu(),
                   ],
                 ),
-              ),
-
-              _buildSortMenu(),
-            ],
+                const SizedBox(height: 12),
+              ]),
+            ),
           ),
-
-          const SizedBox(height: 12),
-
           if (allPosts.isEmpty)
-            _buildEmptyCard(
-              message: '아직 게시글이 없어요.',
-              description:
-              '첫 번째 이야기를 남겨 보세요.',
-              buttonText: '첫 글 작성하기',
-              onPressed: _openWriter,
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(
+                20,
+                0,
+                20,
+                110,
+              ),
+              sliver: SliverToBoxAdapter(
+                child: _buildEmptyCard(
+                  message: '아직 게시글이 없어요.',
+                  description: '첫 번째 이야기를 남겨 보세요.',
+                  buttonText: '첫 글 작성하기',
+                  onPressed: _openWriter,
+                ),
+              ),
             )
           else if (posts.isEmpty)
-            _buildEmptyCard(
-              message: '조건에 맞는 게시글이 없어요.',
-              description:
-              '검색어나 필터를 바꿔 보세요.',
-              buttonText: '필터 초기화',
-              onPressed: _resetFilters,
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(
+                20,
+                0,
+                20,
+                110,
+              ),
+              sliver: SliverToBoxAdapter(
+                child: _buildEmptyCard(
+                  message: '조건에 맞는 게시글이 없어요.',
+                  description: '검색어나 필터를 바꿔 보세요.',
+                  buttonText: '필터 초기화',
+                  onPressed: _resetFilters,
+                ),
+              ),
             )
           else
-            ...posts.map(
-                  (post) {
-                return Padding(
-                  padding:
-                  const EdgeInsets.only(bottom: 12),
-                  child: _CommunityPostCard(
-                    post: post,
-                    onTap: () {
-                      _openPost(post.id);
-                    },
-                  ),
-                );
-              },
-            ),
-        ],
-      ),
-    );
-  }
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(
+                20,
+                0,
+                20,
+                110,
+              ),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                    CommunityPost post = posts[index];
 
-  Widget _buildIntroCard() {
-    return AppCard(
-      padding: const EdgeInsets.all(18),
-      backgroundColor:
-      context.communityColors.pinkSoft,
-      child: Row(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Icon(
-              Icons.forum_rounded,
-              color: context.communityColors.pinkStart,
-            ),
-          ),
-
-          const SizedBox(width: 13),
-
-          Expanded(
-            child: Column(
-              crossAxisAlignment:
-              CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '함께하면 공부가 더 쉬워져요',
-                  style: TextStyle(
-                    color: context
-                        .communityColors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
+                    return Padding(
+                      padding: const EdgeInsets.only(
+                        bottom: 12,
+                      ),
+                      child: _CommunityPostCard(
+                        post: post,
+                        onTap: () {
+                          _openPost(post.id);
+                        },
+                      ),
+                    );
+                  },
+                  childCount: posts.length,
                 ),
-
-                const SizedBox(height: 4),
-
-                Text(
-                  '질문, 합격 후기, 공부 팁과 스터디를 나눠 보세요.',
-                  style: TextStyle(
-                    color: context
-                        .communityColors.textSecondary,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
         ],
       ),
     );

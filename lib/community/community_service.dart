@@ -79,7 +79,12 @@ class CommunityService {
     });
   }
 
+  String createPostId() {
+    return _firestore.collection('posts').doc().id;
+  }
+
   Future<String> addPost({
+    String? postId,
     required CommunityBoardType boardType,
     required String title,
     required String content,
@@ -89,10 +94,14 @@ class CommunityService {
     required bool isCertifiedWriter,
     List<CommunityCertificateTag> certificateTags =
     const [],
+    List<Map<String, dynamic>> imageAttachments =
+    const [],
+    List<Map<String, dynamic>> fileAttachments =
+    const [],
   }) async {
     DocumentReference<Map<String, dynamic>>
     document =
-    _firestore.collection('posts').doc();
+    _firestore.collection('posts').doc(postId);
 
     await document.set({
       'boardType': boardType.code,
@@ -107,10 +116,8 @@ class CommunityService {
       certificateTags.map((tag) {
         return tag.toMap();
       }).toList(),
-      'imageAttachments':
-      <Map<String, dynamic>>[],
-      'fileAttachments':
-      <Map<String, dynamic>>[],
+      'imageAttachments': imageAttachments,
+      'fileAttachments': fileAttachments,
       'viewCount': 0,
       'commentCount': 0,
       'likeCount': 0,

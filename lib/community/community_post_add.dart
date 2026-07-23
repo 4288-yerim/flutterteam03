@@ -1,4 +1,6 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 
 import '../theme.dart';
@@ -30,11 +32,23 @@ class CommunityPostAddPage extends StatefulWidget {
 
 class _CommunityPostAddPageState
     extends State<CommunityPostAddPage> {
+  static const int _maxImageCount = 5;
+  static const int _maxFileCount = 3;
+  static const int _maxImageBytes = 10 * 1024 * 1024;
+  static const int _maxFileBytes = 20 * 1024 * 1024;
+
   late final CommunityService _service;
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _contentController = TextEditingController();
+  final TextEditingController _titleController =
+  TextEditingController();
+  final TextEditingController _contentController =
+  TextEditingController();
+  final TextEditingController _certificateController =
+  TextEditingController();
+
+  final List<PlatformFile> _selectedImages = [];
+  final List<PlatformFile> _selectedFiles = [];
 
   CommunityBoardType _selectedBoard = CommunityBoardType.free;
   bool _isSaving = false;
@@ -49,7 +63,150 @@ class _CommunityPostAddPageState
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
+    _certificateController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImages() async {
+    if (_isSaving) {
+      return;
+    }
+
+    int remaining = _maxImageCount - _selectedImages.length;
+
+    if (remaining <= 0) {
+      _showMessage('사진은 최대 $_maxImageCount장까지 첨부할 수 있어요.');
+      return;
+    }
+
+    FilePickerResult? result =
+    await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: true,
+      withData: true,
+    );
+
+    if (!mounted || result == null) {
+      return;
+    }
+
+    List<PlatformFile> accepted = [];
+
+    for (PlatformFile file in result.files) {
+      if (file.bytes == null) {
+        continue;
+      }
+
+      if (file.size > _maxImageBytes) {
+        _showMessage('${file.name}은 10MB를 초과해 제외했어요.');
+        continue;
+      }
+
+      if (_containsFile(_selectedImages, file) ||
+          _containsFile(accepted, file)) {
+        continue;
+      }
+
+      accepted.add(file);
+
+      if (accepted.length == remaining) {
+        break;
+      }
+    }
+
+    if (accepted.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _selectedImages.addAll(accepted);
+    });
+  }
+
+  Future<void> _pickFiles() async {
+    if (_isSaving) {
+      return;
+    }
+
+    int remaining = _maxFileCount - _selectedFiles.length;
+
+    if (remaining <= 0) {
+      _showMessage('파일은 최대 $_maxFileCount개까지 첨부할 수 있어요.');
+      return;
+    }
+
+    FilePickerResult? result =
+    await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const [
+        'pdf',
+        'doc',
+        'docx',
+        'hwp',
+        'hwpx',
+        'xls',
+        'xlsx',
+        'ppt',
+        'pptx',
+        'txt',
+        'zip',
+      ],
+      allowMultiple: true,
+      withData: true,
+    );
+
+    if (!mounted || result == null) {
+      return;
+    }
+
+    List<PlatformFile> accepted = [];
+
+    for (PlatformFile file in result.files) {
+      if (file.bytes == null) {
+        continue;
+      }
+
+      if (file.size > _maxFileBytes) {
+        _showMessage('${file.name}은 20MB를 초과해 제외했어요.');
+        continue;
+      }
+
+      if (_containsFile(_selectedFiles, file) ||
+          _containsFile(accepted, file)) {
+        continue;
+      }
+
+      accepted.add(file);
+
+      if (accepted.length == remaining) {
+        break;
+      }
+    }
+
+    if (accepted.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _selectedFiles.addAll(accepted);
+    });
+  }
+
+  bool _containsFile(
+      List<PlatformFile> files,
+      PlatformFile target,
+      ) {
+    return files.any((file) {
+      return file.name == target.name && file.size == target.size;
+    });
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+      ),
+    );
   }
 
   Future<void> _savePost() async {
@@ -66,11 +223,7 @@ class _CommunityPostAddPageState
     User? user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('로그인 후 게시글을 작성할 수 있어요.'),
-        ),
-      );
+      _showMessage('로그인 후 게시글을 작성할 수 있어요.');
       return;
     }
 
@@ -85,15 +238,23 @@ class _CommunityPostAddPageState
     if (nickname.isEmpty) {
       String email = user.email?.trim() ?? '';
 
-      if (email.contains('@')) {
-        nickname = email.split('@').first;
-      } else {
-        nickname = '사용자';
-      }
+      nickname = email.contains('@')
+          ? email.split('@').first
+          : '사용자';
     }
 
+    String postId = _service.createPostId();
+    List<String> uploadedPaths = [];
+
     try {
-      String postId = await _service.addPost(
+      _AttachmentUploadResult attachments =
+      await _uploadAttachments(
+        postId: postId,
+        uploadedPaths: uploadedPaths,
+      );
+
+      await _service.addPost(
+        postId: postId,
         boardType: _selectedBoard,
         title: _titleController.text.trim(),
         content: _contentController.text.trim(),
@@ -101,6 +262,9 @@ class _CommunityPostAddPageState
         writerNickname: nickname,
         writerProfileImageUrl: user.photoURL ?? '',
         isCertifiedWriter: false,
+        certificateTags: _readCertificateTags(),
+        imageAttachments: attachments.images,
+        fileAttachments: attachments.files,
       );
 
       if (!mounted) {
@@ -109,6 +273,8 @@ class _CommunityPostAddPageState
 
       Navigator.pop(context, postId);
     } catch (error) {
+      await _deleteUploadedFiles(uploadedPaths);
+
       if (!mounted) {
         return;
       }
@@ -117,35 +283,168 @@ class _CommunityPostAddPageState
         _isSaving = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('게시글을 저장하지 못했어요. 다시 시도해 주세요.'),
+      _showMessage('게시글을 저장하지 못했어요. 다시 시도해 주세요.');
+    }
+  }
+
+  List<CommunityCertificateTag> _readCertificateTags() {
+    List<String> names = _certificateController.text
+        .split(',')
+        .map((name) => name.trim())
+        .where((name) => name.isNotEmpty)
+        .toSet()
+        .take(3)
+        .toList();
+
+    return names.map((name) {
+      String certificateId = name
+          .toLowerCase()
+          .replaceAll(RegExp(r'\s+'), '-');
+
+      return CommunityCertificateTag(
+        certificateId: certificateId,
+        certificateName: name,
+      );
+    }).toList();
+  }
+
+  Future<_AttachmentUploadResult> _uploadAttachments({
+    required String postId,
+    required List<String> uploadedPaths,
+  }) async {
+    List<Map<String, dynamic>> images = [];
+    List<Map<String, dynamic>> files = [];
+    FirebaseStorage storage = FirebaseStorage.instance;
+
+    for (int index = 0;
+    index < _selectedImages.length;
+    index++) {
+      PlatformFile file = _selectedImages[index];
+      String path =
+          'community/posts/$postId/images/'
+          '${DateTime.now().microsecondsSinceEpoch}_${index}_'
+          '${_safeFileName(file.name)}';
+
+      Reference reference = storage.ref(path);
+
+      await reference.putData(
+        file.bytes!,
+        SettableMetadata(
+          contentType: _imageContentType(file.extension),
         ),
       );
+
+      uploadedPaths.add(path);
+
+      images.add({
+        'url': await reference.getDownloadURL(),
+        'path': path,
+      });
+    }
+
+    for (int index = 0;
+    index < _selectedFiles.length;
+    index++) {
+      PlatformFile file = _selectedFiles[index];
+      String path =
+          'community/posts/$postId/files/'
+          '${DateTime.now().microsecondsSinceEpoch}_${index}_'
+          '${_safeFileName(file.name)}';
+
+      Reference reference = storage.ref(path);
+
+      await reference.putData(
+        file.bytes!,
+        SettableMetadata(
+          contentType: 'application/octet-stream',
+          customMetadata: {
+            'originalName': file.name,
+          },
+        ),
+      );
+
+      uploadedPaths.add(path);
+
+      files.add({
+        'name': file.name,
+        'url': await reference.getDownloadURL(),
+        'path': path,
+      });
+    }
+
+    return _AttachmentUploadResult(
+      images: images,
+      files: files,
+    );
+  }
+
+  Future<void> _deleteUploadedFiles(
+      List<String> uploadedPaths,
+      ) async {
+    for (String path in uploadedPaths) {
+      try {
+        await FirebaseStorage.instance.ref(path).delete();
+      } catch (error) {
+        // 저장 실패 정리 중 일부 파일이 이미 없어도 계속 진행합니다.
+      }
+    }
+  }
+
+  String _safeFileName(String name) {
+    return name.replaceAll(
+      RegExp(r'[^a-zA-Z0-9가-힣._-]'),
+      '_',
+    );
+  }
+
+  String _imageContentType(String? extension) {
+    switch (extension?.toLowerCase()) {
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'webp':
+        return 'image/webp';
+      case 'heic':
+        return 'image/heic';
+      default:
+        return 'image/jpeg';
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: const AppTopBar(
-        title: '게시글 작성',
-      ),
-      body: AppMainBackground(
-        child: Padding(
-          padding: const EdgeInsets.only(top: kToolbarHeight),
-          child: Form(
-            key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 40),
-              children: [
-                _buildGuideCard(),
-                const SizedBox(height: 16),
-                _buildPostForm(),
-                const SizedBox(height: 20),
-                _buildSaveButton(),
-              ],
+    return PopScope(
+      canPop: !_isSaving,
+      child: Scaffold(
+        extendBodyBehindAppBar: true,
+        appBar: const AppTopBar(
+          title: '게시글 작성',
+        ),
+        body: AppMainBackground(
+          child: Padding(
+            padding: const EdgeInsets.only(
+              top: kToolbarHeight,
+            ),
+            child: Form(
+              key: _formKey,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(
+                  20,
+                  18,
+                  20,
+                  40,
+                ),
+                children: [
+                  _buildGuideCard(),
+                  const SizedBox(height: 16),
+                  _buildPostForm(),
+                  const SizedBox(height: 16),
+                  _buildAttachmentCard(),
+                  const SizedBox(height: 20),
+                  _buildSaveButton(),
+                ],
+              ),
             ),
           ),
         ),
@@ -168,7 +467,8 @@ class _CommunityPostAddPageState
           const SizedBox(width: 11),
           Expanded(
             child: Text(
-              '게시판을 선택하고 함께 나누고 싶은 내용을 작성해 주세요.',
+              '자격증 태그와 학습 자료를 함께 올리면 '
+                  '필요한 사람에게 글이 더 잘 보여요.',
               style: TextStyle(
                 color: context.communityColors.textPrimary,
                 fontSize: 13,
@@ -196,8 +496,9 @@ class _CommunityPostAddPageState
               hintText: '게시판을 선택해 주세요.',
             ),
             items: CommunityBoardType.values
-                .where((board) => board != CommunityBoardType.all)
-                .map((board) {
+                .where((board) {
+              return board != CommunityBoardType.all;
+            }).map((board) {
               return DropdownMenuItem<CommunityBoardType>(
                 value: board,
                 child: Text(board.label),
@@ -216,6 +517,40 @@ class _CommunityPostAddPageState
             },
           ),
           const SizedBox(height: 20),
+          _buildFieldTitle('관련 자격증 (선택)'),
+          const SizedBox(height: 5),
+          Text(
+            '쉼표로 구분해 최대 3개까지 입력해 주세요.',
+            style: TextStyle(
+              color: context.communityColors.textSecondary,
+              fontSize: 11,
+            ),
+          ),
+          const SizedBox(height: 9),
+          TextFormField(
+            controller: _certificateController,
+            enabled: !_isSaving,
+            maxLength: 80,
+            textInputAction: TextInputAction.next,
+            decoration: _inputDecoration(
+              hintText: '예: 정보처리기사, 컴퓨터활용능력',
+            ),
+            validator: (value) {
+              int count = (value ?? '')
+                  .split(',')
+                  .map((name) => name.trim())
+                  .where((name) => name.isNotEmpty)
+                  .toSet()
+                  .length;
+
+              if (count > 3) {
+                return '자격증 태그는 최대 3개까지 입력해 주세요.';
+              }
+
+              return null;
+            },
+          ),
+          const SizedBox(height: 14),
           _buildFieldTitle('제목'),
           const SizedBox(height: 9),
           TextFormField(
@@ -273,6 +608,204 @@ class _CommunityPostAddPageState
     );
   }
 
+  Widget _buildAttachmentCard() {
+    return AppCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildFieldTitle('첨부'),
+          const SizedBox(height: 5),
+          Text(
+            '사진은 최대 5장·각 10MB, 파일은 최대 3개·각 20MB예요.',
+            style: TextStyle(
+              color: context.communityColors.textSecondary,
+              fontSize: 11,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 13),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isSaving ? null : _pickImages,
+                  icon: const Icon(
+                    Icons.add_photo_alternate_outlined,
+                  ),
+                  label: Text(
+                    '사진 ${_selectedImages.length}/$_maxImageCount',
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isSaving ? null : _pickFiles,
+                  icon: const Icon(
+                    Icons.attach_file_rounded,
+                  ),
+                  label: Text(
+                    '파일 ${_selectedFiles.length}/$_maxFileCount',
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (_selectedImages.isNotEmpty) ...[
+            const SizedBox(height: 15),
+            _buildSelectedImages(),
+          ],
+          if (_selectedFiles.isNotEmpty) ...[
+            const SizedBox(height: 15),
+            _buildSelectedFiles(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSelectedImages() {
+    return SizedBox(
+      height: 92,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _selectedImages.length,
+        separatorBuilder: (context, index) {
+          return const SizedBox(width: 9);
+        },
+        itemBuilder: (context, index) {
+          PlatformFile file = _selectedImages[index];
+
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.memory(
+                  file.bytes!,
+                  width: 92,
+                  height: 92,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              Positioned(
+                top: 4,
+                right: 4,
+                child: InkWell(
+                  onTap: _isSaving
+                      ? null
+                      : () {
+                    setState(() {
+                      _selectedImages.removeAt(index);
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    width: 25,
+                    height: 25,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black54,
+                    ),
+                    child: const Icon(
+                      Icons.close_rounded,
+                      size: 17,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSelectedFiles() {
+    return Column(
+      children: List.generate(
+        _selectedFiles.length,
+            (index) {
+          PlatformFile file = _selectedFiles[index];
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(
+              left: 12,
+              top: 7,
+              bottom: 7,
+            ),
+            decoration: BoxDecoration(
+              color: context.communityColors.softBlue,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.insert_drive_file_outlined,
+                  size: 20,
+                  color: context.communityColors.pinkStart,
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        file.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color:
+                          context.communityColors.textPrimary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _formatFileSize(file.size),
+                        style: TextStyle(
+                          color:
+                          context.communityColors.textSecondary,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: '첨부 삭제',
+                  onPressed: _isSaving
+                      ? null
+                      : () {
+                    setState(() {
+                      _selectedFiles.removeAt(index);
+                    });
+                  },
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    size: 19,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  String _formatFileSize(int bytes) {
+    if (bytes >= 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
+    }
+
+    return '${(bytes / 1024).toStringAsFixed(1)}KB';
+  }
+
   Widget _buildFieldTitle(String title) {
     return Text(
       title,
@@ -320,11 +853,15 @@ class _CommunityPostAddPageState
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Colors.redAccent),
+        borderSide: const BorderSide(
+          color: Colors.redAccent,
+        ),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Colors.redAccent),
+        borderSide: const BorderSide(
+          color: Colors.redAccent,
+        ),
       ),
     );
   }
@@ -344,13 +881,20 @@ class _CommunityPostAddPageState
           ),
         ),
         child: _isSaving
-            ? const SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.3,
-            color: Colors.white,
-          ),
+            ? const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.2,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(width: 10),
+            Text('업로드 중'),
+          ],
         )
             : const Text(
           '게시글 등록',
@@ -362,4 +906,14 @@ class _CommunityPostAddPageState
       ),
     );
   }
+}
+
+class _AttachmentUploadResult {
+  final List<Map<String, dynamic>> images;
+  final List<Map<String, dynamic>> files;
+
+  const _AttachmentUploadResult({
+    required this.images,
+    required this.files,
+  });
 }
