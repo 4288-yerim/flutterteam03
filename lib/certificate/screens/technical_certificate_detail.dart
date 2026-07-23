@@ -61,10 +61,10 @@ class _TechnicalCertificateDetailPageState
   );
 
   final CertificateDetailService _certificateDetailService =
-      CertificateDetailService();
+  CertificateDetailService();
 
   final TechnicalCertificateService _technicalCertificateService =
-      TechnicalCertificateService();
+  TechnicalCertificateService();
 
   late final TabController _tabController;
 
@@ -84,7 +84,27 @@ class _TechnicalCertificateDetailPageState
   String? _examSubjectError;
   List<TechnicalExamSubject> _examSubjects = [];
 
+  bool _isLoadingPracticalMaterials = false;
+  bool _hasRequestedPracticalMaterials = false;
+  String? _practicalMaterialError;
+  List<TechnicalPracticalExamMaterial> _practicalMaterials = [];
+  bool _hasStoredPracticalMaterials = false;
+  int? _storedPracticalMaterialsYear;
+
+  PracticalMaterialPrecautions
+  _practicalMaterialPrecautions =
+  const PracticalMaterialPrecautions.empty();
   bool _isRegisteringGoal = false;
+
+  bool _hasRequestedStatistics = false;
+
+  bool _isLoadingWrittenStatistics = false;
+  String? _writtenStatisticsError;
+  List<TechnicalExamStatistic> _writtenStatistics = [];
+
+  bool _isLoadingPracticalStatistics = false;
+  String? _practicalStatisticsError;
+  List<TechnicalExamStatistic> _practicalStatistics = [];
 
   @override
   void initState() {
@@ -112,6 +132,11 @@ class _TechnicalCertificateDetailPageState
     setState(() {
       _selectedTabIndex = _tabController.index;
     });
+
+    if (_tabController.index == 3 && !_hasRequestedStatistics) {
+      _hasRequestedStatistics = true;
+      _loadAllStatistics();
+    }
   }
 
   @override
@@ -158,8 +183,14 @@ class _TechnicalCertificateDetailPageState
         return;
       }
 
+      final storedPracticalMaterialsFuture =
+      _technicalCertificateService.getStoredPracticalMaterials(
+        jmCd: certificate.jmcd,
+      );
+
       final schedules = await schedulesFuture;
       final examDetails = await examDetailsFuture;
+      final storedPracticalMaterials = await storedPracticalMaterialsFuture;
 
       if (!mounted) {
         return;
@@ -169,6 +200,18 @@ class _TechnicalCertificateDetailPageState
         _certificate = certificate;
         _schedules = schedules;
         _examDetails = examDetails;
+        _hasStoredPracticalMaterials = storedPracticalMaterials != null;
+        _storedPracticalMaterialsYear =
+            storedPracticalMaterials?.implementationYear;
+        _practicalMaterials =
+            storedPracticalMaterials?.items ?? [];
+
+        _practicalMaterialPrecautions =
+            storedPracticalMaterials?.precautions ??
+                const PracticalMaterialPrecautions.empty();
+
+        _hasRequestedPracticalMaterials =
+            storedPracticalMaterials != null;
         _isLoading = false;
       });
     } on CertificateDetailException catch (error) {
@@ -207,7 +250,7 @@ class _TechnicalCertificateDetailPageState
 
     try {
       final subjects =
-          await _technicalCertificateService.getExamSubjects(
+      await _technicalCertificateService.getExamSubjects(
         jmCd: certificate.jmcd,
       );
 
@@ -241,6 +284,148 @@ class _TechnicalCertificateDetailPageState
         _hasRequestedExamSubjects = true;
         _isLoadingExamSubjects = false;
         _examSubjectError = '시험 교시·과목 정보를 불러오지 못했습니다.';
+      });
+    }
+  }
+
+
+  Future<void> _loadPracticalMaterials({
+    required String implementationYear,
+    required String implementationSequence,
+  }) async {
+    final certificate = _certificate;
+
+    if (certificate == null || _isLoadingPracticalMaterials) {
+      return;
+    }
+
+    setState(() {
+      _isLoadingPracticalMaterials = true;
+      _practicalMaterialError = null;
+    });
+
+    try {
+      final materials =
+      await _technicalCertificateService.getPracticalExamMaterials(
+        jmCd: certificate.jmcd,
+        implementationYear: implementationYear,
+        implementationSequence: implementationSequence,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _practicalMaterials = materials;
+        _hasRequestedPracticalMaterials = true;
+        _isLoadingPracticalMaterials = false;
+      });
+    } on CertificateDetailException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _practicalMaterials = [];
+        _hasRequestedPracticalMaterials = true;
+        _isLoadingPracticalMaterials = false;
+        _practicalMaterialError = error.message;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _practicalMaterials = [];
+        _hasRequestedPracticalMaterials = true;
+        _isLoadingPracticalMaterials = false;
+        _practicalMaterialError =
+        '실기시험 지참 준비물을 불러오지 못했습니다.';
+      });
+    }
+  }
+
+  void _loadAllStatistics() {
+    _loadWrittenStatistics();
+    _loadPracticalStatistics();
+  }
+
+  Future<void> _loadWrittenStatistics() async {
+    final certificate = _certificate;
+    if (certificate == null || _isLoadingWrittenStatistics) {
+      return;
+    }
+
+    setState(() {
+      _isLoadingWrittenStatistics = true;
+      _writtenStatisticsError = null;
+    });
+
+    try {
+      final statistics =
+      await _technicalCertificateService.getWrittenStatistics(
+        jmCd: certificate.jmcd,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _writtenStatistics = statistics;
+        _isLoadingWrittenStatistics = false;
+      });
+    } on CertificateDetailException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _writtenStatistics = [];
+        _writtenStatisticsError = error.message;
+        _isLoadingWrittenStatistics = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _writtenStatistics = [];
+        _writtenStatisticsError = '필기시험 통계를 불러오지 못했습니다.';
+        _isLoadingWrittenStatistics = false;
+      });
+    }
+  }
+
+  Future<void> _loadPracticalStatistics() async {
+    final certificate = _certificate;
+    if (certificate == null || _isLoadingPracticalStatistics) {
+      return;
+    }
+
+    setState(() {
+      _isLoadingPracticalStatistics = true;
+      _practicalStatisticsError = null;
+    });
+
+    try {
+      final statistics =
+      await _technicalCertificateService.getPracticalStatistics(
+        jmCd: certificate.jmcd,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _practicalStatistics = statistics;
+        _isLoadingPracticalStatistics = false;
+      });
+    } on CertificateDetailException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _practicalStatistics = [];
+        _practicalStatisticsError = error.message;
+        _isLoadingPracticalStatistics = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _practicalStatistics = [];
+        _practicalStatisticsError = '실기시험 통계를 불러오지 못했습니다.';
+        _isLoadingPracticalStatistics = false;
       });
     }
   }
@@ -1151,77 +1336,77 @@ class _TechnicalCertificateDetailPageState
     );
   }
 
-Widget _buildDetailTabBar() {
-  return Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(5),
-    decoration: BoxDecoration(
-      color: Colors.white.withValues(alpha: 0.72),
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(
-        color: certificateBorderColor,
-      ),
-    ),
-    child: TabBar(
-      controller: _tabController,
-      isScrollable: false,
-      dividerColor: Colors.transparent,
-      indicatorSize: TabBarIndicatorSize.tab,
-      labelPadding: EdgeInsets.zero,
-      indicator: BoxDecoration(
-        color: certificatePinkSoft,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      labelColor: certificatePrimaryPink,
-      unselectedLabelColor: certificateGrayText,
-      labelStyle: const TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w800,
-      ),
-      unselectedLabelStyle: const TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-      ),
-      tabs: const [
-        Tab(
-          height: 44,
-          text: '시험 일정',
+  Widget _buildDetailTabBar() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: certificateBorderColor,
         ),
-        Tab(
-          height: 44,
-          text: '시험 정보',
+      ),
+      child: TabBar(
+        controller: _tabController,
+        isScrollable: false,
+        dividerColor: Colors.transparent,
+        indicatorSize: TabBarIndicatorSize.tab,
+        labelPadding: EdgeInsets.zero,
+        indicator: BoxDecoration(
+          color: certificatePinkSoft,
+          borderRadius: BorderRadius.circular(12),
         ),
-        Tab(
-          height: 44,
-          text: '추가 정보',
+        labelColor: certificatePrimaryPink,
+        unselectedLabelColor: certificateGrayText,
+        labelStyle: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w800,
         ),
-        Tab(
-          height: 44,
-          text: '통계',
+        unselectedLabelStyle: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
         ),
-      ],
-    ),
-  );
-}
-
-Widget _buildSelectedTabContent() {
-  switch (_selectedTabIndex) {
-    case 0:
-      return _buildScheduleTab();
-
-    case 1:
-      return _buildExamInformationTab();
-
-    case 2:
-      return _buildAdditionalInformationTab();
-
-    case 3:
-      return _buildStatisticsTab();
-
-    default:
-      return _buildScheduleTab();
+        tabs: const [
+          Tab(
+            height: 44,
+            text: '시험 일정',
+          ),
+          Tab(
+            height: 44,
+            text: '시험 정보',
+          ),
+          Tab(
+            height: 44,
+            text: '추가 정보',
+          ),
+          Tab(
+            height: 44,
+            text: '통계',
+          ),
+        ],
+      ),
+    );
   }
-}
+
+  Widget _buildSelectedTabContent() {
+    switch (_selectedTabIndex) {
+      case 0:
+        return _buildScheduleTab();
+
+      case 1:
+        return _buildExamInformationTab();
+
+      case 2:
+        return _buildAdditionalInformationTab();
+
+      case 3:
+        return _buildStatisticsTab();
+
+      default:
+        return _buildScheduleTab();
+    }
+  }
 
   Widget _buildScheduleTab() {
     if (_schedules.isEmpty) {
@@ -1234,93 +1419,113 @@ Widget _buildSelectedTabContent() {
       );
     }
 
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      ...List.generate(
-        _schedules.length,
-            (index) {
-          final schedule = _schedules[index];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ...List.generate(
+          _schedules.length,
+              (index) {
+            final schedule = _schedules[index];
 
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom:
-              index == _schedules.length - 1 ? 0 : 14,
-            ),
-            child: TechnicalScheduleCard(
-              title: schedule.title,
-              writtenRegistrationStartAt:
-              schedule.writtenRegistrationStartAt,
-              writtenRegistrationEndAt:
-              schedule.writtenRegistrationEndAt,
-              writtenExamStartAt:
-              schedule.writtenExamStartAt,
-              writtenExamEndAt:
-              schedule.writtenExamEndAt,
-              writtenPassAt:
-              schedule.writtenPassAt,
-              documentSubmitStartAt:
-              schedule.documentSubmitStartAt,
-              documentSubmitEndAt:
-              schedule.documentSubmitEndAt,
-              practicalRegistrationStartAt:
-              schedule.practicalRegistrationStartAt,
-              practicalRegistrationEndAt:
-              schedule.practicalRegistrationEndAt,
-              practicalExamStartAt:
-              schedule.practicalExamStartAt,
-              practicalExamEndAt:
-              schedule.practicalExamEndAt,
-              practicalPassStartAt:
-              schedule.practicalPassStartAt,
-              practicalPassEndAt:
-              schedule.practicalPassEndAt,
-            ),
-          );
-        },
-      ),
-      const SizedBox(height: 16),
-      CertificateScheduleNoticeCard(
-        onOpenNotice: _openScheduleNotice,
-      ),
-    ],
-  );
-}
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom:
+                index == _schedules.length - 1 ? 0 : 14,
+              ),
+              child: TechnicalScheduleCard(
+                title: schedule.title,
+                writtenRegistrationStartAt:
+                schedule.writtenRegistrationStartAt,
+                writtenRegistrationEndAt:
+                schedule.writtenRegistrationEndAt,
+                writtenExamStartAt:
+                schedule.writtenExamStartAt,
+                writtenExamEndAt:
+                schedule.writtenExamEndAt,
+                writtenPassAt:
+                schedule.writtenPassAt,
+                documentSubmitStartAt:
+                schedule.documentSubmitStartAt,
+                documentSubmitEndAt:
+                schedule.documentSubmitEndAt,
+                practicalRegistrationStartAt:
+                schedule.practicalRegistrationStartAt,
+                practicalRegistrationEndAt:
+                schedule.practicalRegistrationEndAt,
+                practicalExamStartAt:
+                schedule.practicalExamStartAt,
+                practicalExamEndAt:
+                schedule.practicalExamEndAt,
+                practicalPassStartAt:
+                schedule.practicalPassStartAt,
+                practicalPassEndAt:
+                schedule.practicalPassEndAt,
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 16),
+        CertificateScheduleNoticeCard(
+          onOpenNotice: _openScheduleNotice,
+        ),
+      ],
+    );
+  }
 
-Widget _buildExamInformationTab() {
-  final examDetails = _examDetails;
-  final examFee = examDetails?.examFee;
+  Widget _buildExamInformationTab() {
+    final examDetails = _examDetails;
+    final examFee = examDetails?.examFee;
 
-  return TechnicalExamInformationCard(
-    writtenFee: examFee?.hasWrittenFee == true
-        ? examFee!.writtenFee
-        : null,
-    practicalFee: examFee?.hasPracticalFee == true
-        ? examFee!.practicalFee
-        : null,
-    examTrends: examDetails?.examTrends ?? '',
-    howToObtain: examDetails?.howToObtain ?? '',
-    onOpenExamStandard: _openExamStandard,
-    onOpenOtherInformation: _openOtherInformation,
-  );
-}
+    return TechnicalExamInformationCard(
+      writtenFee: examFee?.hasWrittenFee == true
+          ? examFee!.writtenFee
+          : null,
+      practicalFee: examFee?.hasPracticalFee == true
+          ? examFee!.practicalFee
+          : null,
+      examTrends: examDetails?.examTrends ?? '',
+      howToObtain: examDetails?.howToObtain ?? '',
+      onOpenExamStandard: _openExamStandard,
+      onOpenOtherInformation: _openOtherInformation,
+    );
+  }
 
-Widget _buildAdditionalInformationTab() {
-  return TechnicalExamSubjectLookupCard(
-    isLoading: _isLoadingExamSubjects,
-    hasRequested: _hasRequestedExamSubjects,
-    errorMessage: _examSubjectError,
-    subjects: _examSubjects,
-    onLookup: _loadExamSubjects,
-  );
-}
+  Widget _buildAdditionalInformationTab() {
+    return Column(
+      children: [
+        TechnicalExamSubjectLookupCard(
+          isLoading: _isLoadingExamSubjects,
+          hasRequested: _hasRequestedExamSubjects,
+          errorMessage: _examSubjectError,
+          subjects: _examSubjects,
+          onLookup: _loadExamSubjects,
+        ),
+        const SizedBox(height: 14),
+        TechnicalPracticalMaterialLookupCard(
+          isLoading: _isLoadingPracticalMaterials,
+          hasRequested: _hasRequestedPracticalMaterials,
+          errorMessage: _practicalMaterialError,
+          materials: _practicalMaterials,
+          usesStoredData: _hasStoredPracticalMaterials,
+          storedImplementationYear: _storedPracticalMaterialsYear,
+          precautions: _practicalMaterialPrecautions,
+          onLookup: _loadPracticalMaterials,
+        ),
+      ],
+    );
+  }
 
   Widget _buildStatisticsTab() {
-    return const _TechnicalDetailEmptyTab(
-      icon: Icons.bar_chart_rounded,
-      title: '자격증 통계',
-      description:
-      '연도별 응시자 수, 합격자 수, 합격률 통계가 추가될 예정입니다.',
+    return TechnicalCertificateStatisticsSection(
+      baseYear: TechnicalCertificateService.statisticsBaseYear,
+      isLoadingWritten: _isLoadingWrittenStatistics,
+      writtenError: _writtenStatisticsError,
+      writtenStatistics: _writtenStatistics,
+      onRetryWritten: _loadWrittenStatistics,
+      isLoadingPractical: _isLoadingPracticalStatistics,
+      practicalError: _practicalStatisticsError,
+      practicalStatistics: _practicalStatistics,
+      onRetryPractical: _loadPracticalStatistics,
     );
   }
 }
