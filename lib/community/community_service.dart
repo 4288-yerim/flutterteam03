@@ -99,6 +99,28 @@ class CommunityService {
     List<Map<String, dynamic>> fileAttachments =
     const [],
   }) async {
+    bool verifiedWriter = isCertifiedWriter;
+
+    if (boardType == CommunityBoardType.passReview) {
+      List<CommunityCertificateTag> certifiedTags =
+      await getCertifiedCertificateTags(writerUid);
+
+      bool canWritePassReview =
+          certificateTags.length == 1 &&
+              certifiedTags.any((certifiedTag) {
+                return certifiedTag.certificateId ==
+                    certificateTags.first.certificateId;
+              });
+
+      if (!canWritePassReview) {
+        throw StateError(
+          '합격 인증된 자격증의 합격 후기만 작성할 수 있습니다.',
+        );
+      }
+
+      verifiedWriter = true;
+    }
+
     DocumentReference<Map<String, dynamic>>
     document =
     _firestore.collection('posts').doc(postId);
@@ -111,7 +133,7 @@ class CommunityService {
       'writerNickname': writerNickname,
       'writerProfileImageUrl':
       writerProfileImageUrl,
-      'isCertifiedWriter': isCertifiedWriter,
+      'isCertifiedWriter': verifiedWriter,
       'certificateTags':
       certificateTags.map((tag) {
         return tag.toMap();
@@ -148,6 +170,52 @@ class CommunityService {
     required String title,
     required String content,
   }) async {
+    if (boardType == CommunityBoardType.passReview) {
+      DocumentSnapshot<Map<String, dynamic>>
+      postSnapshot =
+      await _firestore
+          .collection('posts')
+          .doc(postId)
+          .get();
+
+      Map<String, dynamic> postData =
+          postSnapshot.data() ?? {};
+
+      String writerUid =
+          postData['writerUid']?.toString() ?? '';
+
+      List<CommunityCertificateTag> postTags = [];
+      dynamic tagValue = postData['certificateTags'];
+
+      if (tagValue is List) {
+        for (dynamic item in tagValue) {
+          if (item is Map) {
+            postTags.add(
+              CommunityCertificateTag.fromMap(
+                Map<String, dynamic>.from(item),
+              ),
+            );
+          }
+        }
+      }
+
+      List<CommunityCertificateTag> certifiedTags =
+      await getCertifiedCertificateTags(writerUid);
+
+      bool canWritePassReview =
+          postTags.length == 1 &&
+              certifiedTags.any((certifiedTag) {
+                return certifiedTag.certificateId ==
+                    postTags.first.certificateId;
+              });
+
+      if (!canWritePassReview) {
+        throw StateError(
+          '합격 인증된 자격증의 합격 후기만 작성할 수 있습니다.',
+        );
+      }
+    }
+
     await _firestore
         .collection('posts')
         .doc(postId)
@@ -250,6 +318,7 @@ class CommunityService {
       'writerProfileImageUrl':
       writerProfileImageUrl,
       'content': content,
+      'likeCount': 0,
       'isAccepted': false,
       'commentStatus': 'NORMAL',
       'createdAt': FieldValue.serverTimestamp(),
@@ -417,6 +486,480 @@ class CommunityService {
     await batch.commit();
   }
 
+  Stream<bool> watchLikeStatus({
+    required String postId,
+    required String userUid,
+  }) {
+    return _firestore
+        .collection('postLikes')
+        .doc(userUid)
+        .collection('items')
+        .doc(postId)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.exists;
+    });
+  }
+
+  Stream<bool> watchBookmarkStatus({
+    required String postId,
+    required String userUid,
+  }) {
+    return _firestore
+        .collection('postBookmarks')
+        .doc(userUid)
+        .collection('items')
+        .doc(postId)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.exists;
+    });
+  }
+
+  Future<void> toggleLike({
+    required String postId,
+    required String userUid,
+  }) async {
+    DocumentReference<Map<String, dynamic>>
+    postReference =
+    _firestore.collection('posts').doc(postId);
+
+    DocumentReference<Map<String, dynamic>>
+    likeReference =
+    _firestore
+        .collection('postLikes')
+        .doc(userUid)
+        .collection('items')
+        .doc(postId);
+
+    await _firestore.runTransaction(
+          (transaction) async {
+        DocumentSnapshot<Map<String, dynamic>>
+        postSnapshot =
+        await transaction.get(postReference);
+
+        if (!postSnapshot.exists) {
+          throw StateError('게시글을 찾을 수 없습니다.');
+        }
+
+        DocumentSnapshot<Map<String, dynamic>>
+        likeSnapshot =
+        await transaction.get(likeReference);
+
+        int currentCount = _readCount(
+          postSnapshot.data()?['likeCount'],
+        );
+
+        if (likeSnapshot.exists) {
+          transaction.delete(likeReference);
+          transaction.update(postReference, {
+            'likeCount':
+            currentCount > 0 ? currentCount - 1 : 0,
+            'updatedAt':
+            FieldValue.serverTimestamp(),
+          });
+          return;
+        }
+
+        transaction.set(likeReference, {
+          'postId': postId,
+          'userUid': userUid,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+
+        transaction.update(postReference, {
+          'likeCount': currentCount + 1,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      },
+    );
+  }
+
+  Future<void> toggleBookmark({
+    required String postId,
+    required String userUid,
+  }) async {
+    DocumentReference<Map<String, dynamic>>
+    postReference =
+    _firestore.collection('posts').doc(postId);
+
+    DocumentReference<Map<String, dynamic>>
+    bookmarkReference =
+    _firestore
+        .collection('postBookmarks')
+        .doc(userUid)
+        .collection('items')
+        .doc(postId);
+
+    await _firestore.runTransaction(
+          (transaction) async {
+        DocumentSnapshot<Map<String, dynamic>>
+        postSnapshot =
+        await transaction.get(postReference);
+
+        if (!postSnapshot.exists) {
+          throw StateError('게시글을 찾을 수 없습니다.');
+        }
+
+        DocumentSnapshot<Map<String, dynamic>>
+        bookmarkSnapshot =
+        await transaction.get(bookmarkReference);
+
+        int currentCount = _readCount(
+          postSnapshot.data()?['bookmarkCount'],
+        );
+
+        if (bookmarkSnapshot.exists) {
+          transaction.delete(bookmarkReference);
+          transaction.update(postReference, {
+            'bookmarkCount':
+            currentCount > 0 ? currentCount - 1 : 0,
+            'updatedAt':
+            FieldValue.serverTimestamp(),
+          });
+          return;
+        }
+
+        transaction.set(bookmarkReference, {
+          'postId': postId,
+          'userUid': userUid,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+
+        transaction.update(postReference, {
+          'bookmarkCount': currentCount + 1,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      },
+    );
+  }
+
+  Stream<bool> watchCommentLikeStatus({
+    required String commentId,
+    required String userUid,
+  }) {
+    return _firestore
+        .collection('commentLikes')
+        .doc(userUid)
+        .collection('items')
+        .doc(commentId)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.exists;
+    });
+  }
+
+  Future<void> toggleCommentLike({
+    required String postId,
+    required String commentId,
+    required String userUid,
+  }) async {
+    DocumentReference<Map<String, dynamic>>
+    commentReference =
+    _firestore
+        .collection('posts')
+        .doc(postId)
+        .collection('comments')
+        .doc(commentId);
+
+    DocumentReference<Map<String, dynamic>>
+    likeReference =
+    _firestore
+        .collection('commentLikes')
+        .doc(userUid)
+        .collection('items')
+        .doc(commentId);
+
+    await _firestore.runTransaction(
+          (transaction) async {
+        DocumentSnapshot<Map<String, dynamic>>
+        commentSnapshot =
+        await transaction.get(commentReference);
+
+        if (!commentSnapshot.exists) {
+          throw StateError('댓글을 찾을 수 없습니다.');
+        }
+
+        DocumentSnapshot<Map<String, dynamic>>
+        likeSnapshot =
+        await transaction.get(likeReference);
+
+        int currentCount = _readCount(
+          commentSnapshot.data()?['likeCount'],
+        );
+
+        if (likeSnapshot.exists) {
+          transaction.delete(likeReference);
+          transaction.update(commentReference, {
+            'likeCount':
+            currentCount > 0 ? currentCount - 1 : 0,
+            'updatedAt':
+            FieldValue.serverTimestamp(),
+          });
+          return;
+        }
+
+        transaction.set(likeReference, {
+          'postId': postId,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+
+        transaction.update(commentReference, {
+          'likeCount': currentCount + 1,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      },
+    );
+  }
+
+  Future<bool> submitReport({
+    required String reportType,
+    required String postId,
+    required String reporterUid,
+    required String targetWriterUid,
+    required String reasonCode,
+    required String reasonText,
+    String commentId = '',
+  }) async {
+    String targetId =
+    commentId.isEmpty ? postId : commentId;
+
+    String reportDocumentId =
+        '${reporterUid}_${reportType}_$targetId';
+
+    DocumentReference<Map<String, dynamic>>
+    reportReference =
+    _firestore
+        .collection('communityReports')
+        .doc(reportDocumentId);
+
+    return _firestore.runTransaction<bool>(
+          (transaction) async {
+        DocumentSnapshot<Map<String, dynamic>>
+        reportSnapshot =
+        await transaction.get(reportReference);
+
+        if (reportSnapshot.exists) {
+          return false;
+        }
+
+        transaction.set(reportReference, {
+          'reportType': reportType,
+          'postId': postId,
+          'commentId': commentId,
+          'reporterUid': reporterUid,
+          'targetWriterUid': targetWriterUid,
+          'reasonCode': reasonCode,
+          'reasonText': reasonText,
+          'reportStatus': 'PENDING',
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        return true;
+      },
+    );
+  }
+
+  Stream<List<CommunityCertificateTag>>
+  watchCertificateTagSuggestions() {
+    return watchPosts().map((posts) {
+      return collectCertificateTags(posts);
+    });
+  }
+
+  Future<List<CommunityCertificateTag>>
+  getCertifiedCertificateTags(
+      String userUid,
+      ) async {
+    Map<String, dynamic> userData =
+    await _readUserData(userUid);
+
+    Map<String, CommunityCertificateTag> tagMap = {};
+
+    void addTags(dynamic value) {
+      if (value is! List) {
+        return;
+      }
+
+      for (dynamic item in value) {
+        if (item is! Map) {
+          continue;
+        }
+
+        Map<String, dynamic> data =
+        Map<String, dynamic>.from(item);
+
+        String status =
+            data['status']?.toString().toUpperCase() ??
+                data['verificationStatus']
+                    ?.toString()
+                    .toUpperCase() ??
+                'APPROVED';
+
+        if (status != 'APPROVED' &&
+            status != 'VERIFIED') {
+          continue;
+        }
+
+        String certificateId =
+            data['certificateId']?.toString() ??
+                data['id']?.toString() ??
+                '';
+
+        String certificateName =
+            data['certificateName']?.toString() ??
+                data['name']?.toString() ??
+                '';
+
+        if (certificateId.isEmpty ||
+            certificateName.isEmpty) {
+          continue;
+        }
+
+        tagMap[certificateId] =
+            CommunityCertificateTag(
+              certificateId: certificateId,
+              certificateName: certificateName,
+            );
+      }
+    }
+
+    addTags(userData['certifiedCertificates']);
+    addTags(userData['approvedCertificates']);
+
+    try {
+      QuerySnapshot<Map<String, dynamic>>
+      certificateSnapshot =
+      await _firestore
+          .collection('users')
+          .doc(userUid)
+          .collection('certificates')
+          .get();
+
+      for (QueryDocumentSnapshot<Map<String, dynamic>>
+      document in certificateSnapshot.docs) {
+        Map<String, dynamic> data = document.data();
+
+        String status =
+            data['status']?.toString().toUpperCase() ??
+                data['verificationStatus']
+                    ?.toString()
+                    .toUpperCase() ??
+                '';
+
+        if (status != 'APPROVED' &&
+            status != 'VERIFIED') {
+          continue;
+        }
+
+        String certificateId =
+            data['certificateId']?.toString() ??
+                document.id;
+
+        String certificateName =
+            data['certificateName']?.toString() ??
+                data['name']?.toString() ??
+                '';
+
+        if (certificateId.isEmpty ||
+            certificateName.isEmpty) {
+          continue;
+        }
+
+        tagMap[certificateId] =
+            CommunityCertificateTag(
+              certificateId: certificateId,
+              certificateName: certificateName,
+            );
+      }
+    } catch (error) {
+      // 인증 자격증 하위 컬렉션이 없는 기존 회원은
+      // users 문서의 인증 목록만 사용합니다.
+    }
+
+    List<CommunityCertificateTag> result =
+    tagMap.values.toList();
+
+    result.sort((a, b) {
+      return a.certificateName.compareTo(
+        b.certificateName,
+      );
+    });
+
+    return result;
+  }
+
+  Future<Map<String, dynamic>> getUserCommunityProfile(
+      String userUid,
+      ) async {
+    Map<String, dynamic> userData =
+    await _readUserData(userUid);
+
+    List<CommunityCertificateTag> certifiedTags =
+    await getCertifiedCertificateTags(userUid);
+
+    return {
+      'nickname':
+      userData['nickname']?.toString() ??
+          userData['displayName']?.toString() ??
+          '사용자',
+      'profileImageUrl':
+      userData['profileImageUrl']?.toString() ??
+          userData['photoUrl']?.toString() ??
+          '',
+      'introduction':
+      userData['introduction']?.toString() ??
+          userData['bio']?.toString() ??
+          '',
+      'certifiedTags': certifiedTags,
+    };
+  }
+
+  Future<Map<String, dynamic>> _readUserData(
+      String userUid,
+      ) async {
+    DocumentSnapshot<Map<String, dynamic>>
+    directSnapshot =
+    await _firestore
+        .collection('users')
+        .doc(userUid)
+        .get();
+
+    if (directSnapshot.exists) {
+      return directSnapshot.data() ?? {};
+    }
+
+    QuerySnapshot<Map<String, dynamic>>
+    querySnapshot =
+    await _firestore
+        .collection('users')
+        .where(
+      'uid',
+      isEqualTo: userUid,
+    )
+        .limit(1)
+        .get();
+
+    if (querySnapshot.docs.isEmpty) {
+      return {};
+    }
+
+    return querySnapshot.docs.first.data();
+  }
+
+  int _readCount(dynamic value) {
+    if (value is int) {
+      return value;
+    }
+
+    if (value is num) {
+      return value.toInt();
+    }
+
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
   List<CommunityPost> filterAndSortPosts({
     required List<CommunityPost> posts,
     required CommunityBoardType boardType,
@@ -499,19 +1042,52 @@ class CommunityService {
   List<CommunityPost> getPopularPosts(
       List<CommunityPost> posts,
       ) {
+    DateTime now = DateTime.now();
+
+    List<CommunityPost> recentPosts =
+    posts.where((post) {
+      DateTime? createdAt = post.createdAt;
+
+      if (createdAt == null) {
+        return false;
+      }
+
+      Duration difference =
+      now.difference(createdAt);
+
+      return !difference.isNegative &&
+          difference.inDays < 7;
+    }).toList();
+
     List<CommunityPost> result =
-    List<CommunityPost>.from(posts);
+    List<CommunityPost>.from(
+      recentPosts.isEmpty ? posts : recentPosts,
+    );
 
     result.sort((a, b) {
-      int aScore = a.likeCount * 3 +
-          a.commentCount * 2 +
+      int aScore = a.likeCount * 5 +
+          a.commentCount * 3 +
           a.viewCount;
 
-      int bScore = b.likeCount * 3 +
-          b.commentCount * 2 +
+      int bScore = b.likeCount * 5 +
+          b.commentCount * 3 +
           b.viewCount;
 
-      return bScore.compareTo(aScore);
+      int scoreCompare =
+      bScore.compareTo(aScore);
+
+      if (scoreCompare != 0) {
+        return scoreCompare;
+      }
+
+      int aTime =
+          a.createdAt?.millisecondsSinceEpoch ??
+              0;
+      int bTime =
+          b.createdAt?.millisecondsSinceEpoch ??
+              0;
+
+      return bTime.compareTo(aTime);
     });
 
     if (result.length > 3) {
