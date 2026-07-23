@@ -26,6 +26,13 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color incorrect;
   final Color incorrectSoft;
 
+  // ↓↓↓ 기존 static 스타일 코드(material_summary.dart 등)가 참조하던 색들 — 새로 추가
+  final Color pinkBorder;
+  final Color pinkSoftAlt;
+  final Color textMuted;
+  final Color divider;
+  final Color surface;
+  final Color surfaceMuted;
 
   const AppColors({
     required this.pinkStart,
@@ -45,6 +52,12 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.correctSoft,
     required this.incorrect,
     required this.incorrectSoft,
+    required this.pinkBorder,
+    required this.pinkSoftAlt,
+    required this.textMuted,
+    required this.divider,
+    required this.surface,
+    required this.surfaceMuted,
   });
 
   static const light = AppColors(
@@ -65,6 +78,12 @@ class AppColors extends ThemeExtension<AppColors> {
     correctSoft: Color(0xFFE9F7EF),
     incorrect: Color(0xFFE96B7A),
     incorrectSoft: Color(0xFFFFE9EC),
+    pinkBorder: Color(0xFFF0C4CF),
+    pinkSoftAlt: Color(0xFFFBEFF2),
+    textMuted: Color(0xFFB7BDC7),
+    divider: Color(0xFFEDEDED),
+    surface: Color(0xFFFFFFFF),
+    surfaceMuted: Color(0xFFF5F5F5),
   );
 
   static const dark = AppColors(
@@ -85,6 +104,12 @@ class AppColors extends ThemeExtension<AppColors> {
     correctSoft: Color(0xFF1F3A2E),
     incorrect: Color(0xFFE08A94),
     incorrectSoft: Color(0xFF4A2A2E),
+    pinkBorder: Color(0xFF5A3E44),
+    pinkSoftAlt: Color(0xFF3A2A2E),
+    textMuted: Color(0xFF7A7A7A),
+    divider: Color(0xFF2A2A2A),
+    surface: Color(0xFF1E1E1E),
+    surfaceMuted: Color(0xFF262626),
   );
 
   @override
@@ -102,6 +127,16 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? lavenderAccent,
     Color? softBlueAccent,
     Color? mintAccent,
+    Color? correct,
+    Color? correctSoft,
+    Color? incorrect,
+    Color? incorrectSoft,
+    Color? pinkBorder,
+    Color? pinkSoftAlt,
+    Color? textMuted,
+    Color? divider,
+    Color? surface,
+    Color? surfaceMuted,
   }) {
     return AppColors(
       pinkStart: pinkStart ?? this.pinkStart,
@@ -121,6 +156,12 @@ class AppColors extends ThemeExtension<AppColors> {
       correctSoft: correctSoft ?? this.correctSoft,
       incorrect: incorrect ?? this.incorrect,
       incorrectSoft: incorrectSoft ?? this.incorrectSoft,
+      pinkBorder: pinkBorder ?? this.pinkBorder,
+      pinkSoftAlt: pinkSoftAlt ?? this.pinkSoftAlt,
+      textMuted: textMuted ?? this.textMuted,
+      divider: divider ?? this.divider,
+      surface: surface ?? this.surface,
+      surfaceMuted: surfaceMuted ?? this.surfaceMuted,
     );
   }
 
@@ -145,8 +186,39 @@ class AppColors extends ThemeExtension<AppColors> {
       correctSoft: Color.lerp(correctSoft, other.correctSoft, t)!,
       incorrect: Color.lerp(incorrect, other.incorrect, t)!,
       incorrectSoft: Color.lerp(incorrectSoft, other.incorrectSoft, t)!,
+      pinkBorder: Color.lerp(pinkBorder, other.pinkBorder, t)!,
+      pinkSoftAlt: Color.lerp(pinkSoftAlt, other.pinkSoftAlt, t)!,
+      textMuted: Color.lerp(textMuted, other.textMuted, t)!,
+      divider: Color.lerp(divider, other.divider, t)!,
+      surface: Color.lerp(surface, other.surface, t)!,
+      surfaceMuted: Color.lerp(surfaceMuted, other.surfaceMuted, t)!,
     );
   }
+
+  // ─────────────────────────────────────────────────────────
+  // 하위 호환용 static 상수 — 'pink'는 인스턴스 필드와 이름이 겹치지 않고,
+  // const 리터럴이라 const Icon/TextStyle/BorderSide 안에서도 그대로 사용 가능.
+  // (라이트 테마 고정값 — 다크모드에서도 이 색을 그대로 씀)
+  // ─────────────────────────────────────────────────────────
+  static const Color pink = Color(0xFFE9678A);
+
+  // ⚠️ 아래 이름들은 위에서 이미 '인스턴스 필드'로 선언되어 있어서
+  // 같은 이름의 static 멤버를 절대 추가할 수 없습니다 (Dart 언어 제약).
+  // AppColors.textPrimary / textSecondary / pinkSoft / pinkBorder /
+  // pinkSoftAlt / textMuted / divider / surface / surfaceMuted 를 쓰는 곳은
+  // 전부 context.colors.xxx 로 직접 바꿔야 합니다. (다음 메시지에서 파일 첨부해주시면 제가 고쳐드릴게요)
+
+  static const Gradient heroGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFE094A3), Color(0xFFFCE1E8)],
+  );
+
+  static const Gradient pinkGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFE9678A), Color(0xFFE094A3)],
+  );
 }
 
 /// 편의용 확장 — context.colors 로 어디서든 바로 접근

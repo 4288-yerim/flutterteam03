@@ -1,12 +1,21 @@
-import 'dart:convert';
+import 'dart:async';
+import 'dart:io';
+import 'dart:math' as math;
+import 'dart:ui' as ui;
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:http/http.dart' as http;
+import 'package:share_plus/share_plus.dart';
 
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
+import '../theme.dart';
+import '../widgets/app_confirm_dialog.dart';
+import 'services/question_generation_api_service.dart';
+import 'package:flutter/rendering.dart';
+import 'package:path_provider/path_provider.dart';
 
 class MaterialSummaryResultPage extends StatefulWidget {
   final String? selectedCertificate;
@@ -14,32 +23,42 @@ class MaterialSummaryResultPage extends StatefulWidget {
   final List<String> uploadedFileNames;
   final List<String> uploadedFileUrls;
 
+  /// 이전 화면(업로드 화면)에서 이미 summarizeMaterial 호출까지 끝내고
+  /// 응답을 들고 왔다면 여기로 넘겨준다. 그러면 이 페이지는 API를
+  /// 다시 호출하지 않고 로딩 없이 바로 결과를 보여준다.
+  /// null이면 기존처럼 이 페이지가 직접 요약을 요청한다.
+  final Map<String, dynamic>? initialResult;
+
   const MaterialSummaryResultPage({
     super.key,
     required this.selectedCertificate,
     required this.isSplitSummary,
     required this.uploadedFileNames,
     required this.uploadedFileUrls,
+    this.initialResult,
   });
 
   @override
-  State<MaterialSummaryResultPage> createState() =>
-      _MaterialSummaryResultPageState();
+  State<MaterialSummaryResultPage> createState() => _MaterialSummaryResultPageState();
 }
 
-class _MaterialSummaryResultPageState
-    extends State<MaterialSummaryResultPage> {
-  static const Color _textColor = Color(0xFF302C2E);
-  static const Color _subTextColor = Color(0xFF817B7D);
-  static const Color _pinkColor = Color(0xFFF4869D);
-
-  // TODO: EC2 탄력적 IP로 변경
-  String get _apiBaseUrl =>
-      dotenv.env['API_BASE_URL']?.trim() ?? '';
+class _MaterialSummaryResultPageState extends State<MaterialSummaryResultPage> {
+  final GlobalKey _summaryCaptureKey = GlobalKey();
+  static const List<String> _analysisMessages = [
+    '구름iT이 자료를 분석하고 있어요',
+    '업로드한 자료를 읽고 있어요',
+    '핵심 내용을 정리하고 있어요',
+    '요약을 만들고 있어요',
+    '거의 다 됐어요',
+    '이제 보여드릴게요',
+  ];
+  static const List<int> _analysisDurations = [2800, 3200, 3200, 3600, 2200, 900];
 
   bool _isLoading = true;
-  bool _isDeletingFiles = false;
-  bool _isAnalysisDialogVisible = false;
+  // 뒤로가기/다른 자료 요약하기를 중복으로 여러 번 누르는 것만 막기 위한 플래그.
+  // (더 이상 화면을 막는 로딩 표시는 하지 않는다)
+  bool _isLeaving = false;
+  bool _isSavingSummary = false;
 
   String? _summary;
   String? _errorMessage;
@@ -52,99 +71,24 @@ class _MaterialSummaryResultPageState
   void initState() {
     super.initState();
 
+    if (widget.initialResult != null) {
+      // 이전 화면(업로드 화면)에서 이미 summarizeMaterial까지 끝내고
+      // 결과를 들고 온 경우: 이 페이지에서는 로딩을 아예 띄우지 않는다.
+      _isLoading = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _handleDecodedData(widget.initialResult!, forceSummary: false);
+      });
+      return;
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-
       _requestSummary();
     });
   }
 
-  void _showAnalysisLoadingDialog() {
-    if (_isAnalysisDialogVisible || !mounted) {
-      return;
-    }
-
-    _isAnalysisDialogVisible = true;
-
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return PopScope(
-          canPop: false,
-          child: Dialog(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(
-                28,
-                30,
-                28,
-                28,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: const Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 48,
-                    height: 48,
-                    child: CircularProgressIndicator(
-                      color: Color(0xFFF4869D),
-                      strokeWidth: 4,
-                    ),
-                  ),
-                  SizedBox(height: 22),
-                  Text(
-                    '구름iT이 자료를\n분석하고 있어요...',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xFF302C2E),
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  SizedBox(height: 9),
-                  Text(
-                    '자료의 핵심 내용을 찾고 있어요.\n잠시만 기다려주세요.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xFF817B7D),
-                      fontSize: 14,
-                      height: 1.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    ).whenComplete(() {
-      _isAnalysisDialogVisible = false;
-    });
-  }
-
-  void _closeAnalysisLoadingDialog() {
-    if (!_isAnalysisDialogVisible || !mounted) {
-      return;
-    }
-
-    Navigator.of(
-      context,
-      rootNavigator: true,
-    ).pop();
-
-    _isAnalysisDialogVisible = false;
-  }
-
-  Future<void> _requestSummary({
-    bool forceSummary = false,
-  }) async {
+  Future<void> _requestSummary({bool forceSummary = false}) async {
     if (widget.uploadedFileUrls.isEmpty) {
       setState(() {
         _isLoading = false;
@@ -153,8 +97,7 @@ class _MaterialSummaryResultPageState
       return;
     }
 
-    final selectedCertificate =
-        widget.selectedCertificate?.trim() ?? '';
+    final selectedCertificate = widget.selectedCertificate?.trim() ?? '';
 
     if (selectedCertificate.isEmpty) {
       setState(() {
@@ -164,174 +107,113 @@ class _MaterialSummaryResultPageState
       return;
     }
 
-    if (_apiBaseUrl.isEmpty) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'API 서버 주소가 설정되지 않았습니다.';
-      });
-      return;
-    }
-
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
-    _showAnalysisLoadingDialog();
-
     try {
-      final response = await http
-          .post(
-        Uri.parse('$_apiBaseUrl/summarize-url'),
-        headers: const {
-          'Content-Type':
-          'application/json; charset=UTF-8',
-        },
-        body: jsonEncode({
-          'file_urls': widget.uploadedFileUrls,
-          'selected_certificate':
-          selectedCertificate,
-          'force_summary': forceSummary,
-        }),
-      )
-          .timeout(const Duration(minutes: 3));
-
-      final responseBody =
-      utf8.decode(response.bodyBytes);
-
-      if (response.statusCode != 200) {
-        throw Exception(
-          _extractErrorMessage(responseBody),
-        );
-      }
-
-      final decodedData = jsonDecode(responseBody);
-
-      if (decodedData is! Map<String, dynamic>) {
-        throw Exception(
-          '서버 응답 형식이 올바르지 않습니다.',
-        );
-      }
-
-      final certificateMatch =
-          decodedData['certificate_match'] != false;
-
-      if (!certificateMatch) {
-        final detectedCertificate =
-            decodedData['detected_certificate']
-                ?.toString()
-                .trim() ??
-                '다른 자격증';
-
-        final mismatchReason =
-            decodedData['mismatch_reason']
-                ?.toString()
-                .trim() ??
-                '';
-
-        if (!mounted) return;
-
-        _closeAnalysisLoadingDialog();
-
-        setState(() {
-          _isLoading = false;
-        });
-
-        final shouldContinue =
-        await _showCertificateMismatchDialog(
-          selectedCertificate: selectedCertificate,
-          detectedCertificate: detectedCertificate,
-          mismatchReason: mismatchReason,
-        );
-
-        if (!mounted) return;
-
-        if (shouldContinue == true) {
-          await _requestSummary(
-            forceSummary: true,
-          );
-        } else {
-          await _summarizeAnotherMaterial();
-        }
-
-        return;
-      }
-
-      final summary =
-          decodedData['summary']?.toString().trim() ?? '';
-
-      if (summary.isEmpty) {
-        throw Exception(
-          '서버에서 빈 요약 결과를 반환했습니다.',
-        );
-      }
+      final decodedData = await QuestionGenerationApiService.summarizeMaterial(
+        fileUrls: widget.uploadedFileUrls,
+        selectedCertificate: selectedCertificate,
+        forceSummary: forceSummary,
+      );
 
       if (!mounted) return;
 
-      _closeAnalysisLoadingDialog();
-
-      setState(() {
-        _summary = summary;
-        _originalLength = _toInt(
-          decodedData['original_length'],
-        );
-        _summaryLength = _toInt(
-          decodedData['summary_length'],
-        );
-        _fileCount = _toInt(
-          decodedData['file_count'],
-          fallback: widget.uploadedFileUrls.length,
-        );
-        _isLoading = false;
-      });
+      await _handleDecodedData(decodedData, forceSummary: forceSummary);
     } catch (error, stackTrace) {
       debugPrint('요약 API 요청 실패: $error');
       debugPrint('$stackTrace');
 
       if (!mounted) return;
 
-      _closeAnalysisLoadingDialog();
-
       setState(() {
         _isLoading = false;
-        _errorMessage = error
-            .toString()
-            .replaceFirst('Exception: ', '');
+        _errorMessage = error.toString().replaceFirst('Exception: ', '');
       });
     }
+  }
+
+  /// summarizeMaterial 응답(직접 호출로 받았든, 이전 화면에서 미리 받아왔든)을
+  /// 공통으로 처리한다. 서버는 자격증 불일치 여부와 무관하게 summary를 같은
+  /// 응답 안에서 함께 만들어 보내주므로, 불일치 확인 후 "계속 요약"을
+  /// 선택해도 API를 다시 호출하지 않고 이미 받은 값을 그대로 쓴다.
+  Future<void> _handleDecodedData(
+      Map<String, dynamic> decodedData, {
+        required bool forceSummary,
+      }) async {
+    final selectedCertificate = widget.selectedCertificate?.trim() ?? '';
+    final certificateMatch = decodedData['certificate_match'] != false;
+    final summary = decodedData['summary']?.toString().trim() ?? '';
+    final originalLength = _toInt(decodedData['original_length']);
+    final fileCount = _toInt(decodedData['file_count'], fallback: widget.uploadedFileUrls.length);
+
+    if (!certificateMatch && !forceSummary) {
+      final detectedCertificate =
+          decodedData['detected_certificate']?.toString().trim() ?? '다른 자격증';
+      final mismatchReason = decodedData['mismatch_reason']?.toString().trim() ?? '';
+
+      if (!mounted) return;
+
+      setState(() => _isLoading = false);
+
+      final shouldContinue = await _showCertificateMismatchDialog(
+        selectedCertificate: selectedCertificate,
+        detectedCertificate: detectedCertificate,
+        mismatchReason: mismatchReason,
+      );
+
+      if (!mounted) return;
+
+      if (shouldContinue == true) {
+        if (summary.isNotEmpty) {
+          // 이미 받아둔 요약을 그대로 사용 -> 재요청/재로딩 없음
+          setState(() {
+            _summary = summary;
+            _originalLength = originalLength;
+            _summaryLength = summary.length;
+            _fileCount = fileCount;
+            _isLoading = false;
+          });
+        } else {
+          // 혹시 서버가 요약을 못 만들어 보낸 경우에만 예외적으로 재요청
+          await _requestSummary(forceSummary: true);
+        }
+      } else {
+        _summarizeAnotherMaterial();
+      }
+
+      return;
+    }
+
+    if (summary.isEmpty) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = '서버에서 빈 요약 결과를 반환했습니다.';
+      });
+      return;
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _summary = summary;
+      _originalLength = originalLength;
+      _summaryLength = summary.length;
+      _fileCount = fileCount;
+      _isLoading = false;
+    });
   }
 
   int _toInt(dynamic value, {int fallback = 0}) {
     if (value is int) {
       return value;
     }
-
     if (value is num) {
       return value.toInt();
     }
-
     return int.tryParse(value?.toString() ?? '') ?? fallback;
-  }
-
-  String _extractErrorMessage(String responseBody) {
-    if (responseBody
-        .trim()
-        .isEmpty) {
-      return '요약 생성에 실패했습니다.';
-    }
-
-    try {
-      final decodedData = jsonDecode(responseBody);
-
-      if (decodedData is Map<String, dynamic>) {
-        return decodedData['detail']?.toString() ??
-            '요약 생성에 실패했습니다.';
-      }
-    } catch (_) {
-      return responseBody;
-    }
-
-    return '요약 생성에 실패했습니다.';
   }
 
   Future<bool?> _showCertificateMismatchDialog({
@@ -339,325 +221,141 @@ class _MaterialSummaryResultPageState
     required String detectedCertificate,
     required String mismatchReason,
   }) {
-    return showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return PopScope(
-          canPop: false,
-          child: AlertDialog(
-            backgroundColor: Colors.white,
-            insetPadding: const EdgeInsets.symmetric(
-              horizontal: 24,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
-            ),
-            titlePadding: const EdgeInsets.fromLTRB(
-              22,
-              24,
-              22,
-              0,
-            ),
-            contentPadding: const EdgeInsets.fromLTRB(
-              22,
-              18,
-              22,
-              20,
-            ),
-            actionsPadding: const EdgeInsets.fromLTRB(
-              16,
-              0,
-              16,
-              18,
-            ),
-            title: const Row(
-              children: [
-                _CertificateMismatchIcon(),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '선택한 자격증을 확인해주세요',
-                    style: TextStyle(
-                      color: Color(0xFF302C2E),
-                      fontSize: 19,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment:
-              CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '업로드한 자료가 선택한 자격증과 '
-                      '다른 자료일 수 있어요.',
-                  style: TextStyle(
-                    color: Color(0xFF4F494B),
-                    fontSize: 15,
-                    height: 1.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _CertificateComparisonBox(
-                  selectedCertificate:
-                  selectedCertificate,
-                  detectedCertificate:
-                  detectedCertificate,
-                ),
-                if (mismatchReason.isNotEmpty) ...[
-                  const SizedBox(height: 14),
-                  Text(
-                    mismatchReason,
-                    style: const TextStyle(
-                      color: Color(0xFF817B7D),
-                      fontSize: 13,
-                      height: 1.5,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                const Text(
-                  '선택한 자격증을 기준으로 '
-                      '계속 요약할까요?',
-                  style: TextStyle(
-                    color: Color(0xFF595254),
-                    fontSize: 14,
-                    height: 1.5,
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              Column(
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: FilledButton(
-                      onPressed: () {
-                        Navigator.pop(
-                          dialogContext,
-                          true,
-                        );
-                      },
-                      style: FilledButton.styleFrom(
-                        backgroundColor:
-                        const Color(0xFFF4869D),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius:
-                          BorderRadius.circular(17),
-                        ),
-                      ),
-                      child: const Text(
-                        '맞아요, 계속 요약할게요',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: OutlinedButton(
-                      onPressed: () {
-                        Navigator.pop(
-                          dialogContext,
-                          false,
-                        );
-                      },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor:
-                        const Color(0xFFF4869D),
-                        side: const BorderSide(
-                          color: Color(0xFFF4869D),
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius:
-                          BorderRadius.circular(17),
-                        ),
-                      ),
-                      child: const Text(
-                        '자료를 다시 확인할게요',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
+    final descriptionParts = [
+      '업로드한 자료가 선택한 자격증과 다른 자료일 수 있어요.',
+      if (mismatchReason.isNotEmpty) mismatchReason,
+      '선택한 자격증을 기준으로 계속 요약할까요?',
+    ];
 
-  void _saveSummary() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('요약본 저장 기능은 추후 연결될 예정입니다.'),
+    return AppConfirmDialog.show<bool>(
+      context,
+      icon: Icons.warning_amber_rounded,
+      title: '선택한 자격증을 확인해주세요',
+      description: descriptionParts.join('\n\n'),
+      // 버튼 안에서 글자가 잘리지 않도록 문구를 짧게 정리했어요.
+      primaryLabel: '계속 요약할게요',
+      onPrimaryPressed: () => Navigator.pop(context, true),
+      secondaryLabel: '다시 확인할게요',
+      onSecondaryPressed: () => Navigator.pop(context, false),
+      barrierDismissible: false,
+      preventBack: true,
+      extra: _CertificateComparisonBox(
+        selectedCertificate: selectedCertificate,
+        detectedCertificate: detectedCertificate,
       ),
     );
   }
 
-  void _downloadSummary() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('요약본 다운로드 기능은 추후 연결될 예정입니다.'),
-      ),
-    );
-  }
-
-  void _showDeleteLoadingDialog() {
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return PopScope(
-          canPop: false,
-          child: Dialog(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(
-                28,
-                30,
-                28,
-                28,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: const Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 48,
-                    height: 48,
-                    child: CircularProgressIndicator(
-                      color: Color(0xFFF4869D),
-                      strokeWidth: 4,
-                    ),
-                  ),
-                  SizedBox(height: 22),
-                  Text(
-                    '사용한 자료를 정리하고 있어요...',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xFF302C2E),
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  SizedBox(height: 9),
-                  Text(
-                    '업로드한 자료를 정리한 뒤\n새로운 요약 화면으로 돌아갈게요.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xFF817B7D),
-                      fontSize: 14,
-                      height: 1.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _summarizeAnotherMaterial() async {
-    if (_isDeletingFiles) {
+  Future<void> _saveSummary() async {
+    if (_summary == null || _summary!.trim().isEmpty) {
       return;
     }
+    if (_isSavingSummary) return;
 
-    if (widget.uploadedFileUrls.isEmpty) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
       if (!mounted) return;
-
-      Navigator.pop(context, true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('로그인이 필요한 기능이에요.')),
+      );
       return;
     }
 
-    setState(() {
-      _isDeletingFiles = true;
-    });
-
-    _showDeleteLoadingDialog();
+    setState(() => _isSavingSummary = true);
 
     try {
-      for (final fileUrl in widget.uploadedFileUrls) {
-        final storageReference =
-        FirebaseStorage.instance.refFromURL(fileUrl);
-
-        await storageReference.delete();
-      }
-
-      if (!mounted) return;
-
-      Navigator.of(
-        context,
-        rootNavigator: true,
-      ).pop();
-
-      Navigator.pop(context, true);
-    } on FirebaseException catch (error, stackTrace) {
-      debugPrint('요약 자료 삭제 실패');
-      debugPrint('오류 코드: ${error.code}');
-      debugPrint('오류 내용: ${error.message}');
-      debugPrint('$stackTrace');
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('saved_summaries')
+          .add({
+        'certificateName': widget.selectedCertificate ?? '',
+        'summary': _summary,
+        'originalLength': _originalLength,
+        'summaryLength': _summaryLength,
+        'fileCount': _fileCount,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
 
       if (!mounted) return;
-
-      Navigator.of(
-        context,
-        rootNavigator: true,
-      ).pop();
-
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            error.message ?? '요약에 사용된 자료를 삭제하지 못했습니다.',
-          ),
-        ),
+        const SnackBar(content: Text('요약본을 저장했어요.')),
       );
     } catch (error, stackTrace) {
-      debugPrint('요약 자료 삭제 실패: $error');
+      debugPrint('요약본 저장 실패: $error');
       debugPrint('$stackTrace');
 
       if (!mounted) return;
-
-      Navigator.of(
-        context,
-        rootNavigator: true,
-      ).pop();
-
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('요약에 사용된 자료를 삭제하지 못했습니다.'),
-        ),
+        const SnackBar(content: Text('요약본 저장에 실패했어요. 다시 시도해주세요.')),
       );
     } finally {
       if (mounted) {
-        setState(() {
-          _isDeletingFiles = false;
-        });
+        setState(() => _isSavingSummary = false);
       }
+    }
+  }
+
+  Future<void> _downloadSummary() async {
+    if (_summary == null || _summary!.trim().isEmpty) {
+      return;
+    }
+
+    final title = widget.selectedCertificate?.trim().isNotEmpty == true
+        ? widget.selectedCertificate!.trim()
+        : '따IT 요약본';
+
+    try {
+      final boundary = _summaryCaptureKey.currentContext?.findRenderObject()
+      as RenderRepaintBoundary?;
+
+      if (boundary == null) {
+        throw Exception('캡처할 화면을 찾지 못했습니다.');
+      }
+
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) {
+        throw Exception('이미지 변환에 실패했습니다.');
+      }
+      final pngBytes = byteData.buffer.asUint8List();
+
+      final tempDir = await getTemporaryDirectory();
+      final file = File(
+        '${tempDir.path}/summary_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
+      await file.writeAsBytes(pngBytes);
+
+      await Share.shareXFiles([XFile(file.path)], text: '$title 요약본');
+    } catch (error, stackTrace) {
+      debugPrint('요약본 이미지 공유 실패: $error');
+      debugPrint('$stackTrace');
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('요약본을 공유하지 못했어요. 다시 시도해주세요.')),
+      );
+    }
+  }
+
+  void _summarizeAnotherMaterial() {
+    if (_isLeaving) return;
+    _isLeaving = true;
+
+    _deleteUploadedFilesInBackground();
+
+    if (!mounted) return;
+    Navigator.pop(context, true);
+  }
+
+  void _deleteUploadedFilesInBackground() {
+    if (widget.uploadedFileUrls.isEmpty) return;
+
+    for (final fileUrl in widget.uploadedFileUrls) {
+      FirebaseStorage.instance.refFromURL(fileUrl).delete().catchError((error, stackTrace) {
+        debugPrint('요약 자료 삭제 실패: $error');
+        debugPrint('$stackTrace');
+      });
     }
   }
 
@@ -669,31 +367,20 @@ class _MaterialSummaryResultPageState
     if (_errorMessage != null) {
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(
-          22,
-          28,
-          22,
-          24,
-        ),
+        padding: const EdgeInsets.fromLTRB(22, 28, 22, 24),
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.94),
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: const Color(0xFFF0E4E8),
-          ),
+          border: Border.all(color: const Color(0xFFF0E4E8)),
         ),
         child: Column(
           children: [
-            const Icon(
-              Icons.error_outline_rounded,
-              color: _pinkColor,
-              size: 46,
-            ),
+            const Icon(Icons.error_outline_rounded, color: AppColors.pink, size: 46),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               '요약을 생성하지 못했어요.',
               style: TextStyle(
-                color: _textColor,
+                color: context.colors.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
               ),
@@ -702,33 +389,22 @@ class _MaterialSummaryResultPageState
             Text(
               _errorMessage!,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: _subTextColor,
-                fontSize: 14,
-                height: 1.5,
-              ),
+              style: TextStyle(color: context.colors.textSecondary, fontSize: 14, height: 1.5),
             ),
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               height: 48,
               child: FilledButton.icon(
-                onPressed: _requestSummary,
+                onPressed: () => _requestSummary(),
                 style: FilledButton.styleFrom(
-                  backgroundColor: _pinkColor,
+                  backgroundColor: AppColors.pink,
                   foregroundColor: Colors.white,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
                 icon: const Icon(Icons.refresh_rounded),
-                label: const Text(
-                  '다시 시도',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+                label: const Text('다시 시도', style: TextStyle(fontWeight: FontWeight.w800)),
               ),
             ),
           ],
@@ -736,32 +412,26 @@ class _MaterialSummaryResultPageState
       );
     }
 
-    return _CertificateSummarySection(
-      certificateName:
-      widget.selectedCertificate ?? '업로드 자료',
-      summaryNumber: 1,
-      summary: _summary ?? '',
+    return RepaintBoundary(
+      key: _summaryCaptureKey,
+      child: _CertificateSummarySection(
+        certificateName: widget.selectedCertificate ?? '업로드 자료',
+        summaryNumber: 1,
+        summary: _summary ?? '',
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final displayedFileCount = _fileCount == 0
-        ? widget.uploadedFileNames.length
-        : _fileCount;
+    final displayedFileCount = _fileCount == 0 ? widget.uploadedFileNames.length : _fileCount;
 
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) {
-          return;
-        }
-
-        if (_isLoading || _isDeletingFiles) {
-          return;
-        }
-
-        await _summarizeAnotherMaterial();
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_isLoading) return;
+        _summarizeAnotherMaterial();
       },
       child: Scaffold(
         extendBodyBehindAppBar: true,
@@ -770,111 +440,98 @@ class _MaterialSummaryResultPageState
           title: 'AI 요약 결과',
           centerTitle: false,
           leading: IconButton(
-            onPressed: _isLoading || _isDeletingFiles
-                ? null
-                : () async {
-              await _summarizeAnotherMaterial();
-            },
+            onPressed: _isLoading ? null : _summarizeAnotherMaterial,
             tooltip: '뒤로가기',
-            icon: const Icon(
-              Icons.arrow_back_rounded,
-              color: Color(0xFF302C2E),
-            ),
+            icon: Icon(Icons.arrow_back_rounded, color: context.colors.textPrimary),
           ),
         ),
         body: AppMainBackground(
-          child: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(
-                24,
-                22,
-                24,
-                40,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _SummaryResultHeader(
-                    selectedCertificate: widget.selectedCertificate,
-                    isSplitSummary: widget.isSplitSummary,
-                    fileCount: displayedFileCount,
-                    isLoading: _isLoading,
-                    hasError: _errorMessage != null,
-                  ),
-                  const SizedBox(height: 30),
-                  const Text(
-                    '구름iT 요약 노트',
-                    style: TextStyle(
-                      color: _textColor,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 7),
-                  Text(
-                    _isLoading
-                        ? '업로드한 자료에서 핵심 내용을 찾고 있어요.'
-                        : _errorMessage != null
-                        ? '오류 내용을 확인한 뒤 다시 시도해주세요.'
-                        : '업로드한 자료의 핵심 내용을 정리했어요.',
-                    style: const TextStyle(
-                      color: _subTextColor,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildSummaryContent(),
-                  if (!_isLoading && _errorMessage == null) ...[
-                    const SizedBox(height: 12),
-                    _SummaryMetadata(
-                      originalLength: _originalLength,
-                      summaryLength: _summaryLength,
-                    ),
-                    const SizedBox(height: 22),
-                    _SummaryActionButtons(
-                      onSavePressed: _saveSummary,
-                      onDownloadPressed: _downloadSummary,
-                    ),
-                  ],
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: OutlinedButton.icon(
-                      onPressed: _isLoading || _isDeletingFiles
-                          ? null
-                          : () async {
-                        await _summarizeAnotherMaterial();
-                      },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: _pinkColor,
-                        backgroundColor:
-                        Colors.white.withValues(alpha: 0.84),
-                        side: const BorderSide(
-                          color: _pinkColor,
-                          width: 1.5,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
+          child: Stack(
+            children: [
+              SafeArea(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 22, 24, 40),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _SummaryResultHeader(
+                        selectedCertificate: widget.selectedCertificate,
+                        isSplitSummary: widget.isSplitSummary,
+                        fileCount: displayedFileCount,
+                        isLoading: _isLoading,
+                        hasError: _errorMessage != null,
                       ),
-                      icon: const Icon(
-                        Icons.refresh_rounded,
-                        size: 21,
-                      ),
-                      label: const Text(
-                        '다른 자료 요약하기',
+                      const SizedBox(height: 30),
+                      Text(
+                        '구름iT 요약 노트',
                         style: TextStyle(
-                          fontSize: 16,
+                          color: context.colors.textPrimary,
+                          fontSize: 22,
                           fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 7),
+                      Text(
+                        _isLoading
+                            ? '업로드한 자료에서 핵심 내용을 찾고 있어요.'
+                            : _errorMessage != null
+                            ? '오류 내용을 확인한 뒤 다시 시도해주세요.'
+                            : '업로드한 자료의 핵심 내용을 정리했어요.',
+                        style: TextStyle(color: context.colors.textSecondary, fontSize: 14),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildSummaryContent(),
+                      if (!_isLoading && _errorMessage == null) ...[
+                        const SizedBox(height: 12),
+                        _SummaryMetadata(originalLength: _originalLength, summaryLength: _summaryLength),
+                        const SizedBox(height: 22),
+                        _SummaryActionButtons(
+                          onSavePressed: _isSavingSummary ? null : _saveSummary,
+                          onDownloadPressed: _downloadSummary,
+                          isSaving: _isSavingSummary,
+                        ),
+                      ],
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: OutlinedButton.icon(
+                          onPressed: _isLoading ? null : _summarizeAnotherMaterial,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.pink,
+                            backgroundColor: Colors.white.withValues(alpha: 0.84),
+                            side: const BorderSide(color: AppColors.pink, width: 1.5),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          ),
+                          icon: const Icon(Icons.refresh_rounded, size: 21),
+                          label: const Text(
+                            '다른 자료 요약하기',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (_isLoading)
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.white.withValues(alpha: 0.92),
+                    child: Align(
+                      alignment: const Alignment(0, -0.15),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: _RotatingLoadingContent(
+                          messages: _analysisMessages,
+                          durations: _analysisDurations,
                         ),
                       ),
                     ),
                   ),
-                ],
-              ),
-            ),
+                ),
+            ],
           ),
         ),
       ),
@@ -882,31 +539,7 @@ class _MaterialSummaryResultPageState
   }
 }
 
-class _CertificateMismatchIcon
-    extends StatelessWidget {
-  const _CertificateMismatchIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 42,
-      height: 42,
-      decoration: const BoxDecoration(
-        color: Color(0xFFFFEEF1),
-        shape: BoxShape.circle,
-      ),
-      alignment: Alignment.center,
-      child: const Icon(
-        Icons.warning_amber_rounded,
-        color: Color(0xFFF4869D),
-        size: 24,
-      ),
-    );
-  }
-}
-
-class _CertificateComparisonBox
-    extends StatelessWidget {
+class _CertificateComparisonBox extends StatelessWidget {
   final String selectedCertificate;
   final String detectedCertificate;
 
@@ -921,40 +554,27 @@ class _CertificateComparisonBox
       width: double.infinity,
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF5F7),
+        color: context.colors.pinkSoftAlt,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         children: [
-          _CertificateComparisonRow(
-            label: '선택한 자격증',
-            value: selectedCertificate,
-          ),
+          _CertificateComparisonRow(label: '선택한 자격증', value: selectedCertificate),
           const SizedBox(height: 12),
-          const Divider(
-            height: 1,
-            color: Color(0xFFF0DDE2),
-          ),
+          const Divider(height: 1, color: Color(0xFFF0DDE2)),
           const SizedBox(height: 12),
-          _CertificateComparisonRow(
-            label: 'AI가 판단한 자격증',
-            value: detectedCertificate,
-          ),
+          _CertificateComparisonRow(label: 'AI가 판단한 자격증', value: detectedCertificate),
         ],
       ),
     );
   }
 }
 
-class _CertificateComparisonRow
-    extends StatelessWidget {
+class _CertificateComparisonRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _CertificateComparisonRow({
-    required this.label,
-    required this.value,
-  });
+  const _CertificateComparisonRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -965,8 +585,8 @@ class _CertificateComparisonRow
           width: 108,
           child: Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF817B7D),
+            style: TextStyle(
+              color: context.colors.textSecondary,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -977,8 +597,8 @@ class _CertificateComparisonRow
           child: Text(
             value,
             textAlign: TextAlign.right,
-            style: const TextStyle(
-              color: Color(0xFF302C2E),
+            style: TextStyle(
+              color: context.colors.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w800,
             ),
@@ -1030,21 +650,9 @@ class _SummaryResultHeader extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(
-        22,
-        24,
-        20,
-        22,
-      ),
+      padding: const EdgeInsets.fromLTRB(22, 24, 20, 22),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFFFE4ED),
-            Color(0xFFF2E4FF),
-          ],
-        ),
+        gradient: AppColors.heroGradient,
         borderRadius: BorderRadius.circular(25),
       ),
       child: Row(
@@ -1055,8 +663,8 @@ class _SummaryResultHeader extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    color: Color(0xFF302C2E),
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
                     fontSize: 23,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.6,
@@ -1065,17 +673,13 @@ class _SummaryResultHeader extends StatelessWidget {
                 const SizedBox(height: 9),
                 Text(
                   description,
-                  style: const TextStyle(
-                    color: Color(0xFF817B7D),
-                    fontSize: 14,
-                    height: 1.5,
-                  ),
+                  style: TextStyle(color: context.colors.textSecondary, fontSize: 14, height: 1.5),
                 ),
                 const SizedBox(height: 5),
                 Text(
                   '업로드 자료 $fileCount개',
                   style: const TextStyle(
-                    color: Color(0xFFF4869D),
+                    color: AppColors.pink,
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1086,16 +690,9 @@ class _SummaryResultHeader extends StatelessWidget {
           Container(
             width: 68,
             height: 68,
-            decoration: const BoxDecoration(
-              color: Color(0xFFFFF2F5),
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: context.colors.pinkSoftAlt, shape: BoxShape.circle),
             alignment: Alignment.center,
-            child: Icon(
-              icon,
-              color: const Color(0xFFF4869D),
-              size: 32,
-            ),
+            child: Icon(icon, color: AppColors.pink, size: 32),
           ),
           const SizedBox(width: 4),
         ],
@@ -1119,18 +716,11 @@ class _CertificateSummarySection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        20,
-        20,
-        22,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.94),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: const Color(0xFFF0E4E8),
-        ),
+        border: Border.all(color: const Color(0xFFF0E4E8)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1141,14 +731,11 @@ class _CertificateSummarySection extends StatelessWidget {
                 width: 34,
                 height: 34,
                 alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFFFE6EC),
-                  shape: BoxShape.circle,
-                ),
+                decoration: BoxDecoration(color: context.colors.pinkSoft, shape: BoxShape.circle),
                 child: Text(
                   '$summaryNumber',
                   style: const TextStyle(
-                    color: Color(0xFFF4869D),
+                    color: AppColors.pink,
                     fontSize: 14,
                     fontWeight: FontWeight.w900,
                   ),
@@ -1158,8 +745,8 @@ class _CertificateSummarySection extends StatelessWidget {
               Expanded(
                 child: Text(
                   certificateName,
-                  style: const TextStyle(
-                    color: Color(0xFF302C2E),
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
                     fontSize: 19,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1168,17 +755,11 @@ class _CertificateSummarySection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 22),
-          const _SummaryResultTitle(
-            title: '요약 내용',
-          ),
+          const _SummaryResultTitle(title: '요약 내용'),
           const SizedBox(height: 14),
           SelectableText(
             summary,
-            style: const TextStyle(
-              color: Color(0xFF595254),
-              fontSize: 14,
-              height: 1.7,
-            ),
+            style: const TextStyle(color: Color(0xFF595254), fontSize: 14, height: 1.7),
           ),
         ],
       ),
@@ -1190,10 +771,7 @@ class _SummaryMetadata extends StatelessWidget {
   final int originalLength;
   final int summaryLength;
 
-  const _SummaryMetadata({
-    required this.originalLength,
-    required this.summaryLength,
-  });
+  const _SummaryMetadata({required this.originalLength, required this.summaryLength});
 
   @override
   Widget build(BuildContext context) {
@@ -1201,11 +779,7 @@ class _SummaryMetadata extends StatelessWidget {
       alignment: Alignment.centerRight,
       child: Text(
         '원문 $originalLength자 · 요약 $summaryLength자',
-        style: const TextStyle(
-          color: Color(0xFF9A9295),
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
+        style: TextStyle(color: context.colors.textMuted, fontSize: 12, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -1214,16 +788,14 @@ class _SummaryMetadata extends StatelessWidget {
 class _SummaryResultTitle extends StatelessWidget {
   final String title;
 
-  const _SummaryResultTitle({
-    required this.title,
-  });
+  const _SummaryResultTitle({required this.title});
 
   @override
   Widget build(BuildContext context) {
     return Text(
       title,
-      style: const TextStyle(
-        color: Color(0xFF302C2E),
+      style: TextStyle(
+        color: context.colors.textPrimary,
         fontSize: 17,
         fontWeight: FontWeight.w800,
       ),
@@ -1232,12 +804,14 @@ class _SummaryResultTitle extends StatelessWidget {
 }
 
 class _SummaryActionButtons extends StatelessWidget {
-  final VoidCallback onSavePressed;
+  final VoidCallback? onSavePressed;
   final VoidCallback onDownloadPressed;
+  final bool isSaving;
 
   const _SummaryActionButtons({
     required this.onSavePressed,
     required this.onDownloadPressed,
+    this.isSaving = false,
   });
 
   @override
@@ -1250,31 +824,23 @@ class _SummaryActionButtons extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: onSavePressed,
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFFF4869D),
-                backgroundColor:
-                Colors.white.withValues(alpha: 0.84),
-                side: const BorderSide(
-                  color: Color(0xFFF4869D),
-                  width: 1.5,
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
+                foregroundColor: AppColors.pink,
+                backgroundColor: Colors.white.withValues(alpha: 0.84),
+                side: const BorderSide(color: AppColors.pink, width: 1.5),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
               ),
-              icon: const Icon(
-                Icons.bookmark_add_outlined,
-                size: 20,
-              ),
+              icon: isSaving
+                  ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.pink),
+              )
+                  : const Icon(Icons.bookmark_add_outlined, size: 20),
               label: const Text(
                 '요약본 저장',
                 maxLines: 1,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                ),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
               ),
             ),
           ),
@@ -1286,28 +852,221 @@ class _SummaryActionButtons extends StatelessWidget {
             child: FilledButton.icon(
               onPressed: onDownloadPressed,
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFF4869D),
+                backgroundColor: AppColors.pink,
                 foregroundColor: Colors.white,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
               ),
-              icon: const Icon(
-                Icons.download_rounded,
-                size: 20,
-              ),
+              icon: const Icon(Icons.ios_share_rounded, size: 20),
               label: const Text(
                 '요약본 다운',
                 maxLines: 1,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                ),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
               ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _WaveLoadingIndicator extends StatefulWidget {
+  final double size;
+  final double progress;
+
+  const _WaveLoadingIndicator({this.size = 72, required this.progress});
+
+  @override
+  State<_WaveLoadingIndicator> createState() => _WaveLoadingIndicatorState();
+}
+
+class _WaveLoadingIndicatorState extends State<_WaveLoadingIndicator>
+    with TickerProviderStateMixin {
+  late final AnimationController _levelController;
+  late Animation<double> _levelAnimation;
+  late final AnimationController _waveController;
+
+  @override
+  void initState() {
+    super.initState();
+    _levelController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _levelAnimation = Tween<double>(begin: 0, end: widget.progress).animate(
+      CurvedAnimation(parent: _levelController, curve: Curves.easeOut),
+    );
+    _levelController.forward();
+
+    _waveController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat();
+  }
+
+  @override
+  void didUpdateWidget(covariant _WaveLoadingIndicator oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.progress != widget.progress) {
+      _levelAnimation = Tween<double>(
+        begin: _levelAnimation.value,
+        end: widget.progress,
+      ).animate(CurvedAnimation(parent: _levelController, curve: Curves.easeOut));
+      _levelController
+        ..reset()
+        ..forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _levelController.dispose();
+    _waveController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: widget.size,
+      height: widget.size,
+      decoration: const BoxDecoration(shape: BoxShape.circle),
+      child: ClipOval(
+        child: AnimatedBuilder(
+          animation: Listenable.merge([_levelController, _waveController]),
+          builder: (context, _) {
+            return CustomPaint(
+              size: Size(widget.size, widget.size),
+              painter: _WavePainter(
+                level: _levelAnimation.value,
+                wavePhase: _waveController.value,
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _WavePainter extends CustomPainter {
+  final double level;
+  final double wavePhase;
+
+  const _WavePainter({required this.level, required this.wavePhase});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bgPaint = Paint()..color = const Color(0xFFFFF3F5);
+    canvas.drawRect(Offset.zero & size, bgPaint);
+
+    final baseY = size.height * (1 - level);
+    final waveHeight = size.height * 0.045;
+
+    final path = Path()..moveTo(0, baseY);
+    for (double x = 0; x <= size.width; x += 2) {
+      final y = baseY +
+          math.sin((x / size.width * 2 * math.pi) + wavePhase * 2 * math.pi) *
+              waveHeight;
+      path.lineTo(x, y);
+    }
+    path.lineTo(size.width, size.height);
+    path.lineTo(0, size.height);
+    path.close();
+
+    final wavePaint = Paint()
+      ..shader = const LinearGradient(
+        colors: [Color(0xFFF4869D), Color(0xFFFF8FA3)],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      ).createShader(Offset.zero & size);
+
+    canvas.drawPath(path, wavePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _WavePainter oldDelegate) =>
+      oldDelegate.level != level || oldDelegate.wavePhase != wavePhase;
+}
+
+class _RotatingLoadingContent extends StatefulWidget {
+  final List<String> messages;
+  final List<int> durations;
+
+  const _RotatingLoadingContent({
+    required this.messages,
+    required this.durations,
+  });
+
+  @override
+  State<_RotatingLoadingContent> createState() => _RotatingLoadingContentState();
+}
+
+class _RotatingLoadingContentState extends State<_RotatingLoadingContent>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _rotationController;
+  Timer? _messageTimer;
+  int _messageIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _rotationController =
+    AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))
+      ..repeat();
+    _scheduleNextMessage();
+  }
+
+  void _scheduleNextMessage() {
+    final duration =
+    widget.durations[_messageIndex.clamp(0, widget.durations.length - 1)];
+    _messageTimer = Timer(Duration(milliseconds: duration), () {
+      if (!mounted) return;
+      if (_messageIndex < widget.messages.length - 1) {
+        setState(() => _messageIndex++);
+        _scheduleNextMessage();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _rotationController.dispose();
+    _messageTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _WaveLoadingIndicator(
+          size: 72,
+          progress: _messageIndex / (widget.messages.length - 1),
+        ),
+        const SizedBox(height: 26),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 350),
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          transitionBuilder: (child, anim) => FadeTransition(
+            opacity: anim,
+            child: SlideTransition(
+              position: Tween(begin: const Offset(0, 0.15), end: Offset.zero).animate(anim),
+              child: child,
+            ),
+          ),
+          child: Text(
+            widget.messages[_messageIndex],
+            key: ValueKey(_messageIndex),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.grey.shade900,
+              fontSize: 15.5,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ),

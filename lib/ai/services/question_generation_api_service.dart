@@ -313,6 +313,50 @@ class QuestionGenerationApiService {
     throw Exception(result.data['message'] ?? '문제를 생성하지 못했어요.');
   }
 
+  /// 업로드된 자료(fileUrls)를 선택한 자격증(selectedCertificate) 기준으로 요약 요청.
+  ///
+  /// [forceSummary]가 true면, 자격증-자료 불일치 경고를 무시하고
+  /// 서버가 무조건 요약을 생성하도록 요청한다.
+  ///
+  /// 다른 메서드들과 달리 서버 응답에 'success' 래핑이 없고
+  /// certificate_match / summary 등의 필드를 바로 반환하므로 그대로 넘겨준다.
+  static Future<Map<String, dynamic>> summarizeMaterial({
+    required List<String> fileUrls,
+    required String selectedCertificate,
+    bool forceSummary = false,
+  }) async {
+    if (fileUrls.isEmpty) {
+      throw Exception('요약할 파일 URL이 없습니다.');
+    }
+    if (selectedCertificate.trim().isEmpty) {
+      throw Exception('선택한 자격증 정보가 없습니다.');
+    }
+
+    final callable = FirebaseFunctions.instance.httpsCallable(
+      'summarizeMaterial',
+      options: HttpsCallableOptions(timeout: const Duration(seconds: 150)),
+    );
+
+    try {
+      final result = await callable.call({
+        'fileUrls': fileUrls,
+        'selectedCertificate': selectedCertificate.trim(),
+        'forceSummary': forceSummary,
+      });
+
+      debugPrint('summarizeMaterial 응답: ${result.data}');
+
+      final data = result.data;
+      if (data is Map) {
+        return Map<String, dynamic>.from(data);
+      }
+
+      throw Exception('서버로부터 올바르지 않은 형식의 응답을 받았습니다.');
+    } on FirebaseFunctionsException catch (e) {
+      throw Exception(e.message ?? '요약을 생성하지 못했습니다. 다시 시도해주세요.');
+    }
+  }
+
   static Future<void> saveWrongAnswers(List<WrongAnswer> wrongAnswers) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null || wrongAnswers.isEmpty) return;
