@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../study/study_list.dart';
+import '../../study/study_detail.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
@@ -212,7 +213,7 @@ class _JoinedStudyScreenState extends State<JoinedStudyScreen> {
             message: "참여 중인 스터디가 없습니다",
             description: "스터디를 찾아 함께 목표를 준비해 보세요",
             buttonText: "스터디 찾기",
-            onButtonPressed: (){
+            onButtonPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -279,9 +280,6 @@ class _JoinedStudyScreenState extends State<JoinedStudyScreen> {
                     onTap: () {
                       _openStudyDetail(study);
                     },
-                    onLeave: () {
-                      _showLeaveDialog(study);
-                    },
                   );
                 },
               ),
@@ -292,104 +290,90 @@ class _JoinedStudyScreenState extends State<JoinedStudyScreen> {
     );
   }
 
-  void _openStudyDetail(JoinedStudyData study) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => TemporaryStudyDetailScreen(
-          study: study,
-        ),
-      ),
-    );
-  }
+  Future<void> _openStudyDetail(JoinedStudyData study,) async {
+    try {
+      final DocumentSnapshot<Map<String, dynamic>> studySnapshot =
+      await FirebaseFirestore.instance
+          .collection('studyGroups')
+          .doc(study.id)
+          .get();
 
-  void _showLeaveDialog(JoinedStudyData study) {
-    // if (study.role == StudyMemberRole.leader) {
-    //   showDialog<void>(
-    //     context: context,
-    //     builder: (dialogContext) {
-    //       return AlertDialog(
-    //         backgroundColor: Colors.white,
-    //         title: const Text(
-    //           '스터디장 권한 확인',
-    //           style: TextStyle(
-    //             fontWeight: FontWeight.w700,
-    //           ),
-    //         ),
-    //         content: const Text(
-    //           '스터디장은 바로 나갈 수 없습니다.\n다른 멤버에게 스터디장 권한을 넘긴 후 나가 주세요.',
-    //         ),
-    //         actions: [
-    //           TextButton(
-    //             onPressed: () {
-    //               Navigator.pop(dialogContext);
-    //             },
-    //             child: const Text(
-    //               '확인',
-    //               style: TextStyle(
-    //                 color: Color(0xFFF0788F),
-    //                 fontWeight: FontWeight.w700,
-    //               ),
-    //             ),
-    //           ),
-    //         ],
-    //       );
-    //     },
-    //   );
-    //
-    //   return;
-    // }
+      if (!mounted) {
+        return;
+      }
 
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          title: const Text(
-            '스터디 나가기',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-            ),
+      if (!studySnapshot.exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('스터디 정보를 찾을 수 없습니다.'),
           ),
-          content: Text(
-            '"${study.title}" 스터디에서 나가시겠습니까?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-              },
-              child: const Text(
-                '취소',
-                style: TextStyle(
-                  color: Color(0xFF9AA0AC),
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      '스터디 나가기 DB 처리는 스터디 기능과 연결 후 적용됩니다.',
-                    ),
-                  ),
-                );
-              },
-              child: const Text(
-                '나가기',
-                style: TextStyle(
-                  color: Color(0xFFF0788F),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
         );
-      },
-    );
+        return;
+      }
+
+      final Map<String, dynamic>? studyData =
+      studySnapshot.data();
+
+      if (studyData == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('스터디 정보를 불러오지 못했습니다.'),
+          ),
+        );
+        return;
+      }
+
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) {
+            return StudyDetailPage(
+              studyId: study.id,
+              studyData: studyData,
+            );
+          },
+        ),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      await _loadJoinedStudies();
+    } on FirebaseException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      String message = '스터디 정보를 불러오지 못했습니다.';
+
+      if (error.code == 'permission-denied') {
+        message = '스터디 상세 정보를 조회할 권한이 없습니다.';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+        ),
+      );
+    } catch (error) {
+      debugPrint('스터디 상세 화면 이동 오류: $error');
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('스터디 정보를 불러오지 못했습니다.'),
+        ),
+      );
+    }
   }
 }
 
@@ -441,12 +425,10 @@ class _StudySummaryCard extends StatelessWidget {
 class _JoinedStudyCard extends StatelessWidget {
   final JoinedStudyData study;
   final VoidCallback onTap;
-  final VoidCallback onLeave;
 
   const _JoinedStudyCard({
     required this.study,
     required this.onTap,
-    required this.onLeave,
   });
 
   @override
@@ -480,43 +462,6 @@ class _JoinedStudyCard extends StatelessWidget {
                     role: study.role,
                   ),
                   const Spacer(),
-                  PopupMenuButton<String>(
-                    tooltip: '스터디 메뉴',
-                    color: Colors.white,
-                    icon: const Icon(
-                      Icons.more_vert,
-                      size: 21,
-                      color: Color(0xFF9AA0AC),
-                    ),
-                    onSelected: (value) {
-                      if (value == 'leave') {
-                        onLeave();
-                      }
-                    },
-                    itemBuilder: (_) {
-                      return const [
-                        PopupMenuItem(
-                          value: 'leave',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.logout,
-                                size: 19,
-                                color: Color(0xFFF0788F),
-                              ),
-                              SizedBox(width: 10),
-                              Text(
-                                '스터디 나가기',
-                                style: TextStyle(
-                                  color: Color(0xFFF0788F),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ];
-                    },
-                  ),
                 ],
               ),
 
@@ -833,162 +778,4 @@ class JoinedStudyData {
     required this.status,
     required this.memberDocumentId,
   });
-}
-
-/// 실제 스터디 상세 화면이 완성되기 전 사용하는 임시 상세 화면
-class TemporaryStudyDetailScreen extends StatelessWidget {
-  final JoinedStudyData study;
-
-  const TemporaryStudyDetailScreen({
-    super.key,
-    required this.study,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-
-      appBar: AppTopBar(
-        title: '스터디 상세',
-        leading: IconButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            size: 20,
-            color: Color(0xFF1A1A1A),
-          ),
-        ),
-      ),
-
-      body: AppMainBackground(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            20,
-            16,
-            20,
-            110,
-          ),
-          child: AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _CertificateChip(
-                  text: study.certificateName,
-                ),
-
-                const SizedBox(height: 14),
-
-                Text(
-                  study.title,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    height: 1.4,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1A1A1A),
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                Text(
-                  study.description,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    height: 1.7,
-                    color: Color(0xFF44474E),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                const Divider(
-                  color: Color(0xFFF0F0F2),
-                ),
-
-                const SizedBox(height: 20),
-
-                _DetailRow(
-                  icon: Icons.people_outline,
-                  label: '참여 인원',
-                  value:
-                  '${study.memberCount}/${study.maxMemberCount}명',
-                ),
-
-                const SizedBox(height: 14),
-
-                _DetailRow(
-                  icon: Icons.schedule_outlined,
-                  label: '다음 일정',
-                  value: study.nextSchedule,
-                ),
-
-                const SizedBox(height: 14),
-
-                _DetailRow(
-                  icon: Icons.percent,
-                  label: '진행률',
-                  value: '${study.progressPercent}%',
-                ),
-
-                const SizedBox(height: 28),
-
-                const Text(
-                  '스터디 상세 기능은 스터디 그룹 화면 구현 후 연결됩니다.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF9AA0AC),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-
-  const _DetailRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 19,
-          color: const Color(0xFFF0788F),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            color: Color(0xFF666A73),
-          ),
-        ),
-        const Spacer(),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF1A1A1A),
-          ),
-        ),
-      ],
-    );
-  }
 }
