@@ -32,6 +32,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   bool _isFriendActionLoading = false;
 
   bool _isBlocked = false;
+  bool _isBlockedByOther = false;
   bool _isBlockActionLoading = false;
 
   @override
@@ -227,7 +228,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
 
     try {
-      final DocumentSnapshot<Map<String, dynamic>> blockedDocument =
+      // 내가 상대방을 차단했는지 확인
+      final DocumentSnapshot<Map<String, dynamic>> blockedByMeDocument =
       await FirebaseFirestore.instance
           .collection('users')
           .doc(currentUid)
@@ -235,12 +237,22 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           .doc(widget.userUid)
           .get();
 
+      // 상대방이 나를 차단했는지 확인
+      final DocumentSnapshot<Map<String, dynamic>> blockedByOtherDocument =
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userUid)
+          .collection('blockedUsers')
+          .doc(currentUid)
+          .get();
+
       if (!mounted) {
         return;
       }
 
       setState(() {
-        _isBlocked = blockedDocument.exists;
+        _isBlocked = blockedByMeDocument.exists;
+        _isBlockedByOther = blockedByOtherDocument.exists;
       });
     } catch (error) {
       if (!mounted) {
@@ -249,6 +261,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
       setState(() {
         _isBlocked = false;
+        _isBlockedByOther = false;
       });
     }
   }
@@ -259,7 +272,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   Future<void> _onFriendButtonPressed() async {
-    if (_isFriendActionLoading || _isBlocked) {
+    if (_isFriendActionLoading || _isBlocked || _isBlockedByOther) {
       return;
     }
 
@@ -301,7 +314,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final String? currentUid = FirebaseAuth.instance.currentUser?.uid;
     final String? requestId = _getFriendRequestId();
 
-    if (currentUid == null || requestId == null || _isBlocked) {
+    if (currentUid == null ||
+        requestId == null ||
+        _isBlocked ||
+        _isBlockedByOther) {
       return;
     }
 
@@ -794,6 +810,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       return '차단한 사용자입니다';
     }
 
+    if (_isBlockedByOther) {
+      return '친구 요청을 보낼 수 없습니다';
+    }
+
     if (_friendStatus == 'ACCEPTED') {
       return '친구';
     }
@@ -812,7 +832,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   AppButtonType _getFriendButtonType() {
     final String? currentUid = FirebaseAuth.instance.currentUser?.uid;
 
-    if (_isBlocked || _friendStatus == 'ACCEPTED') {
+    if (_isBlocked ||
+        _isBlockedByOther ||
+        _friendStatus == 'ACCEPTED') {
       return AppButtonType.gray;
     }
 
@@ -882,6 +904,34 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
                     _loadUserProfile();
                   },
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_isBlockedByOther) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.person_off_outlined,
+                size: 64,
+                color: Color(0xFFB5B7BE),
+              ),
+              SizedBox(height: 16),
+              Text(
+                '이 사용자의 프로필을 확인할 수 없습니다.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF44474E),
                 ),
               ),
             ],
@@ -979,7 +1029,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     onPressed: _isFriendActionLoading ||
                         _isBlockActionLoading ||
                         _friendStatus == 'ACCEPTED' ||
-                        _isBlocked
+                        _isBlocked ||
+                        _isBlockedByOther
                         ? null
                         : _onFriendButtonPressed,
                   ),
