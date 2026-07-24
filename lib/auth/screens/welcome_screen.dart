@@ -114,8 +114,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                     .update({'profileImageUrl': url, 'profileImagePath': path});
                               }
                               if (!termsContext.mounted) return;
-                              Navigator.of(termsContext).pushReplacement(
+                              Navigator.of(termsContext).pushAndRemoveUntil(
                                 MaterialPageRoute(builder: (_) => const MainPage()),
+                                    (route) => false,
                               );
                             },
                           ),
@@ -143,12 +144,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         await WithdrawalStatusService.isCurrentUserWithdrawalPending();
 
         if (!context.mounted) return;
-        Navigator.of(context).pushReplacement(
+        Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (_) => isWithdrawalPending
                 ? const WithdrawalPendingScreen()
                 : const MainPage(),
           ),
+              (route) => false,
         );
       } catch (_) {
         await FirebaseAuth.instance.signOut();

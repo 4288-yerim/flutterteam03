@@ -16,12 +16,6 @@ import 'profile_setup_screen.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 
-/// 이메일로 받은 6자리 코드를 입력받아 verifyOtp Cloud Function을 호출한다.
-/// 코드가 맞아도 이 시점엔 Firebase Auth 계정을 만들지 않는다 (verificationToken만 발급).
-/// 실제 계정 생성 + Firestore 유저 문서 생성은 약관동의 화면에서
-/// completeSignup을 호출하는 시점에 한 번에 일어난다.
-/// 즉 사용자가 약관동의 전에 앱을 꺼버리면 Firebase Auth / Firestore 어디에도
-/// 흔적이 전혀 남지 않는다.
 class OtpVerificationScreen extends StatefulWidget {
   final String email;
   final String password;
@@ -54,7 +48,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
   late final AnimationController _pulseController;
   late final AnimationController _floatController;
 
-  // 회원가입 화면과 동일하게, 코드가 처음으로 6자리가 됐을 때 버튼이 살짝 튀는 느낌
   late final AnimationController _buttonPulseController;
   bool _wasCodeComplete = false;
 
@@ -186,8 +179,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
 
       if (!mounted) return;
 
-      // 아직 로그인/계정 생성 전 상태.
-      // 목표 자격증 선택 -> 약관동의까지 마쳐야 완료됨.
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => GoalCertificateScreen(
@@ -250,7 +241,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
     }
   }
 
-  // 약관동의까지 끝난 시점에 호출됨. 여기서 비로소 계정이 생긴다.
   Future<void> _completeSignup(
       BuildContext termsContext,
       String verificationToken,
@@ -275,7 +265,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
       final customToken = result.data['customToken'] as String;
       await FirebaseAuth.instance.signInWithCustomToken(customToken);
 
-      // 계정이 방금 생겼으니, 이제서야 프로필 이미지를 업로드할 수 있음
       if (profileImageFile != null) {
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
@@ -293,21 +282,19 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
             });
           } catch (e) {
             debugPrint('PROFILE IMAGE UPLOAD FAILED: $e');
-            // 이미지 업로드 실패해도 가입 자체는 이미 끝났으니 그냥 진행
           }
         }
       }
 
       if (!termsContext.mounted) return;
-      Navigator.of(termsContext).pushReplacement(
+      Navigator.of(termsContext).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const MainPage()),
+            (route) => false,
       );
     } on FirebaseFunctionsException catch (e) {
       debugPrint('COMPLETE_SIGNUP ERROR CODE: ${e.code}');
       debugPrint('COMPLETE_SIGNUP ERROR MESSAGE: ${e.message}');
 
-      // already-exists는 "직전 시도가 서버에선 이미 성공했는데 응답만 못 받은 경우"일 수 있음.
-      // (계정 생성까지는 됐지만 앱에는 실패로 보였던 케이스) 이땐 그냥 로그인으로 이어준다.
       if (e.code == 'already-exists') {
         final recovered = await _tryRecoverExistingAccount(termsContext);
         if (recovered) return;
@@ -330,7 +317,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
       ScaffoldMessenger.of(termsContext).showSnackBar(
         SnackBar(content: Text(message)),
       );
-      // 실패했으면 처음(회원가입 화면)으로 돌려보냄
       Navigator.of(termsContext).popUntil((route) => route.isFirst);
     } catch (e, st) {
       debugPrint('COMPLETE_SIGNUP UNEXPECTED ERROR: $e');
@@ -343,9 +329,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
     }
   }
 
-  // completeSignup이 already-exists를 반환했을 때, 실제로는 직전 시도에서 계정이
-  // 이미 만들어졌을 가능성이 높으므로 이메일/비밀번호로 바로 로그인을 시도해본다.
-  // 성공하면 true를 반환하고 메인으로 이동시킨다.
   Future<bool> _tryRecoverExistingAccount(BuildContext termsContext) async {
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
@@ -353,8 +336,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
         password: widget.password,
       );
       if (!termsContext.mounted) return false;
-      Navigator.of(termsContext).pushReplacement(
+      Navigator.of(termsContext).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const MainPage()),
+            (route) => false,
       );
       return true;
     } catch (e) {
@@ -363,8 +347,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
     }
   }
 
-  /// 앱 로고 뱃지 + 우하단 인증 체크 배지 + 작은 도트 장식 + 살짝 떠다니는 애니메이션.
-  /// 로그인/회원가입 화면과 동일한 로고를 사용해 톤을 통일한다.
   Widget _iconHeader(AppColors colors) {
     return AnimatedBuilder(
       animation: _entryController,
@@ -568,7 +550,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
                           ),
                         ),
                         SizedBox(height: 32),
-                        // 회원가입 화면의 TextField 톤(둥근 보더, 라벨, 클리어 버튼)에 맞춤
                         TextField(
                           controller: _codeController,
                           focusNode: _codeFocus,
@@ -639,7 +620,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
                           ),
                         ],
                         SizedBox(height: 32),
-                        // 6자리를 다 입력하기 전에는 비활성화됨
                         AnimatedBuilder(
                           animation: _buttonPulseController,
                           builder: (context, child) {
@@ -658,7 +638,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
                           ),
                         ),
                         SizedBox(height: 14),
-                        // "인증코드 다시 받기" -> 더 친근하고 상황에 맞는 문구로 변경
                         Wrap(
                           alignment: WrapAlignment.center,
                           crossAxisAlignment: WrapCrossAlignment.center,
