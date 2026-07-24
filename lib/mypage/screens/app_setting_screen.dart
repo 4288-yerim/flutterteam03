@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
+import 'blocked_user_screen.dart';
 
 class AppSettingScreen extends StatefulWidget {
   const AppSettingScreen({super.key});
@@ -246,6 +247,8 @@ class _AppSettingScreenState
             _buildScreenSettingSection(),
             const SizedBox(height: 26),
             _buildNotificationSettingSection(),
+            const SizedBox(height: 26),
+            _buildPrivacySettingSection(),
             const SizedBox(height: 22),
             _buildStorageNotice(),
           ],
@@ -833,6 +836,80 @@ class _AppSettingScreenState
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildPrivacySettingSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _SettingSectionTitle(
+          icon: Icons.shield_outlined,
+          title: '개인정보 및 사용자 관리',
+          description: '차단한 사용자를 확인하고 관리합니다.',
+        ),
+        const SizedBox(height: 12),
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(22),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                  const BlockedUserScreen(),
+                ),
+              );
+            },
+            child: const Padding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                14,
+                14,
+                14,
+              ),
+              child: Row(
+                children: [
+                  _SettingIcon(
+                    icon: Icons.person_off_outlined,
+                  ),
+                  SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '차단 사용자 관리',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1A1A1A),
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          '차단 목록을 확인하고 차단을 해제합니다.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF9AA0AC),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: Color(0xFFB4B8C2),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

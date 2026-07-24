@@ -3,9 +3,9 @@ import 'quiz_session_page.dart';
 import 'package:file_picker/file_picker.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
+import 'widgets/wave_loading_indicator.dart';
 import 'services/question_generation_api_service.dart';
 import 'dart:async';
-import 'dart:math' as math;
 
 class QuestionGenerationPage extends StatefulWidget {
   const QuestionGenerationPage({super.key});
@@ -1244,34 +1244,28 @@ class _LoadingIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 280),
-      child: AnimatedBuilder(
-        animation: progress,
-        builder: (context, _) => Column(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: LinearProgressIndicator(
-                value: progress.value,
-                minHeight: 7,
-                backgroundColor: _QuestionGenerationPageState._pinkSoft,
-                valueColor: const AlwaysStoppedAnimation(
-                  _QuestionGenerationPageState._pinkColor,
-                ),
-              ),
+    return AnimatedBuilder(
+      animation: progress,
+      builder: (context, _) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          WaveLoadingIndicator(
+            size: 72,
+            progress: progress.value,
+            backgroundColor: const Color(0xFFFFF3F5),
+            waveColorStart: _QuestionGenerationPageState._pinkColor,
+            waveColorEnd: _QuestionGenerationPageState._pinkAccent,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '${(progress.value * 100).toInt()}%',
+            style: const TextStyle(
+              color: _QuestionGenerationPageState._pinkColor,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
             ),
-            const SizedBox(height: 10),
-            Text(
-              '${(progress.value * 100).toInt()}%',
-              style: const TextStyle(
-                color: _QuestionGenerationPageState._pinkColor,
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1759,124 +1753,6 @@ class _FadeSlideInState extends State<_FadeSlideIn>
   }
 }
 
-class _WaveLoadingIndicator extends StatefulWidget {
-  final double size;
-  final double progress; // 0(빔) ~ 1(가득 참) — 목표 채움 정도
-
-  const _WaveLoadingIndicator({this.size = 72, required this.progress});
-
-  @override
-  State<_WaveLoadingIndicator> createState() => _WaveLoadingIndicatorState();
-}
-
-class _WaveLoadingIndicatorState extends State<_WaveLoadingIndicator>
-    with TickerProviderStateMixin {
-  late final AnimationController _levelController;
-  late Animation<double> _levelAnimation;
-  late final AnimationController _waveController;
-
-  @override
-  void initState() {
-    super.initState();
-    _levelController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
-    _levelAnimation = Tween<double>(begin: 0, end: widget.progress).animate(
-      CurvedAnimation(parent: _levelController, curve: Curves.easeOut),
-    );
-    _levelController.forward();
-
-    _waveController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1100),
-    )..repeat();
-  }
-
-  @override
-  void didUpdateWidget(covariant _WaveLoadingIndicator oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.progress != widget.progress) {
-      _levelAnimation = Tween<double>(
-        begin: _levelAnimation.value,
-        end: widget.progress,
-      ).animate(CurvedAnimation(parent: _levelController, curve: Curves.easeOut));
-      _levelController
-        ..reset()
-        ..forward();
-    }
-  }
-
-  @override
-  void dispose() {
-    _levelController.dispose();
-    _waveController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: widget.size,
-      height: widget.size,
-      decoration: const BoxDecoration(shape: BoxShape.circle),
-      child: ClipOval(
-        child: AnimatedBuilder(
-          animation: Listenable.merge([_levelController, _waveController]),
-          builder: (context, _) {
-            return CustomPaint(
-              size: Size(widget.size, widget.size),
-              painter: _WavePainter(
-                level: _levelAnimation.value,
-                wavePhase: _waveController.value,
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _WavePainter extends CustomPainter {
-  final double level; // 0(빈 상태) ~ 1(가득 참), 반복적으로 차오름
-  final double wavePhase; // 물결 표면 움직임용, 0~1 반복
-
-  const _WavePainter({required this.level, required this.wavePhase});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final bgPaint = Paint()..color = const Color(0xFFFFF3F5);
-    canvas.drawRect(Offset.zero & size, bgPaint);
-
-    final baseY = size.height * (1 - level);
-    final waveHeight = size.height * 0.045;
-
-    final path = Path()..moveTo(0, baseY);
-    for (double x = 0; x <= size.width; x += 2) {
-      final y = baseY +
-          math.sin((x / size.width * 2 * math.pi) + wavePhase * 2 * math.pi) *
-              waveHeight;
-      path.lineTo(x, y);
-    }
-    path.lineTo(size.width, size.height);
-    path.lineTo(0, size.height);
-    path.close();
-
-    final wavePaint = Paint()
-      ..shader = const LinearGradient(
-        colors: [Color(0xFFF4869D), Color(0xFFFF8FA3)],
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-      ).createShader(Offset.zero & size);
-
-    canvas.drawPath(path, wavePaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _WavePainter oldDelegate) =>
-      oldDelegate.level != level || oldDelegate.wavePhase != wavePhase;
-}
 
 class _RotatingLoadingContent extends StatefulWidget {
   final List<String> messages;
@@ -1930,9 +1806,12 @@ class _RotatingLoadingContentState extends State<_RotatingLoadingContent>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _WaveLoadingIndicator(
+        WaveLoadingIndicator(
           size: 72,
           progress: _messageIndex / (widget.messages.length - 1),
+          backgroundColor: const Color(0xFFFFF3F5),
+          waveColorStart: _QuestionGenerationPageState._pinkColor,
+          waveColorEnd: _QuestionGenerationPageState._pinkAccent,
         ),
         const SizedBox(height: 26),
         AnimatedSwitcher(

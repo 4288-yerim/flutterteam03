@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
@@ -51,6 +52,20 @@ class CertificateSchedule {
   }
 }
 
+class CertificateInfo {
+  final String? level;
+  final String? registrationPeriod;
+  final String? examDate;
+  final bool fromAi;
+
+  const CertificateInfo({
+    this.level,
+    this.registrationPeriod,
+    this.examDate,
+    this.fromAi = false,
+  });
+}
+
 class CertificateApiService {
   static Future<List<SuggestedCertificate>> suggestCertificates(
       String job,
@@ -92,6 +107,101 @@ class CertificateApiService {
     throw Exception(result.data['message'] ?? '일정을 불러오지 못했어요.');
   }
 
+// 변경 — findUpcoming 위에 새 메서드 두 개 추가
+  /// Firestore에 미리 저장된 자격증/일정 정보를 우선 조회한다.
+  /// (스케줄러가 큐넷 데이터를 주기적으로 캐시해둔 'certifications' 컬렉션)
+  /// DB에 아예 없거나 다가오는 회차가 없으면 null을 반환한다.
+  static Future<CertificateInfo?> fetchCertificateInfoFromFirestore(
+      String name,
+      ) async {
+    final query = await FirebaseFirestore.instance
+        .collection('certifications')
+        .where('jmfldnm', isEqualTo: name)
+        .limit(1)
+        .get();
+
+    if (query.docs.isEmpty) return null;
+
+    final doc = query.docs.first;
+    final qualgbcd = doc.data()['qualgbcd'] as String?;
+    final level = qualgbcd == 'T'
+        ? '국가기술자격'
+        : (qualgbcd == 'S' ? '국가전문자격' : null);
+
+    final now = Timestamp.now();
+    final schedulesSnap = await doc.reference
+        .collection('schedules')
+        .orderBy('sortdate', descending: false)
+        .get();
+
+    Map<String, dynamic>? upcoming;
+    for (final scheduleDoc in schedulesSnap.docs) {
+      final data = scheduleDoc.data();
+      final examStart = (data['docexamstartat'] as Timestamp?) ??
+          (data['pracexamstartat'] as Timestamp?);
+      if (examStart != null && examStart.compareTo(now) >= 0) {
+        upcoming = data;
+        break;
+      }
+    }
+
+    String? registrationPeriod;
+    String? examDate;
+
+    if (upcoming != null) {
+      final regStart = (upcoming['docregstartat'] as Timestamp?)?.toDate();
+      final regEnd = (upcoming['docregendat'] as Timestamp?)?.toDate();
+      final exam = (upcoming['docexamstartat'] as Timestamp?)?.toDate() ??
+          (upcoming['pracexamstartat'] as Timestamp?)?.toDate();
+
+      if (regStart != null && regEnd != null) {
+        registrationPeriod = '${_fmtDate(regStart)} ~ ${_fmtDate(regEnd)}';
+      }
+      if (exam != null) {
+        examDate = _fmtDate(exam);
+      }
+    }
+
+    if (level == null && registrationPeriod == null && examDate == null) {
+      return null;
+    }
+
+    return CertificateInfo(
+      level: level,
+      registrationPeriod: registrationPeriod,
+      examDate: examDate,
+    );
+  }
+
+  static String _fmtDate(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}. $month. $day';
+  }
+
+  static Future<CertificateInfo> estimateCertificateInfoWithAi(
+      String name,
+      ) async {
+    try {
+      final callable =
+      FirebaseFunctions.instance.httpsCallable('estimateCertificateInfo');
+      final result = await callable.call({'name': name});
+
+      if (result.data['success'] == true) {
+        final data = Map<String, dynamic>.from(result.data['info'] ?? {});
+        return CertificateInfo(
+          level: data['level'] as String?,
+          registrationPeriod: data['registrationPeriod'] as String?,
+          examDate: data['examDate'] as String?,
+          fromAi: true,
+        );
+      }
+    } catch (e) {
+      debugPrint('AI 자격증 정보 보완 실패: $e');
+    }
+    return const CertificateInfo(fromAi: true);
+  }
+
   static CertificateSchedule? findUpcoming(
       List<CertificateSchedule> all,
       String certName,
@@ -106,7 +216,6 @@ class CertificateApiService {
     return matched.isEmpty ? null : matched.first;
   }
 
-  /// 인기 직무 집계 — 실패해도 무시 (핵심 기능 아님)
   static Future<void> incrementJobPopularity(String job) async {
     try {
       final normalized =
@@ -138,3 +247,5 @@ class CertificateApiService {
         .toList();
   }
 }
+
+

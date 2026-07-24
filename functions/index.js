@@ -1526,3 +1526,56 @@ exports.summarizeMaterial = onCall(
     };
   }
 );
+
+exports.estimateCertificateInfo = onCall(
+  { secrets: [GEMINI_API_KEY] },
+  async (request) => {
+    const name = (request.data?.name || "").trim();
+    if (!name) {
+      throw new HttpsError("invalid-argument", "자격증 이름을 입력해주세요.");
+    }
+
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value());
+    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+
+    const prompt = `"${name}"이(가) 실제 존재하는 한국의 자격증/인증시험인지 판단하고,
+    아래 정보를 최대한 정확하게(모르면 일반적으로 알려진 수준으로 추정해서) 채워줘.
+
+    아래 JSON 형식으로만 응답하고 다른 텍스트는 절대 포함하지 마:
+    {
+      "valid": true 또는 false,
+      "level": "국가기술자격/국가전문자격/민간자격/어학시험 등 자격 구분 (모르면 null)",
+      "registrationPeriod": "일반적인 접수 기간을 대략적인 문장으로 (예: '보통 연 3~4회, 시행 공고 확인 필요') 또는 null",
+      "examDate": "일반적인 시험 시기를 대략적인 문장으로 (예: '보통 짝수달 시행') 또는 null"
+    }
+
+    규칙:
+    - valid가 false면 나머지 필드는 모두 null로 해.
+    - 정확한 날짜를 알 수 없으면 절대 구체적인 날짜를 지어내지 말고, 위 예시처럼 대략적인 패턴만 설명해.`;
+
+    try {
+      const result = await model.generateContent(prompt);
+      let text = result.response.text();
+      text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+
+      if (parsed.valid !== true) {
+        return { success: false, message: "자격증 정보를 추정하지 못했어요." };
+      }
+
+      return {
+        success: true,
+        info: {
+          level: parsed.level || null,
+          registrationPeriod: parsed.registrationPeriod || null,
+          examDate: parsed.examDate || null,
+        },
+      };
+    } catch (e) {
+      console.error("자격증 정보 추정 실패: " + e.message);
+      return { success: false, message: "자격증 정보를 추정하지 못했어요." };
+    }
+  }
+);
