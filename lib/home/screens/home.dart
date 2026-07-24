@@ -37,10 +37,6 @@ class _HomePageState extends State<HomePage> {
         _homeService.watchTodayStudySummary();
   }
 
-  void _onNotificationPressed() {
-    debugPrint('알림 버튼 클릭');
-  }
-
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<String>(
@@ -60,15 +56,6 @@ class _HomePageState extends State<HomePage> {
           extendBody: true,
           appBar: AppTopBar(
             title: '안녕하세요, $nickname님!',
-            actions: [
-              IconButton(
-                onPressed: _onNotificationPressed,
-                icon: const Icon(
-                  Icons.notifications_none_rounded,
-                  color: Color(0xFF2E292B),
-                ),
-              ),
-            ],
           ),
           body: AppMainBackground(
             child: ListView(

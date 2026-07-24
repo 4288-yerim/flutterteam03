@@ -1338,11 +1338,17 @@ class HomeGoal {
   final String certificateName;
   final String qualificationType;
   final String scheduleId;
+
   final DateTime targetExamDate;
   final String targetExamType;
   final String targetRound;
+
+  final DateTime? targetRegistrationStartDate;
+  final DateTime? targetRegistrationEndDate;
+
   final DateTime? targetPassAnnouncementDate;
   final DateTime? targetPassAnnouncementEndDate;
+
   final bool isMainGoal;
   final bool calendarLinked;
 
@@ -1355,6 +1361,8 @@ class HomeGoal {
     required this.targetExamDate,
     required this.targetExamType,
     required this.targetRound,
+    required this.targetRegistrationStartDate,
+    required this.targetRegistrationEndDate,
     required this.targetPassAnnouncementDate,
     required this.targetPassAnnouncementEndDate,
     required this.isMainGoal,
@@ -1381,8 +1389,10 @@ class HomeGoal {
     switch (targetExamType) {
       case 'WRITTEN':
         return '필기';
+
       case 'PRACTICAL':
-        return '실기';
+        return isProfessional ? '실기·면접' : '실기';
+
       default:
         return targetExamType.isEmpty ? '-' : targetExamType;
     }
@@ -1402,7 +1412,9 @@ class HomeGoal {
       DocumentSnapshot<Map<String, dynamic>> document,
       ) {
     final data = document.data() ?? {};
-    final targetExamDate = _readDateTime(data['targetExamDate']);
+
+    final targetExamDate =
+    _readDateTime(data['targetExamDate']);
 
     if (targetExamDate == null) {
       throw const HomeServiceException(
@@ -1411,26 +1423,54 @@ class HomeGoal {
     }
 
     final rawQualificationType =
-    _readString(data['qualificationType']).toUpperCase();
-    final qualificationType = rawQualificationType == 'PROFESSIONAL'
+    _readString(
+      data['qualificationType'],
+    ).toUpperCase();
+
+    final qualificationType =
+    rawQualificationType == 'PROFESSIONAL'
         ? 'PROFESSIONAL'
         : 'TECHNICAL';
 
     return HomeGoal(
       id: document.id,
-      certificateId: _readString(data['certificateId']),
-      certificateName: _readString(data['certificateName']),
+      certificateId:
+      _readString(data['certificateId']),
+      certificateName:
+      _readString(data['certificateName']),
       qualificationType: qualificationType,
-      scheduleId: _readString(data['scheduleId']),
+      scheduleId:
+      _readString(data['scheduleId']),
       targetExamDate: targetExamDate,
-      targetExamType: _readString(data['targetExamType']).toUpperCase(),
-      targetRound: _readString(data['targetRound']),
+      targetExamType:
+      _readString(
+        data['targetExamType'],
+      ).toUpperCase(),
+      targetRound:
+      _readString(data['targetRound']),
+
+      targetRegistrationStartDate:
+      _readDateTime(
+        data['targetRegistrationStartDate'],
+      ),
+      targetRegistrationEndDate:
+      _readDateTime(
+        data['targetRegistrationEndDate'],
+      ),
+
       targetPassAnnouncementDate:
-      _readDateTime(data['targetPassAnnouncementDate']),
+      _readDateTime(
+        data['targetPassAnnouncementDate'],
+      ),
       targetPassAnnouncementEndDate:
-      _readDateTime(data['targetPassAnnouncementEndDate']),
-      isMainGoal: _readBool(data['isMainGoal']),
-      calendarLinked: _readBool(data['calendarLinked']),
+      _readDateTime(
+        data['targetPassAnnouncementEndDate'],
+      ),
+
+      isMainGoal:
+      _readBool(data['isMainGoal']),
+      calendarLinked:
+      _readBool(data['calendarLinked']),
     );
   }
 
@@ -1447,10 +1487,15 @@ class HomeGoal {
       return value;
     }
 
-    return value?.toString().toLowerCase() == 'true';
+    return value
+        ?.toString()
+        .toLowerCase() ==
+        'true';
   }
 
-  static DateTime? _readDateTime(dynamic value) {
+  static DateTime? _readDateTime(
+      dynamic value,
+      ) {
     if (value is Timestamp) {
       return value.toDate();
     }
@@ -1459,8 +1504,11 @@ class HomeGoal {
       return value;
     }
 
-    if (value is String && value.trim().isNotEmpty) {
-      return DateTime.tryParse(value.trim());
+    if (value is String &&
+        value.trim().isNotEmpty) {
+      return DateTime.tryParse(
+        value.trim(),
+      );
     }
 
     return null;

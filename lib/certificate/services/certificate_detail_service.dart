@@ -142,6 +142,10 @@ class CertificateDetailService {
     required DateTime targetExamDate,
     required String targetRound,
     required String targetExamType,
+
+    required DateTime? targetRegistrationStartDate,
+    required DateTime? targetRegistrationEndDate,
+
     required DateTime? targetPassAnnouncementDate,
     required DateTime? targetPassAnnouncementEndDate,
     required bool includeExamTypeInDuplicateCheck,
@@ -273,18 +277,35 @@ class CertificateDetailService {
           'targetExamDate': Timestamp.fromDate(targetExamDate),
           'targetRound': normalizedTargetRound,
           'targetExamType': normalizedTargetExamType,
+
+          'targetRegistrationStartDate':
+          targetRegistrationStartDate == null
+              ? null
+              : Timestamp.fromDate(
+            targetRegistrationStartDate,
+          ),
+
+          'targetRegistrationEndDate':
+          targetRegistrationEndDate == null
+              ? null
+              : Timestamp.fromDate(
+            targetRegistrationEndDate,
+          ),
+
           'targetPassAnnouncementDate':
           targetPassAnnouncementDate == null
               ? null
               : Timestamp.fromDate(
             targetPassAnnouncementDate,
           ),
+
           'targetPassAnnouncementEndDate':
           targetPassAnnouncementEndDate == null
               ? null
               : Timestamp.fromDate(
             targetPassAnnouncementEndDate,
           ),
+
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
           'goalStatus': 'ACTIVE',

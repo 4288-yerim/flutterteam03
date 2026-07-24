@@ -84,7 +84,7 @@ class _HomeGoalCardSliderState extends State<HomeGoalCardSlider> {
     return Column(
       children: [
         SizedBox(
-          height: 360,
+          height: 395,
           child: PageView.builder(
             controller: _pageController,
             physics: const PageScrollPhysics(),
@@ -182,10 +182,10 @@ class _HomeGoalCard extends StatelessWidget {
     return '${local.year}. $month. $day ($weekday)';
   }
 
-  String _formatPassAnnouncement() {
-    final start = goal.targetPassAnnouncementDate;
-    final end = goal.targetPassAnnouncementEndDate;
-
+  String _formatDateRange(
+      DateTime? start,
+      DateTime? end,
+      ) {
     if (start == null && end == null) {
       return '-';
     }
@@ -201,9 +201,12 @@ class _HomeGoalCard extends StatelessWidget {
     final localStart = start.toLocal();
     final localEnd = end.toLocal();
 
-    if (localStart.year == localEnd.year &&
-        localStart.month == localEnd.month &&
-        localStart.day == localEnd.day) {
+    final isSameDay =
+        localStart.year == localEnd.year &&
+            localStart.month == localEnd.month &&
+            localStart.day == localEnd.day;
+
+    if (isSameDay) {
       return _formatDate(start);
     }
 
@@ -213,7 +216,22 @@ class _HomeGoalCard extends StatelessWidget {
           '${_formatShortDate(end)}';
     }
 
-    return '${_formatDate(start)}\n~ ${_formatDate(end)}';
+    return '${_formatDate(start)}\n'
+        '~ ${_formatDate(end)}';
+  }
+
+  String _formatRegistrationPeriod() {
+    return _formatDateRange(
+      goal.targetRegistrationStartDate,
+      goal.targetRegistrationEndDate,
+    );
+  }
+
+  String _formatPassAnnouncement() {
+    return _formatDateRange(
+      goal.targetPassAnnouncementDate,
+      goal.targetPassAnnouncementEndDate,
+    );
   }
 
   @override
@@ -312,8 +330,15 @@ class _HomeGoalCard extends StatelessWidget {
             child: Column(
               children: [
                 _GoalInfoRow(
+                  label: '원서접수',
+                  value: _formatRegistrationPeriod(),
+                ),
+                const SizedBox(height: 9),
+                _GoalInfoRow(
                   label: '시험일',
-                  value: _formatDate(goal.targetExamDate),
+                  value: _formatDate(
+                    goal.targetExamDate,
+                  ),
                 ),
                 const SizedBox(height: 9),
                 _GoalInfoRow(
