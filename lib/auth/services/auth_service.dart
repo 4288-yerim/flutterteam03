@@ -9,7 +9,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 class AuthResult {
   final User? user;
   final bool isNewUser;
-  final SocialSignupTicket? signupTicket; // 신규 유저일 때만 채워짐
+  final SocialSignupTicket? signupTicket;
 
   AuthResult({this.user, required this.isNewUser, this.signupTicket});
 }
@@ -18,7 +18,7 @@ class SocialSignupTicket {
   final String provider;
   final String signupToken;
   final String? email;
-  final String? suggestedNickname; // 카카오/네이버가 준 닉네임, 프리필용
+  final String? suggestedNickname;
 
   SocialSignupTicket({
     required this.provider,
@@ -34,7 +34,7 @@ class AuthService {
   static final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   static final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   static final FirebaseFunctions _functions =
-  FirebaseFunctions.instanceFor(region: 'us-central1'); // 배포 리전에 맞게 수정
+  FirebaseFunctions.instanceFor(region: 'us-central1');
 
   static Future<AuthResult?> signInWithGoogle() async {
     try {
@@ -192,7 +192,7 @@ class AuthService {
     try {
       final callable = _functions.httpsCallable(
         'auth${provider[0].toUpperCase()}${provider.substring(1)}',
-      ); // 'kakao' -> 'authKakao', 'naver' -> 'authNaver'
+      );
       final result = await callable.call({
         'accessToken': accessToken,
         'providerUserId': providerUserId,
@@ -249,8 +249,7 @@ class AuthService {
       }
     }
 
-    // 카카오 / 네이버: Cloud Function이 signupToken을 받아서 계정 생성 +
-    // Firestore 문서 생성을 한 번에 처리하고, customToken을 돌려준다.
+
     try {
       final callable = _functions.httpsCallable('completeSocialSignup');
       final result = await callable.call({
@@ -289,7 +288,6 @@ class AuthService {
     try {
       await fn();
     } catch (_) {
-      // 해당 프로바이더로 로그인하지 않은 상태라면 무시
     }
   }
 }
