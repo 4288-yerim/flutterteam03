@@ -51,7 +51,7 @@ class _AppSettingScreenState
   bool _studyNoticeAlertEnabled = true;
   bool _studyJoinApprovalAlertEnabled = true;
   bool _studyNewMemberAlertEnabled = true;
-  bool _studyScheduleAlertEnabled = true;
+  bool _studyChatsAlertEnabled = true;
 
   @override
   void initState() {
@@ -120,8 +120,8 @@ class _AppSettingScreenState
             _readBool(data, 'studyJoinApprovalAlertEnabled', true);
         _studyNewMemberAlertEnabled =
             _readBool(data, 'studyNewMemberAlertEnabled', true);
-        _studyScheduleAlertEnabled =
-            _readBool(data, 'studyScheduleAlertEnabled', true);
+        _studyChatsAlertEnabled =
+            _readBool(data, 'studyChatsAlertEnabled', true);
         _communityAlertEnabled =
             _readBool(data, 'communityAlertEnabled', true);
         _friendAlertEnabled =
@@ -204,7 +204,7 @@ class _AppSettingScreenState
         'studyNoticeAlertEnabled': _studyNoticeAlertEnabled,
         'studyJoinApprovalAlertEnabled': _studyJoinApprovalAlertEnabled,
         'studyNewMemberAlertEnabled': _studyNewMemberAlertEnabled,
-        'studyScheduleAlertEnabled': _studyScheduleAlertEnabled,
+        'studyChatsAlertEnabled': _studyChatsAlertEnabled,
         'communityAlertEnabled': _communityAlertEnabled,
         'friendAlertEnabled': _friendAlertEnabled,
         'chatsAlertEnabled': _chatsAlertEnabled,
@@ -730,15 +730,15 @@ class _AppSettingScreenState
           const _SettingDivider(),
 
           _SettingSwitchTile(
-            title: '스터디 일정',
-            subtitle: '등록된 스터디 일정이 가까워지면 알려줍니다.',
-            value: _studyScheduleAlertEnabled,
+            title: '스터디 채팅',
+            subtitle: '스터디 채팅에 새 메시지가 오면 알려줍니다.',
+            value: _studyChatsAlertEnabled,
             enabled: _pushEnabled &&
                 _studyGroupAlertEnabled,
             isChildSetting: true,
             onChanged: (value) {
               setState(() {
-                _studyScheduleAlertEnabled = value;
+                _studyChatsAlertEnabled = value;
               });
 
               _saveSettings();
