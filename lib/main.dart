@@ -1,20 +1,34 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:home_widget/home_widget.dart';
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:naver_login_sdk/naver_login_sdk.dart';
 import 'package:workmanager/workmanager.dart';
-import 'package:home_widget/home_widget.dart';
 import 'appwidgets/app_widget_background.dart';
 import 'appwidgets/app_widget_sync.dart';
 import 'firebase_options.dart';
-import 'theme.dart';
-import 'splash/screens/splash_screen.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
+import 'notification/services/push_notification_service.dart';
 import 'services/app_icon_service.dart';
-import 'package:flutterteam03/services/notification_service.dart';
+import 'splash/screens/splash_screen.dart';
+import 'theme.dart';
 
 const _iconCheckTaskName = 'checkInactivityIconTask';
+
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(
+    RemoteMessage message,
+    ) async {
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  debugPrint(
+    '백그라운드 FCM 수신: ${message.messageId}',
+  );
+}
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -34,6 +48,12 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  FirebaseMessaging.onBackgroundMessage(
+    firebaseMessagingBackgroundHandler,
+  );
+
+  await PushNotificationService.instance.initialize();
 
   await HomeWidget.registerInteractivityCallback(
     appWidgetBackgroundCallback,
@@ -59,8 +79,6 @@ Future<void> main() async {
     clientName: '따iT',
   );
 
-  await NotificationService.instance.initialize();
-
   Workmanager().initialize(callbackDispatcher);
   Workmanager().registerPeriodicTask(
     _iconCheckTaskName,
@@ -83,8 +101,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+
     WidgetsBinding.instance.addObserver(this);
-    AppIconService.onAppOpened(); // 첫 실행 시에도 체크
+    AppIconService.onAppOpened();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PushNotificationService.instance.handleInitialMessage();
+    });
   }
 
   @override
