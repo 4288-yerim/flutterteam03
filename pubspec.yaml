@@ -59,6 +59,7 @@ dependencies:
   fl_chart: ^1.2.0
   share_plus:
   path_provider: ^2.1.0
+  tflite_flutter: ^0.12.1
 
 dev_dependencies:
   flutter:
@@ -86,6 +87,7 @@ flutter:
     - assets/icons/
     - .env
     - assets/images/
+    - assets/models/study_plan_model.tflite
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
