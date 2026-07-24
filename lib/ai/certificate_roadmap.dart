@@ -6,6 +6,7 @@ import 'services/certificate_api_service.dart';
 import 'certificate_roadmap_result_page.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
+import 'widgets/wave_loading_indicator.dart';
 
 class CertificateRoadmapPage extends StatefulWidget {
   const CertificateRoadmapPage({super.key});
@@ -838,26 +839,23 @@ class _LoadingIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 280),
-      child: AnimatedBuilder(
-        animation: progress,
-        builder: (context, _) => Column(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: LinearProgressIndicator(
-                value: progress.value,
-                minHeight: 7,
-                backgroundColor: colors.pinkSoft,
-                valueColor: AlwaysStoppedAnimation(colors.pinkStart),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text('${(progress.value * 100).toInt()}%',
-                style: TextStyle(color: colors.pinkStart, fontSize: 13, fontWeight: FontWeight.w800)),
-          ],
-        ),
+    return AnimatedBuilder(
+      animation: progress,
+      builder: (context, _) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          WaveLoadingIndicator(
+            size: 72,
+            progress: progress.value,
+            backgroundColor: colors.pinkSoft,
+            waveColorStart: colors.pinkStart,
+            waveColorEnd: colors.pinkDeep,
+            useSmoothing: false,
+          ),
+          const SizedBox(height: 12),
+          Text('${(progress.value * 100).toInt()}%',
+              style: TextStyle(color: colors.pinkStart, fontSize: 13, fontWeight: FontWeight.w800)),
+        ],
       ),
     );
   }
