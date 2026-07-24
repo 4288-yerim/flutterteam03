@@ -222,7 +222,7 @@ class _ProfessionalCertificateDetailPageState
 
   List<ProfessionalCertificateSchedule>
   get _availableGoalSchedules {
-    return _schedules
+    final schedules = _schedules
         .where((schedule) {
       final examDate =
           schedule.examStartAt ??
@@ -248,8 +248,36 @@ class _ProfessionalCertificateDetailPageState
       );
 
       return !examDay.isBefore(today);
-    })
-        .toList();
+    }).toList();
+
+    schedules.sort((first, second) {
+      final firstExamDate =
+          first.examStartAt ??
+              first.examEndAt;
+
+      final secondExamDate =
+          second.examStartAt ??
+              second.examEndAt;
+
+      if (firstExamDate == null &&
+          secondExamDate == null) {
+        return 0;
+      }
+
+      if (firstExamDate == null) {
+        return 1;
+      }
+
+      if (secondExamDate == null) {
+        return -1;
+      }
+
+      return firstExamDate.compareTo(
+        secondExamDate,
+      );
+    });
+
+    return schedules;
   }
 
   Future<void> _openQnetExamInformation() async {
@@ -626,6 +654,12 @@ class _ProfessionalCertificateDetailPageState
         targetExamDate: examDate,
         targetRound: schedule.description,
         targetExamType: examType,
+
+        targetRegistrationStartDate:
+        schedule.examRegistrationStartAt,
+        targetRegistrationEndDate:
+        schedule.examRegistrationEndAt,
+
         targetPassAnnouncementDate:
         schedule.passStartAt,
         targetPassAnnouncementEndDate:

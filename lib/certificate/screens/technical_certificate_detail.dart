@@ -760,6 +760,41 @@ class _TechnicalCertificateDetailPageState
       return;
     }
 
+    TechnicalCertificateSchedule? selectedSchedule;
+
+    for (final schedule in _schedules) {
+      if (schedule.id == option.scheduleId) {
+        selectedSchedule = schedule;
+        break;
+      }
+    }
+
+    if (selectedSchedule == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '선택한 시험 일정 정보를 찾을 수 없습니다.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final DateTime? registrationStartDate;
+    final DateTime? registrationEndDate;
+
+    if (option.examType == 'WRITTEN') {
+      registrationStartDate =
+          selectedSchedule.writtenRegistrationStartAt;
+      registrationEndDate =
+          selectedSchedule.writtenRegistrationEndAt;
+    } else {
+      registrationStartDate =
+          selectedSchedule.practicalRegistrationStartAt;
+      registrationEndDate =
+          selectedSchedule.practicalRegistrationEndAt;
+    }
+
     setState(() {
       _isRegisteringGoal = true;
     });
@@ -774,6 +809,12 @@ class _TechnicalCertificateDetailPageState
         targetExamDate: option.examDate,
         targetRound: option.targetRound,
         targetExamType: option.examType,
+
+        targetRegistrationStartDate:
+        registrationStartDate,
+        targetRegistrationEndDate:
+        registrationEndDate,
+
         targetPassAnnouncementDate:
         option.passAnnouncementDate,
         targetPassAnnouncementEndDate:
@@ -788,9 +829,9 @@ class _TechnicalCertificateDetailPageState
       }
 
       await _handleCalendarLink(
-        option: option,
         goalId: goalId,
         certificateName: certificate.name,
+        option: option,
       );
     } on CertificateGoalException catch (error) {
       if (!mounted) {
