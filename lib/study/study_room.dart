@@ -398,6 +398,47 @@ class StudyRoomPage extends StatelessWidget {
     }
   }
 
+  Widget _buildMenuItemRow(
+      IconData icon,
+      String label,
+      Color chipColor,
+      Color iconColor, {
+        bool isDestructive = false,
+      }) {
+    return Row(
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: chipColor,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 17, color: iconColor),
+        ),
+        SizedBox(width: 12),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+            color: isDestructive
+                ? Color(0xFFE53935)
+                : Color(0xFF262626),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMoreMenuTrigger() {
+    return Icon(
+      Icons.more_vert_rounded,
+      size: 22,
+      color: _studyColors.textPrimary,
+    );
+  }
+
   Widget _buildRoomBadge(
       String text,
       Color backgroundColor,
@@ -2667,7 +2708,6 @@ class StudyRoomPage extends StatelessWidget {
     );
   }
 
-  /// 방장과 일반 그룹원의 스터디방 우측 상단 메뉴
   Widget _buildRoomMoreMenu(
       BuildContext context,
       ) {
@@ -2678,40 +2718,96 @@ class StudyRoomPage extends StatelessWidget {
       return SizedBox();
     }
 
-    return StreamBuilder<
-        DocumentSnapshot<
-            Map<String, dynamic>>>(
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('studyGroups')
           .doc(studyId)
           .snapshots(),
-      builder: (
-          context,
-          groupSnapshot,
-          ) {
+      builder: (context, groupSnapshot) {
         if (!groupSnapshot.hasData ||
             !groupSnapshot.data!.exists) {
           return SizedBox();
         }
 
         Map<String, dynamic> groupData =
-            groupSnapshot.data!.data() ??
-                {};
+            groupSnapshot.data!.data() ?? {};
 
         String ownerUid =
-            groupData['ownerUid']
-                ?.toString() ??
-                '';
+            groupData['ownerUid']?.toString() ?? '';
 
-        bool isOwner =
-            ownerUid == currentUser.uid;
+        bool isOwner = ownerUid == currentUser.uid;
 
-        bool isRecruiting =
-        _isRecruiting(groupData);
+        bool isRecruiting = _isRecruiting(groupData);
 
         if (isOwner) {
           return PopupMenuButton<String>(
             tooltip: '스터디방 관리',
+            icon: _buildMoreMenuTrigger(),
+            elevation: 6,
+            color: Colors.white,
+            shadowColor: Colors.black.withOpacity(0.15),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+            padding: EdgeInsets.zero,
+            itemBuilder: (context) {
+              return [
+                PopupMenuItem<String>(
+                  height: 46,
+                  value: 'joinRequests',
+                  child: _buildMenuItemRow(
+                    Icons.how_to_reg_outlined,
+                    '참여 신청 관리',
+                    Color(0xFFE3F2FD),
+                    Color(0xFF1976D2),
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  height: 46,
+                  value: 'edit',
+                  child: _buildMenuItemRow(
+                    Icons.edit_outlined,
+                    '스터디 정보 수정',
+                    Color(0xFFF3E5F5),
+                    Color(0xFF8E24AA),
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  height: 46,
+                  value: 'recruitment',
+                  child: _buildMenuItemRow(
+                    isRecruiting
+                        ? Icons.lock_outline_rounded
+                        : Icons.lock_open_rounded,
+                    isRecruiting ? '모집 마감' : '모집 다시 시작',
+                    Color(0xFFE8F5E9),
+                    Color(0xFF2E7D32),
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  height: 46,
+                  value: 'transfer',
+                  child: _buildMenuItemRow(
+                    Icons.admin_panel_settings_outlined,
+                    '방장 위임',
+                    Color(0xFFFFF3E0),
+                    Color(0xFFEF6C00),
+                  ),
+                ),
+                PopupMenuDivider(height: 9),
+                PopupMenuItem<String>(
+                  height: 46,
+                  value: 'delete',
+                  child: _buildMenuItemRow(
+                    Icons.delete_outline,
+                    '스터디 삭제',
+                    Color(0xFFFFEBEE),
+                    Color(0xFFE53935),
+                    isDestructive: true,
+                  ),
+                ),
+              ];
+            },
             onSelected: (value) {
               if (value == 'joinRequests') {
                 Navigator.push(
@@ -2727,10 +2823,7 @@ class StudyRoomPage extends StatelessWidget {
               }
 
               if (value == 'edit') {
-                _openStudyEditPage(
-                  context,
-                  groupData,
-                );
+                _openStudyEditPage(context, groupData);
               }
 
               if (value == 'recruitment') {
@@ -2742,125 +2835,24 @@ class StudyRoomPage extends StatelessWidget {
               }
 
               if (value == 'transfer') {
-                _showTransferOwnerSheet(
-                  context,
-                );
+                _showTransferOwnerSheet(context);
               }
 
               if (value == 'delete') {
-                _showDeleteStudyDialog(
-                  context,
-                  groupData,
-                );
+                _showDeleteStudyDialog(context, groupData);
               }
-            },
-            itemBuilder: (context) {
-              return [
-                PopupMenuItem<String>(
-                  value: 'joinRequests',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.how_to_reg_outlined,
-                        size: 20,
-                      ),
-                      SizedBox(width: 10),
-                      Text('참여 신청 관리'),
-                    ],
-                  ),
-                ),
-                PopupMenuItem<String>(
-                  value: 'edit',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.edit_outlined,
-                        size: 20,
-                      ),
-                      SizedBox(width: 10),
-                      Text(
-                        '스터디 정보 수정',
-                      ),
-                    ],
-                  ),
-                ),
-                PopupMenuItem<String>(
-                  value: 'recruitment',
-                  child: Row(
-                    children: [
-                      Icon(
-                        isRecruiting
-                            ? Icons
-                            .lock_outline_rounded
-                            : Icons
-                            .lock_open_rounded,
-                        size: 20,
-                      ),
-                      SizedBox(width: 10),
-                      Text(
-                        isRecruiting
-                            ? '모집 마감'
-                            : '모집 다시 시작',
-                      ),
-                    ],
-                  ),
-                ),
-                PopupMenuItem<String>(
-                  value: 'transfer',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons
-                            .admin_panel_settings_outlined,
-                        size: 20,
-                      ),
-                      SizedBox(width: 10),
-                      Text('방장 위임'),
-                    ],
-                  ),
-                ),
-                PopupMenuItem<String>(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.delete_outline,
-                        size: 20,
-                        color:
-                        _studyColorScheme
-                            .error,
-                      ),
-                      SizedBox(width: 10),
-                      Text(
-                        '스터디 삭제',
-                        style: TextStyle(
-                          color:
-                          _studyColorScheme
-                              .error,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ];
             },
           );
         }
 
-        return StreamBuilder<
-            DocumentSnapshot<
-                Map<String, dynamic>>>(
-          stream: FirebaseFirestore
-              .instance
+        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
               .collection('studyGroups')
               .doc(studyId)
               .collection('members')
               .doc(currentUser.uid)
               .snapshots(),
-          builder: (
-              context,
-              memberSnapshot,
-              ) {
+          builder: (context, memberSnapshot) {
             String memberStatus =
                 memberSnapshot.data
                     ?.data()?['status']
@@ -2873,59 +2865,48 @@ class StudyRoomPage extends StatelessWidget {
 
             return PopupMenuButton<String>(
               tooltip: '스터디방 메뉴',
-              onSelected: (value) {
-                if (value == 'report') {
-                  _showStudyReportDialog(
-                    context,
-                    groupData,
-                  );
-                }
-
-                if (value == 'leave') {
-                  _showLeaveStudyRoomDialog(
-                    context,
-                  );
-                }
-              },
+              icon: _buildMoreMenuTrigger(),
+              elevation: 6,
+              color: Colors.white,
+              shadowColor: Colors.black.withOpacity(0.15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+              padding: EdgeInsets.zero,
               itemBuilder: (context) {
                 return [
                   PopupMenuItem<String>(
+                    height: 46,
                     value: 'report',
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.report_outlined,
-                          size: 20,
-                        ),
-                        SizedBox(width: 10),
-                        Text('스터디 신고'),
-                      ],
+                    child: _buildMenuItemRow(
+                      Icons.report_outlined,
+                      '스터디 신고',
+                      Color(0xFFF3E5F5),
+                      Color(0xFF8E24AA),
                     ),
                   ),
+                  PopupMenuDivider(height: 9),
                   PopupMenuItem<String>(
+                    height: 46,
                     value: 'leave',
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.logout_rounded,
-                          size: 20,
-                          color:
-                          _studyColorScheme
-                              .error,
-                        ),
-                        SizedBox(width: 10),
-                        Text(
-                          '스터디방 나가기',
-                          style: TextStyle(
-                            color:
-                            _studyColorScheme
-                                .error,
-                          ),
-                        ),
-                      ],
+                    child: _buildMenuItemRow(
+                      Icons.logout_rounded,
+                      '스터디방 나가기',
+                      Color(0xFFFFEBEE),
+                      Color(0xFFE53935),
+                      isDestructive: true,
                     ),
                   ),
                 ];
+              },
+              onSelected: (value) {
+                if (value == 'report') {
+                  _showStudyReportDialog(context, groupData);
+                }
+
+                if (value == 'leave') {
+                  _showLeaveStudyRoomDialog(context);
+                }
               },
             );
           },

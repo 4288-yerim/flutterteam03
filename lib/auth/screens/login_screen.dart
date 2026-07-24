@@ -205,12 +205,13 @@ class _LoginScreenState extends State<LoginScreen>
       await WithdrawalStatusService.isCurrentUserWithdrawalPending();
 
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
+      Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (_) => isWithdrawalPending
               ? const WithdrawalPendingScreen()
               : const MainPage(),
         ),
+            (route) => false,
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;

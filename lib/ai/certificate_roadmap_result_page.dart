@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../mypage/screens/mypage_screen.dart';
 import '../theme.dart';
 import 'services/certificate_api_service.dart';
@@ -68,6 +69,8 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
         await CertificateApiService.fetchCertificateInfoFromFirestore(cert.name);
 
         final matched = CertificateApiService.findUpcoming(schedules, cert.name);
+        final detailInfo = await CertificateApiService.fetchCertificateDetailInfo(cert.name);
+        final examRounds = await CertificateApiService.fetchAllExamRounds(cert.name);
 
         String? level = dbInfo?.level;
         String? registrationPeriod =
@@ -94,10 +97,11 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
           name: cert.name,
           description: cert.description,
           level: level,
-          registrationPeriod:
-          registrationPeriod ?? '주관 기관 홈페이지에서 확인해주세요',
+          registrationPeriod: registrationPeriod ?? '주관 기관 홈페이지에서 확인해주세요',
           examDate: examDate ?? '-',
           isEstimated: isEstimated,
+          detailInfo: detailInfo,
+          examRounds: examRounds,
         ));
       }
 
@@ -497,7 +501,6 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
   }
 }
 
-/// 좌측 세로 라인 + 번호 노드로 이어지는 진짜 "로드맵" 형태의 타임라인
 class _RoadmapTimeline extends StatelessWidget {
   final List<_RoadmapCertificate> roadmap;
   final ValueChanged<_RoadmapCertificate> onTap;
@@ -699,32 +702,31 @@ class _TimelineCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(certificate.name,
-                                style: TextStyle(
-                                    color: colors.textPrimary, fontSize: 16.5, fontWeight: FontWeight.w800, letterSpacing: -0.2)),
-                          ),
-                          if (certificate.level != null) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                              decoration: BoxDecoration(color: tone.bg.first, borderRadius: BorderRadius.circular(20)),
-                              child: Text(certificate.level!, style: TextStyle(color: tone.fg, fontSize: 10, fontWeight: FontWeight.w800)),
-                            ),
+                      Text(certificate.name,
+                          style: TextStyle(
+                              color: colors.textPrimary, fontSize: 16.5, fontWeight: FontWeight.w800, letterSpacing: -0.2, height: 1.25)),
+                      if (certificate.level != null || certificate.isEstimated) ...[
+                        const SizedBox(height: 7),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            if (certificate.level != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                decoration: BoxDecoration(color: tone.bg.first, borderRadius: BorderRadius.circular(20)),
+                                child: Text(certificate.level!, style: TextStyle(color: tone.fg, fontSize: 10, fontWeight: FontWeight.w800)),
+                              ),
+                            if (certificate.isEstimated)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(color: const Color(0xFFF3F0F5), borderRadius: BorderRadius.circular(20)),
+                                child: const Text('주관사 확인 필요',
+                                    style: TextStyle(color: Color(0xFF897F82), fontSize: 10, fontWeight: FontWeight.w700)),
+                              ),
                           ],
-                          if (certificate.isEstimated) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(color: const Color(0xFFF3F0F5), borderRadius: BorderRadius.circular(20)),
-                              child: const Text('주관사 확인 필요',
-                                  style: TextStyle(color: Color(0xFF897F82), fontSize: 10, fontWeight: FontWeight.w700)),
-                            ),
-                          ],
-                        ],
-                      ),
+                        ),
+                      ],
                       const SizedBox(height: 6),
                       Text(certificate.description, style: TextStyle(color: colors.textSecondary, fontSize: 12.5, height: 1.45)),
                       const SizedBox(height: 14),
@@ -757,18 +759,40 @@ class _DateInformation extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: color),
-        const SizedBox(width: 7),
-        Text(label, style: TextStyle(color: colors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
-        const SizedBox(width: 9),
-        Expanded(child: Text(value, style: TextStyle(color: colors.textPrimary, fontSize: 12, fontWeight: FontWeight.w700))),
+        Container(
+          width: 26,
+          height: 26,
+          margin: const EdgeInsets.only(top: 1),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
+          child: Icon(icon, size: 14, color: color),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: TextStyle(color: colors.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 3),
+              Text(
+                value,
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.1,
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
 }
-
-// 변경 (교체) — 공통 위젯 참조
 class _LoadingIndicator extends StatelessWidget {
   final Animation<double> progress;
   final AppColors colors;
@@ -809,6 +833,8 @@ class _RoadmapCertificate {
   final String registrationPeriod;
   final String examDate;
   final bool isEstimated;
+  final CertificateDetailInfo? detailInfo;
+  final List<CertificateExamRound> examRounds;
 
   const _RoadmapCertificate({
     required this.order,
@@ -818,6 +844,8 @@ class _RoadmapCertificate {
     required this.registrationPeriod,
     required this.examDate,
     required this.isEstimated,
+    this.detailInfo,
+    this.examRounds = const [],
   });
 }
 
@@ -861,26 +889,58 @@ class _CertificateDetailPage extends StatelessWidget {
                 Text('일정 정보',
                     style: TextStyle(color: colors.textPrimary, fontSize: 16.5, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 10),
-                _DetailInfoCard(
-                  icon: Icons.edit_calendar_outlined,
-                  label: '접수 기간',
-                  value: certificate.registrationPeriod,
-                  color: colors.softBlueAccent,
-                  bg: colors.softBlue,
+                _ScheduleRoundsSection(
+                  rounds: certificate.examRounds,
+                  colors: colors,
+                  fallbackRegPeriod: certificate.registrationPeriod,
+                  fallbackExamDate: certificate.examDate,
                 ),
-                const SizedBox(height: 10),
-                _DetailInfoCard(
-                  icon: Icons.event_available_outlined,
-                  label: '시험일',
-                  value: certificate.examDate,
-                  color: colors.pinkDeep,
-                  bg: colors.pinkSoft,
-                ),
-                if (certificate.isEstimated) ...[
+                if (certificate.examRounds.isEmpty && certificate.isEstimated) ...[
                   const SizedBox(height: 14),
                   _NoticeBanner(colors: colors),
                 ],
+
+                if (certificate.detailInfo?.examFee != null) ...[
+                  const SizedBox(height: 26),
+                  Text('응시료', style: TextStyle(color: colors.textPrimary, fontSize: 16.5, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 10),
+                  _ExamFeeCard(raw: certificate.detailInfo!.examFee!),
+                ],
+                if (certificate.detailInfo?.examTrends != null) ...[
+                  const SizedBox(height: 26),
+                  Text('출제 경향', style: TextStyle(color: colors.textPrimary, fontSize: 16.5, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 10),
+                  _ExamTrendsCard(raw: certificate.detailInfo!.examTrends!),
+                ],
+                if (certificate.detailInfo?.howToObtain != null) ...[
+                  const SizedBox(height: 26),
+                  Text('취득 방법', style: TextStyle(color: colors.textPrimary, fontSize: 16.5, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 10),
+                  _HowToObtainCard(raw: certificate.detailInfo!.howToObtain!),
+                ],
                 const SizedBox(height: 30),
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      final url = Uri.parse(CertificateApiService.buildApplicationUrl(certificate.name));
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url, mode: LaunchMode.externalApplication);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colors.pinkStart,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                      elevation: 0,
+                    ),
+                    icon: const Icon(Icons.open_in_new_rounded, size: 19),
+                    label: const Text('신청 홈페이지 바로가기', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
                 SizedBox(
                   width: double.infinity,
                   height: 54,
@@ -1053,6 +1113,501 @@ class _NoticeBanner extends StatelessWidget {
   }
 }
 
+class _ScheduleRoundsSection extends StatefulWidget {
+  final List<CertificateExamRound> rounds;
+  final AppColors colors;
+  final String? fallbackRegPeriod;
+  final String? fallbackExamDate;
+  const _ScheduleRoundsSection({
+    required this.rounds,
+    required this.colors,
+    this.fallbackRegPeriod,
+    this.fallbackExamDate,
+  });
+
+  @override
+  State<_ScheduleRoundsSection> createState() => _ScheduleRoundsSectionState();
+}
+
+class _ScheduleRoundsSectionState extends State<_ScheduleRoundsSection> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = widget.colors;
+    if (widget.rounds.isEmpty) {
+      final hasFallback = (widget.fallbackRegPeriod != null && widget.fallbackRegPeriod != '주관 기관 홈페이지에서 확인해주세요')
+          || (widget.fallbackExamDate != null && widget.fallbackExamDate != '-');
+      if (!hasFallback) {
+        return _InfoTextCard(text: '등록된 일정 정보가 없어요. 주관 기관 홈페이지에서 확인해주세요.');
+      }
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFF2E6EA)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (widget.fallbackRegPeriod != null)
+              _DateInformation(
+                icon: Icons.edit_calendar_outlined,
+                label: '접수 기간',
+                value: widget.fallbackRegPeriod!,
+                color: colors.softBlueAccent,
+              ),
+            if (widget.fallbackRegPeriod != null && widget.fallbackExamDate != null)
+              const SizedBox(height: 8),
+            if (widget.fallbackExamDate != null)
+              _DateInformation(
+                icon: Icons.event_available_outlined,
+                label: '시험일',
+                value: widget.fallbackExamDate!,
+                color: colors.pinkDeep,
+              ),
+          ],
+        ),
+      );
+    }
+
+    final current = widget.rounds.firstWhere(
+          (r) => !r.isFullyClosed,
+      orElse: () => widget.rounds.last,
+    );
+    final others = widget.rounds.where((r) => r != current).toList().reversed;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _RoundCard(round: current, highlighted: true, colors: colors),
+        if (others.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(_expanded ? '전체 회차 접기' : '전체 회차 보기',
+                      style: TextStyle(color: colors.pinkDeep, fontSize: 13, fontWeight: FontWeight.w700)),
+                  Icon(_expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                      color: colors.pinkDeep, size: 18),
+                ],
+              ),
+            ),
+          ),
+          if (_expanded)
+            ...others.map((r) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _RoundCard(round: r, highlighted: false, colors: colors),
+            )),
+        ],
+      ],
+    );
+  }
+}
+
+class _RoundCard extends StatelessWidget {
+  final CertificateExamRound round;
+  final bool highlighted;
+  final AppColors colors;
+  const _RoundCard({required this.round, required this.highlighted, required this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    final closed = round.isFullyClosed;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: closed ? const Color(0xFFF7F5F6) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: highlighted && !closed ? colors.pinkStart.withValues(alpha: 0.4) : const Color(0xFFF2E6EA),
+          width: highlighted && !closed ? 1.5 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (round.roundLabel.isNotEmpty)
+                Text('${round.roundLabel}회',
+                    style: TextStyle(color: closed ? colors.textSecondary : colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w800)),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(color: colors.pinkSoft, borderRadius: BorderRadius.circular(20)),
+                child: Text(round.examTypeLabel, style: TextStyle(color: colors.pinkDeep, fontSize: 10.5, fontWeight: FontWeight.w700)),
+              ),
+              const Spacer(),
+              if (closed)
+                Text('종료', style: TextStyle(color: colors.textSecondary, fontSize: 11, fontWeight: FontWeight.w700)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (round.hasWritten) _StageRow(label: '필기', stage: round.written, colors: colors),
+          if (round.hasWritten && round.hasPractical) const SizedBox(height: 8),
+          if (round.hasPractical) _StageRow(label: '실기', stage: round.practical, colors: colors),
+        ],
+      ),
+    );
+  }
+}
+
+class _StageRow extends StatelessWidget {
+  final String label;
+  final ScheduleStage stage;
+  final AppColors colors;
+  const _StageRow({required this.label, required this.stage, required this.colors});
+
+  static String _fmt(DateTime? d) {
+    if (d == null) return '-';
+    final m = d.month.toString().padLeft(2, '0');
+    final day = d.day.toString().padLeft(2, '0');
+    return '${d.year}. $m. $day';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final status = stage.status;
+    final isClosed = status == ScheduleStageStatus.closed;
+
+    late Color badgeColor;
+    late Color badgeBg;
+    late String badgeText;
+    switch (status) {
+      case ScheduleStageStatus.open:
+        badgeColor = colors.pinkDeep;
+        badgeBg = colors.pinkSoft;
+        badgeText = '접수중';
+        break;
+      case ScheduleStageStatus.upcoming:
+        badgeColor = colors.softBlueAccent;
+        badgeBg = colors.softBlue;
+        badgeText = '접수예정';
+        break;
+      case ScheduleStageStatus.closed:
+        badgeColor = const Color(0xFF9AA0AC);
+        badgeBg = const Color(0xFFF0F0F0);
+        badgeText = '접수마감';
+        break;
+    }
+
+    return Opacity(
+      opacity: isClosed ? 0.55 : 1,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 34, child: Text(label, style: TextStyle(color: colors.textSecondary, fontSize: 12, fontWeight: FontWeight.w700))),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('접수 ${_fmt(stage.regStart)} ~ ${_fmt(stage.regEnd)}',
+                    style: TextStyle(color: colors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
+                Text('시험일 ${_fmt(stage.examDate)}', style: TextStyle(color: colors.textSecondary, fontSize: 11.5)),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(color: badgeBg, borderRadius: BorderRadius.circular(20)),
+            child: Text(badgeText, style: TextStyle(color: badgeColor, fontSize: 10.5, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoTextCard extends StatelessWidget {
+  final String text;
+  const _InfoTextCard({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final lines = _splitContentIntoLines(text);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFF2E6EA)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: lines.map((line) {
+          final isHeader = line.startsWith('<') && line.endsWith('>');
+          if (isHeader) {
+            return Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 8),
+              child: Text(
+                line.replaceAll('<', '').replaceAll('>', ''),
+                style: TextStyle(color: colors.pinkDeep, fontSize: 13.5, fontWeight: FontWeight.w800),
+              ),
+            );
+          }
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(line, style: TextStyle(color: colors.textSecondary, fontSize: 13, height: 1.6)),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _ExamFeeCard extends StatelessWidget {
+  final String raw;
+  const _ExamFeeCard({required this.raw});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final fees = _parseExamFee(raw);
+
+    if (fees.isEmpty) {
+      return _InfoTextCard(text: raw);
+    }
+
+    return Row(
+      children: fees.asMap().entries.map((entry) {
+        final index = entry.key;
+        final fee = entry.value;
+        final isFirst = index == 0;
+
+        return Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(left: isFirst ? 0 : 8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 14),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isFirst
+                      ? [colors.pinkSoft, colors.pinkEnd]
+                      : [colors.lavender, colors.lavender],
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.payments_outlined,
+                          size: 15, color: isFirst ? colors.pinkDeep : colors.lavenderAccent),
+                      const SizedBox(width: 5),
+                      Text(fee.label,
+                          style: TextStyle(
+                            color: isFirst ? colors.pinkDeep : colors.lavenderAccent,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                          )),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _formatWon(fee.amount),
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _ExamTrendsCard extends StatelessWidget {
+  final String raw;
+  const _ExamTrendsCard({required this.raw});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final data = _parseExamTrends(raw);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFF2E6EA)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (data.header != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(color: colors.pinkSoft, borderRadius: BorderRadius.circular(20)),
+              child: Text(data.header!, style: TextStyle(color: colors.pinkDeep, fontSize: 12, fontWeight: FontWeight.w800)),
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (data.topics.length > 1)
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: data.topics.asMap().entries.map((e) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: colors.pinkSoft.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 18,
+                        height: 18,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(color: colors.pinkStart, shape: BoxShape.circle),
+                        child: Text('${e.key + 1}',
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(e.value, style: TextStyle(color: colors.textPrimary, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            )
+          else if (data.topics.isNotEmpty)
+            Text(data.topics.first, style: TextStyle(color: colors.textSecondary, fontSize: 13, height: 1.7)),
+          if (data.detailNote != null && data.detailNote!.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: const Color(0xFFF9F5F6), borderRadius: BorderRadius.circular(14)),
+              child: Text(data.detailNote!, style: TextStyle(color: colors.textSecondary, fontSize: 12, height: 1.6)),
+            ),
+          ],
+          if (data.refUrl != null) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.link_rounded, size: 15, color: colors.softBlueAccent),
+                const SizedBox(width: 5),
+                Text(data.refUrl!, style: TextStyle(color: colors.softBlueAccent, fontSize: 12, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _HowToObtainCard extends StatelessWidget {
+  final String raw;
+  const _HowToObtainCard({required this.raw});
+
+  static IconData _iconFor(String label) {
+    if (label.contains('시행')) return Icons.apartment_rounded;
+    if (label.contains('학과')) return Icons.school_outlined;
+    if (label.contains('과목')) return Icons.menu_book_outlined;
+    if (label.contains('검정') || label.contains('방법')) return Icons.quiz_outlined;
+    if (label.contains('합격') || label.contains('기준')) return Icons.emoji_events_outlined;
+    return Icons.info_outline_rounded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final items = _parseHowToObtain(raw);
+
+    if (items.isEmpty) return _InfoTextCard(text: raw);
+
+    return Column(
+      children: items.map((item) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFF2E6EA)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(color: colors.softBlue, shape: BoxShape.circle),
+                  alignment: Alignment.center,
+                  child: Icon(_iconFor(item.label), size: 18, color: colors.softBlueAccent),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(item.label, style: TextStyle(color: colors.textSecondary, fontSize: 12, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 6),
+
+                      if (item.writtenSubjects != null) ...[
+                        Text('필기', style: TextStyle(color: colors.pinkDeep, fontSize: 11, fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: item.writtenSubjects!.map((s) => Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: colors.pinkSoft.withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(s, style: TextStyle(color: colors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
+                          )).toList(),
+                        ),
+                        if (item.practicalSubjects != null && item.practicalSubjects!.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Text('실기', style: TextStyle(color: colors.pinkDeep, fontSize: 11, fontWeight: FontWeight.w800)),
+                          const SizedBox(height: 6),
+                          Text(item.practicalSubjects!,
+                              style: TextStyle(color: colors.textPrimary, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                        ],
+                      ] else
+                        Text(item.value ?? '',
+                            style: TextStyle(color: colors.textPrimary, fontSize: 12.5, height: 1.55, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
 class _SaveSuccessBadge extends StatefulWidget {
   final Color colorStart;
   final Color colorEnd;
@@ -1201,4 +1756,145 @@ class _FadeSlideInState extends State<_FadeSlideIn> with SingleTickerProviderSta
       child: SlideTransition(position: _slide, child: widget.child),
     );
   }
+}
+List<String> _splitContentIntoLines(String raw) {
+  var text = raw;
+  text = text.replaceAllMapped(RegExp(r'(<[^>]+>)'), (m) => '\n${m.group(1)}\n');
+  text = text.replaceAllMapped(RegExp(r'(?<=\)|다|음|함)(\d{1,2}\.\s)'), (m) => '\n${m.group(1)}');
+  text = text.replaceAllMapped(RegExp(r'([①②③④⑤⑥⑦⑧⑨⑩])'), (m) => '\n${m.group(1)}');
+  return text.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
+}
+
+class _FeeItem {
+  final String label;
+  final int amount;
+  const _FeeItem({required this.label, required this.amount});
+}
+
+List<_FeeItem> _parseExamFee(String raw) {
+  final items = <_FeeItem>[];
+  final parts = raw.split(',');
+  for (final part in parts) {
+    final match = RegExp(r'([^:：]+)[:：]\s*([\d,]+)').firstMatch(part.trim());
+    if (match != null) {
+      final label = match.group(1)!.trim();
+      final amount = int.tryParse(match.group(2)!.replaceAll(',', '')) ?? 0;
+      if (amount > 0) items.add(_FeeItem(label: label, amount: amount));
+    }
+  }
+  return items;
+}
+
+class _ObtainItem {
+  final String label;
+  final String? value;
+  final List<String>? writtenSubjects;
+  final String? practicalSubjects;
+  const _ObtainItem({required this.label, this.value, this.writtenSubjects, this.practicalSubjects});
+}
+
+List<_ObtainItem> _parseHowToObtain(String raw) {
+  final items = <_ObtainItem>[];
+  final markerRegex = RegExp(r'[①②③④⑤⑥⑦⑧⑨⑩]');
+  final matches = markerRegex.allMatches(raw).toList();
+
+  for (var i = 0; i < matches.length; i++) {
+    final start = matches[i].end;
+    final end = i + 1 < matches.length ? matches[i + 1].start : raw.length;
+    final segment = raw.substring(start, end).trim();
+    if (segment.isEmpty) continue;
+
+    if (segment.contains('필기') && RegExp(r'\d\.').hasMatch(segment)) {
+      final labelMatch = RegExp(r'^([^\-:：]+)').firstMatch(segment);
+      var label = (labelMatch?.group(1) ?? '시험과목').replaceAll('필기', '').trim();
+      if (label.isEmpty) label = '시험과목';
+
+      final hasPractical = segment.contains('실기');
+      final writtenPart = segment.substring(
+        segment.indexOf('필기') + 2,
+        hasPractical ? segment.indexOf('실기') : segment.length,
+      );
+
+      final subjects = RegExp(r'\d{1,2}\.\s*([^\d]+?)(?=\d{1,2}\.|$)')
+          .allMatches(writtenPart)
+          .map((m) => m.group(1)!.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+
+      String? practical;
+      if (hasPractical) {
+        practical = segment
+            .substring(segment.indexOf('실기') + 2)
+            .replaceFirst(RegExp(r'^[\s\-:：]+'), '')
+            .trim();
+      }
+
+      items.add(_ObtainItem(label: label, writtenSubjects: subjects, practicalSubjects: practical));
+    } else {
+      final match = RegExp(r'^([^:：]+)[:：]\s*(.*)$', dotAll: true).firstMatch(segment);
+      if (match != null) {
+        items.add(_ObtainItem(label: match.group(1)!.trim(), value: match.group(2)!.trim()));
+      } else {
+        items.add(_ObtainItem(label: segment));
+      }
+    }
+  }
+  return items;
+}
+
+class _ExamTrendsData {
+  final String? header;
+  final List<String> topics;
+  final String? detailNote;
+  final String? refUrl;
+  const _ExamTrendsData({this.header, required this.topics, this.detailNote, this.refUrl});
+}
+
+_ExamTrendsData _parseExamTrends(String raw) {
+  final headerMatches = RegExp(r'<([^>]+)>').allMatches(raw).toList();
+  final header = headerMatches.isNotEmpty ? headerMatches.first.group(1) : null;
+
+  String? detailNote;
+  if (headerMatches.length > 1) {
+    detailNote = raw.substring(headerMatches[1].start).replaceAll(RegExp(r'<[^>]+>'), '').trim();
+  }
+
+  final topicsStart = headerMatches.isNotEmpty ? headerMatches.first.end : 0;
+  final topicsEnd = headerMatches.length > 1 ? headerMatches[1].start : raw.length;
+  var body = raw.substring(topicsStart, topicsEnd).trim();
+
+  String? refUrl;
+  final urlMatch = RegExp(r'\(?(www\.[^\s\)]+)\)?').firstMatch(body);
+  if (urlMatch != null) {
+    refUrl = urlMatch.group(1);
+    body = body.replaceAll(urlMatch.group(0)!, '').trim();
+  }
+
+  var topics = RegExp(r'(\d{1,2})\.\s*([^\d]+?)(?=\d{1,2}\.|$)')
+      .allMatches(body)
+      .map((m) => m.group(2)!.trim())
+      .where((t) => t.isNotEmpty)
+      .toList();
+
+  if (topics.length < 2) {
+    topics = body
+        .split(RegExp(r'\s*-\s*'))
+        .map((s) => s.trim())
+        .where((s) => s.length > 1)
+        .toList();
+  }
+
+  if (topics.isEmpty && body.isNotEmpty) topics = [body];
+
+  return _ExamTrendsData(header: header, topics: topics, detailNote: detailNote, refUrl: refUrl);
+}
+
+String _formatWon(int amount) {
+  final str = amount.toString();
+  final buffer = StringBuffer();
+  for (int i = 0; i < str.length; i++) {
+    if (i > 0 && (str.length - i) % 3 == 0) buffer.write(',');
+    buffer.write(str[i]);
+  }
+  return '${buffer.toString()}원';
 }
