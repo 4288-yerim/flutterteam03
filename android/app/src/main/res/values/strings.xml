@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">따it</string>
+    <string name="today_todo_widget_description">오늘의 할 일과 진행률</string>
+    <string name="goal_schedule_widget_description">목표 자격증 시험 일정</string>
+</resources>

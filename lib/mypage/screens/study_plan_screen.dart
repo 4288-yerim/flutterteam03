@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../appwidgets/today_todo_app_widget.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
@@ -765,16 +766,16 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
       return;
     }
 
-    final bool newStatus = !task.isCompleted;
-
     try {
       await collection.doc(task.id).update({
-        'status': newStatus,
-        'completedat': newStatus
+        'status': !task.isCompleted,
+        'completedat': !task.isCompleted
             ? FieldValue.serverTimestamp()
             : null,
         'updatedat': FieldValue.serverTimestamp(),
       });
+
+      await TodayTodoAppWidget.sync();
     } on FirebaseException catch (error) {
       _showSnackBar(
         error.code == 'permission-denied'
@@ -938,7 +939,17 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: () {
+                  onPressed: () async {
+                    FocusManager.instance.primaryFocus?.unfocus();
+
+                    await Future<void>.delayed(
+                      const Duration(milliseconds: 100),
+                    );
+
+                    if (!dialogContext.mounted) {
+                      return;
+                    }
+
                     Navigator.pop(dialogContext, false);
                   },
                   child: const Text(
@@ -949,7 +960,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                   ),
                 ),
                 TextButton(
-                  onPressed: () {
+                  onPressed: () async {
                     final String? validationMessage =
                     _validateStudyPlanInput(
                       title: titleController.text,
@@ -960,11 +971,21 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                     );
 
                     if (validationMessage != null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
                         SnackBar(
                           content: Text(validationMessage),
                         ),
                       );
+                      return;
+                    }
+
+                    FocusManager.instance.primaryFocus?.unfocus();
+
+                    await Future<void>.delayed(
+                      const Duration(milliseconds: 100),
+                    );
+
+                    if (!dialogContext.mounted) {
                       return;
                     }
 
@@ -996,6 +1017,10 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
         endTime: endTime!,
       );
     }
+
+    await Future<void>.delayed(
+      const Duration(milliseconds: 300),
+    );
 
     titleController.dispose();
     descriptionController.dispose();
@@ -1141,6 +1166,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
         );
       });
 
+      await TodayTodoAppWidget.sync();
       _showSnackBar('학습 계획이 추가되었습니다.');
     } on FirebaseException catch (error) {
       _showSnackBar(
@@ -1238,6 +1264,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
       );
 
       await batch.commit();
+      await TodayTodoAppWidget.sync();
 
       _showSnackBar('학습 계획이 삭제되었습니다.');
     } on FirebaseException catch (error) {

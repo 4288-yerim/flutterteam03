@@ -241,28 +241,74 @@ class CertificateDetailService {
         );
       }
 
-      final goalDocument = await goalsCollection.add({
-        'certificateId': normalizedCertificateId,
-        'scheduleId': normalizedScheduleId,
-        'certificateName': normalizedCertificateName,
-        'qualificationType': normalizedQualificationType,
-        'targetExamDate': Timestamp.fromDate(targetExamDate),
-        'targetRound': normalizedTargetRound,
-        'targetExamType': normalizedTargetExamType,
-        'targetPassAnnouncementDate':
-            targetPassAnnouncementDate == null
-                ? null
-                : Timestamp.fromDate(targetPassAnnouncementDate),
-        'targetPassAnnouncementEndDate':
-            targetPassAnnouncementEndDate == null
-                ? null
-                : Timestamp.fromDate(targetPassAnnouncementEndDate),
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-        'goalStatus': 'ACTIVE',
-        'isMainGoal': false,
-        'calendarLinked': false,
-      });
+      final userDocument = _firestore
+          .collection('users')
+          .doc(user.uid);
+
+      final goalDocument = goalsCollection.doc();
+
+      final calendarEventDocument = userDocument
+          .collection('calendarEvents')
+          .doc();
+
+      final examTypeName =
+      normalizedTargetExamType == 'WRITTEN'
+          ? '필기시험'
+          : '실기시험';
+
+      final calendarTitle =
+          '$normalizedCertificateName '
+          '$normalizedTargetRound '
+          '$examTypeName';
+
+      final batch = _firestore.batch();
+
+      batch.set(
+        goalDocument,
+        {
+          'certificateId': normalizedCertificateId,
+          'scheduleId': normalizedScheduleId,
+          'certificateName': normalizedCertificateName,
+          'qualificationType': normalizedQualificationType,
+          'targetExamDate': Timestamp.fromDate(targetExamDate),
+          'targetRound': normalizedTargetRound,
+          'targetExamType': normalizedTargetExamType,
+          'targetPassAnnouncementDate':
+          targetPassAnnouncementDate == null
+              ? null
+              : Timestamp.fromDate(
+            targetPassAnnouncementDate,
+          ),
+          'targetPassAnnouncementEndDate':
+          targetPassAnnouncementEndDate == null
+              ? null
+              : Timestamp.fromDate(
+            targetPassAnnouncementEndDate,
+          ),
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'goalStatus': 'ACTIVE',
+          'isMainGoal': false,
+
+          // 휴대폰 기본 캘린더 연동 여부
+          'calendarLinked': false,
+
+          // 앱 내부 캘린더 일정 문서 ID
+          'calendarEventId': calendarEventDocument.id,
+        },
+      );
+
+      batch.set(
+        calendarEventDocument,
+        {
+          'startAt': Timestamp.fromDate(targetExamDate),
+          'allDay': true,
+          'title': calendarTitle,
+          'eventType': 'EXAM',
+        },
+      );
+
+      await batch.commit();
 
       return goalDocument.id;
     } on CertificateGoalException {

@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../appwidgets/app_widget_sync.dart';
 import '../../auth/screens/welcome_screen.dart';
 import '../../main_page.dart';
 import '../../mypage/screens/withdrawal_pending_screen.dart';
@@ -75,17 +76,28 @@ class _SplashScreenState extends State<SplashScreen>
     Widget nextScreen;
 
     if (user == null) {
+      await AppWidgetSync.clearAll();
+
       nextScreen = const WelcomeScreen();
     } else {
       try {
         final bool isWithdrawalPending =
-        await WithdrawalStatusService.isCurrentUserWithdrawalPending();
-        nextScreen = isWithdrawalPending
-            ? const WithdrawalPendingScreen()
-            : const MainPage();
+        await WithdrawalStatusService
+            .isCurrentUserWithdrawalPending();
+
+        if (isWithdrawalPending) {
+          await AppWidgetSync.clearAll();
+
+          nextScreen = const WithdrawalPendingScreen();
+        } else {
+          await AppWidgetSync.syncAll();
+
+          nextScreen = const MainPage();
+        }
       } catch (_) {
-        // 회원 상태를 확인할 수 없을 때 메인 화면으로 우회하지 않습니다.
         await FirebaseAuth.instance.signOut();
+        await AppWidgetSync.clearAll();
+
         nextScreen = const WelcomeScreen();
       }
     }

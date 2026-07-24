@@ -719,37 +719,416 @@ class _HomeTodoItem extends StatelessWidget {
   }
 }
 
-/// 이번 주 스터디 제목
-class HomeWeeklyStudyHeader extends StatelessWidget {
-  final int completedCount;
-  final int totalCount;
+class HomeTodayStudyCard extends StatefulWidget {
+  final HomeTodayStudySummary summary;
 
-  const HomeWeeklyStudyHeader({
-    required this.completedCount,
-    required this.totalCount,
+  const HomeTodayStudyCard({
+    super.key,
+    required this.summary,
+  });
+
+  @override
+  State<HomeTodayStudyCard> createState() =>
+      _HomeTodayStudyCardState();
+}
+
+class _HomeTodayStudyCardState
+    extends State<HomeTodayStudyCard> {
+  bool _isDetailExpanded = false;
+
+  String _formatSeconds(int totalSeconds) {
+    if (totalSeconds <= 0) {
+      return '0초';
+    }
+
+    final hours = totalSeconds ~/ 3600;
+    final minutes = (totalSeconds % 3600) ~/ 60;
+    final seconds = totalSeconds % 60;
+
+    if (hours > 0) {
+      return '$hours시간 $minutes분 $seconds초';
+    }
+
+    if (minutes > 0) {
+      return '$minutes분 $seconds초';
+    }
+
+    return '$seconds초';
+  }
+
+  String _formatTime(DateTime date) {
+    final local = date.toLocal();
+
+    final hour =
+    local.hour.toString().padLeft(2, '0');
+
+    final minute =
+    local.minute.toString().padLeft(2, '0');
+
+    return '$hour:$minute';
+  }
+
+  IconData _getStudyTypeIcon(
+      HomeStudyRecord record,
+      ) {
+    if (record.isStudyGroup) {
+      return Icons.groups_2_outlined;
+    }
+
+    switch (record.studyType) {
+      case 'PRACTICE':
+        return Icons.edit_note_outlined;
+
+      case 'REVIEW':
+        return Icons.replay_outlined;
+
+      case 'LECTURE':
+        return Icons.play_circle_outline_rounded;
+
+      case 'OTHER':
+        return Icons.notes_rounded;
+
+      default:
+        return Icons.menu_book_outlined;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = widget.summary;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        18,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(
+              alpha: 0.018,
+            ),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFCEFF3),
+                  borderRadius:
+                  BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.timer_outlined,
+                  color: Color(0xFFF0788F),
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 13),
+              const Expanded(
+                child: Text(
+                  '오늘 공부한 시간',
+                  style: TextStyle(
+                    color: Color(0xFF817B7D),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              Text(
+                _formatSeconds(
+                  summary.totalSeconds,
+                ),
+                style: const TextStyle(
+                  color: Color(0xFFF06F91),
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 13),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 11,
+            ),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9F5F7),
+              borderRadius:
+              BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _HomeStudyTimeBreakdown(
+                    label: '개인 공부',
+                    value: _formatSeconds(
+                      summary.personalSeconds,
+                    ),
+                    color:
+                    const Color(0xFFF0788F),
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  height: 32,
+                  color: const Color(0xFFE9DFE3),
+                ),
+                Expanded(
+                  child: _HomeStudyTimeBreakdown(
+                    label: '스터디 공부',
+                    value: _formatSeconds(
+                      summary.studySeconds,
+                    ),
+                    color:
+                    const Color(0xFF8874C9),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Divider(
+            height: 1,
+            color: Color(0xFFF0E9EC),
+          ),
+          InkWell(
+            onTap: () {
+              setState(() {
+                _isDetailExpanded =
+                !_isDetailExpanded;
+              });
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                vertical: 14,
+              ),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      '오늘 상세 기록',
+                      style: TextStyle(
+                        color: Color(0xFF302C2E),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns:
+                    _isDetailExpanded ? 0.5 : 0,
+                    duration: const Duration(
+                      milliseconds: 180,
+                    ),
+                    child: const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: Color(0xFF817B7D),
+                      size: 25,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedCrossFade(
+            duration: const Duration(
+              milliseconds: 200,
+            ),
+            crossFadeState: _isDetailExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            firstChild:
+            const SizedBox(width: double.infinity),
+            secondChild: _buildDetailRecords(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRecords() {
+    final records = widget.summary.records;
+
+    if (records.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(
+          vertical: 14,
+        ),
+        child: Center(
+          child: Text(
+            '오늘 기록된 공부 시간이 없습니다.',
+            style: TextStyle(
+              color: Color(0xFF817B7D),
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: List.generate(
+        records.length,
+            (index) {
+          final record = records[index];
+
+          final iconColor = record.isStudyGroup
+              ? const Color(0xFF8874C9)
+              : const Color(0xFFF0788F);
+
+          final iconBackground =
+          record.isStudyGroup
+              ? const Color(0xFFF4F1FF)
+              : const Color(0xFFFCEFF3);
+
+          return Column(
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: iconBackground,
+                      borderRadius:
+                      BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      _getStudyTypeIcon(record),
+                      color: iconColor,
+                      size: 21,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          record.subject,
+                          maxLines: 1,
+                          overflow:
+                          TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color:
+                            Color(0xFF302C2E),
+                            fontSize: 15,
+                            fontWeight:
+                            FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          record.isStudyGroup
+                              ? '스터디 · '
+                              '${record.description}'
+                              : record.description,
+                          maxLines: 1,
+                          overflow:
+                          TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color:
+                            Color(0xFF817B7D),
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          _formatTime(
+                            record.studiedAt,
+                          ),
+                          style: const TextStyle(
+                            color:
+                            Color(0xFFA09A9C),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    _formatSeconds(
+                      record.seconds > 0
+                          ? record.seconds
+                          : record.minutes * 60,
+                    ),
+                    style: TextStyle(
+                      color: iconColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              if (index != records.length - 1)
+                const Padding(
+                  padding: EdgeInsets.symmetric(
+                    vertical: 13,
+                  ),
+                  child: Divider(
+                    height: 1,
+                    color: Color(0xFFF0E9EC),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _HomeStudyTimeBreakdown
+    extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _HomeStudyTimeBreakdown({
+    required this.label,
+    required this.value,
+    required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          '이번주 스터디',
-          style: TextStyle(
-            color: Color(0xFF2E292B),
-            fontSize: 23,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.7,
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF817B7D),
+            fontSize: 12,
           ),
         ),
-        const SizedBox(height: 9),
+        const SizedBox(height: 4),
         Text(
-          '$completedCount / $totalCount 완료',
-          style: const TextStyle(
-            color: Color(0xFFF06F91),
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ],
@@ -757,69 +1136,475 @@ class HomeWeeklyStudyHeader extends StatelessWidget {
   }
 }
 
-/// 스터디 진행률 카드
-class HomeStudyProgressCard extends StatelessWidget {
-  final String title;
-  final double progress;
+class HomeStudyGroupStatusCard
+    extends StatelessWidget {
+  final List<HomeStudyGroupSummary> studyGroups;
 
-  const HomeStudyProgressCard({
-    required this.title,
-    required this.progress,
+  const HomeStudyGroupStatusCard({
+    super.key,
+    required this.studyGroups,
   });
 
   @override
   Widget build(BuildContext context) {
-    final safeProgress = progress.clamp(0.0, 1.0);
-    final progressPercent = (safeProgress * 100).round();
+    if (studyGroups.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 30,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(
+            alpha: 0.92,
+          ),
+          borderRadius: BorderRadius.circular(28),
+        ),
+        child: const Column(
+          children: [
+            Icon(
+              Icons.groups_outlined,
+              size: 36,
+              color: Color(0xFFB3AAAD),
+            ),
+            SizedBox(height: 10),
+            Text(
+              '참여한 스터디가 없습니다.',
+              style: TextStyle(
+                color: Color(0xFF817B7D),
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: List.generate(
+        studyGroups.length,
+            (index) {
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom:
+              index == studyGroups.length - 1
+                  ? 0
+                  : 12,
+            ),
+            child: _HomeStudyGroupItem(
+              group: studyGroups[index],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _HomeStudyGroupItem
+    extends StatefulWidget {
+  final HomeStudyGroupSummary group;
+
+  const _HomeStudyGroupItem({
+    required this.group,
+  });
+
+  @override
+  State<_HomeStudyGroupItem> createState() =>
+      _HomeStudyGroupItemState();
+}
+
+class _HomeStudyGroupItemState
+    extends State<_HomeStudyGroupItem> {
+  bool _isExpanded = false;
+
+  String _formatSeconds(int totalSeconds) {
+    if (totalSeconds <= 0) {
+      return '0초';
+    }
+
+    final hours = totalSeconds ~/ 3600;
+    final minutes =
+        (totalSeconds % 3600) ~/ 60;
+    final seconds = totalSeconds % 60;
+
+    if (hours > 0) {
+      return '$hours시간 $minutes분 $seconds초';
+    }
+
+    if (minutes > 0) {
+      return '$minutes분 $seconds초';
+    }
+
+    return '$seconds초';
+  }
+
+  String _formatHoursAndMinutes(int totalSeconds) {
+    if (totalSeconds <= 0) {
+      return '0분';
+    }
+
+    final totalMinutes = totalSeconds ~/ 60;
+    final hours = totalMinutes ~/ 60;
+    final minutes = totalMinutes % 60;
+
+    if (hours > 0) {
+      return '$hours시간 $minutes분';
+    }
+
+    return '$minutes분';
+  }
+
+  String _buildStudyProgressText(
+      HomeStudyGroupSummary group,
+      ) {
+    if (group.weeklyGoalSeconds <= 0) {
+      return '주간 목표 미설정';
+    }
+
+    return '이번 주 ${_formatHoursAndMinutes(group.weeklyStudySeconds)}'
+        ' / 목표 ${_formatHoursAndMinutes(group.weeklyGoalSeconds)}';
+  }
+
+  String _buildMemberStatusText(
+      HomeStudyGroupSummary group,
+      ) {
+    return '공부 중 ${group.studyingMemberCount}명'
+        ' · 휴식 중 ${group.restingMemberCount}명'
+        ' · 일시정지 ${group.pausedMemberCount}명';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final group = widget.group;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(26),
+        color: Colors.white.withValues(
+          alpha: 0.92,
+        ),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.018),
+            color: Colors.black.withValues(
+              alpha: 0.018,
+            ),
             blurRadius: 18,
             offset: const Offset(0, 6),
           ),
         ],
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Color(0xFF302C2E),
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
+          InkWell(
+            onTap: () {
+              setState(() {
+                _isExpanded = !_isExpanded;
+              });
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color:
+                      const Color(0xFFF4F1FF),
+                      borderRadius:
+                      BorderRadius.circular(13),
+                    ),
+                    child: const Icon(
+                      Icons.groups_2_outlined,
+                      color: Color(0xFF8874C9),
+                      size: 23,
+                    ),
+                  ),
+                  const SizedBox(width: 13),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          group.groupName,
+                          maxLines: 1,
+                          overflow:
+                          TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color:
+                            Color(0xFF302C2E),
+                            fontSize: 16,
+                            fontWeight:
+                            FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _buildStudyProgressText(group),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF8874C9),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: _isExpanded ? 0.5 : 0,
+                    duration: const Duration(
+                      milliseconds: 180,
+                    ),
+                    child: const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: Color(0xFF817B7D),
+                      size: 25,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
+          AnimatedCrossFade(
+            duration: const Duration(
+              milliseconds: 200,
+            ),
+            crossFadeState: _isExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            firstChild:
+            const SizedBox(width: double.infinity),
+            secondChild: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                18,
+                0,
+                18,
+                18,
+              ),
+              child: Column(
+                children: [
+                  const Divider(
+                    height: 1,
+                    color: Color(0xFFF0E9EC),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF9F5F7),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _buildMemberStatusText(group),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Color(0xFF817B7D),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  ...List.generate(
+                    group.members.length,
+                        (index) {
+                      final member =
+                      group.members[index];
 
-          const SizedBox(height: 13),
+                      return Padding(
+                        padding: EdgeInsets.only(
+                          bottom:
+                          index ==
+                              group.members.length -
+                                  1
+                              ? 0
+                              : 12,
+                        ),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 17,
+                              backgroundColor:
+                              member.isCurrentUser
+                                  ? const Color(
+                                0xFFFCEFF3,
+                              )
+                                  : const Color(
+                                0xFFF4F1FF,
+                              ),
+                              child: Text(
+                                member.nickname.isEmpty
+                                    ? '?'
+                                    : member.nickname
+                                    .substring(0, 1),
+                                style: TextStyle(
+                                  color:
+                                  member.isCurrentUser
+                                      ? const Color(
+                                    0xFFF0788F,
+                                  )
+                                      : const Color(
+                                    0xFF8874C9,
+                                  ),
+                                  fontSize: 13,
+                                  fontWeight:
+                                  FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 11),
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      member.nickname,
+                                      maxLines: 1,
+                                      overflow:
+                                      TextOverflow
+                                          .ellipsis,
+                                      style:
+                                      const TextStyle(
+                                        color: Color(
+                                          0xFF302C2E,
+                                        ),
+                                        fontSize: 14,
+                                        fontWeight:
+                                        FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  if (member
+                                      .isCurrentUser) ...[
+                                    const SizedBox(
+                                      width: 6,
+                                    ),
+                                    const Text(
+                                      '나',
+                                      style: TextStyle(
+                                        color: Color(
+                                          0xFFF0788F,
+                                        ),
+                                        fontSize: 11,
+                                        fontWeight:
+                                        FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              _formatSeconds(
+                                member.studySeconds,
+                              ),
+                              style: const TextStyle(
+                                color:
+                                Color(0xFF8874C9),
+                                fontSize: 13,
+                                fontWeight:
+                                FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
+class HomeTodayStudyLoadingCard
+    extends StatelessWidget {
+  const HomeTodayStudyLoadingCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: 150,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: const Center(
+        child: SizedBox(
+          width: 26,
+          height: 26,
+          child: CircularProgressIndicator(
+            strokeWidth: 3,
+            color: Color(0xFFF06F91),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class HomeTodayStudyErrorCard
+    extends StatelessWidget {
+  final String message;
+
+  const HomeTodayStudyErrorCard({
+    super.key,
+    required this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 20,
+        vertical: 26,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.error_outline_rounded,
+            size: 34,
+            color: Color(0xFFF06F91),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            '오늘 공부 기록을 불러오지 못했습니다.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFF302C2E),
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 5),
           Text(
-            '진행률 $progressPercent%',
+            message,
+            textAlign: TextAlign.center,
             style: const TextStyle(
               color: Color(0xFF817B7D),
-              fontSize: 14,
-              fontWeight: FontWeight.w400,
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          ClipRRect(
-            borderRadius: BorderRadius.circular(50),
-            child: LinearProgressIndicator(
-              value: safeProgress,
-              minHeight: 9,
-              backgroundColor: const Color(0xFFF8E3EA),
-              valueColor: const AlwaysStoppedAnimation<Color>(
-                Color(0xFFF286A2),
-              ),
+              fontSize: 13,
             ),
           ),
         ],
@@ -1000,13 +1785,43 @@ class HomeEmptyGoalCard extends StatelessWidget {
             ),
           ),
           SizedBox(height: 6),
-          Text(
-            '자격증 상세페이지에서 목표 시험을 등록해보세요.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Color(0xFF817B7D),
-              fontSize: 14,
-            ),
+          Column(
+            children: const [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '자격증 일정 보기에서 ',
+                    style: TextStyle(
+                      color: Color(0xFF817B7D),
+                      fontSize: 14,
+                    ),
+                  ),
+                  Icon(
+                    Icons.search_rounded,
+                    size: 17,
+                    color: Color(0xFF817B7D),
+                  ),
+                  Text(
+                    '를 눌러 검색 후',
+                    style: TextStyle(
+                      color: Color(0xFF817B7D),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 4),
+              Text(
+                '원하는 자격증을 선택해 목표 시험을 등록해보세요.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xFF817B7D),
+                  fontSize: 14,
+                ),
+              ),
+            ],
           ),
         ],
       ),
