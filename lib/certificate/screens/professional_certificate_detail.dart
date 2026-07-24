@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../appwidgets/goal_schedule_app_widget.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
 import '../services/certificate_detail_service.dart';
@@ -616,7 +617,8 @@ class _ProfessionalCertificateDetailPageState
     });
 
     try {
-      final goalId = await _certificateDetailService.addCertificateGoal(
+      final goalId =
+      await _certificateDetailService.addCertificateGoal(
         certificateId: widget.certificationId,
         scheduleId: schedule.id,
         certificateName: certificate.name,
@@ -624,16 +626,21 @@ class _ProfessionalCertificateDetailPageState
         targetExamDate: examDate,
         targetRound: schedule.description,
         targetExamType: examType,
-        targetPassAnnouncementDate: schedule.passStartAt,
-        targetPassAnnouncementEndDate: schedule.passEndAt,
+        targetPassAnnouncementDate:
+        schedule.passStartAt,
+        targetPassAnnouncementEndDate:
+        schedule.passEndAt,
         includeExamTypeInDuplicateCheck: false,
       );
+
+      await GoalScheduleAppWidget.sync();
 
       if (!mounted) {
         return;
       }
 
-      final shouldLinkCalendar = await showCertificateCalendarLinkDialog(
+      final shouldLinkCalendar =
+      await showCertificateCalendarLinkDialog(
         context: context,
         option: option,
       );

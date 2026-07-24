@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:naver_login_sdk/naver_login_sdk.dart';
 import 'package:workmanager/workmanager.dart';
+import 'package:home_widget/home_widget.dart';
+import 'appwidgets/app_widget_background.dart';
+import 'appwidgets/app_widget_sync.dart';
 import 'firebase_options.dart';
 import 'theme.dart';
 import 'splash/screens/splash_screen.dart';
@@ -25,10 +28,24 @@ void callbackDispatcher() {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await dotenv.load(fileName: ".env");
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  await HomeWidget.registerInteractivityCallback(
+    appWidgetBackgroundCallback,
+  );
+
+  try {
+    await AppWidgetSync.syncAll();
+  } catch (error, stackTrace) {
+    debugPrint('초기 홈 위젯 동기화 실패: $error');
+    debugPrintStack(stackTrace: stackTrace);
+  }
+
   await GoogleSignIn.instance.initialize(
     serverClientId: dotenv.env['GOOGLE_WEB_CLIENT_ID'],
   );

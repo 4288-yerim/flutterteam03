@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../appwidgets/goal_schedule_app_widget.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
@@ -764,7 +765,8 @@ class _TechnicalCertificateDetailPageState
     });
 
     try {
-      final goalId = await _certificateDetailService.addCertificateGoal(
+      final goalId =
+      await _certificateDetailService.addCertificateGoal(
         certificateId: widget.certificationId,
         scheduleId: option.scheduleId,
         certificateName: certificate.name,
@@ -772,10 +774,14 @@ class _TechnicalCertificateDetailPageState
         targetExamDate: option.examDate,
         targetRound: option.targetRound,
         targetExamType: option.examType,
-        targetPassAnnouncementDate: option.passAnnouncementDate,
-        targetPassAnnouncementEndDate: option.passAnnouncementEndDate,
+        targetPassAnnouncementDate:
+        option.passAnnouncementDate,
+        targetPassAnnouncementEndDate:
+        option.passAnnouncementEndDate,
         includeExamTypeInDuplicateCheck: true,
       );
+
+      await GoalScheduleAppWidget.sync();
 
       if (!mounted) {
         return;

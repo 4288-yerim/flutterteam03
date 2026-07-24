@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../appwidgets/goal_schedule_app_widget.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
@@ -117,6 +118,8 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
             passAnnouncementEndDate:
             passAnnouncementEndTimestamp?.toDate(),
             isMainGoal: data['isMainGoal'] as bool? ?? false,
+            calendarEventId:
+            (data['calendarEventId'] as String? ?? '').trim(),
           ),
         );
       }
@@ -218,6 +221,7 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
       }
 
       await batch.commit();
+      await GoalScheduleAppWidget.sync();
 
       if (!mounted) {
         return;
@@ -236,8 +240,23 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
             return a.isMainGoal ? -1 : 1;
           }
 
-          return a.certificateName.compareTo(
-            b.certificateName,
+          if (a.targetExamDate == null &&
+              b.targetExamDate == null) {
+            return a.certificateName.compareTo(
+              b.certificateName,
+            );
+          }
+
+          if (a.targetExamDate == null) {
+            return 1;
+          }
+
+          if (b.targetExamDate == null) {
+            return -1;
+          }
+
+          return a.targetExamDate!.compareTo(
+            b.targetExamDate!,
           );
         });
       });
@@ -337,12 +356,33 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
     }
 
     try {
-      await FirebaseFirestore.instance
+      final FirebaseFirestore firestore =
+          FirebaseFirestore.instance;
+
+      final DocumentReference<Map<String, dynamic>>
+      goalDocument = firestore
           .collection('users')
           .doc(user.uid)
           .collection('goals')
-          .doc(goal.goalId)
-          .delete();
+          .doc(goal.goalId);
+
+      final WriteBatch batch = firestore.batch();
+
+      batch.delete(goalDocument);
+
+      if (goal.calendarEventId.isNotEmpty) {
+        final DocumentReference<Map<String, dynamic>>
+        calendarEventDocument = firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('calendarEvents')
+            .doc(goal.calendarEventId);
+
+        batch.delete(calendarEventDocument);
+      }
+
+      await batch.commit();
+      await GoalScheduleAppWidget.sync();
 
       if (!mounted) {
         return;
@@ -355,7 +395,8 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '${goal.certificateName} 목표가 삭제되었습니다.',
+            '${goal.certificateName} 목표와 '
+                '캘린더 일정이 삭제되었습니다.',
           ),
         ),
       );
@@ -882,6 +923,7 @@ class GoalCertificateItem {
   final DateTime? passAnnouncementDate;
   final DateTime? passAnnouncementEndDate;
   final bool isMainGoal;
+  final String calendarEventId;
 
   const GoalCertificateItem({
     required this.goalId,
@@ -893,6 +935,7 @@ class GoalCertificateItem {
     required this.passAnnouncementDate,
     required this.passAnnouncementEndDate,
     required this.isMainGoal,
+    required this.calendarEventId,
   });
 
   GoalCertificateItem copyWith({
@@ -911,6 +954,7 @@ class GoalCertificateItem {
       passAnnouncementEndDate,
       isMainGoal:
       isMainGoal ?? this.isMainGoal,
+      calendarEventId: calendarEventId,
     );
   }
 }

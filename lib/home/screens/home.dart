@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../appwidgets/today_todo_app_widget.dart';
 import '../../certificate/screens/certificate_schedule.dart';
 import '../../mypage/screens/study_plan_screen.dart';
+import '../../mypage/screens/study_record_screen.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
 import '../services/home_service.dart';
@@ -20,6 +22,7 @@ class _HomePageState extends State<HomePage> {
   late final Stream<List<HomeGoal>> _activeGoalsStream;
   late final Stream<String> _nicknameStream;
   late final Stream<List<HomeTodo>> _todayTodosStream;
+  late final Stream<HomeTodayStudySummary> _todayStudySummaryStream;
 
   int _currentGoalIndex = 0;
 
@@ -30,6 +33,8 @@ class _HomePageState extends State<HomePage> {
     _activeGoalsStream = _homeService.watchActiveGoals();
     _nicknameStream = _homeService.watchCurrentUserNickname();
     _todayTodosStream = _homeService.watchTodayTodos();
+    _todayStudySummaryStream =
+        _homeService.watchTodayStudySummary();
   }
 
   void _onNotificationPressed() {
@@ -71,7 +76,7 @@ class _HomePageState extends State<HomePage> {
                 24,
                 20,
                 24,
-                130,
+                50,
               ),
               children: [
                 HomeCertificateScheduleButton(
@@ -234,16 +239,14 @@ class _HomePageState extends State<HomePage> {
                       todos: todos,
                       onTodoPressed: (todo) async {
                         try {
-                          await _homeService.toggleTodoStatus(
-                            todo,
-                          );
+                          await _homeService.toggleTodoStatus(todo);
+                          await TodayTodoAppWidget.sync();
                         } on HomeServiceException catch (error) {
                           if (!context.mounted) {
                             return;
                           }
 
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(
+                          ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(error.message),
                             ),
@@ -254,14 +257,51 @@ class _HomePageState extends State<HomePage> {
                   },
                 ),
                 const SizedBox(height: 32),
-                const HomeWeeklyStudyHeader(
-                  completedCount: 4,
-                  totalCount: 5,
+                HomeSectionHeader(
+                  title: '오늘 공부 시간',
                 ),
-                const SizedBox(height: 16),
-                const HomeStudyProgressCard(
-                  title: '정보처리기사 스터디',
-                  progress: 0.75,
+                const SizedBox(height: 14),
+                StreamBuilder<HomeTodayStudySummary>(
+                  stream: _todayStudySummaryStream,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState ==
+                        ConnectionState.waiting &&
+                        !snapshot.hasData) {
+                      return const HomeTodayStudyLoadingCard();
+                    }
+
+                    if (snapshot.hasError) {
+                      return HomeTodayStudyErrorCard(
+                        message:
+                        snapshot.error is HomeServiceException
+                            ? (snapshot.error!
+                        as HomeServiceException)
+                            .message
+                            : '오늘 공부 기록을 불러오지 못했습니다.',
+                      );
+                    }
+
+                    final summary = snapshot.data ??
+                        const HomeTodayStudySummary.empty();
+
+                    return Column(
+                      crossAxisAlignment:
+                      CrossAxisAlignment.stretch,
+                      children: [
+                        HomeTodayStudyCard(
+                          summary: summary,
+                        ),
+                        const SizedBox(height: 32),
+                        const HomeSectionHeader(
+                          title: '스터디 공부 시간',
+                        ),
+                        const SizedBox(height: 14),
+                        HomeStudyGroupStatusCard(
+                          studyGroups: summary.studyGroups,
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),

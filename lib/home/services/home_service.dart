@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -224,6 +226,892 @@ class HomeService {
     }
   }
 
+  Stream<HomeTodayStudySummary> watchTodayStudySummary() {
+    final user = _firebaseAuth.currentUser;
+
+    if (user == null) {
+      return Stream<HomeTodayStudySummary>.value(
+        const HomeTodayStudySummary.empty(),
+      );
+    }
+
+    late final StreamController<HomeTodayStudySummary> controller;
+
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+    personalLogSubscription;
+
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+    studyGroupSubscription;
+
+    final groupSubscriptions = <
+        StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
+
+    bool isLoading = false;
+    bool reloadRequested = false;
+    bool isUpdatingGroupSubscriptions = false;
+    bool groupSubscriptionUpdateRequested = false;
+
+    Future<void> loadAndEmit() async {
+      if (isLoading) {
+        reloadRequested = true;
+        return;
+      }
+
+      isLoading = true;
+
+      try {
+        do {
+          reloadRequested = false;
+
+          final summary = await _loadTodayStudySummary(
+            user.uid,
+          );
+
+          if (!controller.isClosed) {
+            controller.add(summary);
+          }
+        } while (reloadRequested && !controller.isClosed);
+      } catch (error, stackTrace) {
+        print('홈 오늘 공부시간 조회 오류: $error');
+
+        if (!controller.isClosed) {
+          if (error is FirebaseException) {
+            controller.addError(
+              HomeServiceException(
+                '[${error.code}] '
+                    '${error.message ?? '오늘 공부 기록 조회 실패'}',
+              ),
+              stackTrace,
+            );
+          } else {
+            controller.addError(
+              HomeServiceException(
+                error.toString(),
+              ),
+              stackTrace,
+            );
+          }
+        }
+      } finally {
+        isLoading = false;
+      }
+    }
+
+    Future<void> updateGroupSubscriptions() async {
+      if (isUpdatingGroupSubscriptions) {
+        groupSubscriptionUpdateRequested = true;
+        return;
+      }
+
+      isUpdatingGroupSubscriptions = true;
+
+      try {
+        do {
+          groupSubscriptionUpdateRequested = false;
+
+          for (final subscription in groupSubscriptions) {
+            await subscription.cancel();
+          }
+
+          groupSubscriptions.clear();
+
+          final groupReferences =
+          await _loadMyActiveStudyGroupReferences(user.uid);
+
+          for (final groupReference in groupReferences) {
+            final memberSubscription = groupReference
+                .collection('members')
+                .snapshots()
+                .listen(
+                  (_) {
+                loadAndEmit();
+              },
+              onError: (Object error, StackTrace stackTrace) {
+                print(
+                  '홈 스터디 멤버 실시간 조회 오류: $error',
+                );
+              },
+            );
+
+            final recordSubscription = groupReference
+                .collection('studyRecords')
+                .snapshots()
+                .listen(
+                  (_) {
+                loadAndEmit();
+              },
+              onError: (Object error, StackTrace stackTrace) {
+                print(
+                  '홈 스터디 기록 실시간 조회 오류: $error',
+                );
+              },
+            );
+
+            groupSubscriptions.add(memberSubscription);
+            groupSubscriptions.add(recordSubscription);
+          }
+
+          await loadAndEmit();
+        } while (groupSubscriptionUpdateRequested &&
+            !controller.isClosed);
+      } catch (error, stackTrace) {
+        print(
+          '홈 참여 스터디 실시간 연결 오류: $error',
+        );
+
+        if (!controller.isClosed) {
+          controller.addError(
+            error is FirebaseException
+                ? HomeServiceException(
+              '[${error.code}] '
+                  '${error.message ?? '참여 스터디 조회 실패'}',
+            )
+                : HomeServiceException(
+              error.toString(),
+            ),
+            stackTrace,
+          );
+        }
+      } finally {
+        isUpdatingGroupSubscriptions = false;
+      }
+    }
+
+    controller = StreamController<HomeTodayStudySummary>(
+      onListen: () {
+        personalLogSubscription = _firestore
+            .collection('userStudyLogs')
+            .doc(user.uid)
+            .collection('logs')
+            .snapshots()
+            .listen(
+              (_) {
+            loadAndEmit();
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            if (!controller.isClosed) {
+              controller.addError(error, stackTrace);
+            }
+          },
+        );
+
+        studyGroupSubscription = _firestore
+            .collection('studyGroups')
+            .snapshots()
+            .listen(
+              (_) {
+            updateGroupSubscriptions();
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            if (!controller.isClosed) {
+              controller.addError(error, stackTrace);
+            }
+          },
+        );
+
+        updateGroupSubscriptions();
+      },
+      onCancel: () async {
+        await personalLogSubscription?.cancel();
+        await studyGroupSubscription?.cancel();
+
+        for (final subscription in groupSubscriptions) {
+          await subscription.cancel();
+        }
+
+        groupSubscriptions.clear();
+      },
+    );
+
+    return controller.stream;
+  }
+
+  Future<HomeTodayStudySummary> _loadTodayStudySummary(
+      String uid,
+      ) async {
+    final today = _dateOnly(DateTime.now());
+
+    final personalRecords = await _loadTodayPersonalRecords(
+      uid: uid,
+      today: today,
+    );
+
+    List<HomeStudyGroupSummary> studyGroups = [];
+
+    try {
+      studyGroups = await _loadTodayStudyGroups(
+        uid: uid,
+        today: today,
+      );
+    } on FirebaseException catch (error) {
+      print(
+        '홈 스터디 공부시간 조회 실패: '
+            '${error.code} / ${error.message}',
+      );
+    } catch (error) {
+      print(
+        '홈 스터디 공부시간 조회 실패: $error',
+      );
+    }
+
+    final studyRecords = studyGroups
+        .expand((group) => group.myRecords)
+        .toList();
+
+    final allRecords = <HomeStudyRecord>[
+      ...personalRecords,
+      ...studyRecords,
+    ]..sort(
+          (first, second) {
+        return second.studiedAt.compareTo(
+          first.studiedAt,
+        );
+      },
+    );
+
+    final personalSeconds = personalRecords.fold<int>(
+      0,
+          (sum, record) {
+        if (record.seconds > 0) {
+          return sum + record.seconds;
+        }
+
+        return sum + record.minutes * 60;
+      },
+    );
+
+    final studySeconds = studyGroups.fold<int>(
+      0,
+          (sum, group) => sum + group.myStudySeconds,
+    );
+
+    return HomeTodayStudySummary(
+      personalSeconds: personalSeconds,
+      studySeconds: studySeconds,
+      records: allRecords,
+      studyGroups: studyGroups,
+    );
+  }
+
+  Future<List<HomeStudyRecord>> _loadTodayPersonalRecords({
+    required String uid,
+    required DateTime today,
+  }) async {
+    final snapshot = await _firestore
+        .collection('userStudyLogs')
+        .doc(uid)
+        .collection('logs')
+        .get();
+
+    final records = <HomeStudyRecord>[];
+
+    for (final dailyDocument in snapshot.docs) {
+      final dailyData = dailyDocument.data();
+
+      final fallbackDate = _readStudyDate(
+        dailyData['date'],
+        dailyDocument.id,
+      );
+
+      if (!_isSameDate(fallbackDate, today)) {
+        continue;
+      }
+
+      final sessionSnapshot = await dailyDocument.reference
+          .collection('sessions')
+          .get();
+
+      if (sessionSnapshot.docs.isEmpty) {
+        final storedTotalSeconds =
+            (dailyData['totalSeconds'] as num?)?.toInt() ?? 0;
+
+        final storedTotalMinutes =
+            (dailyData['totalMinutes'] as num?)?.toInt() ?? 0;
+
+        final totalSeconds = storedTotalSeconds > 0
+            ? storedTotalSeconds
+            : storedTotalMinutes * 60;
+
+        if (totalSeconds > 0) {
+          records.add(
+            HomeStudyRecord(
+              id: dailyDocument.id,
+              studiedAt: fallbackDate,
+              subject: '학습 기록',
+              description: '오늘의 총 학습 시간',
+              minutes: totalSeconds ~/ 60,
+              seconds: totalSeconds,
+              studyType: 'OTHER',
+            ),
+          );
+        }
+
+        continue;
+      }
+
+      for (final sessionDocument in sessionSnapshot.docs) {
+        final data = sessionDocument.data();
+
+        final storedDurationSeconds =
+            (data['durationSeconds'] as num?)?.toInt() ?? 0;
+
+        final storedDurationMinutes =
+            (data['durationMinutes'] as num?)?.toInt() ?? 0;
+
+        final durationSeconds = storedDurationSeconds > 0
+            ? storedDurationSeconds
+            : storedDurationMinutes * 60;
+
+        if (durationSeconds <= 0) {
+          continue;
+        }
+
+        final minutes = durationSeconds ~/ 60;
+
+        final subject = _readStudyText(
+          data,
+          const [
+            'subject',
+            'studyTypeName',
+            'certificateName',
+          ],
+          '학습 기록',
+        );
+
+        final memo = _readStudyText(
+          data,
+          const ['memo'],
+          '',
+        );
+
+        final studyTypeName = _readStudyText(
+          data,
+          const ['studyTypeName'],
+          '자유 학습',
+        );
+
+        final certificateName = _readStudyText(
+          data,
+          const ['certificateName'],
+          '',
+        );
+
+        final description = memo.isNotEmpty
+            ? memo
+            : certificateName.isNotEmpty &&
+            certificateName != subject
+            ? '$studyTypeName · $certificateName'
+            : studyTypeName;
+
+        records.add(
+          HomeStudyRecord(
+            id: sessionDocument.id,
+            studiedAt: _readStudySessionDate(
+              data,
+              fallbackDate,
+            ),
+            subject: subject,
+            description: description,
+            minutes: minutes,
+            seconds: durationSeconds,
+            studyType:
+            (data['studyType'] as String? ?? 'OTHER')
+                .trim()
+                .toUpperCase(),
+          ),
+        );
+      }
+    }
+
+    return records;
+  }
+
+  Future<List<DocumentReference<Map<String, dynamic>>>>
+  _loadMyActiveStudyGroupReferences(String uid) async {
+    final groupSnapshot = await _firestore
+        .collection('studyGroups')
+        .get();
+
+    final groupReferences =
+    <DocumentReference<Map<String, dynamic>>>[];
+
+    for (final groupDocument in groupSnapshot.docs) {
+      final groupData = groupDocument.data();
+      final ownerUid =
+      (groupData['ownerUid'] as String? ?? '').trim();
+
+      if (ownerUid == uid) {
+        groupReferences.add(groupDocument.reference);
+        continue;
+      }
+
+      final memberSnapshot = await groupDocument.reference
+          .collection('members')
+          .doc(uid)
+          .get();
+
+      if (!memberSnapshot.exists) {
+        continue;
+      }
+
+      final memberData = memberSnapshot.data() ?? {};
+      final memberStatus =
+      (memberData['status'] as String? ?? '')
+          .trim()
+          .toUpperCase();
+
+      if (memberStatus == 'ACTIVE') {
+        groupReferences.add(groupDocument.reference);
+      }
+    }
+
+    return groupReferences;
+  }
+
+  Future<List<HomeStudyGroupSummary>> _loadTodayStudyGroups({
+    required String uid,
+    required DateTime today,
+  }) async {
+    final groupReferences =
+    await _loadMyActiveStudyGroupReferences(uid);
+
+    final groups = <HomeStudyGroupSummary>[];
+
+    for (final groupReference in groupReferences) {
+      final todayStart = DateTime(
+        today.year,
+        today.month,
+        today.day,
+      );
+
+      final tomorrowStart = todayStart.add(
+        const Duration(days: 1),
+      );
+
+      final weekStart = todayStart.subtract(
+        Duration(days: todayStart.weekday - DateTime.monday),
+      );
+
+      final results = await Future.wait([
+        groupReference.get(),
+        groupReference.collection('members').get(),
+        groupReference
+            .collection('studyRecords')
+            .where(
+          'endedAt',
+          isGreaterThanOrEqualTo:
+          Timestamp.fromDate(weekStart),
+        )
+            .where(
+          'endedAt',
+          isLessThan:
+          Timestamp.fromDate(tomorrowStart),
+        )
+            .get(),
+      ]);
+
+      final groupSnapshot =
+      results[0] as DocumentSnapshot<Map<String, dynamic>>;
+
+      final memberSnapshot =
+      results[1] as QuerySnapshot<Map<String, dynamic>>;
+
+      final recordSnapshot =
+      results[2] as QuerySnapshot<Map<String, dynamic>>;
+
+      if (!groupSnapshot.exists) {
+        continue;
+      }
+
+      final groupData = groupSnapshot.data() ?? {};
+
+      final groupName = _readStudyText(
+        groupData,
+        const [
+          'groupName',
+          'studyName',
+          'name',
+          'title',
+        ],
+        '스터디',
+      );
+
+      final weeklyGoalMinutes =
+          (groupData['weeklyGoalMinutes'] as num?)
+              ?.toInt() ??
+              0;
+
+      final nicknameByUid = <String, String>{};
+      final activeMemberUids = <String>[];
+
+      int studyingMemberCount = 0;
+      int restingMemberCount = 0;
+      int pausedMemberCount = 0;
+
+      for (final memberDocument in memberSnapshot.docs) {
+        final memberData = memberDocument.data();
+
+        final memberUid =
+        (memberData['uid'] as String? ??
+            memberDocument.id)
+            .trim();
+
+        if (memberUid.isEmpty) {
+          continue;
+        }
+
+        final memberStatus =
+        (memberData['status'] as String? ?? '')
+            .trim()
+            .toUpperCase();
+
+        final memberRole =
+        (memberData['role'] as String? ?? 'MEMBER')
+            .trim()
+            .toUpperCase();
+
+        if (memberStatus != 'ACTIVE' &&
+            memberRole != 'OWNER') {
+          continue;
+        }
+
+        final studyStatus =
+        _readMemberStudyStatus(memberData);
+
+        switch (studyStatus) {
+          case 'STUDYING':
+            studyingMemberCount++;
+            break;
+
+          case 'RESTING':
+            restingMemberCount++;
+            break;
+
+          case 'PAUSED':
+            pausedMemberCount++;
+            break;
+        }
+
+        final nickname = _readStudyText(
+          memberData,
+          const [
+            'nickname',
+            'displayName',
+            'name',
+          ],
+          memberUid == uid ? '나' : '사용자',
+        );
+
+        activeMemberUids.add(memberUid);
+        nicknameByUid[memberUid] = nickname;
+      }
+
+      final ownerUid =
+      (groupData['ownerUid'] as String? ?? '').trim();
+
+      if (ownerUid.isNotEmpty &&
+          !activeMemberUids.contains(ownerUid)) {
+        activeMemberUids.add(ownerUid);
+        nicknameByUid[ownerUid] = _readStudyText(
+          groupData,
+          const [
+            'ownerNickname',
+            'nickname',
+          ],
+          ownerUid == uid ? '나' : '방장',
+        );
+      }
+
+      final memberSeconds = <String, int>{
+        for (final memberUid in activeMemberUids)
+          memberUid: 0,
+      };
+
+      int weeklyStudySeconds = 0;
+
+      final myRecords = <HomeStudyRecord>[];
+
+      for (final recordDocument in recordSnapshot.docs) {
+        final data = recordDocument.data();
+
+        final recordDate =
+        _readGroupStudyRecordDate(data);
+
+        if (recordDate == null) {
+          continue;
+        }
+
+        final recordUid =
+        (data['uid'] as String? ?? '').trim();
+
+        if (recordUid.isEmpty) {
+          continue;
+        }
+
+        final studySeconds =
+        _readGroupStudySeconds(data);
+
+        if (studySeconds <= 0) {
+          continue;
+        }
+
+// 이번 주 스터디원 전체 공부시간
+        weeklyStudySeconds += studySeconds;
+
+// 아래부터는 오늘 기록만 계산
+        if (!_isSameDate(recordDate, today)) {
+          continue;
+        }
+
+        memberSeconds[recordUid] =
+            (memberSeconds[recordUid] ?? 0) +
+                studySeconds;
+
+        if (recordUid != uid) {
+          continue;
+        }
+
+        final subject = _readStudyText(
+          data,
+          const [
+            'subject',
+            'studySubject',
+          ],
+          '스터디 공부',
+        );
+
+        myRecords.add(
+          HomeStudyRecord(
+            id: recordDocument.id,
+            studiedAt: recordDate,
+            subject: groupName,
+            description: subject,
+            minutes: studySeconds ~/ 60,
+            seconds: studySeconds,
+            studyType: 'STUDY_GROUP',
+            isStudyGroup: true,
+            studyId: groupReference.id,
+            groupName: groupName,
+          ),
+        );
+      }
+
+      final members = memberSeconds.entries.map((entry) {
+        return HomeStudyGroupMemberSummary(
+          uid: entry.key,
+          nickname:
+          nicknameByUid[entry.key] ?? '사용자',
+          studySeconds: entry.value,
+          isCurrentUser: entry.key == uid,
+        );
+      }).toList()
+        ..sort((first, second) {
+          final secondsCompare =
+          second.studySeconds.compareTo(
+            first.studySeconds,
+          );
+
+          if (secondsCompare != 0) {
+            return secondsCompare;
+          }
+
+          if (first.isCurrentUser !=
+              second.isCurrentUser) {
+            return first.isCurrentUser ? -1 : 1;
+          }
+
+          return first.nickname.compareTo(
+            second.nickname,
+          );
+        });
+
+      groups.add(
+        HomeStudyGroupSummary(
+          studyId: groupReference.id,
+          groupName: groupName,
+          members: members,
+          myRecords: myRecords,
+          weeklyStudySeconds: weeklyStudySeconds,
+          weeklyGoalMinutes: weeklyGoalMinutes,
+          studyingMemberCount: studyingMemberCount,
+          restingMemberCount: restingMemberCount,
+          pausedMemberCount: pausedMemberCount,
+        ),
+      );
+    }
+
+    groups.sort(
+          (first, second) {
+        return first.groupName.compareTo(
+          second.groupName,
+        );
+      },
+    );
+
+    return groups;
+  }
+
+  static String _readMemberStudyStatus(
+      Map<String, dynamic> data,
+      ) {
+    final studyStatus =
+    (data['studyStatus'] as String? ?? '')
+        .trim()
+        .toUpperCase();
+
+    if (studyStatus == 'STUDYING' ||
+        studyStatus == 'RESTING' ||
+        studyStatus == 'PAUSED' ||
+        studyStatus == 'IDLE') {
+      return studyStatus;
+    }
+
+    final timerSessionActive =
+        data['timerSessionActive'] == true;
+
+    if (timerSessionActive &&
+        data['timerPaused'] == true) {
+      return 'PAUSED';
+    }
+
+    if (data['isResting'] == true) {
+      return 'RESTING';
+    }
+
+    if (data['isStudying'] == true) {
+      return 'STUDYING';
+    }
+
+    return 'IDLE';
+  }
+
+  static int _readGroupStudySeconds(
+      Map<String, dynamic> data,
+      ) {
+    final studySeconds = data['studySeconds'];
+
+    if (studySeconds is num) {
+      return studySeconds.toInt();
+    }
+
+    final elapsedSeconds = data['elapsedSeconds'];
+
+    if (elapsedSeconds is num) {
+      return elapsedSeconds.toInt();
+    }
+
+    final studyMinutes = data['studyMinutes'];
+
+    if (studyMinutes is num) {
+      return (studyMinutes * 60).round();
+    }
+
+    return 0;
+  }
+
+  static DateTime? _readGroupStudyRecordDate(
+      Map<String, dynamic> data,
+      ) {
+    for (final fieldName in [
+      'endedAt',
+      'startedAt',
+      'createdAt',
+    ]) {
+      final value = data[fieldName];
+
+      if (value is Timestamp) {
+        return value.toDate();
+      }
+
+      if (value is DateTime) {
+        return value;
+      }
+    }
+
+    final studyDate = data['studyDate'];
+
+    if (studyDate is String &&
+        studyDate.trim().isNotEmpty) {
+      return DateTime.tryParse(studyDate.trim());
+    }
+
+    return null;
+  }
+
+  static DateTime _readStudyDate(
+      dynamic value,
+      String documentId,
+      ) {
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+
+    if (value is DateTime) {
+      return value;
+    }
+
+    if (value is String && value.trim().isNotEmpty) {
+      final parsedDate = DateTime.tryParse(value.trim());
+
+      if (parsedDate != null) {
+        return parsedDate;
+      }
+    }
+
+    return DateTime.tryParse(documentId) ?? DateTime.now();
+  }
+
+  static DateTime _readStudySessionDate(
+      Map<String, dynamic> data,
+      DateTime fallbackDate,
+      ) {
+    for (final fieldName in [
+      'endedAt',
+      'startedAt',
+      'createdAt',
+    ]) {
+      final value = data[fieldName];
+
+      if (value is Timestamp) {
+        return value.toDate();
+      }
+
+      if (value is DateTime) {
+        return value;
+      }
+    }
+
+    return fallbackDate;
+  }
+
+  static String _readStudyText(
+      Map<String, dynamic> data,
+      List<String> fieldNames,
+      String fallback,
+      ) {
+    for (final fieldName in fieldNames) {
+      final value = data[fieldName];
+
+      if (value is String && value.trim().isNotEmpty) {
+        return value.trim();
+      }
+    }
+
+    return fallback;
+  }
+
+  static bool _isSameDate(
+      DateTime first,
+      DateTime second,
+      ) {
+    final firstLocal = first.toLocal();
+    final secondLocal = second.toLocal();
+
+    return firstLocal.year == secondLocal.year &&
+        firstLocal.month == secondLocal.month &&
+        firstLocal.day == secondLocal.day;
+  }
+
   static DateTime _dateOnly(DateTime date) {
     final local = date.toLocal();
 
@@ -233,6 +1121,133 @@ class HomeService {
       local.day,
     );
   }
+}
+
+class HomeTodayStudySummary {
+  final int personalSeconds;
+  final int studySeconds;
+  final List<HomeStudyRecord> records;
+  final List<HomeStudyGroupSummary> studyGroups;
+
+  const HomeTodayStudySummary({
+    required this.personalSeconds,
+    required this.studySeconds,
+    required this.records,
+    required this.studyGroups,
+  });
+
+  const HomeTodayStudySummary.empty()
+      : personalSeconds = 0,
+        studySeconds = 0,
+        records = const [],
+        studyGroups = const [];
+
+  int get totalSeconds {
+    return personalSeconds + studySeconds;
+  }
+
+  int get personalMinutes {
+    return personalSeconds ~/ 60;
+  }
+
+  int get studyMinutes {
+    return studySeconds ~/ 60;
+  }
+
+  int get totalMinutes {
+    return totalSeconds ~/ 60;
+  }
+
+  bool get hasRecords => records.isNotEmpty;
+}
+
+class HomeStudyRecord {
+  final String id;
+  final DateTime studiedAt;
+  final String subject;
+  final String description;
+  final int minutes;
+  final int seconds;
+  final String studyType;
+  final bool isStudyGroup;
+  final String studyId;
+  final String groupName;
+
+  const HomeStudyRecord({
+    required this.id,
+    required this.studiedAt,
+    required this.subject,
+    required this.description,
+    required this.minutes,
+    this.seconds = 0,
+    required this.studyType,
+    this.isStudyGroup = false,
+    this.studyId = '',
+    this.groupName = '',
+  });
+}
+
+class HomeStudyGroupSummary {
+  final String studyId;
+  final String groupName;
+  final List<HomeStudyGroupMemberSummary> members;
+  final List<HomeStudyRecord> myRecords;
+  final int weeklyStudySeconds;
+  final int weeklyGoalMinutes;
+  final int studyingMemberCount;
+  final int restingMemberCount;
+  final int pausedMemberCount;
+
+  const HomeStudyGroupSummary({
+    required this.studyId,
+    required this.groupName,
+    required this.members,
+    required this.myRecords,
+    required this.weeklyStudySeconds,
+    required this.weeklyGoalMinutes,
+    required this.studyingMemberCount,
+    required this.restingMemberCount,
+    required this.pausedMemberCount,
+  });
+
+  // 토글 내부 멤버별 오늘 공부시간 합계
+  int get totalStudySeconds {
+    return members.fold<int>(
+      0,
+          (sum, member) => sum + member.studySeconds,
+    );
+  }
+
+  int get weeklyGoalSeconds {
+    return weeklyGoalMinutes * 60;
+  }
+
+  int get myStudySeconds {
+    return myRecords.fold<int>(
+      0,
+          (sum, record) {
+        if (record.seconds > 0) {
+          return sum + record.seconds;
+        }
+
+        return sum + record.minutes * 60;
+      },
+    );
+  }
+}
+
+class HomeStudyGroupMemberSummary {
+  final String uid;
+  final String nickname;
+  final int studySeconds;
+  final bool isCurrentUser;
+
+  const HomeStudyGroupMemberSummary({
+    required this.uid,
+    required this.nickname,
+    required this.studySeconds,
+    required this.isCurrentUser,
+  });
 }
 
 class HomeTodo {
@@ -384,8 +1399,8 @@ class HomeGoal {
   }
 
   factory HomeGoal.fromFirestore(
-    DocumentSnapshot<Map<String, dynamic>> document,
-  ) {
+      DocumentSnapshot<Map<String, dynamic>> document,
+      ) {
     final data = document.data() ?? {};
     final targetExamDate = _readDateTime(data['targetExamDate']);
 
@@ -396,7 +1411,7 @@ class HomeGoal {
     }
 
     final rawQualificationType =
-        _readString(data['qualificationType']).toUpperCase();
+    _readString(data['qualificationType']).toUpperCase();
     final qualificationType = rawQualificationType == 'PROFESSIONAL'
         ? 'PROFESSIONAL'
         : 'TECHNICAL';
@@ -411,9 +1426,9 @@ class HomeGoal {
       targetExamType: _readString(data['targetExamType']).toUpperCase(),
       targetRound: _readString(data['targetRound']),
       targetPassAnnouncementDate:
-          _readDateTime(data['targetPassAnnouncementDate']),
+      _readDateTime(data['targetPassAnnouncementDate']),
       targetPassAnnouncementEndDate:
-          _readDateTime(data['targetPassAnnouncementEndDate']),
+      _readDateTime(data['targetPassAnnouncementEndDate']),
       isMainGoal: _readBool(data['isMainGoal']),
       calendarLinked: _readBool(data['calendarLinked']),
     );
