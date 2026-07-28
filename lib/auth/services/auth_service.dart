@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:naver_login_sdk/naver_login_sdk.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -276,6 +277,23 @@ class AuthService {
   }
 
   static Future<void> signOut() async {
+    final User? currentUser = _firebaseAuth.currentUser;
+
+    if (currentUser != null) {
+      final String? currentToken =
+      await FirebaseMessaging.instance.getToken();
+
+      if (currentToken != null && currentToken.isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .update({
+          'fcmTokens': FieldValue.arrayRemove([currentToken]),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+    }
+
     await Future.wait([
       _firebaseAuth.signOut(),
       _safeSignOut(() => _googleSignIn.signOut()),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../notification/screens/notification.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
 import 'question_generation.dart';
@@ -90,7 +91,12 @@ class _AiPageState extends State<AiPage> {
   }
 
   void _onNotificationPressed() {
-    debugPrint('알림 버튼 클릭');
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const NotificationPage(),
+      ),
+    );
   }
 
   Future<void> _onStudyPlanPressed() async {

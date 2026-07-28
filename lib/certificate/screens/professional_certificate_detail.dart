@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../appwidgets/goal_schedule_app_widget.dart';
 import '../../widgets/app_main_background.dart';
+import '../../widgets/app_state_views.dart';
 import '../../widgets/app_top_bar.dart';
 import '../services/certificate_detail_service.dart';
 import '../services/certificate_search_service.dart';
@@ -846,12 +847,8 @@ class _ProfessionalCertificateDetailPageState
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(
-        child:
-        CircularProgressIndicator(
-          color:
-          certificatePrimaryPink,
-        ),
+      return const AppLoadingView(
+        message: '전문자격 정보를 불러오는 중입니다.',
       );
     }
 
