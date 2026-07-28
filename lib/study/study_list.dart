@@ -361,17 +361,15 @@ class _StudyListPageState extends State<StudyListPage> {
 
     Color backgroundColor = _studyColorScheme.surface;
     Color textColor = _studyColors.textSecondary;
-    Color borderColor = _studyColorScheme.outlineVariant;
 
     if (isSelected) {
-      backgroundColor = _studyColors.pinkSoft;
-      textColor = _studyColors.pinkStart;
-      borderColor = _studyColors.pinkStart;
+      backgroundColor = _studyColors.pinkStart;
+      textColor = Colors.white;
     }
 
     return Expanded(
       child: SizedBox(
-        height: 42,
+        height: 38,
         child: OutlinedButton(
           onPressed: () {
             setState(() {
@@ -381,11 +379,9 @@ class _StudyListPageState extends State<StudyListPage> {
           style: OutlinedButton.styleFrom(
             backgroundColor: backgroundColor,
             foregroundColor: textColor,
-            side: BorderSide(
-              color: borderColor,
-            ),
+            side: BorderSide.none,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.circular(19),
             ),
           ),
           child: Text(
@@ -393,7 +389,7 @@ class _StudyListPageState extends State<StudyListPage> {
             style: TextStyle(
               fontSize: 14,
               fontWeight:
-              isSelected ? FontWeight.bold : FontWeight.normal,
+              isSelected ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
         ),
@@ -456,7 +452,7 @@ class _StudyListPageState extends State<StudyListPage> {
       ),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(9),
       ),
       child: Text(
         text,
@@ -565,7 +561,7 @@ class _StudyListPageState extends State<StudyListPage> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         onTap: () {
           _openStudyRoom(
             studyDocument.id,
@@ -575,7 +571,7 @@ class _StudyListPageState extends State<StudyListPage> {
         child: Padding(
           padding: EdgeInsets.only(bottom: 9),
           child: AppCard(
-            borderRadius: 18,
+            borderRadius: 16,
             padding: EdgeInsets.all(14),
             backgroundColor: _studyColorScheme.surface,
             child: Row(
@@ -617,18 +613,20 @@ class _StudyListPageState extends State<StudyListPage> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          height: 1.35,
+                          fontWeight: FontWeight.w700,
                           color: _studyColors.textPrimary,
                         ),
                       ),
                       SizedBox(height: 4),
                       Text(
                         description,
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 12,
+                          height: 1.4,
                           color: _studyColors.textSecondary,
                         ),
                       ),
@@ -857,7 +855,7 @@ class _StudyListPageState extends State<StudyListPage> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         onTap: () {
           _openStudyDetail(
             studyDocument.id,
@@ -867,7 +865,7 @@ class _StudyListPageState extends State<StudyListPage> {
         child: Padding(
           padding: EdgeInsets.only(bottom: 9),
           child: AppCard(
-            borderRadius: 18,
+            borderRadius: 16,
             padding: EdgeInsets.all(14),
             backgroundColor: _studyColorScheme.surface,
             child: Column(
@@ -896,18 +894,20 @@ class _StudyListPageState extends State<StudyListPage> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    height: 1.35,
+                    fontWeight: FontWeight.w700,
                     color: _studyColors.textPrimary,
                   ),
                 ),
                 SizedBox(height: 4),
                 Text(
                   description,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 12,
+                    height: 1.4,
                     color: _studyColors.textSecondary,
                   ),
                 ),
@@ -1006,16 +1006,27 @@ class _StudyListPageState extends State<StudyListPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: EdgeInsets.only(
-                left: 2,
-                bottom: 7,
-              ),
-              child: Text(
-                '참여 중인 스터디 ${myStudyList.length}개',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: _studyColors.textSecondary,
-                ),
+              padding: EdgeInsets.only(left: 2, bottom: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '내 스터디',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: _studyColors.textPrimary,
+                    ),
+                  ),
+                  SizedBox(height: 3),
+                  Text(
+                    '${myStudyList.length}개의 스터디',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _studyColors.textSecondary,
+                    ),
+                  ),
+                ],
               ),
             ),
             Expanded(
@@ -1091,7 +1102,7 @@ class _StudyListPageState extends State<StudyListPage> {
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide(
-                  color: _studyColorScheme.outlineVariant,
+                  color: _studyColors.pinkSoft,
                 ),
               ),
               focusedBorder: OutlineInputBorder(
@@ -1104,7 +1115,7 @@ class _StudyListPageState extends State<StudyListPage> {
             ),
           ),
         ),
-        SizedBox(height: 7),
+        SizedBox(height: 10),
         Row(
           children: [
             _buildFindFilter('전체'),
@@ -1114,7 +1125,7 @@ class _StudyListPageState extends State<StudyListPage> {
             _buildFindFilter('모집 마감'),
           ],
         ),
-        SizedBox(height: 7),
+        SizedBox(height: 14),
         Expanded(
           child: visibleStudyList.isEmpty
               ? _buildFindEmptyScreen()
@@ -1122,16 +1133,27 @@ class _StudyListPageState extends State<StudyListPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: EdgeInsets.only(
-                  left: 2,
-                  bottom: 7,
-                ),
-                child: Text(
-                  '스터디 ${visibleStudyList.length}개',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: _studyColors.textSecondary,
-                  ),
+                padding: EdgeInsets.only(left: 2, bottom: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '스터디 찾기',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: _studyColors.textPrimary,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      '${visibleStudyList.length}개의 스터디',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _studyColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               Expanded(
@@ -1200,23 +1222,13 @@ class _StudyListPageState extends State<StudyListPage> {
       appBar: AppTopBar(
         title: '스터디',
         centerTitle: false,
-        actions: [
-          IconButton(
-            tooltip: '스터디 만들기',
-            onPressed: _openCreatePage,
-            icon: Icon(
-              Icons.add_rounded,
-              size: 30,
-            ),
-          ),
-        ],
       ),
       body: AppMainBackground(
         applySafeArea: false,
         child: Padding(
           padding: EdgeInsets.fromLTRB(
             16,
-            8,
+            4,
             16,
             bottomPadding,
           ),
@@ -1299,6 +1311,20 @@ class _StudyListPageState extends State<StudyListPage> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+      floatingActionButton: isKeyboardOpen
+          ? null
+          : FloatingActionButton.extended(
+        onPressed: _openCreatePage,
+        backgroundColor: _studyColors.pinkStart,
+        foregroundColor: Colors.white,
+        icon: Icon(Icons.add_rounded),
+        label: Text(
+          '스터디 만들기',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),

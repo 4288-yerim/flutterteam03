@@ -261,9 +261,11 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
     return Scaffold(
       appBar: const AppTopBar(
         title: '커뮤니티',
+        centerTitle: false,
       ),
 
       body: AppMainBackground(
+        applySafeArea: false,
         child: StreamBuilder<List<CommunityPost>>(
           key: ValueKey(_streamVersion),
           stream: _service.watchPosts(),
@@ -480,61 +482,64 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
   }
 
   Widget _buildSearchField() {
-    return TextField(
-      controller: _searchController,
-      focusNode: _searchFocusNode,
-      textInputAction: TextInputAction.search,
-      onChanged: (value) {
-        setState(() {});
-      },
-      decoration: InputDecoration(
-        hintText: '커뮤니티 검색',
-        hintStyle: TextStyle(
-          color:
-          context.communityColors.textSecondary,
-          fontSize: 13,
-        ),
-        prefixIcon: Icon(
-          Icons.search_rounded,
-          color:
-          context.communityColors.textSecondary,
-        ),
-        suffixIcon: _searchController.text.isEmpty
-            ? null
-            : IconButton(
-          tooltip: '검색어 지우기',
-          onPressed: () {
-            _searchController.clear();
-            setState(() {});
-          },
-          icon: const Icon(
-            Icons.close_rounded,
-          ),
-        ),
-        filled: true,
-        fillColor: Colors.white,
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 12,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(
+    return SizedBox(
+      height: 44,
+      child: TextField(
+        controller: _searchController,
+        focusNode: _searchFocusNode,
+        textInputAction: TextInputAction.search,
+        onChanged: (value) {
+          setState(() {});
+        },
+        decoration: InputDecoration(
+          hintText: '커뮤니티 검색',
+          hintStyle: TextStyle(
             color:
-            context.communityColors.pinkSoft,
+            context.communityColors.textSecondary,
+            fontSize: 13,
           ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(
+          prefixIcon: Icon(
+            Icons.search_rounded,
             color:
-            context.communityColors.pinkStart,
-            width: 1.3,
+            context.communityColors.textSecondary,
+          ),
+          suffixIcon: _searchController.text.isEmpty
+              ? null
+              : IconButton(
+            tooltip: '검색어 지우기',
+            onPressed: () {
+              _searchController.clear();
+              setState(() {});
+            },
+            icon: const Icon(
+              Icons.close_rounded,
+            ),
+          ),
+          filled: true,
+          fillColor: Theme.of(context).colorScheme.surface,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 12,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(
+              color:
+              context.communityColors.pinkSoft,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(
+              color:
+              context.communityColors.pinkStart,
+              width: 1.3,
+            ),
           ),
         ),
       ),
@@ -575,7 +580,7 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
           child: Material(
             color: _showMyFeed
                 ? context.communityColors.pinkSoft
-                : Colors.white,
+                : Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(14),
             child: InkWell(
               onTap: _isPreferenceLoading
@@ -674,7 +679,7 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
         Material(
           color: _showFavoriteSettings
               ? context.communityColors.pinkSoft
-              : Colors.white,
+              : Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(14),
           child: InkWell(
             onTap: () {
@@ -754,7 +759,7 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
         12,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: context.communityColors.pinkSoft,
@@ -810,7 +815,8 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
                   },
                   selectedColor:
                   context.communityColors.pinkSoft,
-                  backgroundColor: Colors.white,
+                  backgroundColor:
+                  Theme.of(context).colorScheme.surface,
                   side: BorderSide(
                     color: selected
                         ? context
@@ -1024,7 +1030,7 @@ class _CertificateFilterChip
         decoration: BoxDecoration(
           color: selected
               ? context.communityColors.lavender
-              : Colors.white,
+              : Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(11),
           border: Border.all(
             color:
@@ -1066,13 +1072,16 @@ class _CommunityPostCard
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        child: Padding(
+        child: AppCard(
+          borderRadius: 16,
           padding: const EdgeInsets.all(14),
+          backgroundColor:
+          Theme.of(context).colorScheme.surface,
           child: Column(
             crossAxisAlignment:
             CrossAxisAlignment.start,
