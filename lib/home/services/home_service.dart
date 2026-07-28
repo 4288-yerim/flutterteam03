@@ -264,66 +264,90 @@ class HomeService {
   }
 
   Stream<List<HomeTodo>> watchTodayTodos() {
-    final user = _firebaseAuth.currentUser;
+    final User? user = _firebaseAuth.currentUser;
 
     if (user == null) {
-      return Stream<List<HomeTodo>>.value(const []);
+      return Stream<List<HomeTodo>>.value(
+        const <HomeTodo>[],
+      );
     }
 
-    final now = DateTime.now();
+    final DateTime now = DateTime.now();
 
-    final todayStart = DateTime(
+    final DateTime today = DateTime(
       now.year,
       now.month,
       now.day,
-    );
-
-    final tomorrowStart = todayStart.add(
-      const Duration(days: 1),
     );
 
     return _firestore
         .collection('users')
         .doc(user.uid)
         .collection('studyPlans')
-        .where(
-      'planday',
-      isGreaterThanOrEqualTo: Timestamp.fromDate(todayStart),
-    )
-        .where(
-      'planday',
-      isLessThan: Timestamp.fromDate(tomorrowStart),
-    )
         .snapshots()
         .map((snapshot) {
-      final todos = snapshot.docs
-          .map(HomeTodo.fromFirestore)
-          .toList();
+      final List<HomeTodo> allTodos = <HomeTodo>[];
 
-      todos.sort(
-            (first, second) {
-          return first.startPlannedAt.compareTo(
-            second.startPlannedAt,
+      for (final document in snapshot.docs) {
+        final Map<String, dynamic> data = document.data();
+        final Object? rawSteps = data['steps'];
+
+        if (rawSteps is List) {
+          allTodos.addAll(
+            HomeTodo.fromAiPlanDocument(document),
           );
-        },
-      );
+        } else {
+          allTodos.add(
+            HomeTodo.fromFirestore(document),
+          );
+        }
+      }
 
-      return todos;
-    }).handleError((Object error) {
+      final List<HomeTodo> todayTodos = allTodos.where((todo) {
+        return _isSameDate(todo.planDate, today);
+      }).toList();
+
+      todayTodos.sort((first, second) {
+        final DateTime? firstStart = first.startPlannedAt;
+        final DateTime? secondStart = second.startPlannedAt;
+
+        if (firstStart == null && secondStart == null) {
+          return first.order.compareTo(second.order);
+        }
+
+        if (firstStart == null) {
+          return 1;
+        }
+
+        if (secondStart == null) {
+          return -1;
+        }
+
+        return firstStart.compareTo(secondStart);
+      });
+
+      return todayTodos;
+    })
+        .handleError((Object error) {
       if (error is FirebaseException) {
         throw HomeServiceException(
-          error.message ?? '오늘의 학습 계획을 불러오지 못했습니다.',
+          error.message ??
+              '오늘의 학습 계획을 불러오지 못했습니다.',
         );
       }
 
-      throw const HomeServiceException(
-        '오늘의 학습 계획을 불러오는 중 오류가 발생했습니다.',
+      if (error is HomeServiceException) {
+        throw error;
+      }
+
+      throw HomeServiceException(
+        '오늘의 학습 계획을 불러오는 중 오류가 발생했습니다.\n$error',
       );
     });
   }
 
   Future<void> toggleTodoStatus(HomeTodo todo) async {
-    final user = _firebaseAuth.currentUser;
+    final User? user = _firebaseAuth.currentUser;
 
     if (user == null) {
       throw const HomeServiceException(
@@ -331,30 +355,127 @@ class HomeService {
       );
     }
 
-    final nextStatus = !todo.isCompleted;
-
     try {
-      await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('studyPlans')
-          .doc(todo.id)
-          .update({
-        'status': nextStatus,
-        'completedat': nextStatus
-            ? FieldValue.serverTimestamp()
-            : null,
-        'updatedat': FieldValue.serverTimestamp(),
-      });
+      if (todo.isAiStep) {
+        await _toggleAiTodoStatus(
+          uid: user.uid,
+          todo: todo,
+        );
+      } else {
+        final bool nextStatus = !todo.isCompleted;
+
+        await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('studyPlans')
+            .doc(todo.sourceDocumentId)
+            .update({
+          'status': nextStatus,
+          'completedat': nextStatus
+              ? FieldValue.serverTimestamp()
+              : null,
+          'updatedat': FieldValue.serverTimestamp(),
+        });
+      }
     } on FirebaseException catch (error) {
       throw HomeServiceException(
-        error.message ?? '학습 계획 상태를 변경하지 못했습니다.',
+        error.message ??
+            '학습 계획 상태를 변경하지 못했습니다.',
       );
-    } catch (_) {
-      throw const HomeServiceException(
-        '학습 계획 상태를 변경하는 중 오류가 발생했습니다.',
+    } on HomeServiceException {
+      rethrow;
+    } catch (error) {
+      throw HomeServiceException(
+        '학습 계획 상태를 변경하는 중 오류가 발생했습니다.\n$error',
       );
     }
+  }
+
+  Future<void> _toggleAiTodoStatus({
+    required String uid,
+    required HomeTodo todo,
+  }) async {
+    final int? stepIndex = todo.aiStepIndex;
+
+    if (stepIndex == null) {
+      throw const HomeServiceException(
+        'AI 학습 단계 정보를 찾을 수 없습니다.',
+      );
+    }
+
+    final DocumentReference<Map<String, dynamic>> document =
+    _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('studyPlans')
+        .doc(todo.sourceDocumentId);
+
+    await _firestore.runTransaction((transaction) async {
+      final DocumentSnapshot<Map<String, dynamic>> snapshot =
+      await transaction.get(document);
+
+      final Map<String, dynamic>? data = snapshot.data();
+
+      if (data == null) {
+        throw const HomeServiceException(
+          'AI 학습 플랜을 찾을 수 없습니다.',
+        );
+      }
+
+      final Object? rawSteps = data['steps'];
+
+      if (rawSteps is! List ||
+          stepIndex < 0 ||
+          stepIndex >= rawSteps.length) {
+        throw const HomeServiceException(
+          'AI 학습 단계를 찾을 수 없습니다.',
+        );
+      }
+
+      final List<Map<String, dynamic>> steps =
+      rawSteps.map((rawStep) {
+        if (rawStep is Map) {
+          return Map<String, dynamic>.from(rawStep);
+        }
+
+        return <String, dynamic>{};
+      }).toList();
+
+      final bool nextStatus = !todo.isCompleted;
+
+      steps[stepIndex] = <String, dynamic>{
+        ...steps[stepIndex],
+        'isCompleted': nextStatus,
+      };
+
+      final int completedStepCount = steps.where((step) {
+        return step['isCompleted'] == true;
+      }).length;
+
+      final int totalStepCount = steps.length;
+
+      final int completionRate = totalStepCount == 0
+          ? 0
+          : ((completedStepCount / totalStepCount) * 100).round();
+
+      String planStatus = 'NOT_STARTED';
+
+      if (totalStepCount > 0 &&
+          completedStepCount == totalStepCount) {
+        planStatus = 'COMPLETED';
+      } else if (completedStepCount > 0) {
+        planStatus = 'IN_PROGRESS';
+      }
+
+      transaction.update(document, {
+        'steps': steps,
+        'completedStepCount': completedStepCount,
+        'totalStepCount': totalStepCount,
+        'completionRate': completionRate,
+        'status': planStatus,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
   }
 
   Stream<HomeTodayStudySummary> watchTodayStudySummary() {
@@ -508,7 +629,7 @@ class HomeService {
       }
     }
 
-    controller = StreamController<HomeTodayStudySummary>(
+    controller = StreamController<HomeTodayStudySummary>.broadcast(
       onListen: () {
         personalLogSubscription = _firestore
             .collection('userStudyLogs')
@@ -544,7 +665,10 @@ class HomeService {
       },
       onCancel: () async {
         await personalLogSubscription?.cancel();
+        personalLogSubscription = null;
+
         await studyGroupSubscription?.cancel();
+        studyGroupSubscription = null;
 
         for (final subscription in groupSubscriptions) {
           await subscription.cancel();
@@ -1403,53 +1527,242 @@ class HomeStudyGroupMemberSummary {
 
 class HomeTodo {
   final String id;
+  final String sourceDocumentId;
+  final int? aiStepIndex;
+  final int order;
+
   final String title;
+  final String description;
+  final String certificateName;
   final String planType;
-  final DateTime startPlannedAt;
-  final DateTime endPlannedAt;
+
+  final DateTime planDate;
+  final DateTime? startPlannedAt;
+  final DateTime? endPlannedAt;
+
   final bool isCompleted;
 
   const HomeTodo({
     required this.id,
+    required this.sourceDocumentId,
+    required this.aiStepIndex,
+    required this.order,
     required this.title,
+    required this.description,
+    required this.certificateName,
     required this.planType,
+    required this.planDate,
     required this.startPlannedAt,
     required this.endPlannedAt,
     required this.isCompleted,
   });
 
+  bool get isAiStep => aiStepIndex != null;
+
+  bool get hasTime {
+    return startPlannedAt != null &&
+        endPlannedAt != null;
+  }
+
   factory HomeTodo.fromFirestore(
       DocumentSnapshot<Map<String, dynamic>> document,
       ) {
-    final data = document.data() ?? {};
+    final Map<String, dynamic> data =
+        document.data() ?? <String, dynamic>{};
 
-    final startPlannedAt = _readDateTime(
+    final DateTime? planDay = _readDateTime(
+      data['planday'],
+    );
+
+    final DateTime? startPlannedAt = _readDateTime(
       data['startplannedat'],
     );
 
-    final endPlannedAt = _readDateTime(
+    final DateTime? endPlannedAt = _readDateTime(
       data['endplannedat'],
     );
 
-    if (startPlannedAt == null || endPlannedAt == null) {
-      throw const HomeServiceException(
-        '학습 시간이 없는 학습 계획이 있습니다.',
-      );
-    }
+    final DateTime fallbackDate =
+        startPlannedAt ?? DateTime.now();
+
+    final String rawPlanType = _readString(
+      data['plantype'],
+      fallback: '',
+    ).toUpperCase();
 
     return HomeTodo(
       id: document.id,
+      sourceDocumentId: document.id,
+      aiStepIndex: null,
+      order: 0,
       title: _readString(
         data['plantitle'],
         fallback: '학습 계획',
       ),
-      planType: _readString(
-        data['plantype'],
-        fallback: 'USERADD',
-      ).toUpperCase(),
+      description: _readString(
+        data['plandescription'],
+        fallback: '',
+      ),
+      certificateName: _readString(
+        data['certificatename'],
+        fallback: '',
+      ),
+
+      // USERADD만 직접 추가로 처리하고,
+      // 필드가 없거나 다른 값이면 AI 계획으로 처리
+      planType: rawPlanType == 'USERADD'
+          ? 'USERADD'
+          : 'AIADD',
+
+      planDate: planDay ?? DateTime(
+        fallbackDate.year,
+        fallbackDate.month,
+        fallbackDate.day,
+      ),
       startPlannedAt: startPlannedAt,
       endPlannedAt: endPlannedAt,
       isCompleted: data['status'] == true,
+    );
+  }
+
+  static List<HomeTodo> fromAiPlanDocument(
+      DocumentSnapshot<Map<String, dynamic>> document,
+      ) {
+    final Map<String, dynamic> data =
+        document.data() ?? <String, dynamic>{};
+
+    final Object? rawSteps = data['steps'];
+
+    if (rawSteps is! List) {
+      return const <HomeTodo>[];
+    }
+
+    final String certificateName = _readString(
+      data['certificateName'],
+      fallback: '',
+    );
+
+    final DateTime recommendedStartDate =
+    _readRecommendedStartDate(
+      data['recommendedStudyStartDate'],
+    );
+
+    final List<HomeTodo> todos = <HomeTodo>[];
+
+    for (int index = 0; index < rawSteps.length; index++) {
+      final Object? rawStep = rawSteps[index];
+
+      if (rawStep is! Map) {
+        continue;
+      }
+
+      final Map<String, dynamic> step =
+      Map<String, dynamic>.from(rawStep);
+
+      final String dayLabel = _readString(
+        step['dayLabel'],
+        fallback: '',
+      );
+
+      final int order = step['order'] is num
+          ? (step['order'] as num).toInt()
+          : index + 1;
+
+      final DateTime planDate = _readStepDate(
+        dayLabel: dayLabel,
+        recommendedStartDate: recommendedStartDate,
+        fallbackIndex: index,
+      );
+
+      todos.add(
+        HomeTodo(
+          id: '${document.id}_step_$index',
+          sourceDocumentId: document.id,
+          aiStepIndex: index,
+          order: order,
+          title: _readString(
+            step['title'],
+            fallback: 'AI 학습 계획',
+          ),
+          description: _readString(
+            step['detail'],
+            fallback: '',
+          ),
+          certificateName: certificateName,
+          planType: 'AIADD',
+          planDate: planDate,
+          startPlannedAt: null,
+          endPlannedAt: null,
+          isCompleted: step['isCompleted'] == true,
+        ),
+      );
+    }
+
+    return todos;
+  }
+
+  static DateTime _readRecommendedStartDate(
+      Object? value,
+      ) {
+    if (value is String) {
+      final DateTime? parsed =
+      DateTime.tryParse(value.trim());
+
+      if (parsed != null) {
+        return DateTime(
+          parsed.year,
+          parsed.month,
+          parsed.day,
+        );
+      }
+    }
+
+    final DateTime now = DateTime.now();
+
+    return DateTime(
+      now.year,
+      now.month,
+      now.day,
+    );
+  }
+
+  static DateTime _readStepDate({
+    required String dayLabel,
+    required DateTime recommendedStartDate,
+    required int fallbackIndex,
+  }) {
+    final RegExpMatch? match = RegExp(
+      r'(\d{1,2})/(\d{1,2})',
+    ).firstMatch(dayLabel);
+
+    if (match == null) {
+      return recommendedStartDate.add(
+        Duration(days: fallbackIndex),
+      );
+    }
+
+    final int? month =
+    int.tryParse(match.group(1) ?? '');
+
+    final int? day =
+    int.tryParse(match.group(2) ?? '');
+
+    if (month == null || day == null) {
+      return recommendedStartDate.add(
+        Duration(days: fallbackIndex),
+      );
+    }
+
+    int year = recommendedStartDate.year;
+
+    if (month < recommendedStartDate.month) {
+      year += 1;
+    }
+
+    return DateTime(
+      year,
+      month,
+      day,
     );
   }
 
@@ -1461,7 +1774,7 @@ class HomeTodo {
       return fallback;
     }
 
-    final text = value.toString().trim();
+    final String text = value.toString().trim();
 
     return text.isEmpty ? fallback : text;
   }
@@ -1475,7 +1788,8 @@ class HomeTodo {
       return value;
     }
 
-    if (value is String && value.trim().isNotEmpty) {
+    if (value is String &&
+        value.trim().isNotEmpty) {
       return DateTime.tryParse(value.trim());
     }
 
@@ -1543,6 +1857,9 @@ class HomeGoal {
 
       case 'PRACTICAL':
         return isProfessional ? '실기·면접' : '실기';
+
+      case 'INTEGRATED':
+        return '통합';
 
       default:
         return targetExamType.isEmpty ? '-' : targetExamType;

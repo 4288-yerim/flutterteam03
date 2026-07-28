@@ -72,7 +72,6 @@ class _HomePageState extends State<HomePage> {
 
       setState(() {
         _currentGoalIndex = 0;
-        _createHomeStreams();
       });
     } on HomeServiceException catch (error) {
       if (!mounted) {
@@ -89,7 +88,11 @@ class _HomePageState extends State<HomePage> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('홈 정보를 새로고침하지 못했습니다.\n$error')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text('홈 정보를 새로고침하지 못했습니다.\n$error'),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {

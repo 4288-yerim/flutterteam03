@@ -122,7 +122,6 @@ class _AiPageState extends State<AiPage> {
         return;
       }
 
-      // users 컬렉션에서 현재 로그인 사용자의 실제 문서를 찾음
       final userQuerySnapshot = await FirebaseFirestore.instance
           .collection('users')
           .where('uid', isEqualTo: user.uid)
@@ -131,7 +130,6 @@ class _AiPageState extends State<AiPage> {
 
       if (!mounted) return;
 
-      // 사용자 문서가 없는 경우
       if (userQuerySnapshot.docs.isEmpty) {
         Navigator.push(
           context,
@@ -145,7 +143,6 @@ class _AiPageState extends State<AiPage> {
 
       final userDocument = userQuerySnapshot.docs.first;
 
-      // 실제 사용자 문서 아래의 subscription/current 조회
       final subscriptionDocument = await userDocument.reference
           .collection('subscription')
           .doc('current')
@@ -153,7 +150,6 @@ class _AiPageState extends State<AiPage> {
 
       if (!mounted) return;
 
-      // 구독 문서가 없는 경우
       if (!subscriptionDocument.exists) {
         Navigator.push(
           context,
@@ -183,7 +179,6 @@ class _AiPageState extends State<AiPage> {
         return;
       }
 
-      // ACTIVE가 아닌 모든 상태는 구독 페이지로 이동
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -254,7 +249,6 @@ class _AiPageState extends State<AiPage> {
               color: Color(0xFF302C2E),
             ),
           ),
-          // const SizedBox(width: 12),
         ],
       ),
       body: AppMainBackground(
