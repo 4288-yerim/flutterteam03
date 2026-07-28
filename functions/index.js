@@ -332,16 +332,21 @@ exports.completeSignup = onCall(
        studyStartTimeAlertEnabled: true,
        incompleteStudyAlertEnabled: true,
      });
-    } catch (err) {
-      // Firestore 문서 생성 실패 -> 방금 만든 Auth 계정 롤백
-      await admin.auth().deleteUser(userRecord.uid).catch(() => {});
-      throw new HttpsError("internal", "가입 처리 중 오류가 발생했습니다. 다시 시도해주세요.");
-    }
+  } catch (err) {
+        await admin.auth().deleteUser(userRecord.uid).catch(() => {});
+        throw new HttpsError("internal", "가입 처리 중 오류가 발생했습니다. 다시 시도해주세요.");
+      }
 
-    await docRef.delete();
+      if (goalCertificateId) {
+        await saveInitialGoal(userRecord.uid, goalCertificateId).catch((e) => {
+          console.error("목표 자격증 저장 실패(completeSignup): " + e.message);
+        });
+      }
 
-    const customToken = await admin.auth().createCustomToken(userRecord.uid);
-    return { customToken, uid: userRecord.uid };
+      await docRef.delete();
+
+      const customToken = await admin.auth().createCustomToken(userRecord.uid);
+      return { customToken, uid: userRecord.uid };
   }
 );
 
@@ -651,9 +656,15 @@ exports.completeSocialSignup = onCall(async (request) => {
       studyStartTimeAlertEnabled: true,
       incompleteStudyAlertEnabled: true,
     }, { merge: true });
-  } catch (err) {
+} catch (err) {
     await admin.auth().deleteUser(uid).catch(() => {});
     throw new HttpsError("internal", "가입 처리 중 오류가 발생했습니다.");
+  }
+
+  if (goalCertificateId) {
+    await saveInitialGoal(uid, goalCertificateId).catch((e) => {
+      console.error("목표 자격증 저장 실패(completeSocialSignup): " + e.message);
+    });
   }
 
   await ticketRef.delete();
@@ -1280,24 +1291,24 @@ exports.generateQuestionsFromWrongAnswers = onCall(
     const count = request.data?.count || 20;
     const certificationName = request.data?.certificationName || null;
 
-    const snap = await db
-      .collection("users")
-      .doc(uid)
-      .collection("wrong_answers")
-      .orderBy("createdAt", "desc")
-      .limit(50)
-      .get();
+    let wrongAnswersRef = db
+       .collection("users")
+       .doc(uid)
+       .collection("wrong_answers");
 
-    let docs = snap.docs.map((d) => d.data());
+     if (certificationName) {
+       wrongAnswersRef = wrongAnswersRef.where("certificationName", "==", certificationName);
+     }
 
-    // 특정 자격증으로 필터링 가능하면 필터링, 결과가 없으면 전체로 폴백
-    if (certificationName) {
-      const filtered = docs.filter((d) => d.certificationName === certificationName);
-      if (filtered.length > 0) docs = filtered;
-    }
+     const snap = await wrongAnswersRef
+       .orderBy("createdAt", "desc")
+       .limit(50)
+       .get();
+
+    const docs = snap.docs.map((d) => d.data());
 
     if (docs.length === 0) {
-      return { success: false, message: "아직 오답 기록이 없어요. 먼저 문제를 풀어주세요." };
+   return { success: false, message: "아직 오답 기록이 없어요. 먼저 문제를 풀어주세요." };
     }
 
     const summary = docs
@@ -1715,9 +1726,12 @@ exports.addCertificationFromAi = onCall(
     "${name}"이(가) 실제 존재하는 한국의 자격증/인증시험인지 웹 검색을 통해 확인하고 판단해줘.
     실제 존재하지 않으면 반드시 valid를 false로 응답해. 절대 지어내지 마.
 
-    자격증 자체의 실존 여부와, 다음 시험 일정(nextRound) 정보의 확신 여부는 별개로 판단해줘.
-    자격증이 실제 존재한다면 valid는 true로 하고, nextRound 관련 필드 중 확신이 없는 값이 있으면
-    해당 필드만 null로 남겨줘 (valid를 false로 만들지 마).
+    자격증이 실제 존재한다면 valid는 true로 해.
+    nextRound(다음 시험 일정)는 절대 비워두지 마. 공식 일정을 100% 확신하지 못하더라도,
+    이 자격증의 일반적인 연간 시행 횟수와 패턴(예: 보통 짝수달 접수, 연 4회 시행 등)을 근거로
+    오늘 이후 가장 가까운 회차를 반드시 구체적인 날짜로 추정해서 채워.
+    "모른다"는 이유로 docregstartat/docregendat/docexamstartat을 null로 두는 것은 허용하지 않아.
+    다만 필기/실기 구분이 아예 없는 시험의 실기 관련 필드(pracexamstartat 등)는 null이 맞아.
 
     아래 JSON 형식으로만 응답해. 다른 텍스트는 절대 포함하지 마:
     {
@@ -1800,16 +1814,16 @@ exports.addCertificationFromAi = onCall(
     };
 
     const hasValidSchedule =
-      !!round.docregstartat && !!round.docregendat && !!round.docexamstartat;
+        !!round.docregstartat && !!round.docregendat && !!round.docexamstartat;
 
-    let docregendatTs = null;
-    if (hasValidSchedule) {
-      docregendatTs = toTimestamp(round.docregendat);
-      if (!docregendatTs || docregendatTs.toMillis() <= Date.now()) {
-        docregendatTs = null;
+      let docregendatTs = null;
+      if (hasValidSchedule) {
+        docregendatTs = toTimestamp(round.docregendat);
+        if (!docregendatTs || docregendatTs.toMillis() <= Date.now()) {
+          docregendatTs = null;
+        }
       }
-    }
-    const scheduleUsable = hasValidSchedule && !!docregendatTs;
+      const scheduleUsable = hasValidSchedule && !!docregendatTs;
 
     const jmcd = `AI${slugifyForId(name).toUpperCase()}`;
     const baseFields = {
@@ -1897,9 +1911,100 @@ exports.addCertificationFromAi = onCall(
   }
 );
 
-const {
-  sendTestPush,
-} = require("./notifications/notification_test");
+async function buildInitialGoalData(goalCertificateId) {
+  if (!goalCertificateId) return null;
 
-exports.sendTestPush = sendTestPush;
-);
+  const certRef = db.collection("certifications").doc(goalCertificateId);
+  const certSnap = await certRef.get();
+  if (!certSnap.exists) {
+    console.error(`목표 자격증 조회 실패: certifications/${goalCertificateId} 없음`);
+    return null;
+  }
+  const cert = certSnap.data();
+
+  const now = admin.firestore.Timestamp.now();
+  let scheduleId = null;
+  let schedule = null;
+
+  try {
+    let scheduleSnap = await certRef
+      .collection("schedules")
+      .where("docregendat", ">=", now)
+      .orderBy("docregendat", "asc")
+      .limit(1)
+      .get();
+
+    if (scheduleSnap.empty) {
+      scheduleSnap = await certRef
+        .collection("schedules")
+        .where("pracregendat", ">=", now)
+        .orderBy("pracregendat", "asc")
+        .limit(1)
+        .get();
+    }
+
+    if (!scheduleSnap.empty) {
+      scheduleId = scheduleSnap.docs[0].id;
+      schedule = scheduleSnap.docs[0].data();
+    }
+  } catch (e) {
+    console.error("목표 자격증 일정 조회 실패: " + e.message);
+  }
+
+  const qualTypeMap = { T: "TECHNICAL", S: "PROFESSIONAL", P: "PRIVATE", L: "LANGUAGE" };
+  const qualificationType = qualTypeMap[cert.qualgbcd] || "TECHNICAL";
+
+    let targetExamType = "INTEGRATED";
+    if (schedule?.docexamstartat && schedule?.pracexamstartat) {
+      targetExamType = "WRITTEN";
+    } else if (schedule?.pracexamstartat) {
+      targetExamType = "PRACTICAL";
+    }
+
+  return {
+    certificateId: cert.jmcd || goalCertificateId,
+    certificateName: cert.jmfldnm || null,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    goalStatus: "ACTIVE",
+    isMainGoal: false,
+    qualificationType,
+    scheduleId,
+    targetExamDate: schedule?.docexamstartat || schedule?.pracexamstartat || null,
+    targetExamType,
+    targetPassAnnouncementDate: schedule?.docpassat || null,
+    targetPassAnnouncementEndDate: schedule?.pracpassendat || null,
+    targetRegistrationEndDate: schedule?.docregendat || schedule?.pracregendat || null,
+    targetRegistrationStartDate: schedule?.docregstartat || schedule?.pracregstartat || null,
+    targetRound: schedule?.implplannm || null,
+  };
+}
+
+async function saveInitialGoal(uid, goalCertificateId) {
+  const goalData = await buildInitialGoalData(goalCertificateId);
+  if (!goalData) return;
+
+  const goalsRef = db.collection("users").doc(uid).collection("goals");
+  const existing = await goalsRef.limit(1).get();
+  goalData.isMainGoal = existing.empty;
+
+  await goalsRef.add(goalData);
+}
+
+exports.createInitialGoal = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+  }
+  const goalCertificateId = request.data?.goalCertificateId || null;
+  if (!goalCertificateId) {
+    return { success: true, skipped: true };
+  }
+
+  try {
+    await saveInitialGoal(request.auth.uid, goalCertificateId);
+    return { success: true };
+  } catch (e) {
+    console.error("createInitialGoal 실패: " + e.message);
+    return { success: false, message: e.message };
+  }
+});
