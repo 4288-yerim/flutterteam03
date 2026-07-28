@@ -19,6 +19,7 @@ import 'joined_study_screen.dart';
 import 'password_change_screen.dart';
 import 'my_comments_screen.dart';
 import 'bookmark_screen.dart';
+import 'liked_content_screen.dart';
 import 'mypage_calendar_screen.dart';
 import 'friend_screen.dart';
 import 'app_setting_screen.dart';
@@ -531,6 +532,18 @@ class _MyPageScreenState extends State<MyPageScreen> {
                         _openPage(
                           context,
                           const MyCommentsScreen(),
+                        );
+                      },
+                    ),
+                    const _MenuDivider(),
+                    MyPageMenuTile(
+                      icon: Icons.favorite_border,
+                      title: '좋아요한 콘텐츠',
+                      subtitle: '좋아요한 게시글과 댓글을 확인합니다.',
+                      onTap: () {
+                        _openPage(
+                          context,
+                          const LikedContentScreen(),
                         );
                       },
                     ),

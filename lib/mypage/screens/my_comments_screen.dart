@@ -1,9 +1,12 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../community/community_post_detail.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
-import '../../widgets/app_top_bar.dart';
 import '../../widgets/app_state_views.dart';
+import '../../widgets/app_top_bar.dart';
 
 class MyCommentsScreen extends StatefulWidget {
   const MyCommentsScreen({super.key});
@@ -13,571 +16,428 @@ class MyCommentsScreen extends StatefulWidget {
 }
 
 class _MyCommentsScreenState extends State<MyCommentsScreen> {
-  // Firebase 연결 전 테스트용 임시 데이터
-  final List<MyCommentItem> _comments = [
-    MyCommentItem(
-      id: 'comment_001',
-      postId: 'post_101',
-      boardName: '질문 게시판',
-      postTitle: '정보처리기사 실기 공부 순서 어떻게 잡으셨나요?',
-      content: '저는 기출문제를 먼저 풀어보고 부족한 부분을 개념서로 다시 공부했어요.',
-      createdAt: DateTime(2026, 7, 15),
-      likeCount: 8,
-    ),
-    MyCommentItem(
-      id: 'comment_002',
-      postId: 'post_102',
-      boardName: '시험 후기',
-      postTitle: '2026년 정보처리기사 2회 필기 후기',
-      content: '저도 이번 시험에서 데이터베이스 문제가 가장 어렵게 느껴졌습니다.',
-      createdAt: DateTime(2026, 7, 13),
-      likeCount: 3,
-    ),
-    MyCommentItem(
-      id: 'comment_003',
-      postId: 'post_103',
-      boardName: '스터디 모집',
-      postTitle: '정보처리기사 실기 온라인 스터디 모집합니다',
-      content: '평일 저녁 시간대라면 참여 가능할 것 같습니다!',
-      createdAt: DateTime(2026, 7, 10),
-      likeCount: 1,
-    ),
-    MyCommentItem(
-      id: 'comment_004',
-      postId: 'post_104',
-      boardName: '자유 게시판',
-      postTitle: '다들 하루 공부 시간 얼마나 잡으시나요?',
-      content: '평일에는 2시간 정도 하고 주말에는 조금 더 길게 공부하고 있어요.',
-      createdAt: DateTime(2026, 7, 8),
-      likeCount: 5,
-    ),
-  ];
+  String _selectedType = 'ALL';
+  late Future<List<_MyCommentItem>> _future;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppTopBar(
-        title: '내가 쓴 댓글',
-        leading: IconButton(
-          tooltip: '뒤로 가기',
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            size: 20,
-            color: Color(0xFF1A1A1A),
-          ),
-        ),
-      ),
-      body: AppMainBackground(
-        child: _comments.isEmpty
-            ? const AppEmptyView(
-          message: '작성한 댓글이 없습니다.',
-          description:
-          '커뮤니티 게시글에 댓글을 작성하면 이곳에서 확인할 수 있습니다.',
-        )
-            : SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            20,
-            16,
-            20,
-            110,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildCommentSummary(),
-              const SizedBox(height: 18),
-              _buildSectionTitle(),
-              const SizedBox(height: 10),
-              ..._comments.map(
-                    (comment) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _buildCommentCard(comment),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  void initState() {
+    super.initState();
+    _future = _loadMyComments();
   }
 
-  Widget _buildCommentSummary() {
-    return AppCard(
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: Theme.of(
-                context,
-              ).colorScheme.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(15),
+  Future<List<_MyCommentItem>> _loadMyComments() async {
+    final User? user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      return [];
+    }
+
+    final List<_MyCommentItem> items = [];
+
+    // 삭제되지 않고 공개된 게시글만 먼저 조회합니다.
+    final QuerySnapshot<Map<String, dynamic>> postSnapshot =
+    await FirebaseFirestore.instance
+        .collection('posts')
+        .where(
+      'postStatus',
+      isEqualTo: 'NORMAL',
+    )
+        .where(
+      'visibility',
+      isEqualTo: 'PUBLIC',
+    )
+        .get();
+
+    for (final QueryDocumentSnapshot<Map<String, dynamic>> postDocument
+    in postSnapshot.docs) {
+      final Map<String, dynamic> postData = postDocument.data();
+
+      if (postData['deletedAt'] != null) {
+        continue;
+      }
+
+      // 각 게시글에서 현재 사용자가 작성한 댓글과 대댓글을 조회합니다.
+      final QuerySnapshot<Map<String, dynamic>> commentSnapshot =
+      await postDocument.reference
+          .collection('comments')
+          .where(
+        'commentStatus',
+        isEqualTo: 'NORMAL',
+      )
+          .get();
+
+      for (final QueryDocumentSnapshot<Map<String, dynamic>>
+      commentDocument in commentSnapshot.docs) {
+        final Map<String, dynamic> commentData =
+        commentDocument.data();
+
+        final String writerUid =
+            commentData['writerUid']?.toString() ?? '';
+
+        if (writerUid != user.uid) {
+          continue;
+        }
+
+        final String commentStatus =
+        (commentData['commentStatus'] as String? ?? 'NORMAL')
+            .trim()
+            .toUpperCase();
+
+        if (commentStatus != 'NORMAL') {
+          continue;
+        }
+
+        if (commentData['deletedAt'] != null) {
+          continue;
+        }
+
+        items.add(
+          _MyCommentItem(
+            commentId: commentDocument.id,
+            postId: postDocument.id,
+            postTitle:
+            postData['title']?.toString() ??
+                '제목 없는 게시글',
+            boardName: _boardLabel(
+              postData['boardType']?.toString() ?? 'FREE',
             ),
-            child: Icon(
-              Icons.chat_bubble_outline_rounded,
-              color: Theme.of(context).colorScheme.primary,
-              size: 25,
-            ),
+            content:
+            commentData['content']?.toString() ?? '',
+            parentCommentId:
+            commentData['parentCommentId']?.toString() ?? '',
+            likeCount:
+            (commentData['likeCount'] as num?)?.toInt() ?? 0,
+            createdAt: commentData['createdAt'],
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '내 댓글 활동',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.black54,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '작성한 댓글 ${_comments.length}개',
-                  style: const TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+        );
+      }
+    }
+
+    // 최신 댓글이 위에 표시되도록 정렬합니다.
+    items.sort((a, b) {
+      final DateTime aDate =
+          a.dateTime ?? DateTime(1970);
+      final DateTime bDate =
+          b.dateTime ?? DateTime(1970);
+
+      return bDate.compareTo(aDate);
+    });
+
+    return items;
   }
 
-  Widget _buildSectionTitle() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Row(
-        children: [
-          const Expanded(
-            child: Text(
-              '댓글 목록',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          Text(
-            '최신순',
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.grey.shade600,
-            ),
-          ),
-        ],
-      ),
-    );
+  Future<void> _refresh() async {
+    setState(() {
+      _future = _loadMyComments();
+    });
+
+    await _future;
   }
 
-  Widget _buildCommentCard(MyCommentItem comment) {
-    return AppCard(
-      padding: EdgeInsets.zero,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          _openPostDetail(comment);
-        },
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            16,
-            15,
-            10,
-            12,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildBoardBadge(comment.boardName),
-                  const Spacer(),
-                  PopupMenuButton<String>(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: Icon(
-                      Icons.more_vert_rounded,
-                      color: Colors.grey.shade600,
-                    ),
-                    onSelected: (value) {
-                      if (value == 'open') {
-                        _openPostDetail(comment);
-                      }
-
-                      if (value == 'delete') {
-                        _showDeleteDialog(comment);
-                      }
-                    },
-                    itemBuilder: (context) {
-                      return const [
-                        PopupMenuItem(
-                          value: 'open',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.open_in_new_rounded,
-                                size: 20,
-                              ),
-                              SizedBox(width: 10),
-                              Text('게시글 보기'),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.delete_outline_rounded,
-                                size: 20,
-                                color: Colors.redAccent,
-                              ),
-                              SizedBox(width: 10),
-                              Text(
-                                '댓글 삭제',
-                                style: TextStyle(
-                                  color: Colors.redAccent,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ];
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 9),
-              Text(
-                comment.postTitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black54,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(13),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.grey.shade200,
-                  ),
-                ),
-                child: Text(
-                  comment.content,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    height: 1.55,
-                    color: Colors.black87,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Icon(
-                    Icons.schedule_rounded,
-                    size: 16,
-                    color: Colors.grey.shade500,
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    _formatDate(comment.createdAt),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Icon(
-                    Icons.favorite_border_rounded,
-                    size: 16,
-                    color: Colors.grey.shade500,
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    '${comment.likeCount}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    '게시글 보기',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 2),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    size: 18,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBoardBadge(String boardName) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 5,
-      ),
-      decoration: BoxDecoration(
-        color: Theme.of(
-          context,
-        ).colorScheme.primary.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        boardName,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: Theme.of(context).colorScheme.primary,
-        ),
-      ),
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    final String month =
-    date.month.toString().padLeft(2, '0');
-    final String day =
-    date.day.toString().padLeft(2, '0');
-
-    return '${date.year}.$month.$day';
-  }
-
-  void _openPostDetail(MyCommentItem comment) {
+  void _openPost(String postId) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => _TemporaryPostDetailScreen(
-          comment: comment,
-        ),
+        builder: (_) => CommunityPostDetailPage(postId: postId),
       ),
     );
-  }
-
-  Future<void> _showDeleteDialog(
-      MyCommentItem comment,
-      ) async {
-    final bool? deleteResult = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('댓글 삭제'),
-          content: const Text(
-            '작성한 댓글을 삭제하시겠습니까?\n삭제한 댓글은 복구할 수 없습니다.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                  false,
-                );
-              },
-              child: const Text('취소'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                  true,
-                );
-              },
-              child: const Text(
-                '삭제',
-                style: TextStyle(
-                  color: Colors.redAccent,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (deleteResult != true) {
-      return;
-    }
-
-    setState(() {
-      _comments.removeWhere(
-            (item) => item.id == comment.id,
-      );
-    });
-
-    if (!mounted) {
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('댓글이 삭제되었습니다.'),
-      ),
-    );
-  }
-}
-
-class MyCommentItem {
-  final String id;
-  final String postId;
-  final String boardName;
-  final String postTitle;
-  final String content;
-  final DateTime createdAt;
-  final int likeCount;
-
-  const MyCommentItem({
-    required this.id,
-    required this.postId,
-    required this.boardName,
-    required this.postTitle,
-    required this.content,
-    required this.createdAt,
-    required this.likeCount,
-  });
-}
-
-class _TemporaryPostDetailScreen extends StatelessWidget {
-  final MyCommentItem comment;
-
-  const _TemporaryPostDetailScreen({
-    required this.comment,
-  });
-
-  String _formatDate(DateTime date) {
-    final String month =
-    date.month.toString().padLeft(2, '0');
-    final String day =
-    date.day.toString().padLeft(2, '0');
-
-    return '${date.year}.$month.$day';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: AppTopBar(
-        title: '게시글 상세',
-        leading: IconButton(
-          tooltip: '뒤로 가기',
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            size: 20,
-            color: Color(0xFF1A1A1A),
-          ),
-        ),
-      ),
+      appBar: const AppTopBar(title: '내가 쓴 댓글'),
       body: AppMainBackground(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            20,
-            16,
-            20,
-            110,
-          ),
-          child: AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        child: FutureBuilder<List<_MyCommentItem>>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const AppLoadingView(
+                message: '작성한 댓글을 불러오는 중입니다.',
+              );
+            }
+
+            if (snapshot.hasError) {
+              return AppErrorView(
+                message: '작성한 댓글을 불러오지 못했습니다.',
+                description: '잠시 후 다시 시도해 주세요.',
+                onRetryPressed: _refresh,
+              );
+            }
+
+            final List<_MyCommentItem> allItems = snapshot.data ?? [];
+            final List<_MyCommentItem> visibleItems =
+            allItems.where((item) {
+              if (_selectedType == 'COMMENT') {
+                return !item.isReply;
+              }
+
+              if (_selectedType == 'REPLY') {
+                return item.isReply;
+              }
+
+              return true;
+            }).toList();
+
+            return Column(
               children: [
-                Text(
-                  comment.boardName,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
+                  child: Row(
+                    children: [
+                      _buildFilterButton('ALL', '전체'),
+                      const SizedBox(width: 8),
+                      _buildFilterButton('COMMENT', '댓글'),
+                      const SizedBox(width: 8),
+                      _buildFilterButton('REPLY', '대댓글'),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  comment.postTitle,
-                  style: const TextStyle(
-                    fontSize: 21,
-                    fontWeight: FontWeight.w700,
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  _formatDate(comment.createdAt),
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  '게시글 상세 화면은 커뮤니티 담당 화면과 연결할 예정입니다.',
-                  style: TextStyle(
-                    fontSize: 15,
-                    height: 1.6,
-                  ),
-                ),
-                const SizedBox(height: 26),
-                const Divider(),
-                const SizedBox(height: 18),
-                const Text(
-                  '내가 작성한 댓글',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    comment.content,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      height: 1.5,
+                Expanded(
+                  child: visibleItems.isEmpty
+                      ? AppEmptyView(
+                    message: _selectedType == 'ALL'
+                        ? '작성한 댓글이 없습니다.'
+                        : '해당 종류의 댓글이 없습니다.',
+                    description: '커뮤니티 게시글에 의견을 남겨보세요.',
+                  )
+                      : RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(
+                        20,
+                        8,
+                        20,
+                        40,
+                      ),
+                      itemCount: visibleItems.length,
+                      separatorBuilder: (_, __) =>
+                      const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        return _buildCommentCard(
+                          visibleItems[index],
+                        );
+                      },
                     ),
                   ),
                 ),
               ],
-            ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterButton(String value, String label) {
+    final bool isSelected = _selectedType == value;
+
+    return Expanded(
+      child: OutlinedButton(
+        onPressed: () {
+          setState(() {
+            _selectedType = value;
+          });
+        },
+        style: OutlinedButton.styleFrom(
+          backgroundColor: isSelected
+              ? const Color(0xFFFFE8EE)
+              : Colors.white,
+          foregroundColor: isSelected
+              ? const Color(0xFFF0788F)
+              : const Color(0xFF777B84),
+          side: BorderSide(
+            color: isSelected
+                ? const Color(0xFFF0788F)
+                : const Color(0xFFE6E7EA),
           ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        child: Text(label),
+      ),
+    );
+  }
+
+  Widget _buildCommentCard(_MyCommentItem item) {
+    return GestureDetector(
+      onTap: () => _openPost(item.postId),
+      child: AppCard(
+        padding: const EdgeInsets.all(17),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: item.isReply
+                        ? const Color(0xFFEAF4FF)
+                        : const Color(0xFFFFE8EE),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    item.isReply ? '대댓글' : '댓글',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: item.isReply
+                          ? const Color(0xFF4F86C6)
+                          : const Color(0xFFF0788F),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  item.boardName,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF8B8F98),
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  _formatCommunityDate(item.createdAt),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFFA0A3AA),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              item.content,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 15,
+                height: 1.45,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF303238),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '원문 · ${item.postTitle}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF777B84),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Icon(
+                  Icons.favorite_border,
+                  size: 16,
+                  color: Color(0xFFF0788F),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '${item.likeCount}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF777B84),
+                  ),
+                ),
+                const Spacer(),
+                const Icon(
+                  Icons.chevron_right,
+                  color: Color(0xFFB0B3BA),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 }
+
+class _MyCommentItem {
+  final String commentId;
+  final String postId;
+  final String postTitle;
+  final String boardName;
+  final String content;
+  final String parentCommentId;
+  final int likeCount;
+  final dynamic createdAt;
+
+  const _MyCommentItem({
+    required this.commentId,
+    required this.postId,
+    required this.postTitle,
+    required this.boardName,
+    required this.content,
+    required this.parentCommentId,
+    required this.likeCount,
+    required this.createdAt,
+  });
+
+  bool get isReply => parentCommentId.isNotEmpty;
+
+  DateTime? get dateTime {
+    if (createdAt is Timestamp) {
+      return (createdAt as Timestamp).toDate();
+    }
+
+    if (createdAt is DateTime) {
+      return createdAt as DateTime;
+    }
+
+    return null;
+  }
+}
+
+
+String _formatCommunityDate(dynamic value) {
+  DateTime? dateTime;
+
+  if (value is Timestamp) {
+    dateTime = value.toDate();
+  } else if (value is DateTime) {
+    dateTime = value;
+  }
+
+  if (dateTime == null) {
+    return '';
+  }
+
+  final String month = dateTime.month.toString().padLeft(2, '0');
+  final String day = dateTime.day.toString().padLeft(2, '0');
+
+  return '${dateTime.year}.$month.$day';
+}
+
+String _boardLabel(String code) {
+  switch (code) {
+    case 'QUESTION':
+      return '질문';
+    case 'PASS_REVIEW':
+      return '합격 후기';
+    case 'EXAM_REVIEW':
+      return '시험 후기';
+    case 'STUDY_SHARE':
+      return '학습 자료';
+    case 'BOOK_REVIEW':
+      return '교재·인강';
+    case 'TIP':
+      return '학습 팁';
+    case 'GROUP_RECRUIT':
+      return '스터디 모집';
+    case 'FREE':
+    default:
+      return '자유';
+  }
+}
+
