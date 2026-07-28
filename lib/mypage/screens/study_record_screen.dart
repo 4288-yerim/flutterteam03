@@ -369,17 +369,6 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildStudyTimerCard(),
-              const SizedBox(height: 18),
-
-              _StudySummaryCard(
-                totalMinutes: _getTotalMinutes(selectedRecords),
-                studyDays: _getStudyDayCount(selectedRecords),
-                recordCount: selectedRecords.length,
-                periodLabel: _getSummaryPeriodLabel(),
-              ),
-
-              const SizedBox(height: 14),
-              _buildSourceSummaryCard(),
 
               if (_isLoadingRecords) ...[
                 const SizedBox(height: 16),
@@ -401,6 +390,18 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
               const SizedBox(height: 14),
 
               _buildSourceSelector(),
+              const SizedBox(height: 18),
+
+              _StudySummaryCard(
+                totalMinutes: _getTotalMinutes(selectedRecords),
+                studyDays: _getStudyDayCount(selectedRecords),
+                recordCount: selectedRecords.length,
+                periodLabel: _getSummaryPeriodLabel(),
+              ),
+
+              const SizedBox(height: 14),
+              _buildSourceSummaryCard(),
+
               const SizedBox(height: 24),
 
               _SectionTitle(title: _getStudySectionTitle()),
@@ -518,106 +519,61 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
   }
 
   Widget _buildPeriodSelector() {
-    const List<Color> selectedBackgroundColors = [
-      Color(0xFFFFE8EF),
-      Color(0xFFEDE9FF),
-      Color(0xFFE5F5F0),
-    ];
-
-    const List<Color> selectedTextColors = [
-      Color(0xFFE96882),
-      Color(0xFF7569B5),
-      Color(0xFF4C9A82),
-    ];
-
-    const List<IconData> periodIcons = [
-      Icons.view_week_outlined,
-      Icons.calendar_month_outlined,
-      Icons.all_inclusive_rounded,
-    ];
-
     return Container(
-      height: 56,
-      padding: const EdgeInsets.all(5),
+      height: 50,
+      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F5FA),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFFEDE7F0),
-        ),
+        color: const Color(0xFFF6F2F3),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
-        children: List.generate(_periodNames.length, (index) {
-          final bool isSelected = _selectedPeriodIndex == index;
+        children: List.generate(
+          _periodNames.length,
+              (index) {
+            final bool isSelected =
+                _selectedPeriodIndex == index;
 
-          return Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(
-                right: index < _periodNames.length - 1 ? 4 : 0,
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(14),
-                  onTap: () {
-                    setState(() {
-                      _selectedPeriodIndex = index;
+            return Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  if (_selectedPeriodIndex == index) {
+                    return;
+                  }
 
-                      if (_selectedPeriodIndex == 2) {
-                        _focusedDate = DateTime.now();
-                      }
-                    });
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
+                  setState(() {
+                    _selectedPeriodIndex = index;
+
+                    if (_selectedPeriodIndex == 2) {
+                      _focusedDate = DateTime.now();
+                    }
+                  });
+                },
+                child: Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? Colors.white
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: Text(
+                    _periodNames[index],
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
                       color: isSelected
-                          ? selectedBackgroundColors[index]
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: isSelected
-                          ? [
-                        BoxShadow(
-                          color: selectedTextColors[index]
-                              .withValues(alpha: 0.10),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                      ]
-                          : null,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          periodIcons[index],
-                          size: 17,
-                          color: isSelected
-                              ? selectedTextColors[index]
-                              : const Color(0xFF92909A),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          _periodNames[index],
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: isSelected
-                                ? FontWeight.w700
-                                : FontWeight.w600,
-                            color: isSelected
-                                ? selectedTextColors[index]
-                                : const Color(0xFF777580),
-                          ),
-                        ),
-                      ],
+                          ? const Color(0xFFF0788F)
+                          : const Color(0xFF666A73),
                     ),
                   ),
                 ),
               ),
-            ),
-          );
-        }),
+            );
+          },
+        ),
       ),
     );
   }
@@ -636,58 +592,60 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
       children: List.generate(_sourceNames.length, (index) {
         final bool isSelected = _selectedSourceIndex == index;
 
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(24),
-            onTap: () {
-              setState(() {
-                _selectedSourceIndex = index;
-              });
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 17,
-                vertical: 10,
-              ),
-              decoration: BoxDecoration(
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            if (_selectedSourceIndex == index) {
+              return;
+            }
+
+            setState(() {
+              _selectedSourceIndex = index;
+            });
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 17,
+              vertical: 10,
+            ),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? const Color(0xFFFFEDF2)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
                 color: isSelected
-                    ? const Color(0xFFFFEDF2)
-                    : Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
+                    ? const Color(0xFFF0788F)
+                    : const Color(0xFFE4E5E9),
+                width: isSelected ? 1.4 : 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  sourceIcons[index],
+                  size: 17,
                   color: isSelected
                       ? const Color(0xFFF0788F)
-                      : const Color(0xFFE4E5E9),
-                  width: isSelected ? 1.4 : 1,
+                      : const Color(0xFF8A8E98),
                 ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    sourceIcons[index],
-                    size: 17,
+                const SizedBox(width: 6),
+                Text(
+                  _sourceNames[index],
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isSelected
+                        ? FontWeight.w700
+                        : FontWeight.w600,
                     color: isSelected
                         ? const Color(0xFFF0788F)
-                        : const Color(0xFF8A8E98),
+                        : const Color(0xFF666A73),
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    _sourceNames[index],
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isSelected
-                          ? FontWeight.w700
-                          : FontWeight.w600,
-                      color: isSelected
-                          ? const Color(0xFFF0788F)
-                          : const Color(0xFF666A73),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );

@@ -211,13 +211,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           ),
           const SizedBox(height: 20),
 
-          _buildLabel('아이디'),
+          _buildLabel('이메일'),
           const SizedBox(height: 8),
           TextFormField(
             controller: _loginIdController,
             readOnly: true,
             decoration: _inputDecoration(
-              hintText: '아이디',
+              hintText: '이메일',
               prefixIcon: Icons.person_outline,
               isReadOnly: true,
             ),
@@ -636,13 +636,15 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         return;
       }
 
-      final String? loginId =
-      userData?['loginId'] as String?;
+      final String? savedEmail =
+      userData?['email'] as String?;
 
       _loginIdController.text =
-      loginId != null && loginId.trim().isNotEmpty
-          ? loginId
-          : (currentUser.email ?? '');
+      currentUser.email?.trim().isNotEmpty == true
+          ? currentUser.email!
+          : savedEmail?.trim().isNotEmpty == true
+          ? savedEmail!
+          : '등록된 이메일 없음';
 
       _nicknameController.text =
           (userData?['nickname'] as String?) ?? '';
