@@ -840,7 +840,7 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
       width: width,
       child: InkWell(
         borderRadius: BorderRadius.circular(17),
-        onTap: _isSaving
+        onTap: _isSaving || _hasStarted
             ? null
             : () {
           setState(() {
@@ -931,6 +931,39 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
               color: Color(0xFF9AA0AC),
             ),
           ),
+          if (_hasStarted) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 13,
+                vertical: 11,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF6F2F3),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Row(
+                children: [
+                  Icon(
+                    Icons.lock_outline_rounded,
+                    size: 18,
+                    color: Color(0xFF777B84),
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '공부를 시작한 뒤에는 학습 내용을 수정할 수 없습니다.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF777B84),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 18),
           DropdownButtonFormField<String>(
             value: _selectedGoalValue,
@@ -955,7 +988,7 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
                 ),
               ),
             ],
-            onChanged: _isSaving || _isLoadingGoals
+            onChanged: _isSaving || _isLoadingGoals || _hasStarted
                 ? null
                 : (value) {
               if (value == null) return;
@@ -993,7 +1026,9 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
                   ),
                 ),
                 TextButton(
-                  onPressed: () {
+                  onPressed: _hasStarted
+                      ? null
+                      : () {
                     setState(() {
                       _isLoadingGoals = true;
                       _goalLoadError = null;
@@ -1039,7 +1074,7 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
           const SizedBox(height: 20),
           TextField(
             controller: _subjectController,
-            enabled: !_isSaving,
+            enabled: !_isSaving && !_hasStarted,
             maxLength: 50,
             onChanged: (_) => setState(() {}),
             decoration: _inputDecoration(
@@ -1051,7 +1086,7 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
           const SizedBox(height: 10),
           TextField(
             controller: _memoController,
-            enabled: !_isSaving,
+            enabled: !_isSaving && !_hasStarted,
             minLines: 3,
             maxLines: 5,
             maxLength: 150,
@@ -1102,9 +1137,9 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _buildTimerHero(),
-                const SizedBox(height: 20),
                 _buildStudyContentCard(),
+                const SizedBox(height: 20),
+                _buildTimerHero(),
               ],
             ),
           ),
