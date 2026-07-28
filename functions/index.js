@@ -1902,3 +1902,4 @@ const {
 } = require("./notifications/notification_test");
 
 exports.sendTestPush = sendTestPush;
+);

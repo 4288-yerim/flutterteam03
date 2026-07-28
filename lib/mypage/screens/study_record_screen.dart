@@ -16,6 +16,7 @@ class StudyRecordScreen extends StatefulWidget {
 
 class _StudyRecordScreenState extends State<StudyRecordScreen> {
   int _selectedPeriodIndex = 0;
+  int _selectedSourceIndex = 0;
 
   DateTime _focusedDate = DateTime(
     DateTime.now().year,
@@ -24,6 +25,7 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
   );
 
   final List<String> _periodNames = ['주간', '월간', '전체'];
+  final List<String> _sourceNames = ['전체', '개인', '스터디'];
 
   List<_StudyRecordData> _studyRecords = [];
   bool _isLoadingRecords = true;
@@ -57,19 +59,27 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
 
     try {
       final QuerySnapshot<Map<String, dynamic>> dailySnapshot =
-          await FirebaseFirestore.instance
-              .collection('userStudyLogs')
-              .doc(user.uid)
-              .collection('logs')
-              .get();
+      await FirebaseFirestore.instance
+          .collection('userStudyLogs')
+          .doc(user.uid)
+          .collection('logs')
+          .get();
 
-      final List<List<_StudyRecordData>> recordsByDate = await Future.wait(
+      final List<List<_StudyRecordData>> personalRecordsByDate =
+      await Future.wait(
         dailySnapshot.docs.map(_loadDailySessionRecords),
       );
 
-      final List<_StudyRecordData> loadedRecords =
-          recordsByDate.expand((records) => records).toList()
-            ..sort((a, b) => b.studiedAt.compareTo(a.studiedAt));
+      final List<_StudyRecordData> personalRecords =
+      personalRecordsByDate.expand((records) => records).toList();
+
+      final List<_StudyRecordData> studyGroupRecords =
+      await _loadStudyGroupRecords(user.uid);
+
+      final List<_StudyRecordData> loadedRecords = [
+        ...personalRecords,
+        ...studyGroupRecords,
+      ]..sort((a, b) => b.studiedAt.compareTo(a.studiedAt));
 
       if (!mounted) return;
       if (FirebaseAuth.instance.currentUser?.uid != user.uid) return;
@@ -79,7 +89,9 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
         _isLoadingRecords = false;
         _recordLoadError = null;
       });
-    } catch (_) {
+    } catch (error) {
+      debugPrint('통합 학습 기록 불러오기 오류: $error');
+
       if (!mounted) return;
       setState(() {
         _studyRecords = [];
@@ -89,9 +101,133 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
     }
   }
 
+  Future<List<_StudyRecordData>> _loadStudyGroupRecords(
+      String userUid,
+      ) async {
+    final QuerySnapshot<Map<String, dynamic>> groupSnapshot =
+    await FirebaseFirestore.instance
+        .collection('studyGroups')
+        .get();
+
+    final List<_StudyRecordData> records = [];
+
+    for (final QueryDocumentSnapshot<Map<String, dynamic>> groupDocument
+    in groupSnapshot.docs) {
+      final Map<String, dynamic> groupData = groupDocument.data();
+
+      String groupName =
+      (groupData['groupName'] as String? ?? '').trim();
+
+      if (groupName.isEmpty) {
+        groupName = '스터디 그룹';
+      }
+
+      final QuerySnapshot<Map<String, dynamic>> recordSnapshot =
+      await groupDocument.reference
+          .collection('studyRecords')
+          .where('uid', isEqualTo: userUid)
+          .get();
+
+      for (final QueryDocumentSnapshot<Map<String, dynamic>> recordDocument
+      in recordSnapshot.docs) {
+        final Map<String, dynamic> data = recordDocument.data();
+
+        final int studySeconds = _readStudyGroupSeconds(data);
+        if (studySeconds <= 0) {
+          continue;
+        }
+
+        final DateTime? studiedAt = _readStudyGroupDate(data);
+        if (studiedAt == null) {
+          continue;
+        }
+
+        String subject =
+        (data['subject'] as String? ?? '').trim();
+
+        if (subject.isEmpty) {
+          subject =
+              (data['studySubject'] as String? ?? '').trim();
+        }
+
+        if (subject.isEmpty) {
+          subject = '전체 공부';
+        }
+
+        final String timerMode =
+        (data['timerMode'] as String? ?? '').trim().toUpperCase();
+
+        final String timerModeText =
+        timerMode == 'POMODORO' ? '뽀모도로' : '스톱워치';
+
+        records.add(
+          _StudyRecordData(
+            studiedAt: studiedAt,
+            subject: subject,
+            description: '$groupName · $timerModeText',
+            minutes: studySeconds ~/ 60,
+            seconds: studySeconds,
+            icon: Icons.groups_2_outlined,
+            source: 'STUDY',
+            groupName: groupName,
+            certificateName: '',
+            studyTypeName: timerModeText,
+            memo: '',
+          ),
+        );
+      }
+    }
+
+    return records;
+  }
+
+  int _readStudyGroupSeconds(Map<String, dynamic> data) {
+    final dynamic studySeconds = data['studySeconds'];
+
+    if (studySeconds is num) {
+      return studySeconds.toInt();
+    }
+
+    final dynamic elapsedSeconds = data['elapsedSeconds'];
+
+    if (elapsedSeconds is num) {
+      return elapsedSeconds.toInt();
+    }
+
+    final dynamic studyMinutes = data['studyMinutes'];
+
+    if (studyMinutes is num) {
+      return studyMinutes.toInt() * 60;
+    }
+
+    return 0;
+  }
+
+  DateTime? _readStudyGroupDate(Map<String, dynamic> data) {
+    for (final String fieldName in [
+      'endedAt',
+      'startedAt',
+      'createdAt',
+    ]) {
+      final dynamic value = data[fieldName];
+
+      if (value is Timestamp) {
+        return value.toDate();
+      }
+    }
+
+    final dynamic studyDate = data['studyDate'];
+
+    if (studyDate is String && studyDate.trim().isNotEmpty) {
+      return DateTime.tryParse(studyDate.trim());
+    }
+
+    return null;
+  }
+
   Future<List<_StudyRecordData>> _loadDailySessionRecords(
-    QueryDocumentSnapshot<Map<String, dynamic>> dailyDocument,
-  ) async {
+      QueryDocumentSnapshot<Map<String, dynamic>> dailyDocument,
+      ) async {
     final Map<String, dynamic> dailyData = dailyDocument.data();
     final DateTime fallbackDate = _readDailyDate(
       dailyData['date'],
@@ -99,14 +235,16 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
     );
 
     final QuerySnapshot<Map<String, dynamic>> sessionSnapshot =
-        await dailyDocument.reference.collection('sessions').get();
+    await dailyDocument.reference.collection('sessions').get();
 
     if (sessionSnapshot.docs.isEmpty) {
-      final int totalMinutes =
-          (dailyData['totalMinutes'] as num?)?.toInt() ??
-          ((dailyData['totalSeconds'] as num?)?.toInt() ?? 0) ~/ 60;
+      final int totalSeconds =
+          (dailyData['totalSeconds'] as num?)?.toInt() ??
+              ((dailyData['totalMinutes'] as num?)?.toInt() ?? 0) * 60;
 
-      if (totalMinutes <= 0) return [];
+      final int totalMinutes = totalSeconds ~/ 60;
+
+      if (totalSeconds <= 0) return [];
 
       return [
         _StudyRecordData(
@@ -114,7 +252,13 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
           subject: '학습 기록',
           description: '해당 날짜의 총 학습 시간',
           minutes: totalMinutes,
+          seconds: totalSeconds,
           icon: Icons.timer_outlined,
+          source: 'PERSONAL',
+          groupName: null,
+          certificateName: '자유 학습',
+          studyTypeName: '학습 기록',
+          memo: '',
         ),
       ];
     }
@@ -146,7 +290,13 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
         subject: subject,
         description: description,
         minutes: minutes,
+        seconds: durationSeconds > 0 ? durationSeconds : minutes * 60,
         icon: _iconForStudyType(data['studyType'] as String?),
+        source: 'PERSONAL',
+        groupName: null,
+        certificateName: certificateName.isEmpty ? '자유 학습' : certificateName,
+        studyTypeName: studyTypeName,
+        memo: memo,
       );
     }).toList();
   }
@@ -168,10 +318,10 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
   }
 
   String _readText(
-    Map<String, dynamic> data,
-    List<String> fieldNames,
-    String fallback,
-  ) {
+      Map<String, dynamic> data,
+      List<String> fieldNames,
+      String fallback,
+      ) {
     for (final String fieldName in fieldNames) {
       final dynamic value = data[fieldName];
       if (value is String && value.trim().isNotEmpty) {
@@ -219,6 +369,18 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildStudyTimerCard(),
+              const SizedBox(height: 18),
+
+              _StudySummaryCard(
+                totalMinutes: _getTotalMinutes(selectedRecords),
+                studyDays: _getStudyDayCount(selectedRecords),
+                recordCount: selectedRecords.length,
+                periodLabel: _getSummaryPeriodLabel(),
+              ),
+
+              const SizedBox(height: 14),
+              _buildSourceSummaryCard(),
+
               if (_isLoadingRecords) ...[
                 const SizedBox(height: 16),
                 const LinearProgressIndicator(
@@ -230,20 +392,15 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
                 const SizedBox(height: 16),
                 _buildRecordLoadError(),
               ],
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
               _buildPeriodSelector(),
               const SizedBox(height: 16),
 
               _buildPeriodNavigator(),
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
 
-              _StudySummaryCard(
-                totalMinutes: _getTotalMinutes(selectedRecords),
-                studyDays: _getStudyDayCount(selectedRecords),
-                periodLabel: _getSummaryPeriodLabel(),
-              ),
-
+              _buildSourceSelector(),
               const SizedBox(height: 24),
 
               _SectionTitle(title: _getStudySectionTitle()),
@@ -361,57 +518,99 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
   }
 
   Widget _buildPeriodSelector() {
+    const List<Color> selectedBackgroundColors = [
+      Color(0xFFFFE8EF),
+      Color(0xFFEDE9FF),
+      Color(0xFFE5F5F0),
+    ];
+
+    const List<Color> selectedTextColors = [
+      Color(0xFFE96882),
+      Color(0xFF7569B5),
+      Color(0xFF4C9A82),
+    ];
+
+    const List<IconData> periodIcons = [
+      Icons.view_week_outlined,
+      Icons.calendar_month_outlined,
+      Icons.all_inclusive_rounded,
+    ];
+
     return Container(
-      height: 50,
-      padding: const EdgeInsets.all(4),
+      height: 56,
+      padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
-        color: const Color(0xFFF6F2F3),
-        borderRadius: BorderRadius.circular(16),
+        color: const Color(0xFFF8F5FA),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFFEDE7F0),
+        ),
       ),
       child: Row(
         children: List.generate(_periodNames.length, (index) {
           final bool isSelected = _selectedPeriodIndex == index;
 
           return Expanded(
-            child: Material(
-              color: isSelected ? Colors.white : Colors.transparent,
-              borderRadius: BorderRadius.circular(13),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(13),
-                onTap: () {
-                  setState(() {
-                    _selectedPeriodIndex = index;
+            child: Padding(
+              padding: EdgeInsets.only(
+                right: index < _periodNames.length - 1 ? 4 : 0,
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () {
+                    setState(() {
+                      _selectedPeriodIndex = index;
 
-                    if (_selectedPeriodIndex == 2) {
-                      _focusedDate = DateTime.now();
-                    }
-                  });
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(13),
-                    boxShadow: isSelected
-                        ? [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.04),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Text(
-                    _periodNames[index],
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: isSelected
-                          ? FontWeight.w700
-                          : FontWeight.w500,
+                      if (_selectedPeriodIndex == 2) {
+                        _focusedDate = DateTime.now();
+                      }
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
                       color: isSelected
-                          ? const Color(0xFFF0788F)
-                          : const Color(0xFF666A73),
+                          ? selectedBackgroundColors[index]
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: isSelected
+                          ? [
+                        BoxShadow(
+                          color: selectedTextColors[index]
+                              .withValues(alpha: 0.10),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ]
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          periodIcons[index],
+                          size: 17,
+                          color: isSelected
+                              ? selectedTextColors[index]
+                              : const Color(0xFF92909A),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _periodNames[index],
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: isSelected
+                                ? FontWeight.w700
+                                : FontWeight.w600,
+                            color: isSelected
+                                ? selectedTextColors[index]
+                                : const Color(0xFF777580),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -420,6 +619,171 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
           );
         }),
       ),
+    );
+  }
+
+  Widget _buildSourceSelector() {
+    const List<IconData> sourceIcons = [
+      Icons.apps_rounded,
+      Icons.person_outline_rounded,
+      Icons.groups_2_outlined,
+    ];
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 10,
+      runSpacing: 8,
+      children: List.generate(_sourceNames.length, (index) {
+        final bool isSelected = _selectedSourceIndex == index;
+
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(24),
+            onTap: () {
+              setState(() {
+                _selectedSourceIndex = index;
+              });
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 17,
+                vertical: 10,
+              ),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? const Color(0xFFFFEDF2)
+                    : Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: isSelected
+                      ? const Color(0xFFF0788F)
+                      : const Color(0xFFE4E5E9),
+                  width: isSelected ? 1.4 : 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    sourceIcons[index],
+                    size: 17,
+                    color: isSelected
+                        ? const Color(0xFFF0788F)
+                        : const Color(0xFF8A8E98),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _sourceNames[index],
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w600,
+                      color: isSelected
+                          ? const Color(0xFFF0788F)
+                          : const Color(0xFF666A73),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildSourceSummaryCard() {
+    final List<_StudyRecordData> periodRecords =
+    _getPeriodRecordsWithoutSourceFilter();
+
+    final int personalMinutes = _getTotalMinutes(
+      periodRecords.where((record) => record.source == 'PERSONAL').toList(),
+    );
+
+    final int studyMinutes = _getTotalMinutes(
+      periodRecords.where((record) => record.source == 'STUDY').toList(),
+    );
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(
+                Icons.pie_chart_outline_rounded,
+                size: 20,
+                color: Color(0xFFF0788F),
+              ),
+              SizedBox(width: 8),
+              Text(
+                '학습시간 구성',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildSourceSummaryItem(
+                  icon: Icons.person_outline_rounded,
+                  label: '개인 학습',
+                  minutes: personalMinutes,
+                ),
+              ),
+              Container(
+                width: 1,
+                height: 48,
+                color: const Color(0xFFF0F0F2),
+              ),
+              Expanded(
+                child: _buildSourceSummaryItem(
+                  icon: Icons.groups_2_outlined,
+                  label: '스터디 학습',
+                  minutes: studyMinutes,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSourceSummaryItem({
+    required IconData icon,
+    required String label,
+    required int minutes,
+  }) {
+    return Column(
+      children: [
+        Icon(icon, size: 21, color: const Color(0xFFF0788F)),
+        const SizedBox(height: 6),
+        Text(
+          _formatMinutes(minutes),
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1A1A1A),
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            color: Color(0xFF9AA0AC),
+          ),
+        ),
+      ],
     );
   }
 
@@ -570,9 +934,8 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
       return _getMonthlyRecords();
     }
 
-    final List<_StudyRecordData> records = List<_StudyRecordData>.from(
-      _studyRecords,
-    );
+    final List<_StudyRecordData> records =
+    List<_StudyRecordData>.from(_getSourceFilteredRecords());
 
     records.sort((a, b) {
       return b.studiedAt.compareTo(a.studiedAt);
@@ -581,12 +944,68 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
     return records;
   }
 
+  List<_StudyRecordData> _getSourceFilteredRecords() {
+    if (_selectedSourceIndex == 1) {
+      return _studyRecords
+          .where((record) => record.source == 'PERSONAL')
+          .toList();
+    }
+
+    if (_selectedSourceIndex == 2) {
+      return _studyRecords
+          .where((record) => record.source == 'STUDY')
+          .toList();
+    }
+
+    return List<_StudyRecordData>.from(_studyRecords);
+  }
+
+  List<_StudyRecordData> _getPeriodRecordsWithoutSourceFilter() {
+    if (_selectedPeriodIndex == 0) {
+      final DateTime startDate = _getStartOfWeek(_focusedDate);
+      final DateTime endDate = startDate.add(const Duration(days: 7));
+
+      return _studyRecords.where((record) {
+        final DateTime studiedDate = DateTime(
+          record.studiedAt.year,
+          record.studiedAt.month,
+          record.studiedAt.day,
+        );
+
+        return !studiedDate.isBefore(startDate) &&
+            studiedDate.isBefore(endDate);
+      }).toList();
+    }
+
+    if (_selectedPeriodIndex == 1) {
+      final DateTime startDate = DateTime(
+        _focusedDate.year,
+        _focusedDate.month,
+        1,
+      );
+
+      final DateTime endDate = DateTime(
+        _focusedDate.year,
+        _focusedDate.month + 1,
+        1,
+      );
+
+      return _studyRecords.where((record) {
+        return !record.studiedAt.isBefore(startDate) &&
+            record.studiedAt.isBefore(endDate);
+      }).toList();
+    }
+
+    return List<_StudyRecordData>.from(_studyRecords);
+  }
+
   List<_StudyRecordData> _getWeeklyRecords() {
     final DateTime startDate = _getStartOfWeek(_focusedDate);
 
     final DateTime endDate = startDate.add(const Duration(days: 7));
 
-    final List<_StudyRecordData> records = _studyRecords.where((record) {
+    final List<_StudyRecordData> records =
+    _getSourceFilteredRecords().where((record) {
       final DateTime studiedDate = DateTime(
         record.studiedAt.year,
         record.studiedAt.month,
@@ -616,7 +1035,8 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
       1,
     );
 
-    final List<_StudyRecordData> records = _studyRecords.where((record) {
+    final List<_StudyRecordData> records =
+    _getSourceFilteredRecords().where((record) {
       return !record.studiedAt.isBefore(startDate) &&
           record.studiedAt.isBefore(endDate);
     }).toList();
@@ -629,8 +1049,8 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
   }
 
   Map<DateTime, List<_StudyRecordData>> _groupRecordsByDate(
-    List<_StudyRecordData> records,
-  ) {
+      List<_StudyRecordData> records,
+      ) {
     final Map<DateTime, List<_StudyRecordData>> groupedRecords = {};
 
     for (final record in records) {
@@ -651,8 +1071,8 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
   }
 
   Map<DateTime, List<_StudyRecordData>> _groupRecordsByMonth(
-    List<_StudyRecordData> records,
-  ) {
+      List<_StudyRecordData> records,
+      ) {
     final Map<DateTime, List<_StudyRecordData>> groupedRecords = {};
 
     for (final record in records) {
@@ -691,15 +1111,18 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
     return List.generate(7, (index) {
       final DateTime targetDate = startDate.add(Duration(days: index));
 
-      int minutes = 0;
+      int totalSeconds = 0;
 
-      for (final record in _studyRecords) {
+      for (final record in _getSourceFilteredRecords()) {
         if (_isSameDate(record.studiedAt, targetDate)) {
-          minutes += record.minutes;
+          totalSeconds += record.seconds;
         }
       }
 
-      return _ChartData(label: dayNames[index], minutes: minutes);
+      return _ChartData(
+        label: dayNames[index],
+        minutes: totalSeconds ~/ 60,
+      );
     });
   }
 
@@ -708,25 +1131,30 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
 
     return List.generate(5, (index) {
       final int weekNumber = index + 1;
-      int minutes = 0;
+      int totalSeconds = 0;
 
       for (final record in records) {
         if (_getWeekNumberOfMonth(record.studiedAt) == weekNumber) {
-          minutes += record.minutes;
+          totalSeconds += record.seconds;
         }
       }
 
-      return _ChartData(label: '$weekNumber주', minutes: minutes);
+      return _ChartData(
+        label: '$weekNumber주',
+        minutes: totalSeconds ~/ 60,
+      );
     });
   }
 
   List<_ChartData> _getAllChartData() {
-    if (_studyRecords.isEmpty) {
+    final List<_StudyRecordData> sourceRecords = _getSourceFilteredRecords();
+
+    if (sourceRecords.isEmpty) {
       return [];
     }
 
     final List<_StudyRecordData> records = List<_StudyRecordData>.from(
-      _studyRecords,
+      sourceRecords,
     );
 
     records.sort((a, b) {
@@ -747,17 +1175,20 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
     DateTime currentMonth = firstMonth;
 
     while (!currentMonth.isAfter(lastMonth)) {
-      int minutes = 0;
+      int totalSeconds = 0;
 
-      for (final record in _studyRecords) {
+      for (final record in sourceRecords) {
         if (record.studiedAt.year == currentMonth.year &&
             record.studiedAt.month == currentMonth.month) {
-          minutes += record.minutes;
+          totalSeconds += record.seconds;
         }
       }
 
       chartData.add(
-        _ChartData(label: '${currentMonth.month}월', minutes: minutes),
+        _ChartData(
+          label: '${currentMonth.month}월',
+          minutes: totalSeconds ~/ 60,
+        ),
       );
 
       currentMonth = DateTime(currentMonth.year, currentMonth.month + 1);
@@ -777,13 +1208,13 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
   }
 
   int _getTotalMinutes(List<_StudyRecordData> records) {
-    int totalMinutes = 0;
+    int totalSeconds = 0;
 
     for (final record in records) {
-      totalMinutes += record.minutes;
+      totalSeconds += record.seconds;
     }
 
-    return totalMinutes;
+    return totalSeconds ~/ 60;
   }
 
   int _getStudyDayCount(List<_StudyRecordData> records) {
@@ -792,8 +1223,8 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
     for (final record in records) {
       studyDates.add(
         '${record.studiedAt.year}-'
-        '${record.studiedAt.month}-'
-        '${record.studiedAt.day}',
+            '${record.studiedAt.month}-'
+            '${record.studiedAt.day}',
       );
     }
 
@@ -869,7 +1300,7 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
     }
 
     final Map<DateTime, List<_StudyRecordData>> groupedRecords =
-        _groupRecordsByMonth(_studyRecords);
+    _groupRecordsByMonth(_studyRecords);
 
     final List<DateTime> months = groupedRecords.keys.toList();
 
@@ -897,7 +1328,7 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
     }
 
     final Map<DateTime, List<_StudyRecordData>> groupedRecords =
-        _groupRecordsByDate(records);
+    _groupRecordsByDate(records);
 
     final List<DateTime> dates = groupedRecords.keys.toList();
 
@@ -963,8 +1394,8 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
                 Expanded(
                   child: Text(
                     '${date.month}월 ${date.day}일'
-                    ' · '
-                    '${_getDayName(date)}',
+                        ' · '
+                        '${_getDayName(date)}',
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -1004,7 +1435,7 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
     required List<_StudyRecordData> records,
   }) {
     final Map<DateTime, List<_StudyRecordData>> groupedRecords =
-        _groupRecordsByDate(records);
+    _groupRecordsByDate(records);
 
     final List<DateTime> dates = groupedRecords.keys.toList();
 
@@ -1048,9 +1479,9 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
               padding: const EdgeInsets.fromLTRB(18, 14, 18, 4),
               child: Text(
                 '${dates[dateIndex].month}월 '
-                '${dates[dateIndex].day}일'
-                ' · '
-                '${_getDayName(dates[dateIndex])}',
+                    '${dates[dateIndex].day}일'
+                    ' · '
+                    '${_getDayName(dates[dateIndex])}',
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
@@ -1059,9 +1490,9 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
               ),
             ),
             for (
-              int recordIndex = 0;
-              recordIndex < groupedRecords[dates[dateIndex]]!.length;
-              recordIndex++
+            int recordIndex = 0;
+            recordIndex < groupedRecords[dates[dateIndex]]!.length;
+            recordIndex++
             ) ...[
               _StudyRecordTile(
                 record: groupedRecords[dates[dateIndex]]![recordIndex],
@@ -1086,11 +1517,13 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
 class _StudySummaryCard extends StatelessWidget {
   final int totalMinutes;
   final int studyDays;
+  final int recordCount;
   final String periodLabel;
 
   const _StudySummaryCard({
     required this.totalMinutes,
     required this.studyDays,
+    required this.recordCount,
     required this.periodLabel,
   });
 
@@ -1136,7 +1569,7 @@ class _StudySummaryCard extends StatelessWidget {
                 child: _SummaryValue(
                   icon: Icons.list_alt_outlined,
                   label: '학습 횟수',
-                  value: '${_getRecordCount()}회',
+                  value: '$recordCount회',
                 ),
               ),
             ],
@@ -1144,17 +1577,6 @@ class _StudySummaryCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  int _getRecordCount() {
-    // 총 시간이 0이면 기록도 없는 것으로 표시합니다.
-    if (totalMinutes == 0) {
-      return 0;
-    }
-
-    // 현재 카드에는 별도 횟수 값을 받지 않으므로
-    // 학습한 날짜 수를 기본 횟수로 표시합니다.
-    return studyDays;
   }
 
   String _formatMinutes(int totalMinutes) {
@@ -1350,6 +1772,13 @@ class _StudyRecordTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isStudyRecord = record.source == 'STUDY';
+    final String categoryText = isStudyRecord
+        ? (record.groupName?.trim().isNotEmpty == true
+        ? record.groupName!.trim()
+        : '스터디 그룹')
+        : record.certificateName;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       child: Row(
@@ -1359,10 +1788,18 @@ class _StudyRecordTile extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: const Color(0xFFFCEFF3),
+              color: isStudyRecord
+                  ? const Color(0xFFEDEAF7)
+                  : const Color(0xFFFCEFF3),
               borderRadius: BorderRadius.circular(13),
             ),
-            child: Icon(record.icon, size: 21, color: const Color(0xFFF0788F)),
+            child: Icon(
+              record.icon,
+              size: 21,
+              color: isStudyRecord
+                  ? const Color(0xFF7667A8)
+                  : const Color(0xFFF0788F),
+            ),
           ),
           const SizedBox(width: 13),
           Expanded(
@@ -1371,20 +1808,31 @@ class _StudyRecordTile extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Expanded(
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isStudyRecord
+                            ? const Color(0xFFEDEAF7)
+                            : const Color(0xFFFFE8EE),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       child: Text(
-                        record.subject,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 14,
+                        isStudyRecord ? '스터디' : '개인',
+                        style: TextStyle(
+                          fontSize: 10,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF1A1A1A),
+                          color: isStudyRecord
+                              ? const Color(0xFF7667A8)
+                              : const Color(0xFFF0788F),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const Spacer(),
                     Text(
-                      '${record.minutes}분',
+                      _formatRecordTime(record),
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
@@ -1393,22 +1841,114 @@ class _StudyRecordTile extends StatelessWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 9),
+                Row(
+                  children: [
+                    Icon(
+                      isStudyRecord
+                          ? Icons.groups_2_outlined
+                          : Icons.workspace_premium_outlined,
+                      size: 15,
+                      color: const Color(0xFF9AA0AC),
+                    ),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        categoryText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF777B84),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 5),
                 Text(
-                  record.description,
+                  record.subject,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF666A73),
+                    fontSize: 15,
+                    height: 1.35,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1A1A1A),
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 9),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isStudyRecord
+                        ? const Color(0xFFF3F1FA)
+                        : const Color(0xFFFFF3F6),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isStudyRecord
+                          ? const Color(0xFFDCD7EF)
+                          : const Color(0xFFFFD5DE),
+                    ),
+                  ),
+                  child: Text(
+                    record.studyTypeName,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: isStudyRecord
+                          ? const Color(0xFF7667A8)
+                          : const Color(0xFFF0788F),
+                    ),
+                  ),
+                ),
+                if (!isStudyRecord && record.memo.trim().isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 11,
+                      vertical: 9,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8F7F8),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.edit_note_outlined,
+                          size: 17,
+                          color: Color(0xFF9AA0AC),
+                        ),
+                        const SizedBox(width: 7),
+                        Expanded(
+                          child: Text(
+                            record.memo,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              height: 1.45,
+                              color: Color(0xFF666A73),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 9),
                 Text(
                   '${record.studiedAt.month}월 '
-                  '${record.studiedAt.day}일'
-                  ' · '
-                  '${_getDayOfWeek(record.studiedAt)}',
+                      '${record.studiedAt.day}일'
+                      ' · '
+                      '${_getDayOfWeek(record.studiedAt)}',
                   style: const TextStyle(
                     fontSize: 11,
                     color: Color(0xFF9AA0AC),
@@ -1420,6 +1960,14 @@ class _StudyRecordTile extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _formatRecordTime(_StudyRecordData record) {
+    if (record.minutes > 0) {
+      return '${record.minutes}분';
+    }
+
+    return '${record.seconds}초';
   }
 
   String _getDayOfWeek(DateTime date) {
@@ -1467,13 +2015,25 @@ class _StudyRecordData {
   final String subject;
   final String description;
   final int minutes;
+  final int seconds;
   final IconData icon;
+  final String source;
+  final String? groupName;
+  final String certificateName;
+  final String studyTypeName;
+  final String memo;
 
   const _StudyRecordData({
     required this.studiedAt,
     required this.subject,
     required this.description,
     required this.minutes,
+    required this.seconds,
     required this.icon,
+    required this.source,
+    required this.groupName,
+    required this.certificateName,
+    required this.studyTypeName,
+    required this.memo,
   });
 }

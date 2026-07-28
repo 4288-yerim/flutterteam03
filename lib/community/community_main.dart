@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../theme.dart';
@@ -40,6 +41,8 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
   TextEditingController();
 
   final FocusNode _searchFocusNode = FocusNode();
+  final Map<String, Future<Map<String, dynamic>>>
+  _writerProfileFutures = {};
 
   CommunityBoardType _selectedBoard = CommunityBoardType.all;
   CommunityPostSort _selectedSort = CommunityPostSort.latest;
@@ -47,11 +50,20 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
   String _selectedCertificateId = '';
   int _streamVersion = 0;
 
+  List<CommunityCertificateTag> _myCertificates = [];
+  Set<CommunityBoardType> _favoriteBoards = {};
+
+  bool _showMyFeed = false;
+  bool _showFavoriteSettings = false;
+  bool _isPreferenceLoading = true;
+  bool _isSavingFavorite = false;
+
   @override
   void initState() {
     super.initState();
 
     _service = widget.service ?? CommunityService();
+    _loadCommunityPreferences();
   }
 
   @override
@@ -60,6 +72,23 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
     _searchFocusNode.dispose();
 
     super.dispose();
+  }
+
+  Future<Map<String, dynamic>> _profileForUid(
+      String writerUid,
+      ) {
+    if (writerUid.isEmpty) {
+      return Future<Map<String, dynamic>>.value({});
+    }
+
+    return _writerProfileFutures.putIfAbsent(
+      writerUid,
+          () {
+        return _service.getUserCommunityProfile(
+          writerUid,
+        );
+      },
+    );
   }
 
   void _openPost(String postId) {
@@ -112,49 +141,154 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
       _selectedBoard = CommunityBoardType.all;
       _selectedSort = CommunityPostSort.latest;
       _selectedCertificateId = '';
+      _showMyFeed = false;
     });
+  }
+
+  Future<void> _loadCommunityPreferences() async {
+    String userUid =
+        FirebaseAuth.instance.currentUser?.uid ?? '';
+
+    if (userUid.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isPreferenceLoading = false;
+      });
+      return;
+    }
+
+    try {
+      List<CommunityCertificateTag> certificates =
+      await _service.getCertifiedCertificateTags(
+        userUid,
+      );
+
+      Set<CommunityBoardType> favoriteBoards =
+      await _service.getFavoriteCommunityBoards(
+        userUid,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _myCertificates = certificates;
+        _favoriteBoards = favoriteBoards;
+        _isPreferenceLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isPreferenceLoading = false;
+      });
+    }
+  }
+
+  Future<void> _toggleFavoriteBoard(
+      CommunityBoardType boardType,
+      ) async {
+    String userUid =
+        FirebaseAuth.instance.currentUser?.uid ?? '';
+
+    if (userUid.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('로그인 후 관심 게시판을 저장할 수 있어요.'),
+        ),
+      );
+      return;
+    }
+
+    if (_isSavingFavorite) {
+      return;
+    }
+
+    bool wasFavorite =
+    _favoriteBoards.contains(boardType);
+
+    setState(() {
+      _isSavingFavorite = true;
+
+      if (wasFavorite) {
+        _favoriteBoards.remove(boardType);
+      } else {
+        _favoriteBoards.add(boardType);
+      }
+    });
+
+    try {
+      await _service.setFavoriteCommunityBoard(
+        userUid: userUid,
+        boardType: boardType,
+        isFavorite: !wasFavorite,
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        if (wasFavorite) {
+          _favoriteBoards.add(boardType);
+        } else {
+          _favoriteBoards.remove(boardType);
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('관심 게시판을 저장하지 못했어요.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSavingFavorite = false;
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
-
       appBar: const AppTopBar(
         title: '커뮤니티',
       ),
 
       body: AppMainBackground(
-        child: Padding(
-          padding: const EdgeInsets.only(
-            top: kToolbarHeight,
-          ),
-          child: StreamBuilder<List<CommunityPost>>(
-            key: ValueKey(_streamVersion),
-            stream: _service.watchPosts(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return AppErrorView(
-                  message: '게시글을 불러오지 못했어요.',
-                  description:
-                  '인터넷 연결과 Firestore 규칙을 확인해 주세요.',
-                  onRetryPressed: () {
-                    setState(() {
-                      _streamVersion++;
-                    });
-                  },
-                );
-              }
+        child: StreamBuilder<List<CommunityPost>>(
+          key: ValueKey(_streamVersion),
+          stream: _service.watchPosts(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return AppErrorView(
+                message: '게시글을 불러오지 못했어요.',
+                description:
+                '인터넷 연결과 Firestore 규칙을 확인해 주세요.',
+                onRetryPressed: () {
+                  setState(() {
+                    _streamVersion++;
+                  });
+                },
+              );
+            }
 
-              if (!snapshot.hasData) {
-                return const AppLoadingView(
-                  message: '커뮤니티를 불러오는 중이에요.',
-                );
-              }
+            if (!snapshot.hasData) {
+              return const AppLoadingView(
+                message: '커뮤니티를 불러오는 중이에요.',
+              );
+            }
 
-              return _buildContent(snapshot.data!);
-            },
-          ),
+            return _buildContent(snapshot.data!);
+          },
         ),
       ),
 
@@ -176,9 +310,17 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
   Widget _buildContent(
       List<CommunityPost> allPosts,
       ) {
+    List<CommunityPost> feedPosts = _showMyFeed
+        ? _service.filterMyFeedPosts(
+      posts: allPosts,
+      certificateTags: _myCertificates,
+      favoriteBoards: _favoriteBoards,
+    )
+        : allPosts;
+
     List<CommunityPost> posts =
     _service.filterAndSortPosts(
-      posts: allPosts,
+      posts: feedPosts,
       boardType: _selectedBoard,
       sort: _selectedSort,
       keyword: _searchController.text,
@@ -204,21 +346,27 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
         slivers: [
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(
-              20,
               16,
-              20,
+              4,
+              16,
               0,
             ),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 _buildSearchField(),
+                const SizedBox(height: 10),
+                _buildFeedControls(),
+                if (_showFavoriteSettings) ...[
+                  const SizedBox(height: 8),
+                  _buildFavoriteBoardChips(),
+                ],
                 const SizedBox(height: 14),
                 _buildBoardChips(),
                 if (certificates.isNotEmpty) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 9),
                   _buildCertificateChips(certificates),
                 ],
-                const SizedBox(height: 24),
+                const SizedBox(height: 18),
                 Row(
                   children: [
                     Expanded(
@@ -227,14 +375,16 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
                         CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _selectedBoard ==
+                            _showMyFeed
+                                ? '내 맞춤 피드'
+                                : _selectedBoard ==
                                 CommunityBoardType.all
                                 ? '전체 게시글'
                                 : '${_selectedBoard.label} 게시판',
                             style: TextStyle(
                               color: context
                                   .communityColors.textPrimary,
-                              fontSize: 18,
+                              fontSize: 17,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -260,9 +410,9 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
           if (allPosts.isEmpty)
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(
-                20,
+                16,
                 0,
-                20,
+                16,
                 110,
               ),
               sliver: SliverToBoxAdapter(
@@ -277,9 +427,9 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
           else if (posts.isEmpty)
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(
-                20,
+                16,
                 0,
-                20,
+                16,
                 110,
               ),
               sliver: SliverToBoxAdapter(
@@ -294,9 +444,9 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
           else
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(
-                20,
+                16,
                 0,
-                20,
+                16,
                 110,
               ),
               sliver: SliverList(
@@ -306,10 +456,14 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
 
                     return Padding(
                       padding: const EdgeInsets.only(
-                        bottom: 12,
+                        bottom: 10,
                       ),
                       child: _CommunityPostCard(
                         post: post,
+                        writerProfileFuture:
+                        _profileForUid(
+                          post.writerUid,
+                        ),
                         onTap: () {
                           _openPost(post.id);
                         },
@@ -334,11 +488,11 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
         setState(() {});
       },
       decoration: InputDecoration(
-        hintText: '제목, 내용, 작성자, 자격증 검색',
+        hintText: '커뮤니티 검색',
         hintStyle: TextStyle(
           color:
           context.communityColors.textSecondary,
-          fontSize: 14,
+          fontSize: 13,
         ),
         prefixIcon: Icon(
           Icons.search_rounded,
@@ -359,24 +513,324 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
         ),
         filled: true,
         fillColor: Colors.white,
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(17),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(17),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(
             color:
             context.communityColors.pinkSoft,
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(17),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(
             color:
             context.communityColors.pinkStart,
+            width: 1.3,
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildFeedControls() {
+    String description;
+
+    if (_isPreferenceLoading) {
+      description = '내 자격증과 관심 게시판을 확인하고 있어요.';
+    } else if (_myCertificates.isEmpty &&
+        _favoriteBoards.isEmpty) {
+      description = '인증 자격증이나 관심 게시판을 선택하면 '
+          '관련 글만 모아서 볼 수 있어요.';
+    } else {
+      List<String> preferenceNames = [
+        ..._myCertificates.map((tag) {
+          return tag.certificateName;
+        }),
+        ..._favoriteBoards.map((board) {
+          return board.label;
+        }),
+      ];
+
+      description =
+          preferenceNames.take(3).join(' · ');
+
+      if (preferenceNames.length > 3) {
+        description =
+        '$description 외 ${preferenceNames.length - 3}개';
+      }
+    }
+
+    return Row(
+      children: [
+        Expanded(
+          child: Material(
+            color: _showMyFeed
+                ? context.communityColors.pinkSoft
+                : Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              onTap: _isPreferenceLoading
+                  ? null
+                  : () {
+                setState(() {
+                  _showMyFeed = !_showMyFeed;
+                  _selectedBoard =
+                      CommunityBoardType.all;
+                  _selectedCertificateId = '';
+                });
+              },
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                height: 54,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 13,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius:
+                  BorderRadius.circular(14),
+                  border: Border.all(
+                    color: _showMyFeed
+                        ? context
+                        .communityColors.pinkStart
+                        : context
+                        .communityColors.pinkSoft,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 19,
+                      color: _showMyFeed
+                          ? context
+                          .communityColors.pinkStart
+                          : context
+                          .communityColors
+                          .textSecondary,
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment:
+                        MainAxisAlignment.center,
+                        crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '내 맞춤 피드',
+                            style: TextStyle(
+                              color: context
+                                  .communityColors
+                                  .textPrimary,
+                              fontSize: 13,
+                              fontWeight:
+                              FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            description,
+                            maxLines: 1,
+                            overflow:
+                            TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: context
+                                  .communityColors
+                                  .textSecondary,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      _showMyFeed
+                          ? Icons.check_circle_rounded
+                          : Icons
+                          .radio_button_unchecked_rounded,
+                      size: 18,
+                      color: _showMyFeed
+                          ? context
+                          .communityColors.pinkStart
+                          : context
+                          .communityColors.pinkSoft,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Material(
+          color: _showFavoriteSettings
+              ? context.communityColors.pinkSoft
+              : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            onTap: () {
+              setState(() {
+                _showFavoriteSettings =
+                !_showFavoriteSettings;
+              });
+            },
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: _showFavoriteSettings
+                      ? context
+                      .communityColors.pinkStart
+                      : context
+                      .communityColors.pinkSoft,
+                ),
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Icon(
+                    _showFavoriteSettings
+                        ? Icons.star_rounded
+                        : Icons.star_border_rounded,
+                    color:
+                    context.communityColors.pinkStart,
+                    size: 23,
+                  ),
+                  if (_favoriteBoards.isNotEmpty)
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Container(
+                        width: 17,
+                        height: 17,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: context
+                              .communityColors.pinkStart,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '${_favoriteBoards.length}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFavoriteBoardChips() {
+    List<CommunityBoardType> boards =
+    CommunityBoardType.values.where((board) {
+      return board != CommunityBoardType.all;
+    }).toList();
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        12,
+        11,
+        12,
+        12,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: context.communityColors.pinkSoft,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '관심 게시판을 선택해 주세요.',
+            style: TextStyle(
+              color:
+              context.communityColors.textSecondary,
+              fontSize: 11,
+            ),
+          ),
+          const SizedBox(height: 9),
+          SizedBox(
+            height: 34,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: boards.length,
+              separatorBuilder: (context, index) {
+                return const SizedBox(width: 7);
+              },
+              itemBuilder: (context, index) {
+                CommunityBoardType board =
+                boards[index];
+
+                bool selected =
+                _favoriteBoards.contains(board);
+
+                return FilterChip(
+                  label: Text(board.label),
+                  avatar: Icon(
+                    selected
+                        ? Icons.star_rounded
+                        : Icons.star_border_rounded,
+                    size: 16,
+                    color: selected
+                        ? context
+                        .communityColors.pinkStart
+                        : context
+                        .communityColors
+                        .textSecondary,
+                  ),
+                  selected: selected,
+                  showCheckmark: false,
+                  onSelected: _isPreferenceLoading
+                      ? null
+                      : (value) {
+                    _toggleFavoriteBoard(board);
+                  },
+                  selectedColor:
+                  context.communityColors.pinkSoft,
+                  backgroundColor: Colors.white,
+                  side: BorderSide(
+                    color: selected
+                        ? context
+                        .communityColors.pinkStart
+                        : context
+                        .communityColors.pinkSoft,
+                  ),
+                  labelStyle: TextStyle(
+                    color: context
+                        .communityColors.textPrimary,
+                    fontSize: 11,
+                    fontWeight: selected
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -409,14 +863,9 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
             },
             selectedColor:
             context.communityColors.pinkStart,
-            backgroundColor: Colors.white,
-            side: BorderSide(
-              color: selected
-                  ? context
-                  .communityColors.pinkStart
-                  : context
-                  .communityColors.pinkSoft,
-            ),
+            backgroundColor:
+            Theme.of(context).colorScheme.surface,
+            side: BorderSide.none,
             labelStyle: TextStyle(
               color: selected
                   ? Colors.white
@@ -499,16 +948,12 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
       },
       child: Container(
         padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 9,
+          horizontal: 10,
+          vertical: 8,
         ),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color:
-            context.communityColors.pinkSoft,
-          ),
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -608,10 +1053,13 @@ class _CertificateFilterChip
 class _CommunityPostCard
     extends StatelessWidget {
   final CommunityPost post;
+  final Future<Map<String, dynamic>>
+  writerProfileFuture;
   final VoidCallback onTap;
 
   const _CommunityPostCard({
     required this.post,
+    required this.writerProfileFuture,
     required this.onTap,
   });
 
@@ -619,12 +1067,12 @@ class _CommunityPostCard
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(19),
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(19),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment:
             CrossAxisAlignment.start,
@@ -671,7 +1119,7 @@ class _CommunityPostCard
                 ],
               ),
 
-              const SizedBox(height: 11),
+              const SizedBox(height: 9),
 
               Row(
                 crossAxisAlignment:
@@ -691,14 +1139,14 @@ class _CommunityPostCard
                             color: context
                                 .communityColors
                                 .textPrimary,
-                            fontSize: 16,
+                            fontSize: 15,
                             height: 1.35,
                             fontWeight:
                             FontWeight.w700,
                           ),
                         ),
 
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 5),
 
                         Text(
                           post.content
@@ -714,7 +1162,7 @@ class _CommunityPostCard
                             color: context
                                 .communityColors
                                 .textSecondary,
-                            fontSize: 13,
+                            fontSize: 12,
                             height: 1.4,
                           ),
                         ),
@@ -757,7 +1205,7 @@ class _CommunityPostCard
               ),
 
               if (post.certificateTags.isNotEmpty) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
 
                 Wrap(
                   spacing: 7,
@@ -782,24 +1230,51 @@ class _CommunityPostCard
                 ),
               ],
 
-              const SizedBox(height: 13),
+              const SizedBox(height: 11),
 
               Row(
                 children: [
                   Flexible(
-                    child: Text(
-                      post.writerNickname,
-                      maxLines: 1,
-                      overflow:
-                      TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: context
-                            .communityColors
-                            .textPrimary,
-                        fontSize: 12,
-                        fontWeight:
-                        FontWeight.w600,
-                      ),
+                    child: FutureBuilder<
+                        Map<String, dynamic>>(
+                      future: writerProfileFuture,
+                      builder: (context, snapshot) {
+                        Map<String, dynamic>
+                        profile =
+                            snapshot.data ?? {};
+
+                        String nickname =
+                            profile['nickname']
+                                ?.toString()
+                                .trim() ??
+                                '';
+
+                        if (nickname.isEmpty ||
+                            nickname == '사용자') {
+                          nickname = post
+                              .writerNickname
+                              .trim();
+                        }
+
+                        if (nickname.isEmpty) {
+                          nickname = '사용자';
+                        }
+
+                        return Text(
+                          nickname,
+                          maxLines: 1,
+                          overflow:
+                          TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: context
+                                .communityColors
+                                .textPrimary,
+                            fontSize: 12,
+                            fontWeight:
+                            FontWeight.w600,
+                          ),
+                        );
+                      },
                     ),
                   ),
 
