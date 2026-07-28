@@ -7,6 +7,7 @@ class CommunityComment {
   final String writerNickname;
   final String writerProfileImageUrl;
   final String content;
+  final int likeCount;
   final bool isAccepted;
   final String commentStatus;
   final DateTime? createdAt;
@@ -20,6 +21,7 @@ class CommunityComment {
     required this.writerNickname,
     required this.writerProfileImageUrl,
     required this.content,
+    required this.likeCount,
     required this.isAccepted,
     required this.commentStatus,
     required this.createdAt,
@@ -46,6 +48,7 @@ class CommunityComment {
       writerProfileImageUrl:
       data['writerProfileImageUrl']?.toString() ?? '',
       content: data['content']?.toString() ?? '',
+      likeCount: _readInt(data['likeCount']),
       isAccepted: data['isAccepted'] == true,
       commentStatus:
       data['commentStatus']?.toString() ?? 'NORMAL',
@@ -65,5 +68,17 @@ class CommunityComment {
     }
 
     return null;
+  }
+
+  static int _readInt(dynamic value) {
+    if (value is int) {
+      return value;
+    }
+
+    if (value is num) {
+      return value.toInt();
+    }
+
+    return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 }
