@@ -13,6 +13,137 @@ class HomeService {
   final FirebaseAuth _firebaseAuth;
   final FirebaseFirestore _firestore;
 
+  /// 홈 새로고침 시 현재 사용자의 스터디 프로필을 다시 동기화합니다.
+  ///
+  /// 동기화 대상:
+  /// 1. studyGroups/{studyId}/members/{uid}.nickname
+  /// 2. 방장인 경우 studyGroups/{studyId}.ownerNickname
+  Future<void> refreshCurrentUserStudyData() async {
+    final User? currentUser = _firebaseAuth.currentUser;
+
+    if (currentUser == null) {
+      throw const HomeServiceException(
+        '로그인 정보를 확인할 수 없습니다.',
+      );
+    }
+
+    try {
+      Map<String, dynamic> userData = <String, dynamic>{};
+
+      // 우선 users/{uid} 문서 구조를 확인합니다.
+      final DocumentSnapshot<Map<String, dynamic>> directUserSnapshot =
+      await _firestore
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      if (directUserSnapshot.exists) {
+        userData = directUserSnapshot.data() ?? <String, dynamic>{};
+      } else {
+        // 기존 데이터가 자동 문서 ID를 사용한 경우 uid 필드로 다시 찾습니다.
+        final QuerySnapshot<Map<String, dynamic>> userSnapshot =
+        await _firestore
+            .collection('users')
+            .where(
+          'uid',
+          isEqualTo: currentUser.uid,
+        )
+            .limit(1)
+            .get();
+
+        if (userSnapshot.docs.isNotEmpty) {
+          userData = userSnapshot.docs.first.data();
+        }
+      }
+
+      String nickname =
+          userData['nickname']?.toString().trim() ?? '';
+
+      // Firestore 닉네임이 없는 기존 사용자는
+      // Firebase Auth displayName을 보조값으로 사용합니다.
+      if (nickname.isEmpty) {
+        nickname = currentUser.displayName?.trim() ?? '';
+      }
+
+      // 실제 닉네임을 찾지 못한 경우
+      // "사용자" 같은 임시값을 DB에 저장하지 않습니다.
+      if (nickname.isEmpty) {
+        return;
+      }
+
+      final QuerySnapshot<Map<String, dynamic>> groupSnapshot =
+      await _firestore
+          .collection('studyGroups')
+          .get();
+
+      for (final QueryDocumentSnapshot<Map<String, dynamic>> groupDocument
+      in groupSnapshot.docs) {
+        final Map<String, dynamic> groupData =
+        groupDocument.data();
+
+        final DocumentReference<Map<String, dynamic>> memberDocument =
+        groupDocument.reference
+            .collection('members')
+            .doc(currentUser.uid);
+
+        final DocumentSnapshot<Map<String, dynamic>> memberSnapshot =
+        await memberDocument.get();
+
+        // 가입하지 않은 스터디는 건너뜁니다.
+        if (!memberSnapshot.exists) {
+          continue;
+        }
+
+        final Map<String, dynamic> memberData =
+            memberSnapshot.data() ?? <String, dynamic>{};
+
+        final String savedMemberNickname =
+            memberData['nickname']?.toString().trim() ?? '';
+
+        // 스터디 멤버 문서의 닉네임이 다를 때만 수정합니다.
+        if (savedMemberNickname != nickname) {
+          await memberDocument.set(
+            <String, dynamic>{
+              'uid': currentUser.uid,
+              'nickname': nickname,
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true),
+          );
+        }
+
+        final String ownerUid =
+            groupData['ownerUid']?.toString().trim() ?? '';
+
+        // 현재 사용자가 방장인 경우 그룹 문서의 방장 닉네임도 수정합니다.
+        if (ownerUid == currentUser.uid) {
+          final String savedOwnerNickname =
+              groupData['ownerNickname']?.toString().trim() ?? '';
+
+          if (savedOwnerNickname != nickname) {
+            await groupDocument.reference.set(
+              <String, dynamic>{
+                'ownerNickname': nickname,
+                'updatedAt': FieldValue.serverTimestamp(),
+              },
+              SetOptions(merge: true),
+            );
+          }
+        }
+      }
+    } on FirebaseException catch (error) {
+      throw HomeServiceException(
+        error.message ?? '홈 정보를 새로고침하지 못했습니다.',
+      );
+    } on HomeServiceException {
+      rethrow;
+    } catch (error) {
+      throw HomeServiceException(
+        '홈 정보를 새로고침하는 중 오류가 발생했습니다.\n$error',
+      );
+    }
+  }
+
   Future<String> getCurrentUserNickname() async {
     final user = _firebaseAuth.currentUser;
 
@@ -742,6 +873,7 @@ class HomeService {
               0;
 
       final nicknameByUid = <String, String>{};
+      final memberStatusByUid = <String, String>{};
       final activeMemberUids = <String>[];
 
       int studyingMemberCount = 0;
@@ -770,6 +902,23 @@ class HomeService {
             .trim()
             .toUpperCase();
 
+        // 탈퇴 여부를 나중에 확인할 수 있도록
+        // 모든 멤버의 상태를 먼저 저장합니다.
+        memberStatusByUid[memberUid] = memberStatus;
+
+        // 탈퇴한 멤버의 기존 닉네임도 일단 보관합니다.
+        nicknameByUid[memberUid] = _readStudyText(
+          memberData,
+          const [
+            'nickname',
+            'displayName',
+            'name',
+          ],
+          memberUid == uid ? '나' : '사용자',
+        );
+
+        // 현재 활동 중인 멤버와 방장만
+        // 현재 멤버 상태 및 0초 순위 목록에 포함합니다.
         if (memberStatus != 'ACTIVE' &&
             memberRole != 'OWNER') {
           continue;
@@ -792,18 +941,7 @@ class HomeService {
             break;
         }
 
-        final nickname = _readStudyText(
-          memberData,
-          const [
-            'nickname',
-            'displayName',
-            'name',
-          ],
-          memberUid == uid ? '나' : '사용자',
-        );
-
         activeMemberUids.add(memberUid);
-        nicknameByUid[memberUid] = nickname;
       }
 
       final ownerUid =
@@ -897,12 +1035,19 @@ class HomeService {
       }
 
       final members = memberSeconds.entries.map((entry) {
+        final memberStatus =
+            memberStatusByUid[entry.key] ?? '';
+
+        final hasLeft = memberStatus == 'LEFT';
+
         return HomeStudyGroupMemberSummary(
           uid: entry.key,
-          nickname:
-          nicknameByUid[entry.key] ?? '사용자',
+          nickname: hasLeft
+              ? '스터디 탈퇴 사용자'
+              : nicknameByUid[entry.key] ?? '사용자',
           studySeconds: entry.value,
           isCurrentUser: entry.key == uid,
+          memberStatus: memberStatus,
         );
       }).toList()
         ..sort((first, second) {
@@ -1241,13 +1386,19 @@ class HomeStudyGroupMemberSummary {
   final String nickname;
   final int studySeconds;
   final bool isCurrentUser;
+  final String memberStatus;
 
   const HomeStudyGroupMemberSummary({
     required this.uid,
     required this.nickname,
     required this.studySeconds,
     required this.isCurrentUser,
+    this.memberStatus = '',
   });
+
+  bool get hasLeft {
+    return memberStatus == 'LEFT';
+  }
 }
 
 class HomeTodo {

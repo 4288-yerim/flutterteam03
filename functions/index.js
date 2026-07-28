@@ -1896,3 +1896,10 @@ exports.addCertificationFromAi = onCall(
     };
   }
 );
+
+const {
+  sendTestPush,
+} = require("./notifications/notification_test");
+
+exports.sendTestPush = sendTestPush;
+);

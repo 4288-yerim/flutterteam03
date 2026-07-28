@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../widgets/app_main_background.dart';
+import '../../widgets/app_state_views.dart';
 import '../../widgets/app_top_bar.dart';
 import '../services/certificate_schedule_service.dart';
 import '../widgets/certificate_common_widgets.dart';
@@ -176,7 +177,9 @@ class _CertificateSchedulePageState extends State<CertificateSchedulePage> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const CertificateScheduleLoading();
+      return const AppLoadingView(
+        message: '자격증 일정을 불러오는 중입니다.',
+      );
     }
 
     if (_loadError != null) {

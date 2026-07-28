@@ -1300,6 +1300,106 @@ class _HomeStudyGroupItemState
         ' · 일시정지 ${group.pausedMemberCount}명';
   }
 
+  Widget _buildRankBadge(int rank) {
+    // 4등부터는 배경 없이 검은색 숫자만 표시합니다.
+    if (rank >= 4) {
+      return SizedBox(
+        width: 38,
+        height: 38,
+        child: Center(
+          child: Text(
+            '$rank',
+            style: const TextStyle(
+              color: Color(0xFF302C2E),
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final Color backgroundColor;
+    final Color textColor;
+
+    switch (rank) {
+      case 1:
+        backgroundColor = const Color(0xFFFFD86B);
+        textColor = const Color(0xFF795A00);
+        break;
+
+      case 2:
+        backgroundColor = const Color(0xFFD9DEE7);
+        textColor = const Color(0xFF596273);
+        break;
+
+      case 3:
+        backgroundColor = const Color(0xFFD99A6C);
+        textColor = const Color(0xFF6C351D);
+        break;
+
+      default:
+        backgroundColor = Colors.transparent;
+        textColor = const Color(0xFF302C2E);
+    }
+
+    return SizedBox(
+      width: 42,
+      height: 44,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          Positioned(
+            bottom: 0,
+            child: Container(
+              width: 36,
+              height: 36,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: backgroundColor.withValues(
+                      alpha: 0.28,
+                    ),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Text(
+                '$rank',
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+
+          if (rank == 1)
+            Positioned(
+              top: -4,
+              right: -1,
+              child: Transform.rotate(
+                angle: 0.28,
+                child: const Text(
+                  '👑',
+                  style: TextStyle(
+                    fontSize: 19,
+                    height: 1,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final group = widget.group;
@@ -1458,36 +1558,7 @@ class _HomeStudyGroupItemState
                         ),
                         child: Row(
                           children: [
-                            CircleAvatar(
-                              radius: 17,
-                              backgroundColor:
-                              member.isCurrentUser
-                                  ? const Color(
-                                0xFFFCEFF3,
-                              )
-                                  : const Color(
-                                0xFFF4F1FF,
-                              ),
-                              child: Text(
-                                member.nickname.isEmpty
-                                    ? '?'
-                                    : member.nickname
-                                    .substring(0, 1),
-                                style: TextStyle(
-                                  color:
-                                  member.isCurrentUser
-                                      ? const Color(
-                                    0xFFF0788F,
-                                  )
-                                      : const Color(
-                                    0xFF8874C9,
-                                  ),
-                                  fontSize: 13,
-                                  fontWeight:
-                                  FontWeight.w800,
-                                ),
-                              ),
-                            ),
+                            _buildRankBadge(index + 1),
                             const SizedBox(width: 11),
                             Expanded(
                               child: Row(
@@ -1496,22 +1567,20 @@ class _HomeStudyGroupItemState
                                     child: Text(
                                       member.nickname,
                                       maxLines: 1,
-                                      overflow:
-                                      TextOverflow
-                                          .ellipsis,
-                                      style:
-                                      const TextStyle(
-                                        color: Color(
-                                          0xFF302C2E,
-                                        ),
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: member.hasLeft
+                                            ? const Color(0xFF9A9396)
+                                            : const Color(0xFF302C2E),
                                         fontSize: 14,
-                                        fontWeight:
-                                        FontWeight.w600,
+                                        fontWeight: member.hasLeft
+                                            ? FontWeight.w500
+                                            : FontWeight.w600,
                                       ),
                                     ),
                                   ),
-                                  if (member
-                                      .isCurrentUser) ...[
+                                  if (member.isCurrentUser &&
+                                      !member.hasLeft) ...[
                                     const SizedBox(
                                       width: 6,
                                     ),

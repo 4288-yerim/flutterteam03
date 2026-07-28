@@ -477,20 +477,6 @@ class EmptyCertificateScheduleCard
   }
 }
 
-class CertificateScheduleLoading
-    extends StatelessWidget {
-  const CertificateScheduleLoading({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: CircularProgressIndicator(
-        color: certificatePrimaryPink,
-      ),
-    );
-  }
-}
-
 class CertificateScheduleLoadError
     extends StatelessWidget {
   final String message;

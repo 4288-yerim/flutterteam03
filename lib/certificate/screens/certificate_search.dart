@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../widgets/app_main_background.dart';
+import '../../widgets/app_state_views.dart';
 import '../../widgets/app_top_bar.dart';
 import '../services/certificate_search_service.dart';
 import '../widgets/certificate_common_widgets.dart';
@@ -427,10 +428,8 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          color: certificatePrimaryPink,
-        ),
+      return const AppLoadingView(
+        message: '자격증 정보를 불러오는 중입니다.',
       );
     }
 
