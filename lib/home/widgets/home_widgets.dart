@@ -647,23 +647,23 @@ class _HomeTodoItem extends StatelessWidget {
     return '$hour:$minute';
   }
 
-  String _formatTimeRange() {
-    return '${_formatTime(todo.startPlannedAt)}'
-        ' - '
-        '${_formatTime(todo.endPlannedAt)}';
+  String? _formatTimeRange() {
+    final DateTime? start = todo.startPlannedAt;
+    final DateTime? end = todo.endPlannedAt;
+
+    if (start == null || end == null) {
+      return null;
+    }
+
+    return '${_formatTime(start)} - ${_formatTime(end)}';
   }
 
   Color _getPlanTypeColor() {
-    switch (todo.planType) {
-      case 'AIADD':
-        return const Color(0xFF9B7BEA);
-
-      case 'USERADD':
-        return const Color(0xFF62BE88);
-
-      default:
-        return const Color(0xFFB3AAAD);
+    if (todo.planType == 'USERADD') {
+      return const Color(0xFF62BE88);
     }
+
+    return const Color(0xFF9B7BEA);
   }
 
   @override
@@ -717,15 +717,27 @@ class _HomeTodoItem extends StatelessWidget {
                     decorationColor: const Color(0xFF8D8789),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  _formatTimeRange(),
-                  style: const TextStyle(
-                    color: Color(0xFF817B7D),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
+                if (_formatTimeRange() != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _formatTimeRange()!,
+                    style: const TextStyle(
+                      color: Color(0xFF817B7D),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                    ),
                   ),
-                ),
+                ] else if (todo.description.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    todo.description,
+                    style: const TextStyle(
+                      color: Color(0xFF817B7D),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

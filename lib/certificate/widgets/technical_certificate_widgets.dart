@@ -58,6 +58,8 @@ class _TechnicalScheduleCardState
 
   @override
   Widget build(BuildContext context) {
+    final scheduleStatus = _resolveScheduleStatus();
+
     final items = <CertificateInfoItem>[
       if (_hasDate(
         widget.writtenRegistrationStartAt,
@@ -166,7 +168,17 @@ class _TechnicalScheduleCardState
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+
+                  if (scheduleStatus != null) ...[
+                    const SizedBox(width: 8),
+                    CertificateScheduleStatusBadge(
+                      label: scheduleStatus.label,
+                      isActive: scheduleStatus.isActive,
+                    ),
+                  ],
+
+                  const SizedBox(width: 10),
+
                   AnimatedRotation(
                     turns: _isExpanded ? 0.5 : 0,
                     duration: const Duration(
@@ -273,6 +285,222 @@ class _TechnicalScheduleCardState
     );
   }
 
+  _TechnicalScheduleStatus? _resolveScheduleStatus() {
+    final today = _dateOnly(
+      DateTime.now(),
+    );
+
+    /*
+     * 회차 전체 종료 판단
+     *
+     * 해당 회차에 존재하는 모든 일정의 마지막 날짜가
+     * 오늘보다 이전이면 더 이상 남은 일정이 없으므로 종료한다.
+     */
+    if (_isEntireScheduleFinished(today)) {
+      return const _TechnicalScheduleStatus(
+        label: '종료',
+        isActive: false,
+      );
+    }
+
+    /*
+     * 현재 진행 중인 단계
+     *
+     * 일정이 겹치면 뒤쪽 단계가 우선 표시되도록
+     * 실기시험부터 역순으로 검사한다.
+     */
+
+    if (_isDateWithinRange(
+      today,
+      widget.practicalExamStartAt,
+      widget.practicalExamEndAt,
+    )) {
+      return const _TechnicalScheduleStatus(
+        label: '실기시험 진행중',
+        isActive: true,
+      );
+    }
+
+    if (_isDateWithinRange(
+      today,
+      widget.practicalRegistrationStartAt,
+      widget.practicalRegistrationEndAt,
+    )) {
+      return const _TechnicalScheduleStatus(
+        label: '실기 원서접수 중',
+        isActive: true,
+      );
+    }
+
+    if (_isDateWithinRange(
+      today,
+      widget.writtenExamStartAt,
+      widget.writtenExamEndAt,
+    )) {
+      return const _TechnicalScheduleStatus(
+        label: '필기시험 진행중',
+        isActive: true,
+      );
+    }
+
+    if (_isDateWithinRange(
+      today,
+      widget.writtenRegistrationStartAt,
+      widget.writtenRegistrationEndAt,
+    )) {
+      return const _TechnicalScheduleStatus(
+        label: '필기 원서접수 중',
+        isActive: true,
+      );
+    }
+
+    /*
+     * 현재 진행 중인 일정이 없으면
+     * 가장 최근에 끝난 원서접수·시험 단계를 표시한다.
+     *
+     * 합격자 발표와 서류 제출은 회차 종료 판단에는 포함하지만
+     * 별도 상태 뱃지는 표시하지 않는다.
+     */
+
+    if (_isRangeFinished(
+      today,
+      widget.practicalExamStartAt,
+      widget.practicalExamEndAt,
+    )) {
+      return const _TechnicalScheduleStatus(
+        label: '실기시험 종료',
+        isActive: false,
+      );
+    }
+
+    if (_isRangeFinished(
+      today,
+      widget.practicalRegistrationStartAt,
+      widget.practicalRegistrationEndAt,
+    )) {
+      return const _TechnicalScheduleStatus(
+        label: '실기 원서접수 종료',
+        isActive: false,
+      );
+    }
+
+    if (_isRangeFinished(
+      today,
+      widget.writtenExamStartAt,
+      widget.writtenExamEndAt,
+    )) {
+      return const _TechnicalScheduleStatus(
+        label: '필기시험 종료',
+        isActive: false,
+      );
+    }
+
+    if (_isRangeFinished(
+      today,
+      widget.writtenRegistrationStartAt,
+      widget.writtenRegistrationEndAt,
+    )) {
+      return const _TechnicalScheduleStatus(
+        label: '필기 원서접수 종료',
+        isActive: false,
+      );
+    }
+
+    return null;
+  }
+
+  bool _isEntireScheduleFinished(
+      DateTime today,
+      ) {
+    final scheduleDates = <DateTime?>[
+      widget.writtenRegistrationStartAt,
+      widget.writtenRegistrationEndAt,
+
+      widget.writtenExamStartAt,
+      widget.writtenExamEndAt,
+
+      widget.writtenPassAt,
+
+      widget.documentSubmitStartAt,
+      widget.documentSubmitEndAt,
+
+      widget.practicalRegistrationStartAt,
+      widget.practicalRegistrationEndAt,
+
+      widget.practicalExamStartAt,
+      widget.practicalExamEndAt,
+
+      widget.practicalPassStartAt,
+      widget.practicalPassEndAt,
+    ];
+
+    final existingDates = scheduleDates
+        .whereType<DateTime>()
+        .map(_dateOnly)
+        .toList();
+
+    if (existingDates.isEmpty) {
+      return false;
+    }
+
+    final lastScheduleDate = existingDates.reduce(
+          (currentLatest, date) {
+        return date.isAfter(currentLatest)
+            ? date
+            : currentLatest;
+      },
+    );
+
+    return lastScheduleDate.isBefore(today);
+  }
+
+  static bool _isDateWithinRange(
+      DateTime today,
+      DateTime? startDate,
+      DateTime? endDate,
+      ) {
+    if (startDate == null && endDate == null) {
+      return false;
+    }
+
+    final start = _dateOnly(
+      startDate ?? endDate!,
+    );
+
+    final end = _dateOnly(
+      endDate ?? startDate!,
+    );
+
+    return !today.isBefore(start) &&
+        !today.isAfter(end);
+  }
+
+  static bool _isRangeFinished(
+      DateTime today,
+      DateTime? startDate,
+      DateTime? endDate,
+      ) {
+    if (startDate == null && endDate == null) {
+      return false;
+    }
+
+    final lastDate = _dateOnly(
+      endDate ?? startDate!,
+    );
+
+    return lastDate.isBefore(today);
+  }
+
+  static DateTime _dateOnly(DateTime date) {
+    final local = date.toLocal();
+
+    return DateTime(
+      local.year,
+      local.month,
+      local.day,
+    );
+  }
+
   static bool _hasDate(
       DateTime? startDate,
       DateTime? endDate,
@@ -319,6 +547,16 @@ class _TechnicalScheduleCardState
 
     return '$year.$month.$day';
   }
+}
+
+class _TechnicalScheduleStatus {
+  final String label;
+  final bool isActive;
+
+  const _TechnicalScheduleStatus({
+    required this.label,
+    required this.isActive,
+  });
 }
 
 class TechnicalExamInformationCard extends StatelessWidget {
@@ -731,6 +969,11 @@ class CertificateScheduleNoticeCard extends StatelessWidget {
           const _ScheduleNoticeRow(
             text:
             '접수 일정 전에 공지되는 해당 회별 수험자 안내(Q-Net 공지사항 게시)를 반드시 확인해야 합니다.',
+          ),
+          const SizedBox(height: 11),
+          const _ScheduleNoticeRow(
+            text:
+            '빈자리 원서접수 기간이 운영될 수 있으나, 자격증 상세보기에는 표시되지 않을 수 있습니다.',
           ),
           const SizedBox(height: 17),
           Align(

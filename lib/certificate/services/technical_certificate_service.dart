@@ -659,7 +659,6 @@ class PracticalMaterialPrecautions {
   factory PracticalMaterialPrecautions.fromDynamic(
       dynamic value,
       ) {
-    // 새로운 객체 구조
     if (value is Map) {
       final map = Map<String, dynamic>.from(value);
       final rawBlocks = map['blocks'];
@@ -683,7 +682,6 @@ class PracticalMaterialPrecautions {
       );
     }
 
-    // 기존 List<String> 구조도 임시 호환
     if (value is List) {
       final items = value
           .map(

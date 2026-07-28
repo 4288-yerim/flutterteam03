@@ -41,7 +41,9 @@ class _AppSettingScreenState
   String _fontSizeMode = 'MEDIUM';
 
   bool _applicationStartAlertEnabled = true;
+  bool _applicationEndD1AlertEnabled = true;
   bool _examD7AlertEnabled = true;
+  bool _examD1AlertEnabled = true;
   bool _examDayAlertEnabled = true;
   bool _resultAlertEnabled = true;
 
@@ -98,8 +100,12 @@ class _AppSettingScreenState
             _readBool(data, 'certificateAlertEnabled', true);
         _applicationStartAlertEnabled =
             _readBool(data, 'applicationStartAlertEnabled', true);
+        _applicationEndD1AlertEnabled =
+            _readBool(data, 'applicationEndD1AlertEnabled', true);
         _examD7AlertEnabled =
             _readBool(data, 'examD7AlertEnabled', true);
+        _examD1AlertEnabled =
+            _readBool(data, 'examD1AlertEnabled', true);
         _examDayAlertEnabled =
             _readBool(data, 'examDayAlertEnabled', true);
         _resultAlertEnabled =
@@ -193,7 +199,9 @@ class _AppSettingScreenState
         'pushEnabled': _pushEnabled,
         'certificateAlertEnabled': _certificateAlertEnabled,
         'applicationStartAlertEnabled': _applicationStartAlertEnabled,
+        'applicationEndD1AlertEnabled': _applicationEndD1AlertEnabled,
         'examD7AlertEnabled': _examD7AlertEnabled,
+        'examD1AlertEnabled': _examD1AlertEnabled,
         'examDayAlertEnabled': _examDayAlertEnabled,
         'resultAlertEnabled': _resultAlertEnabled,
         'studyAlertEnabled': _studyAlertEnabled,
@@ -523,6 +531,24 @@ class _AppSettingScreenState
           const _SettingDivider(),
 
           _SettingSwitchTile(
+            title: '접수 마감 전날',
+            subtitle: '자격증 원서 접수 마감 하루 전에 알려줍니다.',
+            value: _applicationEndD1AlertEnabled,
+            enabled: _pushEnabled &&
+                _certificateAlertEnabled,
+            isChildSetting: true,
+            onChanged: (value) {
+              setState(() {
+                _applicationEndD1AlertEnabled = value;
+              });
+
+              _saveSettings();
+            },
+          ),
+
+          const _SettingDivider(),
+
+          _SettingSwitchTile(
             title: '시험 D-7',
             subtitle: '시험일 7일 전에 알려줍니다.',
             value: _examD7AlertEnabled,
@@ -532,6 +558,24 @@ class _AppSettingScreenState
             onChanged: (value) {
               setState(() {
                 _examD7AlertEnabled = value;
+              });
+
+              _saveSettings();
+            },
+          ),
+
+          const _SettingDivider(),
+
+          _SettingSwitchTile(
+            title: '시험 전날',
+            subtitle: '시험 하루 전에 알려줍니다.',
+            value: _examD1AlertEnabled,
+            enabled: _pushEnabled &&
+                _certificateAlertEnabled,
+            isChildSetting: true,
+            onChanged: (value) {
+              setState(() {
+                _examD1AlertEnabled = value;
               });
 
               _saveSettings();

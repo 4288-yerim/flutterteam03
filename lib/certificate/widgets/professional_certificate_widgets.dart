@@ -70,6 +70,9 @@ class _ProfessionalScheduleCardState
   @override
   Widget build(BuildContext context) {
     final schedule = widget.schedule;
+    final scheduleStatus = _resolveScheduleStatus(
+      schedule,
+    );
 
     final items = <CertificateInfoItem>[
       if (_hasDate(
@@ -139,27 +142,11 @@ class _ProfessionalScheduleCardState
                       ),
                     ),
                   ),
-                  if (schedule.isPast) ...[
+                  if (scheduleStatus != null) ...[
                     const SizedBox(width: 8),
-                    Container(
-                      padding:
-                      const EdgeInsets.symmetric(
-                        horizontal: 9,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF2F3F6),
-                        borderRadius:
-                        BorderRadius.circular(20),
-                      ),
-                      child: const Text(
-                        '종료',
-                        style: TextStyle(
-                          color: certificateGrayText,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                    CertificateScheduleStatusBadge(
+                      label: scheduleStatus.label,
+                      isActive: scheduleStatus.isActive,
                     ),
                   ],
                   const SizedBox(width: 10),
@@ -264,6 +251,195 @@ class _ProfessionalScheduleCardState
     );
   }
 
+  _ProfessionalScheduleStatus? _resolveScheduleStatus(
+      ProfessionalCertificateSchedule schedule,
+      ) {
+    final today = _dateOnly(
+      DateTime.now(),
+    );
+
+    final prefix = _resolveExamPrefix(
+      schedule.description,
+    );
+
+    final examLabel = prefix.isEmpty
+        ? '시험'
+        : '${prefix}시험';
+
+    final registrationLabel = prefix.isEmpty
+        ? '원서접수'
+        : '$prefix 원서접수';
+
+    /*
+     * 원서접수, 시험, 합격자 발표 일정이 모두 끝났으면
+     * 해당 회차 전체 종료
+     */
+    if (_isEntireScheduleFinished(
+      today,
+      schedule,
+    )) {
+      return const _ProfessionalScheduleStatus(
+        label: '종료',
+        isActive: false,
+      );
+    }
+
+    // 시험 진행 중
+    if (_isDateWithinRange(
+      today,
+      schedule.examStartAt,
+      schedule.examEndAt,
+    )) {
+      return _ProfessionalScheduleStatus(
+        label: '$examLabel 진행중',
+        isActive: true,
+      );
+    }
+
+    // 원서접수 진행 중
+    if (_isDateWithinRange(
+      today,
+      schedule.examRegistrationStartAt,
+      schedule.examRegistrationEndAt,
+    )) {
+      return _ProfessionalScheduleStatus(
+        label: '$registrationLabel 중',
+        isActive: true,
+      );
+    }
+
+    /*
+     * 현재 진행 중인 일정이 없다면 최근에 종료된 단계 표시
+     *
+     * 합격자 발표는 전체 종료 판단에만 사용하고
+     * 별도 뱃지는 표시하지 않는다.
+     */
+
+    if (_isRangeFinished(
+      today,
+      schedule.examStartAt,
+      schedule.examEndAt,
+    )) {
+      return _ProfessionalScheduleStatus(
+        label: '$examLabel 종료',
+        isActive: false,
+      );
+    }
+
+    if (_isRangeFinished(
+      today,
+      schedule.examRegistrationStartAt,
+      schedule.examRegistrationEndAt,
+    )) {
+      return _ProfessionalScheduleStatus(
+        label: '$registrationLabel 종료',
+        isActive: false,
+      );
+    }
+
+    return null;
+  }
+
+  static bool _isEntireScheduleFinished(
+      DateTime today,
+      ProfessionalCertificateSchedule schedule,
+      ) {
+    final scheduleDates = <DateTime?>[
+      schedule.examRegistrationStartAt,
+      schedule.examRegistrationEndAt,
+
+      schedule.examStartAt,
+      schedule.examEndAt,
+
+      schedule.passStartAt,
+      schedule.passEndAt,
+    ];
+
+    final existingDates = scheduleDates
+        .whereType<DateTime>()
+        .map(_dateOnly)
+        .toList();
+
+    if (existingDates.isEmpty) {
+      return false;
+    }
+
+    final lastScheduleDate = existingDates.reduce(
+          (currentLatest, date) {
+        return date.isAfter(currentLatest)
+            ? date
+            : currentLatest;
+      },
+    );
+
+    return lastScheduleDate.isBefore(today);
+  }
+
+  static String _resolveExamPrefix(
+      String description,
+      ) {
+    if (description.contains('필기')) {
+      return '필기';
+    }
+
+    if (description.contains('실기')) {
+      return '실기';
+    }
+
+    if (description.contains('면접')) {
+      return '면접';
+    }
+
+    return '';
+  }
+
+  static bool _isDateWithinRange(
+      DateTime today,
+      DateTime? startDate,
+      DateTime? endDate,
+      ) {
+    if (startDate == null && endDate == null) {
+      return false;
+    }
+
+    final start = _dateOnly(
+      startDate ?? endDate!,
+    );
+
+    final end = _dateOnly(
+      endDate ?? startDate!,
+    );
+
+    return !today.isBefore(start) &&
+        !today.isAfter(end);
+  }
+
+  static bool _isRangeFinished(
+      DateTime today,
+      DateTime? startDate,
+      DateTime? endDate,
+      ) {
+    if (startDate == null && endDate == null) {
+      return false;
+    }
+
+    final lastDate = _dateOnly(
+      endDate ?? startDate!,
+    );
+
+    return lastDate.isBefore(today);
+  }
+
+  static DateTime _dateOnly(DateTime date) {
+    final local = date.toLocal();
+
+    return DateTime(
+      local.year,
+      local.month,
+      local.day,
+    );
+  }
+
   static bool _hasDate(
       DateTime? startDate,
       DateTime? endDate,
@@ -304,6 +480,16 @@ class _ProfessionalScheduleCardState
         '${local.month.toString().padLeft(2, '0')}.'
         '${local.day.toString().padLeft(2, '0')}';
   }
+}
+
+class _ProfessionalScheduleStatus {
+  final String label;
+  final bool isActive;
+
+  const _ProfessionalScheduleStatus({
+    required this.label,
+    required this.isActive,
+  });
 }
 
 class ProfessionalEmptyTab extends StatelessWidget {

@@ -12,7 +12,6 @@ class CertificateSearchService {
     return _firestore.collection('certifications');
   }
 
-  /// 검색페이지에서 사용할 전체 자격증 목록 조회
   Future<List<Certification>> getCertifications() async {
     try {
       final snapshot = await _certificationsCollection.get();
@@ -36,28 +35,21 @@ class CertificateSearchService {
   }
 }
 
-/// 검색페이지와 상세페이지가 공통으로 사용하는 자격증 데이터 클래스
 class Certification {
   final String id;
 
-  /// T: 국가기술자격
-  /// S: 국가전문자격
   final String qualgbcd;
   final String qualgbnm;
 
-  /// 국가기술자격 직무 분야
   final String obligfldcd;
   final String obligfldnm;
 
-  /// 국가기술자격 분류
   final String mdobligfldcd;
   final String mdobligfldnm;
 
-  /// 국가전문자격 분야
   final String seriescd;
   final String seriesnm;
 
-  /// 자격증 이름
   final String name;
   final String jmcd;
 
