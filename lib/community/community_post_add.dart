@@ -250,6 +250,7 @@ class _CommunityPostAddPageState
       _AttachmentUploadResult attachments =
       await _uploadAttachments(
         postId: postId,
+        userUid: user.uid,
         uploadedPaths: uploadedPaths,
       );
 
@@ -272,7 +273,7 @@ class _CommunityPostAddPageState
       }
 
       Navigator.pop(context, postId);
-    } catch (error) {
+    } catch (error, stackTrace) {
       await _deleteUploadedFiles(uploadedPaths);
 
       if (!mounted) {
@@ -283,7 +284,24 @@ class _CommunityPostAddPageState
         _isSaving = false;
       });
 
-      _showMessage('게시글을 저장하지 못했어요. 다시 시도해 주세요.');
+      debugPrint('커뮤니티 게시글 저장 실패: $error');
+      debugPrintStack(stackTrace: stackTrace);
+
+      String message =
+          '게시글을 저장하지 못했어요. 다시 시도해 주세요.';
+
+      if (error is FirebaseException) {
+        if (error.code == 'unauthorized' ||
+            error.code == 'permission-denied') {
+          message = '사진 또는 파일 업로드 권한이 없어요. '
+              'Firebase 규칙을 확인해 주세요.';
+        } else if (error.code == 'retry-limit-exceeded') {
+          message = '인터넷 연결이 불안정해요. '
+              '잠시 후 다시 시도해 주세요.';
+        }
+      }
+
+      _showMessage(message);
     }
   }
 
@@ -310,6 +328,7 @@ class _CommunityPostAddPageState
 
   Future<_AttachmentUploadResult> _uploadAttachments({
     required String postId,
+    required String userUid,
     required List<String> uploadedPaths,
   }) async {
     List<Map<String, dynamic>> images = [];
@@ -331,6 +350,9 @@ class _CommunityPostAddPageState
         file.bytes!,
         SettableMetadata(
           contentType: _imageContentType(file.extension),
+          customMetadata: {
+            'uploaderUid': userUid,
+          },
         ),
       );
 
@@ -359,6 +381,7 @@ class _CommunityPostAddPageState
           contentType: 'application/octet-stream',
           customMetadata: {
             'originalName': file.name,
+            'uploaderUid': userUid,
           },
         ),
       );
@@ -531,9 +554,11 @@ class _CommunityPostAddPageState
             controller: _certificateController,
             enabled: !_isSaving,
             maxLength: 80,
+            buildCounter: _buildInsideCounter,
             textInputAction: TextInputAction.next,
             decoration: _inputDecoration(
               hintText: '예: 정보처리기사, 컴퓨터활용능력',
+              hasInsideCounter: true,
             ),
             validator: (value) {
               int count = (value ?? '')
@@ -557,9 +582,11 @@ class _CommunityPostAddPageState
             controller: _titleController,
             enabled: !_isSaving,
             maxLength: 60,
+            buildCounter: _buildInsideCounter,
             textInputAction: TextInputAction.next,
             decoration: _inputDecoration(
               hintText: '제목을 입력해 주세요.',
+              hasInsideCounter: true,
             ),
             validator: (value) {
               String title = value?.trim() ?? '';
@@ -584,10 +611,12 @@ class _CommunityPostAddPageState
             minLines: 10,
             maxLines: 16,
             maxLength: 3000,
+            buildCounter: _buildInsideCounter,
             keyboardType: TextInputType.multiline,
             textInputAction: TextInputAction.newline,
             decoration: _inputDecoration(
               hintText: '내용을 입력해 주세요.',
+              hasInsideCounter: true,
             ),
             validator: (value) {
               String content = value?.trim() ?? '';
@@ -819,6 +848,7 @@ class _CommunityPostAddPageState
 
   InputDecoration _inputDecoration({
     required String hintText,
+    bool hasInsideCounter = false,
   }) {
     return InputDecoration(
       hintText: hintText,
@@ -828,9 +858,11 @@ class _CommunityPostAddPageState
       ),
       filled: true,
       fillColor: Theme.of(context).colorScheme.surface,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 14,
+      contentPadding: EdgeInsets.fromLTRB(
+        14,
+        14,
+        14,
+        hasInsideCounter ? 32 : 14,
       ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
@@ -861,6 +893,28 @@ class _CommunityPostAddPageState
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(
           color: Colors.redAccent,
+        ),
+      ),
+    );
+  }
+
+  Widget? _buildInsideCounter(
+      BuildContext context, {
+        required int currentLength,
+        required bool isFocused,
+        required int? maxLength,
+      }) {
+    return Transform.translate(
+      offset: const Offset(0, -30),
+      child: Padding(
+        padding: const EdgeInsets.only(right: 3),
+        child: Text(
+          '$currentLength/${maxLength ?? 0}',
+          style: TextStyle(
+            color: context
+                .communityColors.textSecondary,
+            fontSize: 10,
+          ),
         ),
       ),
     );

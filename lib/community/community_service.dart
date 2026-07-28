@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+// 댓글 좋아요·수정·삭제 적용본
 import 'community_comment_models.dart';
 import 'community_models.dart';
 
@@ -336,9 +337,54 @@ class CommunityService {
     return commentReference.id;
   }
 
+  Future<void> updateComment({
+    required String postId,
+    required String commentId,
+    required String writerUid,
+    required String content,
+  }) async {
+    String trimmedContent = content.trim();
+
+    if (trimmedContent.isEmpty) {
+      throw ArgumentError('댓글 내용을 입력해 주세요.');
+    }
+
+    DocumentReference<Map<String, dynamic>>
+    commentReference =
+    _firestore
+        .collection('posts')
+        .doc(postId)
+        .collection('comments')
+        .doc(commentId);
+
+    DocumentSnapshot<Map<String, dynamic>>
+    commentSnapshot =
+    await commentReference.get();
+
+    Map<String, dynamic>? commentData =
+    commentSnapshot.data();
+
+    if (!commentSnapshot.exists ||
+        commentData == null ||
+        commentData['commentStatus'] != 'NORMAL') {
+      throw StateError('댓글을 찾을 수 없습니다.');
+    }
+
+    if (commentData['writerUid']?.toString() !=
+        writerUid) {
+      throw StateError('본인이 작성한 댓글만 수정할 수 있습니다.');
+    }
+
+    await commentReference.update({
+      'content': trimmedContent,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   Future<void> deleteComment({
     required String postId,
     required String commentId,
+    required String writerUid,
   }) async {
     DocumentReference<Map<String, dynamic>>
     postReference =
@@ -368,6 +414,11 @@ class CommunityService {
     if (commentData == null ||
         commentData['commentStatus'] != 'NORMAL') {
       return;
+    }
+
+    if (commentData['writerUid']?.toString() !=
+        writerUid) {
+      throw StateError('본인이 작성한 댓글만 삭제할 수 있습니다.');
     }
 
     QuerySnapshot<Map<String, dynamic>>
@@ -768,6 +819,66 @@ class CommunityService {
     });
   }
 
+  Future<Set<CommunityBoardType>>
+  getFavoriteCommunityBoards(
+      String userUid,
+      ) async {
+    if (userUid.isEmpty) {
+      return {};
+    }
+
+    DocumentSnapshot<Map<String, dynamic>>
+    snapshot =
+    await _firestore
+        .collection('communityPreferences')
+        .doc(userUid)
+        .get();
+
+    dynamic value =
+    snapshot.data()?['favoriteBoardCodes'];
+
+    if (value is! List) {
+      return {};
+    }
+
+    Set<CommunityBoardType> result = {};
+
+    for (dynamic item in value) {
+      CommunityBoardType boardType =
+      CommunityBoardTypeX.fromCode(
+        item?.toString() ?? '',
+      );
+
+      if (boardType != CommunityBoardType.all) {
+        result.add(boardType);
+      }
+    }
+
+    return result;
+  }
+
+  Future<void> setFavoriteCommunityBoard({
+    required String userUid,
+    required CommunityBoardType boardType,
+    required bool isFavorite,
+  }) async {
+    if (userUid.isEmpty ||
+        boardType == CommunityBoardType.all) {
+      return;
+    }
+
+    await _firestore
+        .collection('communityPreferences')
+        .doc(userUid)
+        .set({
+      'userUid': userUid,
+      'favoriteBoardCodes': isFavorite
+          ? FieldValue.arrayUnion([boardType.code])
+          : FieldValue.arrayRemove([boardType.code]),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   Future<List<CommunityCertificateTag>>
   getCertifiedCertificateTags(
       String userUid,
@@ -900,20 +1011,53 @@ class CommunityService {
     await getCertifiedCertificateTags(userUid);
 
     return {
-      'nickname':
-      userData['nickname']?.toString() ??
-          userData['displayName']?.toString() ??
-          '사용자',
-      'profileImageUrl':
-      userData['profileImageUrl']?.toString() ??
-          userData['photoUrl']?.toString() ??
-          '',
-      'introduction':
-      userData['introduction']?.toString() ??
-          userData['bio']?.toString() ??
-          '',
+      'nickname': _firstProfileValue(
+        userData,
+        const [
+          'nickname',
+          'nickName',
+          'userNickname',
+          'name',
+          'displayName',
+        ],
+        fallback: '사용자',
+      ),
+      'profileImageUrl': _firstProfileValue(
+        userData,
+        const [
+          'profileImageUrl',
+          'profileUrl',
+          'photoUrl',
+          'photoURL',
+        ],
+      ),
+      'introduction': _firstProfileValue(
+        userData,
+        const [
+          'introduction',
+          'bio',
+        ],
+      ),
       'certifiedTags': certifiedTags,
     };
+  }
+
+  String _firstProfileValue(
+      Map<String, dynamic> data,
+      List<String> keys, {
+        String fallback = '',
+      }) {
+    for (String key in keys) {
+      String value =
+          data[key]?.toString().trim() ?? '';
+
+      if (value.isNotEmpty &&
+          value.toLowerCase() != 'null') {
+        return value;
+      }
+    }
+
+    return fallback;
   }
 
   Future<Map<String, dynamic>> _readUserData(
@@ -1037,6 +1181,35 @@ class CommunityService {
     });
 
     return result;
+  }
+
+  List<CommunityPost> filterMyFeedPosts({
+    required List<CommunityPost> posts,
+    required List<CommunityCertificateTag>
+    certificateTags,
+    required Set<CommunityBoardType>
+    favoriteBoards,
+  }) {
+    Set<String> certificateIds =
+    certificateTags.map((tag) {
+      return tag.certificateId;
+    }).where((certificateId) {
+      return certificateId.isNotEmpty;
+    }).toSet();
+
+    return posts.where((post) {
+      bool isFavoriteBoard =
+      favoriteBoards.contains(post.boardType);
+
+      bool hasMyCertificate =
+      post.certificateTags.any((tag) {
+        return certificateIds.contains(
+          tag.certificateId,
+        );
+      });
+
+      return isFavoriteBoard || hasMyCertificate;
+    }).toList();
   }
 
   List<CommunityPost> getPopularPosts(
