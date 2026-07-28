@@ -376,6 +376,33 @@ class _FriendScreenState extends State<FriendScreen> {
     });
   }
 
+  Future<bool> _hasBlockRelation(String otherUid) async {
+    final String? currentUid =
+        FirebaseAuth.instance.currentUser?.uid;
+
+    if (currentUid == null || currentUid == otherUid) {
+      return false;
+    }
+
+    final DocumentSnapshot<Map<String, dynamic>> blockedByMeDocument =
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUid)
+        .collection('blockedUsers')
+        .doc(otherUid)
+        .get();
+
+    final DocumentSnapshot<Map<String, dynamic>> blockedByOtherDocument =
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(otherUid)
+        .collection('blockedUsers')
+        .doc(currentUid)
+        .get();
+
+    return blockedByMeDocument.exists || blockedByOtherDocument.exists;
+  }
+
   Future<void> _acceptFriendRequest(FriendUserItem user) async {
     final String? relationId = user.relationId;
     if (relationId == null) {
@@ -383,6 +410,33 @@ class _FriendScreenState extends State<FriendScreen> {
     }
 
     try {
+      // 수락 버튼을 누른 시점에 차단 관계가 생겼을 수도 있으므로
+      // 친구 관계로 변경하기 직전에 다시 확인합니다.
+      final bool hasBlockRelation =
+      await _hasBlockRelation(user.uid);
+
+      if (hasBlockRelation) {
+        await FirebaseFirestore.instance
+            .collection('friendRequests')
+            .doc(relationId)
+            .delete();
+
+        if (!mounted) {
+          return;
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              '차단 관계에 있는 사용자의 친구 요청은 수락할 수 없습니다.',
+            ),
+          ),
+        );
+
+        await _loadFriendData();
+        return;
+      }
+
       await FirebaseFirestore.instance
           .collection('friendRequests')
           .doc(relationId)

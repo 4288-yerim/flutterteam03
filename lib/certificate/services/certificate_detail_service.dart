@@ -21,7 +21,6 @@ class CertificateDetailService {
     return _firestore.collection('certifications');
   }
 
-  /// 상세페이지에서 사용할 자격증 한 건 조회
   Future<Certification> getCertificationById(
       String certificationId,
       ) async {
@@ -50,10 +49,6 @@ class CertificateDetailService {
     }
   }
 
-  /// 국가기술자격 시험 일정 조회
-  ///
-  /// certifications/{certificationId}/schedules
-  /// 컬렉션의 모든 문서를 sortdate 오름차순으로 조회한다.
   Future<List<TechnicalCertificateSchedule>>
   getTechnicalSchedules(
       String certificationId,
@@ -79,13 +74,6 @@ class CertificateDetailService {
     }
   }
 
-  /// 국가기술자격 시험 정보 조회
-  ///
-  /// details 하위 컬렉션에서 고정 문서 ID를 사용한다.
-  ///
-  /// - examfee
-  /// - examTrends
-  /// - howToObtain
   Future<TechnicalCertificateExamDetails>
   getTechnicalExamDetails(
       String certificationId,
@@ -265,8 +253,42 @@ class CertificateDetailService {
           '$normalizedTargetRound '
           '$examTypeName';
 
-      final batch = _firestore.batch();
+      final examDayAlertDate = _dateOnly(
+        targetExamDate,
+      );
 
+      final examD7AlertDate = examDayAlertDate.subtract(
+        const Duration(days: 7),
+      );
+
+      final examD1AlertDate = examDayAlertDate.subtract(
+        const Duration(days: 1),
+      );
+
+      final applicationStartAlertDate =
+      targetRegistrationStartDate == null
+          ? null
+          : _dateOnly(
+        targetRegistrationStartDate,
+      );
+
+      final applicationEndD1AlertDate =
+      targetRegistrationEndDate == null
+          ? null
+          : _dateOnly(
+        targetRegistrationEndDate,
+      ).subtract(
+        const Duration(days: 1),
+      );
+
+      final resultAlertDate =
+      targetPassAnnouncementDate == null
+          ? null
+          : _dateOnly(
+        targetPassAnnouncementDate,
+      );
+
+      final batch = _firestore.batch();
       batch.set(
         goalDocument,
         {
@@ -274,7 +296,21 @@ class CertificateDetailService {
           'scheduleId': normalizedScheduleId,
           'certificateName': normalizedCertificateName,
           'qualificationType': normalizedQualificationType,
-          'targetExamDate': Timestamp.fromDate(targetExamDate),
+
+          'targetExamDate': Timestamp.fromDate(
+            targetExamDate,
+          ),
+
+          'examD7AlertDate': Timestamp.fromDate(
+            examD7AlertDate,
+          ),
+          'examD1AlertDate': Timestamp.fromDate(
+            examD1AlertDate,
+          ),
+          'examDayAlertDate': Timestamp.fromDate(
+            examDayAlertDate,
+          ),
+
           'targetRound': normalizedTargetRound,
           'targetExamType': normalizedTargetExamType,
 
@@ -292,6 +328,20 @@ class CertificateDetailService {
             targetRegistrationEndDate,
           ),
 
+          'applicationStartAlertDate':
+          applicationStartAlertDate == null
+              ? null
+              : Timestamp.fromDate(
+            applicationStartAlertDate,
+          ),
+
+          'applicationEndD1AlertDate':
+          applicationEndD1AlertDate == null
+              ? null
+              : Timestamp.fromDate(
+            applicationEndD1AlertDate,
+          ),
+
           'targetPassAnnouncementDate':
           targetPassAnnouncementDate == null
               ? null
@@ -306,15 +356,20 @@ class CertificateDetailService {
             targetPassAnnouncementEndDate,
           ),
 
+          'resultAlertDate':
+          resultAlertDate == null
+              ? null
+              : Timestamp.fromDate(
+            resultAlertDate,
+          ),
+
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
           'goalStatus': 'ACTIVE',
           'isMainGoal': false,
 
-          // 휴대폰 기본 캘린더 연동 여부
           'calendarLinked': false,
 
-          // 앱 내부 캘린더 일정 문서 ID
           'calendarEventId': calendarEventDocument.id,
         },
       );

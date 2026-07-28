@@ -589,35 +589,33 @@ class _TechnicalCertificateDetailPageState
                                         Text(
                                           option.targetRound,
                                           style: const TextStyle(
-                                            color:
-                                            certificateDarkText,
+                                            color: certificateDarkText,
                                             fontSize: 15,
-                                            fontWeight:
-                                            FontWeight.w800,
+                                            fontWeight: FontWeight.w800,
                                             height: 1.35,
                                           ),
                                         ),
-                                        const SizedBox(height: 7),
-                                        Row(
+                                        const SizedBox(height: 9),
+
+                                        Wrap(
+                                          spacing: 8,
+                                          runSpacing: 8,
+                                          crossAxisAlignment:
+                                          WrapCrossAlignment.center,
                                           children: [
                                             Container(
-                                              padding:
-                                              const EdgeInsets
-                                                  .symmetric(
+                                              padding: const EdgeInsets.symmetric(
                                                 horizontal: 9,
                                                 vertical: 5,
                                               ),
-                                              decoration:
-                                              BoxDecoration(
+                                              decoration: BoxDecoration(
                                                 color: Colors.white,
                                                 borderRadius:
-                                                BorderRadius
-                                                    .circular(20),
+                                                BorderRadius.circular(20),
                                               ),
                                               child: Text(
                                                 option.examTypeName,
-                                                style:
-                                                const TextStyle(
+                                                style: const TextStyle(
                                                   color:
                                                   certificatePrimaryPink,
                                                   fontSize: 12,
@@ -626,19 +624,45 @@ class _TechnicalCertificateDetailPageState
                                                 ),
                                               ),
                                             ),
-                                            const SizedBox(width: 9),
+
+                                            if (getCertificateRegistrationStatus(
+                                              registrationStartDate:
+                                              option.registrationStartDate,
+                                              registrationEndDate:
+                                              option.registrationEndDate,
+                                            )
+                                            case final registrationStatus?)
+                                              CertificateScheduleStatusBadge(
+                                                label: registrationStatus.label,
+                                                isActive:
+                                                registrationStatus.isActive,
+                                              ),
+                                          ],
+                                        ),
+
+                                        const SizedBox(height: 9),
+
+                                        Row(
+                                          crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                          children: [
+                                            const Icon(
+                                              Icons.event_outlined,
+                                              size: 16,
+                                              color: certificateGrayText,
+                                            ),
+                                            const SizedBox(width: 6),
                                             Expanded(
                                               child: Text(
-                                                formatCertificateGoalDate(
+                                                formatCertificateGoalDateRange(
                                                   option.examDate,
+                                                  option.examEndDate,
                                                 ),
-                                                style:
-                                                const TextStyle(
-                                                  color:
-                                                  certificateBodyText,
+                                                style: const TextStyle(
+                                                  color: certificateBodyText,
                                                   fontSize: 13,
-                                                  fontWeight:
-                                                  FontWeight.w600,
+                                                  fontWeight: FontWeight.w600,
+                                                  height: 1.4,
                                                 ),
                                               ),
                                             ),
@@ -708,34 +732,87 @@ class _TechnicalCertificateDetailPageState
     final today = _dateOnly(DateTime.now());
 
     for (final schedule in _schedules) {
-      final writtenExamDate = schedule.writtenExamStartAt;
+      final writtenExamStartDate =
+          schedule.writtenExamStartAt;
 
-      if (writtenExamDate != null &&
-          !_dateOnly(writtenExamDate).isBefore(today)) {
+      final writtenExamEndDate =
+          schedule.writtenExamEndAt;
+
+      final writtenExamDisplayStartDate =
+          writtenExamStartDate ??
+              writtenExamEndDate;
+
+      final writtenExamFilterDate =
+          writtenExamEndDate ??
+              writtenExamStartDate;
+
+      if (writtenExamDisplayStartDate != null &&
+          writtenExamFilterDate != null &&
+          !_dateOnly(writtenExamFilterDate)
+              .isBefore(today)) {
         options.add(
           CertificateGoalOption(
             scheduleId: schedule.id,
             targetRound: schedule.title,
             examType: 'WRITTEN',
             examTypeName: '필기',
-            examDate: writtenExamDate,
-            passAnnouncementDate: schedule.writtenPassAt,
+
+            examDate:
+            writtenExamDisplayStartDate,
+            examEndDate:
+            writtenExamEndDate,
+
+            registrationStartDate:
+            schedule
+                .writtenRegistrationStartAt,
+            registrationEndDate:
+            schedule
+                .writtenRegistrationEndAt,
+
+            passAnnouncementDate:
+            schedule.writtenPassAt,
             passAnnouncementEndDate: null,
           ),
         );
       }
 
-      final practicalExamDate = schedule.practicalExamStartAt;
+      final practicalExamStartDate =
+          schedule.practicalExamStartAt;
 
-      if (practicalExamDate != null &&
-          !_dateOnly(practicalExamDate).isBefore(today)) {
+      final practicalExamEndDate =
+          schedule.practicalExamEndAt;
+
+      final practicalExamDisplayStartDate =
+          practicalExamStartDate ??
+              practicalExamEndDate;
+
+      final practicalExamFilterDate =
+          practicalExamEndDate ??
+              practicalExamStartDate;
+
+      if (practicalExamDisplayStartDate != null &&
+          practicalExamFilterDate != null &&
+          !_dateOnly(practicalExamFilterDate)
+              .isBefore(today)) {
         options.add(
           CertificateGoalOption(
             scheduleId: schedule.id,
             targetRound: schedule.title,
             examType: 'PRACTICAL',
             examTypeName: '실기',
-            examDate: practicalExamDate,
+
+            examDate:
+            practicalExamDisplayStartDate,
+            examEndDate:
+            practicalExamEndDate,
+
+            registrationStartDate:
+            schedule
+                .practicalRegistrationStartAt,
+            registrationEndDate:
+            schedule
+                .practicalRegistrationEndAt,
+
             passAnnouncementDate:
             schedule.practicalPassStartAt,
             passAnnouncementEndDate:
@@ -746,7 +823,10 @@ class _TechnicalCertificateDetailPageState
     }
 
     options.sort(
-          (a, b) => a.examDate.compareTo(b.examDate),
+          (first, second) =>
+          first.examDate.compareTo(
+            second.examDate,
+          ),
     );
 
     return options;

@@ -44,39 +44,41 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
         _studyPlansCollection;
 
     if (collection == null) {
-      return Stream<List<StudyPlanTask>>.value(const <StudyPlanTask>[]);
+      return Stream<List<StudyPlanTask>>.value(
+        const <StudyPlanTask>[],
+      );
     }
 
-    final DateTime startDate = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-    );
+    return collection.snapshots().map((snapshot) {
+      final List<StudyPlanTask> allTasks = <StudyPlanTask>[];
 
-    final DateTime endDate = startDate.add(const Duration(days: 1));
+      for (final document in snapshot.docs) {
+        final Map<String, dynamic> data = document.data();
+        final Object? stepsData = data['steps'];
 
-    return collection
-        .where(
-      'planday',
-      isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
-    )
-        .where(
-      'planday',
-      isLessThan: Timestamp.fromDate(endDate),
-    )
-        .orderBy('planday')
-        .snapshots()
-        .map((snapshot) {
-      final List<StudyPlanTask> tasks = snapshot.docs
-          .map(StudyPlanTask.fromDocument)
-          .toList();
+        if (stepsData is List) {
+          allTasks.addAll(
+            StudyPlanTask.fromAiPlanDocument(document),
+          );
+        } else {
+          allTasks.add(
+            StudyPlanTask.fromDocument(document),
+          );
+        }
+      }
 
-      tasks.sort((first, second) {
+      final List<StudyPlanTask> selectedTasks = allTasks.where((task) {
+        return task.date.year == _selectedDate.year &&
+            task.date.month == _selectedDate.month &&
+            task.date.day == _selectedDate.day;
+      }).toList();
+
+      selectedTasks.sort((first, second) {
         final DateTime? firstStart = first.startPlannedAt;
         final DateTime? secondStart = second.startPlannedAt;
 
         if (firstStart == null && secondStart == null) {
-          return 0;
+          return first.order.compareTo(second.order);
         }
 
         if (firstStart == null) {
@@ -90,7 +92,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
         return firstStart.compareTo(secondStart);
       });
 
-      return tasks;
+      return selectedTasks;
     });
   }
 
@@ -98,9 +100,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: AppTopBar(
-        title: '학습 계획',
-      ),
+      appBar: AppTopBar(title: '학습 계획'),
       body: AppMainBackground(
         child: Column(
           children: [
@@ -120,12 +120,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                       : completedCount / selectedTasks.length;
 
                   return SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(
-                      20,
-                      16,
-                      20,
-                      12,
-                    ),
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -137,38 +132,35 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                           progress: progress,
                         ),
                         const SizedBox(height: 22),
-                        _buildTaskHeader(
-                          taskCount: selectedTasks.length,
-                        ),
+                        _buildTaskHeader(taskCount: selectedTasks.length),
                         const SizedBox(height: 12),
                         if (_firebaseAuth.currentUser == null)
                           _buildMessageCard(
                             icon: Icons.login_rounded,
                             title: '로그인이 필요합니다.',
-                            description:
-                            '학습 계획을 조회하고 추가하려면 로그인해주세요.',
+                            description: '학습 계획을 조회하고 추가하려면 로그인해주세요.',
                           )
                         else if (snapshot.connectionState ==
-                            ConnectionState.waiting &&
+                                ConnectionState.waiting &&
                             !snapshot.hasData)
                           _buildLoadingCard()
                         else if (snapshot.hasError)
-                            _buildMessageCard(
-                              icon: Icons.error_outline_rounded,
-                              title: '학습 계획을 불러오지 못했습니다.',
-                              description: _getFirestoreErrorMessage(
-                                snapshot.error,
-                              ),
-                            )
-                          else if (selectedTasks.isEmpty)
-                              _buildEmptyTaskCard()
-                            else
-                              ...selectedTasks.map(
-                                    (task) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: _buildTaskCard(task),
-                                ),
-                              ),
+                          _buildMessageCard(
+                            icon: Icons.error_outline_rounded,
+                            title: '학습 계획을 불러오지 못했습니다.',
+                            description: _getFirestoreErrorMessage(
+                              snapshot.error,
+                            ),
+                          )
+                        else if (selectedTasks.isEmpty)
+                          _buildEmptyTaskCard()
+                        else
+                          ...selectedTasks.map(
+                            (task) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _buildTaskCard(task),
+                            ),
+                          ),
                       ],
                     ),
                   );
@@ -176,12 +168,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                0,
-                20,
-                24,
-              ),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
               child: _buildAddTaskButton(),
             ),
           ],
@@ -258,131 +245,129 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
     return AppCard(
       child: totalCount == 0
           ? Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFCEFF3),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: const Icon(
-              Icons.auto_awesome_outlined,
-              size: 22,
-              color: Color(0xFFF0788F),
-            ),
-          ),
-          const SizedBox(width: 13),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '오늘의 진행률',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF666A73),
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFCEFF3),
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome_outlined,
+                    size: 22,
+                    color: Color(0xFFF0788F),
                   ),
                 ),
-                SizedBox(height: 3),
-                Text(
-                  '계획된 학습이 없습니다.',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF9AA0AC),
+                const SizedBox(width: 13),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '오늘의 진행률',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF666A73),
+                        ),
+                      ),
+                      SizedBox(height: 3),
+                      Text(
+                        '계획된 학습이 없습니다.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF9AA0AC),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
-            ),
-          ),
-        ],
-      )
+            )
           : Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFCEFF3),
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: const Icon(
-                  Icons.auto_awesome_outlined,
-                  size: 22,
-                  color: Color(0xFFF0788F),
-                ),
-              ),
-              const SizedBox(width: 13),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
                   children: [
-                    Text(
-                      '오늘의 진행률',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF666A73),
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFCEFF3),
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                      child: const Icon(
+                        Icons.auto_awesome_outlined,
+                        size: 22,
+                        color: Color(0xFFF0788F),
                       ),
                     ),
-                    SizedBox(height: 3),
+                    const SizedBox(width: 13),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '오늘의 진행률',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF666A73),
+                            ),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            '학습 계획을 완료해보세요.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF9AA0AC),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     Text(
-                      '학습 계획을 완료해보세요.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF9AA0AC),
+                      '$completedCount / $totalCount',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFFF0788F),
                       ),
                     ),
                   ],
                 ),
-              ),
-              Text(
-                '$completedCount / $totalCount',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFFF0788F),
+                const SizedBox(height: 18),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 10,
+                    backgroundColor: const Color(0xFFF1EDEF),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Color(0xFFF0788F),
+                    ),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 10,
-              backgroundColor: const Color(0xFFF1EDEF),
-              valueColor: const AlwaysStoppedAnimation<Color>(
-                Color(0xFFF0788F),
-              ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    '$percentage% 완료',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF9AA0AC),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              '$percentage% 완료',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF9AA0AC),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
-  Widget _buildTaskHeader({
-    required int taskCount,
-  }) {
+  Widget _buildTaskHeader({required int taskCount}) {
     return Row(
       children: [
         const Expanded(
@@ -418,12 +403,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
           _toggleTask(task);
         },
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            16,
-            15,
-            8,
-            15,
-          ),
+          padding: const EdgeInsets.fromLTRB(16, 15, 8, 15),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -447,10 +427,10 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                   ),
                   child: task.isCompleted
                       ? const Icon(
-                    Icons.check_rounded,
-                    size: 18,
-                    color: Colors.white,
-                  )
+                          Icons.check_rounded,
+                          size: 18,
+                          color: Colors.white,
+                        )
                       : null,
                 ),
               ),
@@ -598,9 +578,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
       child: const Padding(
         padding: EdgeInsets.symmetric(vertical: 34),
         child: Center(
-          child: CircularProgressIndicator(
-            color: Color(0xFFF0788F),
-          ),
+          child: CircularProgressIndicator(color: Color(0xFFF0788F)),
         ),
       ),
     );
@@ -612,11 +590,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
         padding: EdgeInsets.symmetric(vertical: 32),
         child: Column(
           children: [
-            Icon(
-              Icons.task_alt_rounded,
-              size: 44,
-              color: Color(0xFFB4B8C2),
-            ),
+            Icon(Icons.task_alt_rounded, size: 44, color: Color(0xFFB4B8C2)),
             SizedBox(height: 12),
             Text(
               '등록된 학습 계획이 없습니다.',
@@ -652,11 +626,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
         padding: const EdgeInsets.symmetric(vertical: 30),
         child: Column(
           children: [
-            Icon(
-              icon,
-              size: 42,
-              color: const Color(0xFFB4B8C2),
-            ),
+            Icon(icon, size: 42, color: const Color(0xFFB4B8C2)),
             const SizedBox(height: 12),
             Text(
               title,
@@ -701,20 +671,17 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
         ),
         icon: _isSaving
             ? const SizedBox(
-          width: 18,
-          height: 18,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: Colors.white,
-          ),
-        )
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
             : const Icon(Icons.add_rounded),
         label: Text(
           _isSaving ? '저장 중...' : '학습 계획 추가',
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-          ),
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
         ),
       ),
     );
@@ -722,17 +689,13 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
 
   void _moveToPreviousDate() {
     setState(() {
-      _selectedDate = _selectedDate.subtract(
-        const Duration(days: 1),
-      );
+      _selectedDate = _selectedDate.subtract(const Duration(days: 1));
     });
   }
 
   void _moveToNextDate() {
     setState(() {
-      _selectedDate = _selectedDate.add(
-        const Duration(days: 1),
-      );
+      _selectedDate = _selectedDate.add(const Duration(days: 1));
     });
   }
 
@@ -767,13 +730,20 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
     }
 
     try {
-      await collection.doc(task.id).update({
-        'status': !task.isCompleted,
-        'completedat': !task.isCompleted
-            ? FieldValue.serverTimestamp()
-            : null,
-        'updatedat': FieldValue.serverTimestamp(),
-      });
+      if (task.isAiStep) {
+        await _toggleAiPlanStep(
+          collection: collection,
+          task: task,
+        );
+      } else {
+        await collection.doc(task.sourceDocumentId).update({
+          'status': !task.isCompleted,
+          'completedat': !task.isCompleted
+              ? FieldValue.serverTimestamp()
+              : null,
+          'updatedat': FieldValue.serverTimestamp(),
+        });
+      }
 
       await TodayTodoAppWidget.sync();
     } on FirebaseException catch (error) {
@@ -782,7 +752,83 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
             ? '학습 계획을 수정할 권한이 없습니다.'
             : '완료 상태 변경에 실패했습니다.',
       );
+    } catch (_) {
+      _showSnackBar('완료 상태 변경에 실패했습니다.');
     }
+  }
+
+  Future<void> _toggleAiPlanStep({
+    required CollectionReference<Map<String, dynamic>> collection,
+    required StudyPlanTask task,
+  }) async {
+    final int? stepIndex = task.aiStepIndex;
+
+    if (stepIndex == null) {
+      return;
+    }
+
+    final DocumentReference<Map<String, dynamic>> document =
+    collection.doc(task.sourceDocumentId);
+
+    await _firestore.runTransaction((transaction) async {
+      final DocumentSnapshot<Map<String, dynamic>> snapshot =
+      await transaction.get(document);
+
+      final Map<String, dynamic>? data = snapshot.data();
+
+      if (data == null) {
+        throw StateError('AI 학습 플랜 문서를 찾을 수 없습니다.');
+      }
+
+      final Object? rawSteps = data['steps'];
+
+      if (rawSteps is! List || stepIndex >= rawSteps.length) {
+        throw StateError('AI 학습 단계를 찾을 수 없습니다.');
+      }
+
+      final List<Map<String, dynamic>> steps = rawSteps.map((step) {
+        if (step is Map) {
+          return Map<String, dynamic>.from(step);
+        }
+
+        return <String, dynamic>{};
+      }).toList();
+
+      final bool newCompletedValue = !task.isCompleted;
+
+      steps[stepIndex] = <String, dynamic>{
+        ...steps[stepIndex],
+        'isCompleted': newCompletedValue,
+      };
+
+      final int completedStepCount = steps.where((step) {
+        return step['isCompleted'] == true;
+      }).length;
+
+      final int totalStepCount = steps.length;
+
+      final int completionRate = totalStepCount == 0
+          ? 0
+          : ((completedStepCount / totalStepCount) * 100).round();
+
+      String planStatus = 'NOT_STARTED';
+
+      if (completedStepCount == totalStepCount &&
+          totalStepCount > 0) {
+        planStatus = 'COMPLETED';
+      } else if (completedStepCount > 0) {
+        planStatus = 'IN_PROGRESS';
+      }
+
+      transaction.update(document, {
+        'steps': steps,
+        'completedStepCount': completedStepCount,
+        'totalStepCount': totalStepCount,
+        'completionRate': completionRate,
+        'status': planStatus,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
   }
 
   Future<void> _showAddTaskDialog() async {
@@ -791,14 +837,10 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
       return;
     }
 
-    final TextEditingController titleController =
-    TextEditingController();
-    final TextEditingController descriptionController =
-    TextEditingController();
-    final TextEditingController subjectController =
-    TextEditingController();
-    final TextEditingController certificateController =
-    TextEditingController();
+    final TextEditingController titleController = TextEditingController();
+    final TextEditingController descriptionController = TextEditingController();
+    final TextEditingController subjectController = TextEditingController();
+    final TextEditingController certificateController = TextEditingController();
 
     DateTime selectedDate = _selectedDate;
     TimeOfDay? startTime;
@@ -813,9 +855,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
               backgroundColor: Colors.white,
               title: const Text(
                 '학습 계획 추가',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: TextStyle(fontWeight: FontWeight.w700),
               ),
               content: SingleChildScrollView(
                 child: Column(
@@ -836,10 +876,12 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                       controller: descriptionController,
                       minLines: 2,
                       maxLines: 4,
+                      maxLength: 50,
                       textInputAction: TextInputAction.newline,
                       decoration: const InputDecoration(
                         labelText: '학습 과제 설명',
                         hintText: '학습 과제 내용을 적어주세요',
+                        counterText: '최대 50자',
                         border: OutlineInputBorder(),
                       ),
                     ),
@@ -869,8 +911,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                       title: '학습 날짜',
                       value: _formatDialogDate(selectedDate),
                       onTap: () async {
-                        final DateTime? pickedDate =
-                        await showDatePicker(
+                        final DateTime? pickedDate = await showDatePicker(
                           context: context,
                           initialDate: selectedDate,
                           firstDate: DateTime(2025),
@@ -891,16 +932,14 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                     const SizedBox(height: 10),
                     _StudyPlanSelectTile(
                       icon: Icons.schedule_outlined,
-                      title: '공부 시작 시간',
+                      title: '공부 시작 시간 (선택)',
                       value: startTime == null
                           ? '선택'
                           : _formatTimeOfDay(startTime!),
                       onTap: () async {
-                        final TimeOfDay? pickedTime =
-                        await showTimePicker(
+                        final TimeOfDay? pickedTime = await showTimePicker(
                           context: context,
-                          initialTime:
-                          startTime ?? TimeOfDay.now(),
+                          initialTime: startTime ?? TimeOfDay.now(),
                         );
 
                         if (pickedTime != null) {
@@ -913,18 +952,14 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                     const SizedBox(height: 10),
                     _StudyPlanSelectTile(
                       icon: Icons.schedule_send_outlined,
-                      title: '공부 종료 시간',
+                      title: '공부 종료 시간 (선택)',
                       value: endTime == null
                           ? '선택'
                           : _formatTimeOfDay(endTime!),
                       onTap: () async {
-                        final TimeOfDay? pickedTime =
-                        await showTimePicker(
+                        final TimeOfDay? pickedTime = await showTimePicker(
                           context: context,
-                          initialTime:
-                          endTime ??
-                              startTime ??
-                              TimeOfDay.now(),
+                          initialTime: endTime ?? startTime ?? TimeOfDay.now(),
                         );
 
                         if (pickedTime != null) {
@@ -954,15 +989,12 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                   },
                   child: const Text(
                     '취소',
-                    style: TextStyle(
-                      color: Color(0xFF9AA0AC),
-                    ),
+                    style: TextStyle(color: Color(0xFF9AA0AC)),
                   ),
                 ),
                 TextButton(
                   onPressed: () async {
-                    final String? validationMessage =
-                    _validateStudyPlanInput(
+                    final String? validationMessage = _validateStudyPlanInput(
                       title: titleController.text,
                       description: descriptionController.text,
                       certificateName: certificateController.text,
@@ -972,9 +1004,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
 
                     if (validationMessage != null) {
                       ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        SnackBar(
-                          content: Text(validationMessage),
-                        ),
+                        SnackBar(content: Text(validationMessage)),
                       );
                       return;
                     }
@@ -1013,14 +1043,12 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
         subjectName: subjectController.text.trim(),
         certificateName: certificateController.text.trim(),
         selectedDate: selectedDate,
-        startTime: startTime!,
-        endTime: endTime!,
+        startTime: startTime,
+        endTime: endTime,
       );
     }
 
-    await Future<void>.delayed(
-      const Duration(milliseconds: 300),
-    );
+    await Future<void>.delayed(const Duration(milliseconds: 300));
 
     titleController.dispose();
     descriptionController.dispose();
@@ -1043,16 +1071,22 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
       return '학습 과제 설명을 입력해주세요.';
     }
 
+    if (description.trim().length > 50) {
+      return '학습 과제 설명은 50자 이하로 입력해주세요.';
+    }
+
     if (certificateName.trim().isEmpty) {
       return '자격증명을 입력해주세요.';
     }
 
-    if (startTime == null) {
-      return '공부 시작 시간을 선택해주세요.';
+    // 시작·종료 시간을 모두 입력하지 않은 경우 허용
+    if (startTime == null && endTime == null) {
+      return null;
     }
 
-    if (endTime == null) {
-      return '공부 종료 시간을 선택해주세요.';
+    // 한쪽 시간만 입력한 경우는 허용하지 않음
+    if (startTime == null || endTime == null) {
+      return '공부 시간은 시작과 종료를 모두 선택하거나 모두 비워주세요.';
     }
 
     final int startMinutes = _timeOfDayToMinutes(startTime);
@@ -1071,8 +1105,8 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
     required String subjectName,
     required String certificateName,
     required DateTime selectedDate,
-    required TimeOfDay startTime,
-    required TimeOfDay endTime,
+    required TimeOfDay? startTime,
+    required TimeOfDay? endTime,
   }) async {
     final CollectionReference<Map<String, dynamic>>? collection =
         _studyPlansCollection;
@@ -1094,29 +1128,40 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
         return;
       }
 
-      final DateTime startPlannedAt = DateTime(
+      final DateTime planDate = DateTime(
         selectedDate.year,
         selectedDate.month,
         selectedDate.day,
-        startTime.hour,
-        startTime.minute,
       );
 
-      final DateTime endPlannedAt = DateTime(
-        selectedDate.year,
-        selectedDate.month,
-        selectedDate.day,
-        endTime.hour,
-        endTime.minute,
-      );
+      DateTime? startPlannedAt;
+      DateTime? endPlannedAt;
 
-      final DocumentReference<Map<String, dynamic>> studyPlanDocument =
-      collection.doc();
+      if (startTime != null && endTime != null) {
+        startPlannedAt = DateTime(
+          selectedDate.year,
+          selectedDate.month,
+          selectedDate.day,
+          startTime.hour,
+          startTime.minute,
+        );
+
+        endPlannedAt = DateTime(
+          selectedDate.year,
+          selectedDate.month,
+          selectedDate.day,
+          endTime.hour,
+          endTime.minute,
+        );
+      }
+
+      final DocumentReference<Map<String, dynamic>>
+      studyPlanDocument = collection.doc();
 
       final String planId = studyPlanDocument.id;
 
-      final DocumentReference<Map<String, dynamic>> calendarDocument =
-      _firestore
+      final DocumentReference<Map<String, dynamic>>
+      calendarDocument = _firestore
           .collection('users')
           .doc(user.uid)
           .collection('calendarEvents')
@@ -1124,33 +1169,50 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
 
       final WriteBatch batch = _firestore.batch();
 
-      batch.set(studyPlanDocument, {
-        'planday': Timestamp.fromDate(
-          DateTime(
-            selectedDate.year,
-            selectedDate.month,
-            selectedDate.day,
-          ),
-        ),
+      final Map<String, dynamic> studyPlanData = {
+        'planday': Timestamp.fromDate(planDate),
         'plantitle': title,
         'plandescription': description,
         'subjectname': subjectName.isEmpty ? null : subjectName,
         'certificatename': certificateName,
         'plantype': 'USERADD',
-        'startplannedat': Timestamp.fromDate(startPlannedAt),
-        'endplannedat': Timestamp.fromDate(endPlannedAt),
         'status': false,
         'completedat': null,
         'updatedat': FieldValue.serverTimestamp(),
-      });
+      };
 
-      batch.set(calendarDocument, {
-        'title': title,
-        'startAt': Timestamp.fromDate(startPlannedAt),
-        'endAt': Timestamp.fromDate(endPlannedAt),
-        'allDay': false,
-        'eventType': 'STUDY',
-      });
+      if (startPlannedAt != null && endPlannedAt != null) {
+        studyPlanData['startplannedat'] =
+            Timestamp.fromDate(startPlannedAt);
+
+        studyPlanData['endplannedat'] =
+            Timestamp.fromDate(endPlannedAt);
+      }
+
+      batch.set(
+        studyPlanDocument,
+        studyPlanData,
+      );
+
+      if (startPlannedAt != null && endPlannedAt != null) {
+        batch.set(calendarDocument, {
+          'title': title,
+          'startAt': Timestamp.fromDate(startPlannedAt),
+          'endAt': Timestamp.fromDate(endPlannedAt),
+          'allDay': false,
+          'eventType': 'STUDY',
+        });
+      } else {
+        batch.set(calendarDocument, {
+          'title': title,
+          'startAt': Timestamp.fromDate(planDate),
+          'endAt': Timestamp.fromDate(
+            planDate.add(const Duration(days: 1)),
+          ),
+          'allDay': true,
+          'eventType': 'STUDY',
+        });
+      }
 
       await batch.commit();
 
@@ -1159,14 +1221,11 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
       }
 
       setState(() {
-        _selectedDate = DateTime(
-          selectedDate.year,
-          selectedDate.month,
-          selectedDate.day,
-        );
+        _selectedDate = planDate;
       });
 
       await TodayTodoAppWidget.sync();
+
       _showSnackBar('학습 계획이 추가되었습니다.');
     } on FirebaseException catch (error) {
       _showSnackBar(
@@ -1183,9 +1242,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
     }
   }
 
-  Future<void> _showDeleteTaskDialog(
-      StudyPlanTask task,
-      ) async {
+  Future<void> _showDeleteTaskDialog(StudyPlanTask task) async {
     final bool? result = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -1193,13 +1250,9 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
           backgroundColor: Colors.white,
           title: const Text(
             '학습 계획 삭제',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-            ),
+            style: TextStyle(fontWeight: FontWeight.w700),
           ),
-          content: Text(
-            '"${task.title}" 학습 계획을 삭제하시겠습니까?',
-          ),
+          content: Text('"${task.title}" 학습 계획을 삭제하시겠습니까?'),
           actions: [
             TextButton(
               onPressed: () {
@@ -1207,9 +1260,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
               },
               child: const Text(
                 '취소',
-                style: TextStyle(
-                  color: Color(0xFF9AA0AC),
-                ),
+                style: TextStyle(color: Color(0xFF9AA0AC)),
               ),
             ),
             TextButton(
@@ -1251,9 +1302,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
 
       final WriteBatch batch = _firestore.batch();
 
-      batch.delete(
-        collection.doc(task.id),
-      );
+      batch.delete(collection.doc(task.id));
 
       batch.delete(
         _firestore
@@ -1285,17 +1334,13 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
       return '';
     }
 
-    final String start = _formatDateTimeTime(
-      task.startPlannedAt!,
-    );
+    final String start = _formatDateTimeTime(task.startPlannedAt!);
 
     if (task.endPlannedAt == null) {
       return start;
     }
 
-    final String end = _formatDateTimeTime(
-      task.endPlannedAt!,
-    );
+    final String end = _formatDateTimeTime(task.endPlannedAt!);
 
     return '$start - $end';
   }
@@ -1306,15 +1351,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
   }
 
   String _formatDate(DateTime date) {
-    const List<String> weekdays = [
-      '월',
-      '화',
-      '수',
-      '목',
-      '금',
-      '토',
-      '일',
-    ];
+    const List<String> weekdays = ['월', '화', '수', '목', '금', '토', '일'];
 
     return '${date.year}년 ${date.month}월 ${date.day}일 '
         '${weekdays[date.weekday - 1]}요일';
@@ -1327,11 +1364,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
       DateTime.now().day,
     );
 
-    final DateTime target = DateTime(
-      date.year,
-      date.month,
-      date.day,
-    );
+    final DateTime target = DateTime(date.year, date.month, date.day);
 
     final int difference = target.difference(today).inDays;
 
@@ -1361,9 +1394,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
         '${time.minute.toString().padLeft(2, '0')}';
   }
 
-  StudyPlanTaskStyle _getTaskStyle(
-      StudyPlanTaskType type,
-      ) {
+  StudyPlanTaskStyle _getTaskStyle(StudyPlanTaskType type) {
     switch (type) {
       case StudyPlanTaskType.aiPlan:
         return const StudyPlanTaskStyle(
@@ -1381,8 +1412,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
   }
 
   String _getFirestoreErrorMessage(Object? error) {
-    if (error is FirebaseException &&
-        error.code == 'permission-denied') {
+    if (error is FirebaseException && error.code == 'permission-denied') {
       return '학습 계획을 조회할 권한이 없습니다.';
     }
 
@@ -1394,21 +1424,20 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
-enum StudyPlanTaskType {
-  aiPlan,
-  user,
-}
+enum StudyPlanTaskType { aiPlan, user }
 
 class StudyPlanTask {
   final String id;
+  final String sourceDocumentId;
+  final int? aiStepIndex;
+  final int order;
+
   final String title;
   final String description;
   final String? subjectName;
@@ -1423,6 +1452,9 @@ class StudyPlanTask {
 
   const StudyPlanTask({
     required this.id,
+    required this.sourceDocumentId,
+    required this.aiStepIndex,
+    required this.order,
     required this.title,
     required this.description,
     required this.subjectName,
@@ -1435,6 +1467,8 @@ class StudyPlanTask {
     required this.completedAt,
     required this.updatedAt,
   });
+
+  bool get isAiStep => aiStepIndex != null;
 
   factory StudyPlanTask.fromDocument(
       QueryDocumentSnapshot<Map<String, dynamic>> document,
@@ -1451,11 +1485,15 @@ class StudyPlanTask {
     final Timestamp? updatedAt =
     data['updatedat'] as Timestamp?;
 
-    final String rawType =
-    (data['plantype'] as String? ?? 'USERADD').trim();
+    final String? rawType = data['plantype'] is String
+        ? (data['plantype'] as String).trim()
+        : null;
 
     return StudyPlanTask(
       id: document.id,
+      sourceDocumentId: document.id,
+      aiStepIndex: null,
+      order: 0,
       title: (data['plantitle'] as String? ?? '').trim(),
       description:
       (data['plandescription'] as String? ?? '').trim(),
@@ -1463,14 +1501,146 @@ class StudyPlanTask {
       certificateName:
       (data['certificatename'] as String? ?? '').trim(),
       date: planDay?.toDate() ?? DateTime.now(),
-      type: rawType == 'AIADD'
-          ? StudyPlanTaskType.aiPlan
-          : StudyPlanTaskType.user,
+      type: rawType == 'USERADD'
+          ? StudyPlanTaskType.user
+          : StudyPlanTaskType.aiPlan,
       startPlannedAt: startPlannedAt?.toDate(),
       endPlannedAt: endPlannedAt?.toDate(),
       isCompleted: data['status'] as bool? ?? false,
       completedAt: completedAt?.toDate(),
       updatedAt: updatedAt?.toDate(),
+    );
+  }
+
+  static List<StudyPlanTask> fromAiPlanDocument(
+      QueryDocumentSnapshot<Map<String, dynamic>> document,
+      ) {
+    final Map<String, dynamic> data = document.data();
+
+    final List<dynamic> rawSteps =
+    data['steps'] is List ? data['steps'] as List<dynamic> : <dynamic>[];
+
+    final String certificateName =
+    (data['certificateName'] as String? ?? '').trim();
+
+    final Timestamp? updatedAt =
+    data['updatedAt'] as Timestamp?;
+
+    final DateTime recommendedStartDate =
+    _parseRecommendedStartDate(
+      data['recommendedStudyStartDate'],
+    );
+
+    final List<StudyPlanTask> tasks = <StudyPlanTask>[];
+
+    for (int index = 0; index < rawSteps.length; index++) {
+      final Object? rawStep = rawSteps[index];
+
+      if (rawStep is! Map) {
+        continue;
+      }
+
+      final Map<String, dynamic> step =
+      Map<String, dynamic>.from(rawStep);
+
+      final int order = step['order'] is num
+          ? (step['order'] as num).toInt()
+          : index + 1;
+
+      final String dayLabel =
+      (step['dayLabel'] as String? ?? '').trim();
+
+      final DateTime stepDate = _parseStepDate(
+        dayLabel: dayLabel,
+        recommendedStartDate: recommendedStartDate,
+        fallbackIndex: index,
+      );
+
+      tasks.add(
+        StudyPlanTask(
+          id: '${document.id}_step_$index',
+          sourceDocumentId: document.id,
+          aiStepIndex: index,
+          order: order,
+          title: (step['title'] as String? ?? '').trim(),
+          description:
+          (step['detail'] as String? ?? '').trim(),
+          subjectName: null,
+          certificateName: certificateName,
+          date: stepDate,
+          type: StudyPlanTaskType.aiPlan,
+          startPlannedAt: null,
+          endPlannedAt: null,
+          isCompleted:
+          step['isCompleted'] as bool? ?? false,
+          completedAt: null,
+          updatedAt: updatedAt?.toDate(),
+        ),
+      );
+    }
+
+    return tasks;
+  }
+
+  static DateTime _parseRecommendedStartDate(
+      Object? value,
+      ) {
+    if (value is String) {
+      final DateTime? parsed = DateTime.tryParse(value.trim());
+
+      if (parsed != null) {
+        return DateTime(
+          parsed.year,
+          parsed.month,
+          parsed.day,
+        );
+      }
+    }
+
+    final DateTime now = DateTime.now();
+
+    return DateTime(
+      now.year,
+      now.month,
+      now.day,
+    );
+  }
+
+  static DateTime _parseStepDate({
+    required String dayLabel,
+    required DateTime recommendedStartDate,
+    required int fallbackIndex,
+  }) {
+    final RegExpMatch? match = RegExp(
+      r'(\d{1,2})/(\d{1,2})',
+    ).firstMatch(dayLabel);
+
+    if (match == null) {
+      return recommendedStartDate.add(
+        Duration(days: fallbackIndex),
+      );
+    }
+
+    final int? month = int.tryParse(match.group(1) ?? '');
+    final int? day = int.tryParse(match.group(2) ?? '');
+
+    if (month == null || day == null) {
+      return recommendedStartDate.add(
+        Duration(days: fallbackIndex),
+      );
+    }
+
+    int year = recommendedStartDate.year;
+
+    // 예: 시작일이 2026년 12월이고 step이 1월이면 다음 해로 처리
+    if (month < recommendedStartDate.month) {
+      year += 1;
+    }
+
+    return DateTime(
+      year,
+      month,
+      day,
     );
   }
 
@@ -1483,7 +1653,6 @@ class StudyPlanTask {
 
     return trimmedValue.isEmpty ? null : trimmedValue;
   }
-
 }
 
 class StudyPlanTaskStyle {
@@ -1519,18 +1688,12 @@ class _StudyPlanSelectTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(13),
         decoration: BoxDecoration(
-          border: Border.all(
-            color: const Color(0xFFE2E2E6),
-          ),
+          border: Border.all(color: const Color(0xFFE2E2E6)),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
-            Icon(
-              icon,
-              size: 20,
-              color: const Color(0xFFF0788F),
-            ),
+            Icon(icon, size: 20, color: const Color(0xFFF0788F)),
             const SizedBox(width: 11),
             Expanded(
               child: Column(

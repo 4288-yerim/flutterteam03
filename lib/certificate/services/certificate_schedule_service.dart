@@ -46,9 +46,6 @@ class CertificateScheduleService {
             ),
           );
         }
-
-        // nationalTechnical_, professionalQualification_ 이외의
-        // 문서는 일정 화면에 표시하지 않는다.
       }
 
       schedules.sort((a, b) {
@@ -99,19 +96,10 @@ class CertificateScheduleService {
       return name;
     }
 
-    // 설명에 이미 자격증명이 포함된 경우 그대로 사용
     if (scheduleDescription.contains(name)) {
       return scheduleDescription;
     }
 
-    /*
-   * 예:
-   * description: 2026년도 63회 1차
-   * certificateName: 세무사
-   *
-   * 결과:
-   * 2026년도 63회 세무사 1차
-   */
     final stagePattern = RegExp(
       r'(제?\s*\d+\s*차|필기|실기|면접)',
     );
@@ -138,11 +126,6 @@ class CertificateScheduleService {
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
   }
-
-  // =============================================================
-  // 기술자격 문서 변환
-  // nationalTechnical_
-  // =============================================================
 
   List<CertificateSchedule> _convertTechnicalDocument(
       String documentId,
@@ -256,7 +239,6 @@ class CertificateScheduleService {
       );
     }
 
-    // 필기 원서접수
     addRangeSchedule(
       scheduleType: '필기 원서접수',
       startFields: const [
@@ -267,7 +249,6 @@ class CertificateScheduleService {
       ],
     );
 
-    // 필기 빈자리 접수
     addRangeSchedule(
       scheduleType: '필기 빈자리 접수',
       startFields: const [
@@ -278,7 +259,6 @@ class CertificateScheduleService {
       ],
     );
 
-    // 필기시험
     addSingleDateSchedule(
       scheduleType: '필기시험',
       fields: const [
@@ -286,7 +266,6 @@ class CertificateScheduleService {
       ],
     );
 
-    // 필기 합격자 발표
     addSingleDateSchedule(
       scheduleType: '필기 합격자 발표',
       fields: const [
@@ -295,7 +274,6 @@ class CertificateScheduleService {
       scheduleDescription: writtenPassAnnouncement,
     );
 
-    // 실기 원서접수
     addRangeSchedule(
       scheduleType: '실기 원서접수',
       startFields: const [
@@ -306,7 +284,6 @@ class CertificateScheduleService {
       ],
     );
 
-    // 실기 빈자리 접수
     addRangeSchedule(
       scheduleType: '실기 빈자리 접수',
       startFields: const [
@@ -317,7 +294,6 @@ class CertificateScheduleService {
       ],
     );
 
-    // 실기시험
     addRangeSchedule(
       scheduleType: '실기시험',
       startFields: const [
@@ -328,7 +304,6 @@ class CertificateScheduleService {
       ],
     );
 
-    // 실기 합격자 발표
     addSingleDateSchedule(
       scheduleType: '최종 합격자 발표',
       fields: const [
@@ -339,11 +314,6 @@ class CertificateScheduleService {
 
     return schedules;
   }
-
-  // =============================================================
-  // 전문자격 문서 변환
-  // professionalQualification_
-  // =============================================================
 
   List<CertificateSchedule> _convertProfessionalDocument(
       String documentId,
@@ -466,10 +436,6 @@ class CertificateScheduleService {
     return schedules;
   }
 
-  // =============================================================
-  // 공통 필드 읽기
-  // =============================================================
-
   String _readString(
       Map<String, dynamic> data,
       List<String> fieldNames,
@@ -559,10 +525,6 @@ class CertificateScheduleService {
   }
 }
 
-// =============================================================
-// 일정 모델
-// =============================================================
-
 class CertificateSchedule {
   final String id;
   final String certificateName;
@@ -633,10 +595,6 @@ class CertificateSchedule {
         '${endDate.year}.${endDate.month}.${endDate.day}';
   }
 }
-
-// =============================================================
-// 예외
-// =============================================================
 
 class CertificateScheduleException implements Exception {
   final String message;

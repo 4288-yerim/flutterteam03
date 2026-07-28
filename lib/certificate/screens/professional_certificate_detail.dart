@@ -223,62 +223,63 @@ class _ProfessionalCertificateDetailPageState
 
   List<ProfessionalCertificateSchedule>
   get _availableGoalSchedules {
-    final schedules = _schedules
-        .where((schedule) {
-      final examDate =
-          schedule.examStartAt ??
-              schedule.examEndAt;
+    final today = _dateOnly(
+      DateTime.now(),
+    );
 
-      if (examDate == null) {
-        return false;
-      }
+    final schedules = _schedules.where(
+          (schedule) {
+        final filterDate =
+            schedule.examEndAt ??
+                schedule.examStartAt;
 
-      final local = examDate.toLocal();
-      final now = DateTime.now();
+        if (filterDate == null) {
+          return false;
+        }
 
-      final examDay = DateTime(
-        local.year,
-        local.month,
-        local.day,
-      );
-
-      final today = DateTime(
-        now.year,
-        now.month,
-        now.day,
-      );
-
-      return !examDay.isBefore(today);
-    }).toList();
+        return !_dateOnly(filterDate)
+            .isBefore(today);
+      },
+    ).toList();
 
     schedules.sort((first, second) {
-      final firstExamDate =
+      final firstStartDate =
           first.examStartAt ??
               first.examEndAt;
 
-      final secondExamDate =
+      final secondStartDate =
           second.examStartAt ??
               second.examEndAt;
 
-      if (firstExamDate == null &&
-          secondExamDate == null) {
+      if (firstStartDate == null &&
+          secondStartDate == null) {
         return 0;
       }
 
-      if (firstExamDate == null) {
+      if (firstStartDate == null) {
         return 1;
       }
 
-      if (secondExamDate == null) {
+      if (secondStartDate == null) {
         return -1;
       }
 
-      return firstExamDate.compareTo(
-        secondExamDate,
+      return firstStartDate.compareTo(
+        secondStartDate,
       );
     });
 
     return schedules;
+  }
+
+  static DateTime _dateOnly(DateTime date) {
+    final localDate = date.toLocal();
+
+    return DateTime(
+      localDate.year,
+      localDate.month,
+      localDate.day,
+    );
   }
 
   Future<void> _openQnetExamInformation() async {
@@ -514,40 +515,63 @@ class _ProfessionalCertificateDetailPageState
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment:
-                                      CrossAxisAlignment
-                                          .start,
+                                      CrossAxisAlignment.start,
                                       children: [
                                         Text(
+                                          schedule.description,
+                                          style: const TextStyle(
+                                            color: certificateDarkText,
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+
+                                        const SizedBox(height: 9),
+
+                                        if (getCertificateRegistrationStatus(
+                                          registrationStartDate:
                                           schedule
-                                              .description,
-                                          style:
-                                          const TextStyle(
-                                            color:
-                                            certificateDarkText,
-                                            fontSize:
-                                            15,
-                                            fontWeight:
-                                            FontWeight
-                                                .w800,
+                                              .examRegistrationStartAt,
+                                          registrationEndDate:
+                                          schedule
+                                              .examRegistrationEndAt,
+                                        )
+                                        case final registrationStatus?)
+                                          CertificateScheduleStatusBadge(
+                                            label: registrationStatus.label,
+                                            isActive:
+                                            registrationStatus.isActive,
                                           ),
-                                        ),
-                                        const SizedBox(
-                                          height: 6,
-                                        ),
-                                        Text(
-                                          _formatScheduleDate(
-                                            schedule
-                                                .examStartAt ??
-                                                schedule
-                                                    .examEndAt,
-                                          ),
-                                          style:
-                                          const TextStyle(
-                                            color:
-                                            certificateGrayText,
-                                            fontSize:
-                                            13,
-                                          ),
+
+                                        const SizedBox(height: 9),
+
+                                        Row(
+                                          crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                          children: [
+                                            const Icon(
+                                              Icons.event_outlined,
+                                              size: 16,
+                                              color: certificateGrayText,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: Text(
+                                                formatCertificateGoalDateRange(
+                                                  schedule.examStartAt ??
+                                                      schedule.examEndAt!,
+                                                  schedule.examStartAt == null
+                                                      ? null
+                                                      : schedule.examEndAt,
+                                                ),
+                                                style: const TextStyle(
+                                                  color: certificateGrayText,
+                                                  fontSize: 13,
+                                                  height: 1.4,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
@@ -635,10 +659,23 @@ class _ProfessionalCertificateDetailPageState
       scheduleId: schedule.id,
       targetRound: schedule.description,
       examType: examType,
-      examTypeName: examType == 'WRITTEN' ? '필기' : '실기·면접',
+      examTypeName:
+      examType == 'WRITTEN'
+          ? '필기'
+          : '실기·면접',
+
       examDate: examDate,
-      passAnnouncementDate: schedule.passStartAt,
-      passAnnouncementEndDate: schedule.passEndAt,
+      examEndDate: schedule.examEndAt,
+
+      registrationStartDate:
+      schedule.examRegistrationStartAt,
+      registrationEndDate:
+      schedule.examRegistrationEndAt,
+
+      passAnnouncementDate:
+      schedule.passStartAt,
+      passAnnouncementEndDate:
+      schedule.passEndAt,
     );
 
     setState(() {
@@ -1137,19 +1174,5 @@ class _ProfessionalCertificateDetailPageState
           ),
       ],
     );
-  }
-
-  static String _formatScheduleDate(
-      DateTime? date,
-      ) {
-    if (date == null) {
-      return '시험일 미정';
-    }
-
-    final local = date.toLocal();
-
-    return '${local.year}.'
-        '${local.month.toString().padLeft(2, '0')}.'
-        '${local.day.toString().padLeft(2, '0')}';
   }
 }

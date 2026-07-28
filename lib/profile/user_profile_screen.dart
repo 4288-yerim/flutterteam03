@@ -43,6 +43,24 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   Future<void> _loadUserProfile() async {
     try {
+      // 프로필 정보를 읽기 전에 차단 관계를 먼저 확인합니다.
+      await _loadBlockStatus();
+
+      // 상대방이 나를 차단한 경우에는 닉네임, 자기소개,
+      // 프로필 이미지, 대표 목표를 읽지 않고 접근을 종료합니다.
+      if (_isBlockedByOther) {
+        if (!mounted) {
+          return;
+        }
+
+        setState(() {
+          _isLoading = false;
+          _hasError = false;
+        });
+
+        return;
+      }
+
       final DocumentSnapshot<Map<String, dynamic>> userDocument =
       await FirebaseFirestore.instance
           .collection('users')
@@ -112,9 +130,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         }
       }
 
-      await _loadBlockStatus();
-
-      if (!_isBlocked) {
+      if (!_isBlocked && !_isBlockedByOther) {
         await _loadFriendRelation();
       }
 
@@ -271,6 +287,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     return currentUid == widget.userUid;
   }
 
+  bool get _isReceivedPendingRequest {
+    final String? currentUid = FirebaseAuth.instance.currentUser?.uid;
+
+    return _friendStatus == 'PENDING' &&
+        _friendRequestSenderUid != null &&
+        _friendRequestSenderUid != currentUid;
+  }
+
   Future<void> _onFriendButtonPressed() async {
     if (_isFriendActionLoading || _isBlocked || _isBlockedByOther) {
       return;
@@ -294,14 +318,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     if (_friendStatus == 'PENDING') {
       if (_friendRequestSenderUid == currentUid) {
         await _cancelFriendRequest();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              '이 사용자가 보낸 친구 요청이 있습니다. 친구 화면에서 확인해주세요.',
-            ),
-          ),
-        );
       }
 
       return;
@@ -326,6 +342,30 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     });
 
     try {
+      // 화면에 표시된 차단 상태만 믿지 않고,
+      // 실제 친구 요청 저장 직전에 차단 관계를 다시 확인합니다.
+      await _loadBlockStatus();
+
+      if (_isBlocked || _isBlockedByOther) {
+        if (!mounted) {
+          return;
+        }
+
+        setState(() {
+          _isFriendActionLoading = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              '차단 관계에 있는 사용자에게는 친구 요청을 보낼 수 없습니다.',
+            ),
+          ),
+        );
+
+        return;
+      }
+
       final DocumentReference<Map<String, dynamic>> requestReference =
       FirebaseFirestore.instance
           .collection('friendRequests')
@@ -390,6 +430,234 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('친구 요청을 보내지 못했습니다.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _acceptReceivedFriendRequest() async {
+    final String? currentUid = FirebaseAuth.instance.currentUser?.uid;
+    final String? requestId = _getFriendRequestId();
+
+    if (currentUid == null ||
+        requestId == null ||
+        !_isReceivedPendingRequest ||
+        _isFriendActionLoading) {
+      return;
+    }
+
+    setState(() {
+      _isFriendActionLoading = true;
+    });
+
+    try {
+      await _loadBlockStatus();
+
+      if (_isBlocked || _isBlockedByOther) {
+        if (!mounted) {
+          return;
+        }
+
+        await FirebaseFirestore.instance
+            .collection('friendRequests')
+            .doc(requestId)
+            .delete();
+
+        if (!mounted) {
+          return;
+        }
+
+        setState(() {
+          _friendStatus = 'NONE';
+          _friendRequestSenderUid = null;
+          _isFriendActionLoading = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              '차단 관계에 있는 사용자의 친구 요청은 수락할 수 없습니다.',
+            ),
+          ),
+        );
+
+        return;
+      }
+
+      final DocumentReference<Map<String, dynamic>> requestReference =
+      FirebaseFirestore.instance
+          .collection('friendRequests')
+          .doc(requestId);
+
+      final DocumentSnapshot<Map<String, dynamic>> requestDocument =
+      await requestReference.get();
+
+      final Map<String, dynamic>? requestData = requestDocument.data();
+      final String status =
+      (requestData?['status'] as String? ?? '').trim().toUpperCase();
+      final String senderUid =
+      (requestData?['senderUid'] as String? ?? '').trim();
+      final String receiverUid =
+      (requestData?['receiverUid'] as String? ?? '').trim();
+
+      if (!requestDocument.exists ||
+          status != 'PENDING' ||
+          senderUid != widget.userUid ||
+          receiverUid != currentUid) {
+        if (!mounted) {
+          return;
+        }
+
+        setState(() {
+          _isFriendActionLoading = false;
+        });
+
+        await _loadFriendRelation();
+
+        if (!mounted) {
+          return;
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('이미 처리되었거나 확인할 수 없는 친구 요청입니다.'),
+          ),
+        );
+
+        return;
+      }
+
+      await requestReference.update({
+        'status': 'ACCEPTED',
+        'acceptedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _friendStatus = 'ACCEPTED';
+        _friendRequestSenderUid = widget.userUid;
+        _isFriendActionLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$_nickname님과 친구가 되었습니다.'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isFriendActionLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('친구 요청을 수락하지 못했습니다.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _rejectReceivedFriendRequest() async {
+    final String? requestId = _getFriendRequestId();
+
+    if (requestId == null ||
+        !_isReceivedPendingRequest ||
+        _isFriendActionLoading) {
+      return;
+    }
+
+    final bool? shouldReject = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          title: const Text(
+            '친구 요청 거절',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          content: Text(
+            '$_nickname님의 친구 요청을 거절하시겠습니까?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+              },
+              child: const Text(
+                '취소',
+                style: TextStyle(
+                  color: Color(0xFF9AA0AC),
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
+              child: const Text(
+                '거절',
+                style: TextStyle(
+                  color: Colors.redAccent,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldReject != true) {
+      return;
+    }
+
+    setState(() {
+      _isFriendActionLoading = true;
+    });
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('friendRequests')
+          .doc(requestId)
+          .delete();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _friendStatus = 'NONE';
+        _friendRequestSenderUid = null;
+        _isFriendActionLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('친구 요청을 거절했습니다.'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isFriendActionLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('친구 요청을 거절하지 못했습니다.'),
         ),
       );
     }
@@ -486,6 +754,104 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('친구 요청을 취소하지 못했습니다.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _deleteFriend() async {
+    final String? requestId = _getFriendRequestId();
+
+    if (requestId == null ||
+        _friendStatus != 'ACCEPTED' ||
+        _isFriendActionLoading) {
+      return;
+    }
+
+    final bool? shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          title: const Text(
+            '친구 삭제',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          content: Text(
+            '$_nickname님을 친구 목록에서 삭제하시겠습니까?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+              },
+              child: const Text(
+                '취소',
+                style: TextStyle(
+                  color: Color(0xFF9AA0AC),
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
+              child: const Text(
+                '삭제',
+                style: TextStyle(
+                  color: Colors.redAccent,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete != true) {
+      return;
+    }
+
+    setState(() {
+      _isFriendActionLoading = true;
+    });
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('friendRequests')
+          .doc(requestId)
+          .delete();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _friendStatus = 'NONE';
+        _friendRequestSenderUid = null;
+        _isFriendActionLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$_nickname님을 친구 목록에서 삭제했습니다.'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isFriendActionLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('친구를 삭제하지 못했습니다.'),
         ),
       );
     }
@@ -823,7 +1189,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         return '요청 취소';
       }
 
-      return '받은 요청 확인';
+      return '친구 요청 수락';
     }
 
     return '친구 추가';
@@ -1022,6 +1388,34 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     type: AppButtonType.gray,
                     onPressed: null,
                   )
+                else if (_isReceivedPendingRequest)
+                  Column(
+                    children: [
+                      AppButton(
+                        text: _isFriendActionLoading
+                            ? '처리 중...'
+                            : '친구 요청 수락',
+                        type: AppButtonType.primaryPink,
+                        onPressed: _isFriendActionLoading ||
+                            _isBlockActionLoading ||
+                            _isBlocked ||
+                            _isBlockedByOther
+                            ? null
+                            : _acceptReceivedFriendRequest,
+                      ),
+                      const SizedBox(height: 10),
+                      AppButton(
+                        text: '거절',
+                        type: AppButtonType.gray,
+                        onPressed: _isFriendActionLoading ||
+                            _isBlockActionLoading ||
+                            _isBlocked ||
+                            _isBlockedByOther
+                            ? null
+                            : _rejectReceivedFriendRequest,
+                      ),
+                    ],
+                  )
                 else
                   AppButton(
                     text: _getFriendButtonText(),
@@ -1089,6 +1483,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           if (value == 'unblock') {
             _unblockUser();
           }
+
+          if (value == 'deleteFriend') {
+            _deleteFriend();
+          }
         },
         itemBuilder: (context) {
           if (_isBlocked) {
@@ -1110,8 +1508,29 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             ];
           }
 
-          return const [
-            PopupMenuItem<String>(
+          final List<PopupMenuEntry<String>> menuItems = [];
+
+          if (_friendStatus == 'ACCEPTED') {
+            menuItems.add(
+              const PopupMenuItem<String>(
+                value: 'deleteFriend',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.person_remove_outlined,
+                      size: 20,
+                      color: Color(0xFF666A73),
+                    ),
+                    SizedBox(width: 10),
+                    Text('친구 삭제'),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          menuItems.add(
+            const PopupMenuItem<String>(
               value: 'block',
               child: Row(
                 children: [
@@ -1125,7 +1544,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 ],
               ),
             ),
-          ];
+          );
+
+          return menuItems;
         },
       ),
     );

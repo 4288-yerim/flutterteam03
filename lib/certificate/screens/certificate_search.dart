@@ -32,8 +32,6 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
 
   String? _loadError;
 
-  /// T: 국가기술자격
-  /// S: 국가전문자격
   String _selectedQualificationCode = 'T';
 
   String? _selectedJobFieldCode;

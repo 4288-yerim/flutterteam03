@@ -202,7 +202,13 @@ class CertificateGoalOption {
   final String targetRound;
   final String examType;
   final String examTypeName;
+
   final DateTime examDate;
+  final DateTime? examEndDate;
+
+  final DateTime? registrationStartDate;
+  final DateTime? registrationEndDate;
+
   final DateTime? passAnnouncementDate;
   final DateTime? passAnnouncementEndDate;
 
@@ -212,6 +218,9 @@ class CertificateGoalOption {
     required this.examType,
     required this.examTypeName,
     required this.examDate,
+    required this.examEndDate,
+    required this.registrationStartDate,
+    required this.registrationEndDate,
     required this.passAnnouncementDate,
     required this.passAnnouncementEndDate,
   });
@@ -254,9 +263,12 @@ Future<bool?> showCertificateCalendarLinkDialog({
         ),
         content: Text(
           '${option.targetRound} ${option.examTypeName} 시험이 '
-          '목표로 등록되었습니다.\n\n'
-          '시험일: ${formatCertificateGoalDate(option.examDate)}\n'
-          '휴대폰 캘린더에도 시험 일정을 추가하시겠습니까?',
+              '목표로 등록되었습니다.\n\n'
+              '시험일: ${formatCertificateGoalDateRange(
+            option.examDate,
+            option.examEndDate,
+          )}\n'
+              '휴대폰 캘린더에도 시험 일정을 추가하시겠습니까?',
           style: const TextStyle(
             color: certificateBodyText,
             fontSize: 14,
@@ -339,4 +351,122 @@ String formatCertificateGoalDate(DateTime date) {
   final day = localDate.day.toString().padLeft(2, '0');
 
   return '$year.$month.$day';
+}
+
+String formatCertificateGoalDateRange(
+    DateTime startDate,
+    DateTime? endDate,
+    ) {
+  final start = _certificateDateOnly(startDate);
+
+  if (endDate == null) {
+    return formatCertificateGoalDate(start);
+  }
+
+  final end = _certificateDateOnly(endDate);
+
+  if (start == end) {
+    return formatCertificateGoalDate(start);
+  }
+
+  return '${formatCertificateGoalDate(start)}'
+      ' ~ '
+      '${formatCertificateGoalDate(end)}';
+}
+
+CertificateRegistrationStatus?
+getCertificateRegistrationStatus({
+  required DateTime? registrationStartDate,
+  required DateTime? registrationEndDate,
+}) {
+  if (registrationStartDate == null ||
+      registrationEndDate == null) {
+    return null;
+  }
+
+  final today = _certificateDateOnly(DateTime.now());
+  final startDate =
+  _certificateDateOnly(registrationStartDate);
+  final endDate =
+  _certificateDateOnly(registrationEndDate);
+
+  if (today.isBefore(startDate)) {
+    final remainingDays =
+        startDate.difference(today).inDays;
+
+    return CertificateRegistrationStatus(
+      label: '원서접수 D-$remainingDays',
+      isActive: false,
+    );
+  }
+
+  if (!today.isAfter(endDate)) {
+    return const CertificateRegistrationStatus(
+      label: '원서접수 진행중',
+      isActive: true,
+    );
+  }
+
+  return const CertificateRegistrationStatus(
+    label: '원서접수 종료',
+    isActive: false,
+  );
+}
+
+DateTime _certificateDateOnly(DateTime date) {
+  final localDate = date.toLocal();
+
+  return DateTime(
+    localDate.year,
+    localDate.month,
+    localDate.day,
+  );
+}
+
+class CertificateRegistrationStatus {
+  final String label;
+  final bool isActive;
+
+  const CertificateRegistrationStatus({
+    required this.label,
+    required this.isActive,
+  });
+}
+
+class CertificateScheduleStatusBadge
+    extends StatelessWidget {
+  final String label;
+  final bool isActive;
+
+  const CertificateScheduleStatusBadge({
+    super.key,
+    required this.label,
+    required this.isActive,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 9,
+        vertical: 5,
+      ),
+      decoration: BoxDecoration(
+        color: isActive
+            ? certificatePinkSoft
+            : const Color(0xFFF2F3F6),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: isActive
+              ? certificatePrimaryPink
+              : certificateGrayText,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
 }

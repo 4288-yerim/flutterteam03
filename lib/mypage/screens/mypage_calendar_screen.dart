@@ -60,6 +60,7 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
         _isLoadingSchedules = false;
         _scheduleLoadError = '로그인 정보를 확인할 수 없습니다.';
       });
+
       return;
     }
 
@@ -71,34 +72,64 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
     }
 
     try {
-      final QuerySnapshot<Map<String, dynamic>> snapshot =
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .collection('calendarEvents')
-          .get();
+      final List<QuerySnapshot<Map<String, dynamic>>> snapshots =
+      await Future.wait([
+        FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .collection('calendarEvents')
+            .get(),
 
-      final List<CalendarScheduleItem> loadedSchedules = [];
+        FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .collection('studyPlans')
+            .get(),
+      ]);
 
-      for (final QueryDocumentSnapshot<Map<String, dynamic>> document
-      in snapshot.docs) {
+      final QuerySnapshot<Map<String, dynamic>>
+      calendarEventSnapshot = snapshots[0];
+
+      final QuerySnapshot<Map<String, dynamic>>
+      studyPlanSnapshot = snapshots[1];
+
+      final List<CalendarScheduleItem> loadedSchedules =
+      <CalendarScheduleItem>[];
+
+      for (final QueryDocumentSnapshot<Map<String, dynamic>>
+      document in calendarEventSnapshot.docs) {
         final Map<String, dynamic> data = document.data();
-        final Timestamp? startTimestamp = data['startAt'] as Timestamp?;
+
+        final Timestamp? startTimestamp =
+        data['startAt'] as Timestamp?;
 
         if (startTimestamp == null) {
           continue;
         }
 
         final DateTime startAt = startTimestamp.toDate();
-        final Timestamp? endTimestamp = data['endAt'] as Timestamp?;
+
+        final Timestamp? endTimestamp =
+        data['endAt'] as Timestamp?;
+
         final DateTime? endAt = endTimestamp?.toDate();
-        final bool allDay = data['allDay'] as bool? ?? false;
+
+        final bool allDay =
+            data['allDay'] as bool? ?? false;
+
         final String eventType =
-        ((data['eventType'] as String?) ?? 'CUSTOM').trim().toUpperCase();
+        ((data['eventType'] as String?) ?? 'CUSTOM')
+            .trim()
+            .toUpperCase();
+
         final String certificateName =
-        ((data['certificateName'] as String?) ?? '').trim();
+        ((data['certificateName'] as String?) ?? '')
+            .trim();
+
         final String scheduleName =
-        ((data['scheduleName'] as String?) ?? '').trim();
+        ((data['scheduleName'] as String?) ?? '')
+            .trim();
+
         final String description = scheduleName.isNotEmpty
             ? scheduleName
             : certificateName;
@@ -106,18 +137,95 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
         loadedSchedules.add(
           CalendarScheduleItem(
             id: document.id,
-            title: (data['title'] as String?)?.trim().isNotEmpty == true
+            title:
+            (data['title'] as String?)
+                ?.trim()
+                .isNotEmpty ==
+                true
                 ? (data['title'] as String).trim()
                 : '일정',
             description: description,
             date: _dateOnly(startAt),
-            startTime: allDay ? null : TimeOfDay.fromDateTime(startAt),
+            startTime: allDay
+                ? null
+                : TimeOfDay.fromDateTime(startAt),
             endTime: allDay || endAt == null
                 ? null
                 : TimeOfDay.fromDateTime(endAt),
-            type: _calendarTypeFromEventType(eventType),
+            type: _calendarTypeFromEventType(
+              eventType,
+            ),
           ),
         );
+      }
+
+      for (final QueryDocumentSnapshot<Map<String, dynamic>>
+      document in studyPlanSnapshot.docs) {
+        final Map<String, dynamic> data = document.data();
+
+        final Object? rawSteps = data['steps'];
+
+        if (rawSteps is! List) {
+          continue;
+        }
+
+        final DateTime recommendedStartDate =
+        _readRecommendedStudyStartDate(
+          data['recommendedStudyStartDate'],
+        );
+
+        final String certificateName =
+        ((data['certificateName'] as String?) ?? '')
+            .trim();
+
+        for (int index = 0;
+        index < rawSteps.length;
+        index++) {
+          final Object? rawStep = rawSteps[index];
+
+          if (rawStep is! Map) {
+            continue;
+          }
+
+          final Map<String, dynamic> step =
+          Map<String, dynamic>.from(rawStep);
+
+          final String dayLabel =
+          ((step['dayLabel'] as String?) ?? '')
+              .trim();
+
+          final DateTime scheduleDate =
+          _readAiPlanStepDate(
+            dayLabel: dayLabel,
+            recommendedStartDate:
+            recommendedStartDate,
+            fallbackIndex: index,
+          );
+
+          final String title =
+          ((step['title'] as String?) ?? '')
+              .trim();
+
+          final String detail =
+          ((step['detail'] as String?) ?? '')
+              .trim();
+
+          loadedSchedules.add(
+            CalendarScheduleItem(
+              id: '${document.id}_step_$index',
+              title: title.isNotEmpty
+                  ? title
+                  : '학습 계획',
+              description: detail.isNotEmpty
+                  ? detail
+                  : certificateName,
+              date: scheduleDate,
+              startTime: null,
+              endTime: null,
+              type: CalendarScheduleType.aiPlan,
+            ),
+          );
+        }
       }
 
       loadedSchedules.sort(_compareSchedules);
@@ -130,6 +238,7 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
         _schedules
           ..clear()
           ..addAll(loadedSchedules);
+
         _isLoadingSchedules = false;
       });
     } catch (error) {
@@ -140,16 +249,106 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
       setState(() {
         _schedules.clear();
         _isLoadingSchedules = false;
-        _scheduleLoadError = '일정을 불러오지 못했습니다.';
+        _scheduleLoadError =
+        '일정을 불러오지 못했습니다.';
       });
     }
   }
 
   DateTime _dateOnly(DateTime date) {
-    return DateTime(date.year, date.month, date.day);
+    return DateTime(
+      date.year,
+      date.month,
+      date.day,
+    );
   }
 
-  CalendarScheduleType _calendarTypeFromEventType(String eventType) {
+  DateTime _readRecommendedStudyStartDate(
+      Object? value,
+      ) {
+    if (value is Timestamp) {
+      final DateTime date = value.toDate();
+
+      return DateTime(
+        date.year,
+        date.month,
+        date.day,
+      );
+    }
+
+    if (value is DateTime) {
+      return DateTime(
+        value.year,
+        value.month,
+        value.day,
+      );
+    }
+
+    if (value is String) {
+      final DateTime? parsedDate =
+      DateTime.tryParse(value.trim());
+
+      if (parsedDate != null) {
+        return DateTime(
+          parsedDate.year,
+          parsedDate.month,
+          parsedDate.day,
+        );
+      }
+    }
+
+    final DateTime now = DateTime.now();
+
+    return DateTime(
+      now.year,
+      now.month,
+      now.day,
+    );
+  }
+
+  DateTime _readAiPlanStepDate({
+    required String dayLabel,
+    required DateTime recommendedStartDate,
+    required int fallbackIndex,
+  }) {
+    final RegExpMatch? match = RegExp(
+      r'(\d{1,2})/(\d{1,2})',
+    ).firstMatch(dayLabel);
+
+    if (match == null) {
+      return recommendedStartDate.add(
+        Duration(days: fallbackIndex),
+      );
+    }
+
+    final int? month =
+    int.tryParse(match.group(1) ?? '');
+
+    final int? day =
+    int.tryParse(match.group(2) ?? '');
+
+    if (month == null || day == null) {
+      return recommendedStartDate.add(
+        Duration(days: fallbackIndex),
+      );
+    }
+
+    int year = recommendedStartDate.year;
+
+    if (month < recommendedStartDate.month) {
+      year += 1;
+    }
+
+    return DateTime(
+      year,
+      month,
+      day,
+    );
+  }
+
+  CalendarScheduleType _calendarTypeFromEventType(
+      String eventType,
+      ) {
     switch (eventType) {
       case 'EXAM':
       case 'APPLICATION':
@@ -815,17 +1014,6 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
                     color: Color(0xFF1A1A1A),
                   ),
                 ),
-                if (schedule.description.isNotEmpty) ...[
-                  const SizedBox(height: 5),
-                  Text(
-                    schedule.description,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      height: 1.4,
-                      color: Color(0xFF666A73),
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
