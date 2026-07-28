@@ -2008,3 +2008,16 @@ exports.createInitialGoal = onCall(async (request) => {
     return { success: false, message: e.message };
   }
 });
+
+const {
+  sendMidnightCertificateNotifications,
+  sendMorningCertificateNotifications,
+} = require(
+    "./notifications/certificate_notification",
+);
+
+exports.sendMidnightCertificateNotifications =
+    sendMidnightCertificateNotifications;
+
+exports.sendMorningCertificateNotifications =
+    sendMorningCertificateNotifications;
