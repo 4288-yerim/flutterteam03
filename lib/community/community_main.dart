@@ -547,201 +547,99 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
   }
 
   Widget _buildFeedControls() {
-    String description;
-
-    if (_isPreferenceLoading) {
-      description = '내 자격증과 관심 게시판을 확인하고 있어요.';
-    } else if (_myCertificates.isEmpty &&
-        _favoriteBoards.isEmpty) {
-      description = '인증 자격증이나 관심 게시판을 선택하면 '
-          '관련 글만 모아서 볼 수 있어요.';
-    } else {
-      List<String> preferenceNames = [
-        ..._myCertificates.map((tag) {
-          return tag.certificateName;
-        }),
-        ..._favoriteBoards.map((board) {
-          return board.label;
-        }),
-      ];
-
-      description =
-          preferenceNames.take(3).join(' · ');
-
-      if (preferenceNames.length > 3) {
-        description =
-        '$description 외 ${preferenceNames.length - 3}개';
-      }
-    }
-
-    return Row(
-      children: [
-        Expanded(
-          child: Material(
-            color: _showMyFeed
-                ? context.communityColors.pinkSoft
-                : Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(14),
-            child: InkWell(
-              onTap: _isPreferenceLoading
-                  ? null
-                  : () {
-                setState(() {
-                  _showMyFeed = !_showMyFeed;
-                  _selectedBoard =
-                      CommunityBoardType.all;
-                  _selectedCertificateId = '';
-                });
-              },
-              borderRadius: BorderRadius.circular(14),
-              child: Container(
-                height: 54,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 13,
-                ),
-                decoration: BoxDecoration(
-                  borderRadius:
-                  BorderRadius.circular(14),
-                  border: Border.all(
-                    color: _showMyFeed
-                        ? context
-                        .communityColors.pinkStart
-                        : context
-                        .communityColors.pinkSoft,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.auto_awesome_rounded,
-                      size: 19,
-                      color: _showMyFeed
-                          ? context
-                          .communityColors.pinkStart
-                          : context
-                          .communityColors
-                          .textSecondary,
-                    ),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment:
-                        MainAxisAlignment.center,
-                        crossAxisAlignment:
-                        CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '내 맞춤 피드',
-                            style: TextStyle(
-                              color: context
-                                  .communityColors
-                                  .textPrimary,
-                              fontSize: 13,
-                              fontWeight:
-                              FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            description,
-                            maxLines: 1,
-                            overflow:
-                            TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: context
-                                  .communityColors
-                                  .textSecondary,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      _showMyFeed
-                          ? Icons.check_circle_rounded
-                          : Icons
-                          .radio_button_unchecked_rounded,
-                      size: 18,
-                      color: _showMyFeed
-                          ? context
-                          .communityColors.pinkStart
-                          : context
-                          .communityColors.pinkSoft,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Material(
-          color: _showFavoriteSettings
-              ? context.communityColors.pinkSoft
-              : Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(14),
-          child: InkWell(
-            onTap: () {
+    return SizedBox(
+      height: 38,
+      child: Row(
+        children: [
+          _buildFeedTab(
+            label: '전체 피드',
+            selected: !_showMyFeed,
+            onPressed: () {
               setState(() {
-                _showFavoriteSettings =
-                !_showFavoriteSettings;
+                _showMyFeed = false;
               });
             },
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
+          ),
+          const SizedBox(width: 8),
+          _buildFeedTab(
+            label: '맞춤 피드',
+            selected: _showMyFeed,
+            onPressed: _isPreferenceLoading
+                ? null
+                : () {
+              setState(() {
+                _showMyFeed = true;
+                _selectedBoard =
+                    CommunityBoardType.all;
+                _selectedCertificateId = '';
+              });
+            },
+          ),
+          const SizedBox(width: 8),
+          Material(
+            color: _showFavoriteSettings
+                ? context.communityColors.pinkStart
+                : Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(19),
+            child: InkWell(
+              onTap: () {
+                setState(() {
+                  _showFavoriteSettings =
+                  !_showFavoriteSettings;
+                });
+              },
+              borderRadius: BorderRadius.circular(19),
+              child: SizedBox(
+                width: 42,
+                height: 38,
+                child: Icon(
+                  _showFavoriteSettings
+                      ? Icons.star_rounded
+                      : Icons.star_border_rounded,
+                  size: 20,
                   color: _showFavoriteSettings
-                      ? context
-                      .communityColors.pinkStart
+                      ? Colors.white
                       : context
-                      .communityColors.pinkSoft,
+                      .communityColors.textSecondary,
                 ),
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Icon(
-                    _showFavoriteSettings
-                        ? Icons.star_rounded
-                        : Icons.star_border_rounded,
-                    color:
-                    context.communityColors.pinkStart,
-                    size: 23,
-                  ),
-                  if (_favoriteBoards.isNotEmpty)
-                    Positioned(
-                      top: 6,
-                      right: 6,
-                      child: Container(
-                        width: 17,
-                        height: 17,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: context
-                              .communityColors.pinkStart,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          '${_favoriteBoards.length}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeedTab({
+    required String label,
+    required bool selected,
+    required VoidCallback? onPressed,
+  }) {
+    return Expanded(
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          backgroundColor: selected
+              ? context.communityColors.pinkStart
+              : Theme.of(context).colorScheme.surface,
+          foregroundColor: selected
+              ? Colors.white
+              : context.communityColors.textSecondary,
+          side: BorderSide.none,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(19),
+          ),
         ),
-      ],
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: selected
+                ? FontWeight.w700
+                : FontWeight.w500,
+          ),
+        ),
+      ),
     );
   }
 
@@ -1241,107 +1139,116 @@ class _CommunityPostCard
 
               const SizedBox(height: 11),
 
-              Row(
-                children: [
-                  Flexible(
-                    child: FutureBuilder<
-                        Map<String, dynamic>>(
-                      future: writerProfileFuture,
-                      builder: (context, snapshot) {
-                        Map<String, dynamic>
-                        profile =
-                            snapshot.data ?? {};
+              SizedBox(
+                width: double.infinity,
+                child: Row(
+                  crossAxisAlignment:
+                  CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: FutureBuilder<
+                                Map<String, dynamic>>(
+                              future: writerProfileFuture,
+                              builder: (context, snapshot) {
+                                Map<String, dynamic>
+                                profile =
+                                    snapshot.data ?? {};
 
-                        String nickname =
-                            profile['nickname']
-                                ?.toString()
-                                .trim() ??
-                                '';
+                                String nickname =
+                                    profile['nickname']
+                                        ?.toString()
+                                        .trim() ??
+                                        '';
 
-                        if (nickname.isEmpty ||
-                            nickname == '사용자') {
-                          nickname = post
-                              .writerNickname
-                              .trim();
-                        }
+                                if (nickname.isEmpty ||
+                                    nickname == '사용자') {
+                                  nickname = post
+                                      .writerNickname
+                                      .trim();
+                                }
 
-                        if (nickname.isEmpty) {
-                          nickname = '사용자';
-                        }
+                                if (nickname.isEmpty) {
+                                  nickname = '사용자';
+                                }
 
-                        return Text(
-                          nickname,
-                          maxLines: 1,
-                          overflow:
-                          TextOverflow.ellipsis,
+                                return Text(
+                                  nickname,
+                                  maxLines: 1,
+                                  overflow:
+                                  TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: context
+                                        .communityColors
+                                        .textPrimary,
+                                    fontSize: 12,
+                                    fontWeight:
+                                    FontWeight.w600,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          if (post
+                              .isCertifiedWriter) ...[
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.verified_rounded,
+                              size: 15,
+                              color: context
+                                  .communityColors
+                                  .pinkStart,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _formatCreatedAt(
+                            post.createdAt,
+                          ),
                           style: TextStyle(
                             color: context
                                 .communityColors
-                                .textPrimary,
-                            fontSize: 12,
-                            fontWeight:
-                            FontWeight.w600,
+                                .textSecondary,
+                            fontSize: 11,
                           ),
-                        );
-                      },
-                    ),
-                  ),
-
-                  if (post.isCertifiedWriter) ...[
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.verified_rounded,
-                      size: 15,
-                      color: context
-                          .communityColors
-                          .pinkStart,
+                        ),
+                        const SizedBox(width: 8),
+                        _PostCount(
+                          icon: Icons
+                              .remove_red_eye_outlined,
+                          value: post.viewCount,
+                        ),
+                        const SizedBox(width: 6),
+                        _PostCount(
+                          icon: Icons
+                              .chat_bubble_outline,
+                          value: post.commentCount,
+                        ),
+                        const SizedBox(width: 6),
+                        _PostCount(
+                          icon:
+                          Icons.favorite_border,
+                          value: post.likeCount,
+                        ),
+                        const SizedBox(width: 6),
+                        _PostCount(
+                          icon:
+                          Icons.bookmark_border,
+                          value: post.bookmarkCount,
+                        ),
+                      ],
                     ),
                   ],
-
-                  const SizedBox(width: 7),
-
-                  Text(
-                    _formatCreatedAt(
-                      post.createdAt,
-                    ),
-                    style: TextStyle(
-                      color: context
-                          .communityColors
-                          .textSecondary,
-                      fontSize: 11,
-                    ),
-                  ),
-
-                  const Spacer(),
-
-                  _PostCount(
-                    icon:
-                    Icons.remove_red_eye_outlined,
-                    value: post.viewCount,
-                  ),
-
-                  const SizedBox(width: 7),
-
-                  _PostCount(
-                    icon:
-                    Icons.chat_bubble_outline,
-                    value: post.commentCount,
-                  ),
-
-                  const SizedBox(width: 7),
-
-                  _PostCount(
-                    icon: Icons.favorite_border,
-                    value: post.likeCount,
-                  ),
-
-                  const SizedBox(width: 7),
-
-                  _PostCount(
-                    icon: Icons.bookmark_border,
-                    value: post.bookmarkCount,
-                  ),
-                ],
+                ),
               ),
             ],
           ),

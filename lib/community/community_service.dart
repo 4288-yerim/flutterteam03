@@ -152,7 +152,7 @@ class CommunityService {
       'recruitStatus':
       boardType ==
           CommunityBoardType.groupRecruit
-          ? 'OPEN'
+          ? 'RECRUITING'
           : '',
       'postStatus': 'NORMAL',
       'visibility': 'PUBLIC',
@@ -171,17 +171,20 @@ class CommunityService {
     required String title,
     required String content,
   }) async {
+    DocumentReference<Map<String, dynamic>> postReference =
+    _firestore.collection('posts').doc(postId);
+
+    DocumentSnapshot<Map<String, dynamic>> postSnapshot =
+    await postReference.get();
+
+    if (!postSnapshot.exists) {
+      throw StateError('게시글을 찾을 수 없습니다.');
+    }
+
+    Map<String, dynamic> postData =
+        postSnapshot.data() ?? {};
+
     if (boardType == CommunityBoardType.passReview) {
-      DocumentSnapshot<Map<String, dynamic>>
-      postSnapshot =
-      await _firestore
-          .collection('posts')
-          .doc(postId)
-          .get();
-
-      Map<String, dynamic> postData =
-          postSnapshot.data() ?? {};
-
       String writerUid =
           postData['writerUid']?.toString() ?? '';
 
@@ -217,24 +220,105 @@ class CommunityService {
       }
     }
 
-    await _firestore
-        .collection('posts')
-        .doc(postId)
-        .update({
+    String previousBoardType =
+        postData['boardType']?.toString() ?? '';
+
+    Map<String, dynamic> updates = {
       'boardType': boardType.code,
       'title': title,
       'content': content,
-      'questionStatus':
-      boardType == CommunityBoardType.question
-          ? 'WAITING'
-          : '',
-      'recruitStatus':
-      boardType ==
-          CommunityBoardType.groupRecruit
-          ? 'OPEN'
-          : '',
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    };
+
+    if (boardType == CommunityBoardType.question) {
+      if (previousBoardType !=
+          CommunityBoardType.question.code) {
+        updates['questionStatus'] = 'WAITING';
+      }
+    } else {
+      updates['questionStatus'] = '';
+    }
+
+    if (boardType ==
+        CommunityBoardType.groupRecruit) {
+      if (previousBoardType !=
+          CommunityBoardType.groupRecruit.code) {
+        updates['recruitStatus'] = 'RECRUITING';
+      }
+    } else {
+      updates['recruitStatus'] = '';
+    }
+
+    await postReference.update(updates);
+  }
+
+  Future<void> updateRecruitStatus({
+    required String postId,
+    required String writerUid,
+    required String nextStatus,
+  }) async {
+    const Map<String, String> nextStatusByCurrent = {
+      'RECRUITING': 'CLOSED',
+      'CLOSED': 'ACTIVE',
+      'ACTIVE': 'COMPLETED',
+    };
+
+    if (!nextStatusByCurrent.containsValue(nextStatus)) {
+      throw ArgumentError('올바르지 않은 모집 상태입니다.');
+    }
+
+    DocumentReference<Map<String, dynamic>> postReference =
+    _firestore.collection('posts').doc(postId);
+
+    await _firestore.runTransaction(
+          (transaction) async {
+        DocumentSnapshot<Map<String, dynamic>>
+        postSnapshot =
+        await transaction.get(postReference);
+
+        if (!postSnapshot.exists) {
+          throw StateError('게시글을 찾을 수 없습니다.');
+        }
+
+        Map<String, dynamic> postData =
+            postSnapshot.data() ?? {};
+
+        if (postData['writerUid']?.toString() !=
+            writerUid) {
+          throw StateError(
+            '작성자만 모집 상태를 변경할 수 있습니다.',
+          );
+        }
+
+        if (postData['boardType']?.toString() !=
+            CommunityBoardType.groupRecruit.code) {
+          throw StateError('스터디 모집글이 아닙니다.');
+        }
+
+        String currentStatus =
+            postData['recruitStatus']?.toString() ?? '';
+
+        // 이전 데이터의 OPEN은 RECRUITING으로 호환합니다.
+        if (currentStatus == 'OPEN' ||
+            currentStatus.isEmpty) {
+          currentStatus = 'RECRUITING';
+        }
+
+        String? allowedNextStatus =
+        nextStatusByCurrent[currentStatus];
+
+        if (allowedNextStatus != nextStatus) {
+          throw StateError(
+            '현재 모집 상태에서 변경할 수 없습니다.',
+          );
+        }
+
+        transaction.update(postReference, {
+          'recruitStatus': nextStatus,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      },
+    );
   }
 
   Future<void> deletePost(
