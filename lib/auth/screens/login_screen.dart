@@ -10,9 +10,8 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_top_bar.dart';
 import '../../widgets/loading_overlay.dart';
 import 'reset_password_screen.dart';
+import '../../admin/screens/admin.dart';
 
-/// 조건이 true가 될 때 자식 위젯을 슬라이드+페이드로 부드럽게 등장시키는 위젯.
-/// signup_screen.dart 의 _StepReveal 과 동일한 패턴.
 class _StepReveal extends StatelessWidget {
   final bool visible;
   final Widget child;
@@ -194,12 +193,26 @@ class _LoginScreenState extends State<LoginScreen>
         password: _passwordController.text.trim(),
       );
 
-      await FirebaseFirestore.instance
+      final userDocRef = FirebaseFirestore.instance
           .collection('users')
-          .doc(credential.user!.uid)
-          .update({
+          .doc(credential.user!.uid);
+
+      await userDocRef.update({
         'lastLoginAt': FieldValue.serverTimestamp(),
       });
+
+      final userDoc = await userDocRef.get();
+      final String? role = userDoc.data()?['role'] as String?;
+
+      if (!mounted) return;
+
+      if (role == 'ADMIN') {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const AdminPage()),
+              (route) => false,
+        );
+        return;
+      }
 
       final bool isWithdrawalPending =
       await WithdrawalStatusService.isCurrentUserWithdrawalPending();

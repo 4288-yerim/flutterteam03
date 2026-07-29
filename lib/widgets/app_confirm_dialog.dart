@@ -7,6 +7,10 @@ import '../theme.dart';
 /// "생성 취소할까요?", "오답 기록이 없어요", "자격증이 다른 것 같아요" 처럼
 /// 원형 그라데이션 아이콘 + 제목 + 설명 + 버튼(1~2개) 패턴이 페이지마다
 /// 반복되고 있어서 하나로 통일했습니다.
+///
+/// 기본은 핑크 강조이며, 삭제처럼 되돌릴 수 없는/파괴적인 액션에는
+/// [isDestructive]를 true로 주면 아이콘·그림자·주요 버튼이 레드 톤으로 바뀝니다.
+/// 기본값이 false라 기존 호출부는 변경 없이 그대로 동작합니다.
 class AppConfirmDialog extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -16,6 +20,7 @@ class AppConfirmDialog extends StatelessWidget {
   final String? secondaryLabel;
   final VoidCallback? onSecondaryPressed;
   final Widget? extra;
+  final bool isDestructive;
 
   const AppConfirmDialog({
     super.key,
@@ -27,10 +32,12 @@ class AppConfirmDialog extends StatelessWidget {
     this.secondaryLabel,
     this.onSecondaryPressed,
     this.extra,
+    this.isDestructive = false,
   });
 
   /// [T]를 반환하는 확인 다이얼로그를 띄웁니다.
   /// [preventBack]이 true면 하드웨어 뒤로가기로 닫히지 않습니다.
+  /// [isDestructive]가 true면 삭제 등 파괴적 액션에 맞는 레드 강조로 표시됩니다.
   static Future<T?> show<T>(
       BuildContext context, {
         required IconData icon,
@@ -43,6 +50,7 @@ class AppConfirmDialog extends StatelessWidget {
         Widget? extra,
         bool barrierDismissible = true,
         bool preventBack = false,
+        bool isDestructive = false,
       }) {
     final dialog = AppConfirmDialog(
       icon: icon,
@@ -53,6 +61,7 @@ class AppConfirmDialog extends StatelessWidget {
       secondaryLabel: secondaryLabel,
       onSecondaryPressed: onSecondaryPressed,
       extra: extra,
+      isDestructive: isDestructive,
     );
 
     return showDialog<T>(
@@ -67,8 +76,19 @@ class AppConfirmDialog extends StatelessWidget {
     );
   }
 
+  // 삭제 등 파괴적 액션용 레드 그라데이션. AppColors에 별도 상수가 없어 여기서 정의.
+  static const LinearGradient _dangerGradient = LinearGradient(
+    colors: [Color(0xFFFF7A6E), Color(0xFFE0483B)],
+  );
+
+  static const Color _dangerShadowColor = Color(0xFFE0483B);
+
   @override
   Widget build(BuildContext context) {
+    final Gradient accentGradient =
+    isDestructive ? _dangerGradient : AppColors.pinkGradient;
+    final Color shadowColor = isDestructive ? _dangerShadowColor : AppColors.pink;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
       decoration: BoxDecoration(
@@ -76,7 +96,7 @@ class AppConfirmDialog extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: AppColors.pink.withValues(alpha: 0.18),
+            color: shadowColor.withValues(alpha: 0.18),
             blurRadius: 30,
             offset: const Offset(0, 16),
           ),
@@ -89,9 +109,9 @@ class AppConfirmDialog extends StatelessWidget {
             width: 56,
             height: 56,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: AppColors.pinkGradient,
+              gradient: accentGradient,
             ),
             child: Icon(icon, color: Colors.white, size: 28),
           ),
@@ -99,7 +119,7 @@ class AppConfirmDialog extends StatelessWidget {
           Text(
             title,
             textAlign: TextAlign.center,
-            style:  TextStyle(
+            style: TextStyle(
               color: context.colors.textPrimary,
               fontSize: 18,
               fontWeight: FontWeight.w800,
@@ -121,7 +141,11 @@ class AppConfirmDialog extends StatelessWidget {
           ],
           const SizedBox(height: 24),
           if (secondaryLabel == null || onSecondaryPressed == null)
-            _PrimaryButton(label: primaryLabel, onPressed: onPrimaryPressed)
+            _PrimaryButton(
+              label: primaryLabel,
+              onPressed: onPrimaryPressed,
+              gradient: accentGradient,
+            )
           else
             Row(
               children: [
@@ -136,6 +160,7 @@ class AppConfirmDialog extends StatelessWidget {
                   child: _PrimaryButton(
                     label: primaryLabel,
                     onPressed: onPrimaryPressed,
+                    gradient: accentGradient,
                   ),
                 ),
               ],
@@ -149,8 +174,13 @@ class AppConfirmDialog extends StatelessWidget {
 class _PrimaryButton extends StatelessWidget {
   final String label;
   final VoidCallback onPressed;
+  final Gradient gradient;
 
-  const _PrimaryButton({required this.label, required this.onPressed});
+  const _PrimaryButton({
+    required this.label,
+    required this.onPressed,
+    required this.gradient,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -160,7 +190,7 @@ class _PrimaryButton extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          gradient: AppColors.pinkGradient,
+          gradient: gradient,
         ),
         child: Material(
           color: Colors.transparent,

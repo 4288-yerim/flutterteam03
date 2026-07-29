@@ -40,7 +40,10 @@ InputDecoration studyFieldDecoration({
     hintText: hintText,
     suffixText: suffixText,
     alignLabelWithHint: alignLabelWithHint,
+    // 라벨을 항상 위로 띄워서 필드마다 스타일을 통일하고, hintText(예시)가 항상 보이게 함
+    floatingLabelBehavior: FloatingLabelBehavior.always,
     filled: true,
+    // 카드가 흰색이 되므로, 필드 배경은 카드보다 한 톤 톤다운된 뉴트럴로 — 카드-필드 경계도 또렷해짐
     fillColor: studyColors.background,
     prefixIcon: alignLabelWithHint
         ? null
@@ -48,14 +51,23 @@ InputDecoration studyFieldDecoration({
       padding: const EdgeInsets.only(left: 4, right: 4),
       child: Icon(icon, color: studyColors.pinkStart, size: 21),
     ),
-    labelStyle: TextStyle(color: studyColors.textSecondary, fontSize: 13.5),
+    labelStyle: TextStyle(
+      color: studyColors.pinkStart,
+      fontSize: 12.5,
+      fontWeight: FontWeight.w700,
+    ),
+    hintStyle: TextStyle(
+      color: studyColors.textSecondary.withOpacity(0.55),
+      fontSize: 14,
+    ),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(16),
-      borderSide: BorderSide(color: studyColors.textSecondary.withOpacity(0.18)),
+      borderSide: BorderSide.none,
     ),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(16),
-      borderSide: BorderSide(color: studyColors.textSecondary.withOpacity(0.18)),
+      borderSide: BorderSide.none,
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(16),
@@ -67,6 +79,288 @@ InputDecoration studyFieldDecoration({
     ),
   );
 }
+
+// ════════════════════════════════════════════════════════════
+// 커스텀 캘린더 (기본 Material DatePicker 대체)
+// ════════════════════════════════════════════════════════════
+
+Future<DateTime?> showAppDatePicker({
+  required BuildContext context,
+  required DateTime initialDate,
+  required DateTime firstDate,
+  required DateTime lastDate,
+  String helpText = '날짜 선택',
+}) {
+  return showModalBottomSheet<DateTime>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) => _AppCalendarSheet(
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+      helpText: helpText,
+    ),
+  );
+}
+
+class _AppCalendarSheet extends StatefulWidget {
+  final DateTime initialDate;
+  final DateTime firstDate;
+  final DateTime lastDate;
+  final String helpText;
+
+  const _AppCalendarSheet({
+    required this.initialDate,
+    required this.firstDate,
+    required this.lastDate,
+    required this.helpText,
+  });
+
+  @override
+  State<_AppCalendarSheet> createState() => _AppCalendarSheetState();
+}
+
+class _AppCalendarSheetState extends State<_AppCalendarSheet> {
+  late DateTime _displayedMonth;
+  late DateTime _selectedDate;
+
+  static const List<String> _weekdayLabels = ['일', '월', '화', '수', '목', '금', '토'];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDate = widget.initialDate;
+    _displayedMonth = DateTime(widget.initialDate.year, widget.initialDate.month, 1);
+  }
+
+  bool get _canGoPrev {
+    final prevMonthEnd = DateTime(_displayedMonth.year, _displayedMonth.month, 0);
+    return !prevMonthEnd.isBefore(widget.firstDate);
+  }
+
+  bool get _canGoNext {
+    final nextMonthStart = DateTime(_displayedMonth.year, _displayedMonth.month + 1, 1);
+    return !nextMonthStart.isAfter(widget.lastDate);
+  }
+
+  void _goPrevMonth() {
+    if (!_canGoPrev) return;
+    setState(() => _displayedMonth = DateTime(_displayedMonth.year, _displayedMonth.month - 1, 1));
+  }
+
+  void _goNextMonth() {
+    if (!_canGoNext) return;
+    setState(() => _displayedMonth = DateTime(_displayedMonth.year, _displayedMonth.month + 1, 1));
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  bool _isSelectable(DateTime day) {
+    final first = DateTime(widget.firstDate.year, widget.firstDate.month, widget.firstDate.day);
+    final last = DateTime(widget.lastDate.year, widget.lastDate.month, widget.lastDate.day);
+    return !day.isBefore(first) && !day.isAfter(last);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = studyColors;
+    final today = DateTime.now();
+
+    final firstWeekday = DateTime(_displayedMonth.year, _displayedMonth.month, 1).weekday;
+    final daysInMonth = DateTime(_displayedMonth.year, _displayedMonth.month + 1, 0).day;
+    final leadingBlanks = firstWeekday % 7;
+    final rowCount = ((leadingBlanks + daysInMonth) / 7).ceil();
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+        decoration: BoxDecoration(
+          color: studyColorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 14),
+              decoration: BoxDecoration(
+                color: colors.textSecondary.withOpacity(0.25),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Text(
+              widget.helpText,
+              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: colors.textSecondary),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _CalendarNavArrow(icon: Icons.chevron_left_rounded, onTap: _canGoPrev ? _goPrevMonth : null),
+                Text(
+                  '${_displayedMonth.year}년 ${_displayedMonth.month}월',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: colors.textPrimary),
+                ),
+                _CalendarNavArrow(icon: Icons.chevron_right_rounded, onTap: _canGoNext ? _goNextMonth : null),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: _weekdayLabels.map((label) {
+                final isWeekend = label == '일' || label == '토';
+                return Expanded(
+                  child: Center(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: isWeekend ? colors.pinkStart.withOpacity(0.8) : colors.textSecondary,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 4),
+            ...List.generate(rowCount, (rowIndex) {
+              return Row(
+                children: List.generate(7, (colIndex) {
+                  final cellIndex = rowIndex * 7 + colIndex;
+                  final dayNumber = cellIndex - leadingBlanks + 1;
+
+                  if (dayNumber < 1 || dayNumber > daysInMonth) {
+                    return const Expanded(child: SizedBox(height: 44));
+                  }
+
+                  final date = DateTime(_displayedMonth.year, _displayedMonth.month, dayNumber);
+                  final selectable = _isSelectable(date);
+                  final isSelected = _isSameDay(date, _selectedDate);
+                  final isToday = _isSameDay(date, today);
+
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: selectable ? () => setState(() => _selectedDate = date) : null,
+                      child: Container(
+                        height: 44,
+                        margin: const EdgeInsets.symmetric(vertical: 2),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isSelected ? colors.pinkStart : Colors.transparent,
+                          border: (isToday && !isSelected)
+                              ? Border.all(color: colors.pinkStart, width: 1.4)
+                              : null,
+                        ),
+                        child: Text(
+                          '$dayNumber',
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                            color: !selectable
+                                ? colors.textSecondary.withOpacity(0.28)
+                                : isSelected
+                                ? Colors.white
+                                : colors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              );
+            }),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 50,
+                    child: Material(
+                      color: colors.textSecondary.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(16),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () => Navigator.of(context).pop(),
+                        child: Center(
+                          child: Text(
+                            '취소',
+                            style: TextStyle(fontWeight: FontWeight.w700, color: colors.textPrimary),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: SizedBox(
+                    height: 50,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: LinearGradient(colors: [colors.pinkStart, colors.pinkStart.withOpacity(0.8)]),
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () => Navigator.of(context).pop(_selectedDate),
+                          child: const Center(
+                            child: Text(
+                              '선택 완료',
+                              style: TextStyle(fontWeight: FontWeight.w800, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CalendarNavArrow extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  const _CalendarNavArrow({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = studyColors;
+    final enabled = onTap != null;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 34,
+        height: 34,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: colors.textSecondary.withOpacity(0.08),
+        ),
+        child: Icon(icon, size: 20, color: enabled ? colors.textPrimary : colors.textSecondary.withOpacity(0.3)),
+      ),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// 공용 위젯
+// ── 배경은 뉴트럴, 카드는 순백 + 컬러 그림자/상단 액센트바로
+//    경계를 명확히 하고, 토글은 세그먼트 필(pill) 스타일로 트렌디하게 ──
+// ════════════════════════════════════════════════════════════
 
 class SectionCard extends StatelessWidget {
   final IconData icon;
@@ -87,146 +381,231 @@ class SectionCard extends StatelessWidget {
     final colors = studyColors;
     return Container(
       decoration: BoxDecoration(
-        color: studyColorScheme.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: colors.textSecondary.withOpacity(0.08)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
+          // 은은한 핑크 앰비언트 섀도우 — 배경과의 경계를 색으로도 분리
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+            color: colors.pinkStart.withOpacity(0.10),
+            blurRadius: 28,
+            offset: const Offset(0, 16),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(20),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: colors.pinkStart.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, size: 18, color: colors.pinkStart),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                title,
-                style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800),
-              ),
-            ],
-          ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 6),
-            Padding(
-              padding: const EdgeInsets.only(left: 44),
-              child: Text(
-                subtitle!,
-                style: TextStyle(fontSize: 12, height: 1.4, color: colors.textSecondary),
+          // 상단 그라데이션 액센트 바 — 카드 시작점을 시각적으로 또렷하게
+          Container(
+            height: 4,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [colors.pinkStart, colors.pinkStart.withOpacity(0.25)],
               ),
             ),
-          ],
-          const SizedBox(height: 20),
-          ...children,
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: colors.pinkStart.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(icon, size: 17, color: colors.pinkStart),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ],
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 6),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 44),
+                    child: Text(
+                      subtitle!,
+                      style: TextStyle(fontSize: 12, height: 1.4, color: colors.textSecondary),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 18),
+                ...children,
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class MemberCountStepper extends StatelessWidget {
+/// 최대 인원 선택. 자주 쓰는 값은 칩으로 바로 탭, 세부 조정은 슬라이더로.
+class MemberCountPicker extends StatelessWidget {
   final int value;
   final int min;
   final int max;
-  final VoidCallback? onDecrease;
-  final VoidCallback? onIncrease;
+  final ValueChanged<int> onChanged;
   final String caption;
 
-  const MemberCountStepper({
+  const MemberCountPicker({
     super.key,
     required this.value,
     required this.min,
     required this.max,
-    required this.onDecrease,
-    required this.onIncrease,
+    required this.onChanged,
     required this.caption,
   });
 
-  Widget _circleButton({required IconData icon, required VoidCallback? onTap}) {
-    final enabled = onTap != null;
-    final colors = studyColors;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: enabled ? colors.pinkStart.withOpacity(0.12) : colors.textSecondary.withOpacity(0.06),
-          border: Border.all(
-            color: enabled ? colors.pinkStart.withOpacity(0.4) : colors.textSecondary.withOpacity(0.15),
-          ),
-        ),
-        child: Icon(
-          icon,
-          size: 20,
-          color: enabled ? colors.pinkStart : colors.textSecondary.withOpacity(0.4),
-        ),
-      ),
-    );
-  }
+  static const List<int> _basePresets = [2, 4, 5, 6, 8, 10, 15, 20, 25, 30];
 
   @override
   Widget build(BuildContext context) {
     final colors = studyColors;
+    final presets = _basePresets.where((p) => p >= min && p <= max).toList();
+    if (!presets.contains(min)) presets.insert(0, min);
+    if (!presets.contains(max)) presets.add(max);
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _circleButton(icon: Icons.remove_rounded, onTap: onDecrease),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Container(
-                height: 54,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [colors.pinkStart, colors.pinkStart.withOpacity(0.75)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: colors.pinkStart.withOpacity(0.28),
-                      blurRadius: 12,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: Text(
-                  '$value명',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white),
-                ),
+            const Text('최대 인원', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700)),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [colors.pinkStart, colors.pinkStart.withOpacity(0.8)]),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '$value명',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white),
               ),
             ),
-            const SizedBox(width: 14),
-            _circleButton(icon: Icons.add_rounded, onTap: onIncrease),
           ],
         ),
-        const SizedBox(height: 10),
-        Align(
-          alignment: Alignment.centerRight,
-          child: Text(
-            caption,
-            style: TextStyle(fontSize: 12, color: colors.textSecondary),
+        const SizedBox(height: 14),
+        SizedBox(
+          height: 40,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: presets.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final preset = presets[index];
+              final selected = preset == value;
+              return GestureDetector(
+                onTap: () => onChanged(preset),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: selected ? colors.pinkStart : colors.background,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: selected ? colors.pinkStart : colors.textSecondary.withOpacity(0.16),
+                    ),
+                  ),
+                  child: Text(
+                    '$preset명',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: selected ? Colors.white : colors.textPrimary,
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
+        const SizedBox(height: 8),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: colors.pinkStart,
+            inactiveTrackColor: colors.textSecondary.withOpacity(0.15),
+            thumbColor: colors.pinkStart,
+            overlayColor: colors.pinkStart.withOpacity(0.15),
+            trackHeight: 4,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
+          ),
+          child: Slider(
+            value: value.toDouble().clamp(min.toDouble(), max.toDouble()),
+            min: min.toDouble(),
+            max: max.toDouble(),
+            divisions: (max - min) > 0 ? (max - min) : null,
+            label: '$value명',
+            onChanged: (v) => onChanged(v.round()),
+          ),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Text(caption, style: TextStyle(fontSize: 12, color: colors.textSecondary)),
+        ),
       ],
+    );
+  }
+}
+
+/// 트렌디한 필(pill) 스타일 토글. iOS/Toss류 앱에서 흔히 쓰는 슬라이딩 스위치.
+class _PillToggle extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _PillToggle({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = studyColors;
+    return GestureDetector(
+      onTap: () => onChanged(!value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        width: 50,
+        height: 30,
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: value
+              ? LinearGradient(colors: [colors.pinkStart, colors.pinkStart.withOpacity(0.75)])
+              : null,
+          color: value ? null : colors.textSecondary.withOpacity(0.2),
+        ),
+        child: AnimatedAlign(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            width: 24,
+            height: 24,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 3, offset: Offset(0, 1))],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -250,44 +629,179 @@ class StudySwitchTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = studyColors;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: value ? colors.pinkStart.withOpacity(0.06) : colors.background,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: value ? colors.pinkStart.withOpacity(0.3) : colors.textSecondary.withOpacity(0.12),
+    // 카드 안에 또 박스를 두지 않고, 얇은 구분선을 쓰는 플랫한 리스트 로우 스타일로 변경
+    // (중첩 박스가 많으면 "경계가 흐릿하다"는 느낌을 오히려 가중시킴)
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => onChanged(!value),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: value ? colors.pinkStart.withOpacity(0.14) : colors.textPrimary.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Icon(icon, size: 18, color: value ? colors.pinkStart : colors.textPrimary.withOpacity(0.6)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
+                  const SizedBox(height: 3),
+                  Text(subtitle, style: TextStyle(fontSize: 12, color: colors.textSecondary, height: 1.3)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            _PillToggle(value: value, onChanged: onChanged),
+          ],
         ),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: value ? colors.pinkStart.withOpacity(0.15) : colors.textSecondary.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(10),
+    );
+  }
+}
+
+/// 페이지 상단 — 큰 아이콘 배지 대신, 작은 아이콘+eyebrow 라벨과 굵은 타이틀로
+/// 미니멀하고 에디토리얼한 트렌디 헤더로 재구성.
+class StudyPageHeader extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+  final String eyebrow;
+
+  const StudyPageHeader({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.description,
+    this.eyebrow = 'STUDY',
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = studyColors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 15, color: colors.pinkStart),
+            const SizedBox(width: 6),
+            Text(
+              eyebrow,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.1,
+                color: colors.pinkStart,
+              ),
             ),
-            child: Icon(icon, size: 18, color: value ? colors.pinkStart : colors.textSecondary),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 25,
+            fontWeight: FontWeight.w900,
+            height: 1.28,
+            letterSpacing: -0.4,
+            color: colors.textPrimary,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
-                const SizedBox(height: 3),
-                Text(subtitle, style: TextStyle(fontSize: 12, color: colors.textSecondary, height: 1.3)),
-              ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          description,
+          style: TextStyle(fontSize: 13, color: colors.textSecondary, height: 1.5),
+        ),
+      ],
+    );
+  }
+}
+
+/// 시험일 선택 타일.
+class ExamDateTile extends StatelessWidget {
+  final DateTime? examDate;
+  final VoidCallback onTap;
+  final VoidCallback onClear;
+  final String Function(DateTime) formatDate;
+
+  const ExamDateTile({
+    super.key,
+    required this.examDate,
+    required this.onTap,
+    required this.onClear,
+    required this.formatDate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = studyColors;
+    final hasDate = examDate != null;
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        constraints: const BoxConstraints(minHeight: 62),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: colors.background,
+          border: Border.all(
+            color: hasDate ? colors.pinkStart.withOpacity(0.45) : colors.textSecondary.withOpacity(0.18),
+            width: hasDate ? 1.4 : 1,
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: hasDate ? colors.pinkStart.withOpacity(0.14) : colors.textPrimary.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Icon(
+                Icons.calendar_month_rounded,
+                size: 19,
+                color: hasDate ? colors.pinkStart : colors.textPrimary.withOpacity(0.7),
+              ),
             ),
-          ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeColor: colors.pinkStart,
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('시험일', style: TextStyle(fontSize: 11, color: colors.textSecondary)),
+                  const SizedBox(height: 4),
+                  Text(
+                    hasDate ? formatDate(examDate!) : '시험일을 선택해 주세요.',
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                      color: hasDate ? colors.textPrimary : colors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (hasDate)
+              IconButton(
+                tooltip: '시험일 지우기',
+                onPressed: onClear,
+                icon: const Icon(Icons.close_rounded, size: 19),
+              )
+            else
+              Icon(Icons.chevron_right_rounded, color: colors.textSecondary),
+          ],
+        ),
       ),
     );
   }
@@ -333,16 +847,14 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
 
   Future<void> _selectExamDate() async {
     DateTime now = DateTime.now();
-    DateTime initialDate = _examDate ?? now.add(Duration(days: 30));
+    DateTime initialDate = _examDate ?? now.add(const Duration(days: 30));
 
-    DateTime? selectedDate = await showDatePicker(
+    DateTime? selectedDate = await showAppDatePicker(
       context: context,
       initialDate: initialDate,
       firstDate: DateTime(now.year, now.month, now.day),
       lastDate: DateTime(now.year + 10, 12, 31),
       helpText: '시험일 선택',
-      cancelText: '취소',
-      confirmText: '선택',
     );
 
     if (selectedDate == null || !mounted) return;
@@ -409,7 +921,7 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('스터디가 등록되었습니다.')),
+        const SnackBar(content: Text('스터디가 등록되었습니다.')),
       );
 
       Navigator.pop(context, true);
@@ -427,7 +939,6 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
   @override
   Widget build(BuildContext context) {
     final colors = studyColors;
-
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppTopBar(title: '스터디 만들기', centerTitle: false),
@@ -436,24 +947,23 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
           AppMainBackground(
             applySafeArea: false,
             child: SafeArea(
+              bottom: false,
               child: SingleChildScrollView(
                 keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: EdgeInsets.fromLTRB(20, 25, 20, 40),
+                // 하단 고정 버튼에 가려지지 않도록 여유 패딩
+                padding: const EdgeInsets.fromLTRB(20, 25, 20, 110),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '새로운 스터디를\n만들어보세요',
-                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, height: 1.35),
+                      const StudyPageHeader(
+                        icon: Icons.groups_2_rounded,
+                        eyebrow: '새 스터디',
+                        title: '새로운 스터디를\n만들어보세요',
+                        description: '스터디 정보를 입력하면 목록에 바로 등록됩니다.',
                       ),
-                      SizedBox(height: 8),
-                      Text(
-                        '스터디 정보를 입력하면 목록에 바로 등록됩니다.',
-                        style: TextStyle(fontSize: 13.5, color: colors.textSecondary),
-                      ),
-                      SizedBox(height: 26),
+                      const SizedBox(height: 28),
 
                       SectionCard(
                         icon: Icons.groups_rounded,
@@ -477,7 +987,7 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                               return null;
                             },
                           ),
-                          SizedBox(height: 16),
+                          const SizedBox(height: 16),
                           TextFormField(
                             controller: _certificateNameController,
                             textInputAction: TextInputAction.next,
@@ -487,7 +997,7 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                               icon: Icons.workspace_premium_outlined,
                             ),
                           ),
-                          SizedBox(height: 16),
+                          const SizedBox(height: 16),
                           TextFormField(
                             controller: _descriptionController,
                             maxLines: 4,
@@ -509,71 +1019,20 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                         ],
                       ),
 
-                      SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
                       SectionCard(
                         icon: Icons.flag_rounded,
                         title: '시험 및 학습 목표',
                         subtitle: '시험일까지 남은 기간과 주간 달성률을 스터디방에 표시합니다.',
                         children: [
-                          InkWell(
-                            borderRadius: BorderRadius.circular(16),
+                          ExamDateTile(
+                            examDate: _examDate,
                             onTap: _selectExamDate,
-                            child: Container(
-                              width: double.infinity,
-                              constraints: BoxConstraints(minHeight: 60),
-                              padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: colors.background,
-                                border: Border.all(color: colors.textSecondary.withOpacity(0.18)),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 34,
-                                    height: 34,
-                                    decoration: BoxDecoration(
-                                      color: colors.pinkStart.withOpacity(0.12),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Icon(Icons.calendar_month_outlined,
-                                        size: 18, color: colors.pinkStart),
-                                  ),
-                                  SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text('시험일',
-                                            style: TextStyle(fontSize: 11, color: colors.textSecondary)),
-                                        SizedBox(height: 4),
-                                        Text(
-                                          _examDate == null ? '시험일을 선택해 주세요.' : _formatDate(_examDate!),
-                                          style: TextStyle(
-                                            fontSize: 14.5,
-                                            fontWeight: FontWeight.w700,
-                                            color: _examDate == null
-                                                ? colors.textSecondary
-                                                : colors.textPrimary,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  if (_examDate != null)
-                                    IconButton(
-                                      tooltip: '시험일 지우기',
-                                      onPressed: () => setState(() => _examDate = null),
-                                      icon: Icon(Icons.close_rounded, size: 19),
-                                    )
-                                  else
-                                    Icon(Icons.chevron_right_rounded, color: colors.textSecondary),
-                                ],
-                              ),
-                            ),
+                            onClear: () => setState(() => _examDate = null),
+                            formatDate: _formatDate,
                           ),
-                          SizedBox(height: 16),
+                          const SizedBox(height: 16),
                           TextFormField(
                             controller: _weeklyGoalHourController,
                             keyboardType: TextInputType.number,
@@ -596,27 +1055,21 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                         ],
                       ),
 
-                      SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
                       SectionCard(
                         icon: Icons.tune_rounded,
                         title: '스터디 설정',
                         children: [
-                          Text('최대 인원', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700)),
-                          SizedBox(height: 12),
-                          MemberCountStepper(
+                          MemberCountPicker(
                             value: _maxMemberCount,
                             min: 2,
                             max: 30,
                             caption: '최소 2명 · 최대 30명',
-                            onDecrease: _maxMemberCount > 2
-                                ? () => setState(() => _maxMemberCount--)
-                                : null,
-                            onIncrease: _maxMemberCount < 30
-                                ? () => setState(() => _maxMemberCount++)
-                                : null,
+                            onChanged: (v) => setState(() => _maxMemberCount = v),
                           ),
-                          SizedBox(height: 20),
+                          const SizedBox(height: 8),
+                          Divider(height: 1, color: colors.textSecondary.withOpacity(0.1)),
                           StudySwitchTile(
                             icon: Icons.public_rounded,
                             title: '공개 스터디',
@@ -626,6 +1079,7 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                             value: _isPublic,
                             onChanged: (value) => setState(() => _isPublic = value),
                           ),
+                          Divider(height: 1, color: colors.textSecondary.withOpacity(0.1)),
                           StudySwitchTile(
                             icon: Icons.verified_user_rounded,
                             title: '참여 승인 필요',
@@ -637,23 +1091,36 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                           ),
                         ],
                       ),
-
-                      SizedBox(height: 26),
-
-                      AppButton(
-                        text: '스터디 만들기',
-                        type: AppButtonType.primaryPink,
-                        height: 56,
-                        onPressed: _isSaving ? null : _saveStudy,
-                      ),
                     ],
                   ),
                 ),
               ),
             ),
           ),
-          if (_isSaving) Positioned.fill(child: LoadingOverlay()),
+          if (_isSaving) const Positioned.fill(child: LoadingOverlay()),
         ],
+      ),
+      // 저장 버튼을 하단에 고정 — 스크롤에 파묻히지 않는 요즘 앱 방식
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 16,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
+          child: AppButton(
+            text: '스터디 만들기',
+            type: AppButtonType.primaryPink,
+            height: 54,
+            onPressed: _isSaving ? null : _saveStudy,
+          ),
+        ),
       ),
     );
   }

@@ -10,6 +10,7 @@ import 'study_plan.dart';
 import 'subscription.dart';
 import 'certificate_roadmap.dart';
 import 'material_summary.dart';
+import 'material_summary_result.dart';
 
 class AiPage extends StatefulWidget {
   const AiPage({super.key});
@@ -18,18 +19,33 @@ class AiPage extends StatefulWidget {
   State<AiPage> createState() => _AiPageState();
 }
 
-/// 오답노트를 집계해서 만든 "가장 취약한 자격증/과목" 정보.
 class _WeakestTopic {
-  final String label;
+  final String certificateName;
+  final String? subject;
   final int wrongCount;
 
-  const _WeakestTopic({required this.label, required this.wrongCount});
+  const _WeakestTopic({
+    required this.certificateName,
+    this.subject,
+    required this.wrongCount,
+  });
+
+  String get label =>
+      (subject != null && subject!.isNotEmpty) ? '$certificateName · $subject' : certificateName;
 
   int get estimatedMinutes {
     final raw = wrongCount * 7;
     final rounded = ((raw + 4) ~/ 5) * 5;
     return rounded < 15 ? 15 : rounded;
   }
+}
+
+class _WeakestTopicAgg {
+  final String certificateName;
+  final String? subject;
+  int count;
+
+  _WeakestTopicAgg({required this.certificateName, this.subject, this.count = 1});
 }
 
 /// 이번주(월요일부터) 문제풀이 통계.
@@ -46,11 +62,24 @@ class _WeeklyStats {
 }
 
 /// 가장 최근에 저장한 자료 요약.
+/// 카드 미리보기(preview)용 축약 텍스트뿐 아니라, 탭했을 때 결과 화면을
+/// 바로 그려줄 수 있도록 전체 요약과 길이 정보까지 함께 들고 있는다.
 class _RecentSummary {
   final String certificateName;
   final String preview;
+  final String fullSummary;
+  final int originalLength;
+  final int summaryLength;
+  final int fileCount;
 
-  const _RecentSummary({required this.certificateName, required this.preview});
+  const _RecentSummary({
+    required this.certificateName,
+    required this.preview,
+    required this.fullSummary,
+    required this.originalLength,
+    required this.summaryLength,
+    required this.fileCount,
+  });
 }
 
 class _AiPageState extends State<AiPage> {
@@ -203,7 +232,7 @@ class _AiPageState extends State<AiPage> {
 
     if (snap.docs.isEmpty) return null;
 
-    final counts = <String, int>{};
+    final aggs = <String, _WeakestTopicAgg>{};
 
     for (final doc in snap.docs) {
       final data = doc.data();
@@ -218,16 +247,25 @@ class _AiPageState extends State<AiPage> {
           : null;
       if (baseLabel == null) continue;
 
-      final label = (subject?.isNotEmpty ?? false)
-          ? '$baseLabel · $subject'
-          : baseLabel;
-      counts[label] = (counts[label] ?? 0) + 1;
+      final normalizedSubject = (subject?.isNotEmpty ?? false) ? subject : null;
+      final key = normalizedSubject != null ? '$baseLabel·$normalizedSubject' : baseLabel;
+
+      final existing = aggs[key];
+      if (existing == null) {
+        aggs[key] = _WeakestTopicAgg(certificateName: baseLabel, subject: normalizedSubject);
+      } else {
+        existing.count++;
+      }
     }
 
-    if (counts.isEmpty) return null;
+    if (aggs.isEmpty) return null;
 
-    final topEntry = counts.entries.reduce((a, b) => a.value >= b.value ? a : b);
-    return _WeakestTopic(label: topEntry.key, wrongCount: topEntry.value);
+    final top = aggs.values.reduce((a, b) => a.count >= b.count ? a : b);
+    return _WeakestTopic(
+      certificateName: top.certificateName,
+      subject: top.subject,
+      wrongCount: top.count,
+    );
   }
 
   /// 이번주 월요일 0시 이후에 생성된 quiz_sessions를 집계한다.
@@ -280,7 +318,21 @@ class _AiPageState extends State<AiPage> {
         ? ''
         : (summary.length > 40 ? '${summary.substring(0, 40)}…' : summary);
 
-    return _RecentSummary(certificateName: certName, preview: preview);
+    // 카드를 탭했을 때 결과 화면(MaterialSummaryResultPage)을 API 재호출 없이
+    // 바로 그릴 수 있도록, 저장 당시 함께 기록해둔 길이 정보도 같이 읽어온다.
+    final originalLength = (data['originalLength'] as num?)?.toInt() ?? 0;
+    final summaryLength =
+        (data['summaryLength'] as num?)?.toInt() ?? (summary?.length ?? 0);
+    final fileCount = (data['fileCount'] as num?)?.toInt() ?? 0;
+
+    return _RecentSummary(
+      certificateName: certName,
+      preview: preview,
+      fullSummary: summary ?? '',
+      originalLength: originalLength,
+      summaryLength: summaryLength,
+      fileCount: fileCount,
+    );
   }
 
   void _onNotificationPressed() {
@@ -371,10 +423,15 @@ class _AiPageState extends State<AiPage> {
     );
   }
 
-  void _onQuestionPressed(BuildContext context) {
+  void _onQuestionPressed(BuildContext context, {_WeakestTopic? topic}) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const QuestionGenerationPage()),
+      MaterialPageRoute(
+        builder: (context) => QuestionGenerationPage(
+          initialCertificate: topic?.certificateName,
+          initialSubject: topic?.subject,
+        ),
+      ),
     );
   }
 
@@ -382,6 +439,38 @@ class _AiPageState extends State<AiPage> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const MaterialSummaryPage()),
+    );
+  }
+
+  /// "최근 요약 자료" 카드를 눌렀을 때의 동작.
+  /// 저장된 요약이 있으면 MaterialSummaryResultPage에 initialResult로
+  /// 그대로 넘겨서 API 재호출 없이 바로 결과 화면을 보여준다.
+  /// 저장된 요약이 없으면(신규 사용자 등) 기존처럼 새로 요약하는 화면으로 보낸다.
+  void _onRecentSummaryPressed() {
+    final recent = _recentSummary;
+
+    if (recent == null) {
+      _onSummaryPressed();
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MaterialSummaryResultPage(
+          selectedCertificate: recent.certificateName,
+          isSplitSummary: false,
+          uploadedFileNames: const [],
+          uploadedFileUrls: const [],
+          initialResult: {
+            'summary': recent.fullSummary,
+            'certificate_match': true,
+            'original_length': recent.originalLength,
+            'summary_length': recent.summaryLength,
+            'file_count': recent.fileCount,
+          },
+        ),
+      ),
     );
   }
 
@@ -428,7 +517,7 @@ class _AiPageState extends State<AiPage> {
                 _RecommendationCard(
                   isLoading: _isInsightLoading,
                   topic: _weakestTopic,
-                  onStartPressed: () => _onQuestionPressed(context),
+                  onStartPressed: () => _onQuestionPressed(context, topic: _weakestTopic),
                 ),
                 const SizedBox(height: 30),
                 const _SectionTitle(title: '이번주 학습 통계'),
@@ -443,7 +532,7 @@ class _AiPageState extends State<AiPage> {
                 _RecentSummaryCard(
                   isLoading: _isInsightLoading,
                   summary: _recentSummary,
-                  onPressed: _onSummaryPressed,
+                  onPressed: _onRecentSummaryPressed,
                 ),
                 const SizedBox(height: 30),
               ],

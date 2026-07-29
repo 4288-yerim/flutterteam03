@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
+import '../../widgets/app_confirm_dialog.dart';
 import '../../auth/screens/welcome_screen.dart';
 import '../../auth/services/auth_service.dart';
 import '../../widgets/app_button.dart';
@@ -640,7 +640,43 @@ class _MyPageScreenState extends State<MyPageScreen> {
                 text: '로그아웃',
                 type: AppButtonType.outlinePink,
                 onPressed: () {
-                  _showLogoutDialog(context);
+                  AppConfirmDialog.show(
+                    context,
+                    icon: Icons.logout_rounded,
+                    title: '로그아웃',
+                    description: '현재 계정에서 로그아웃하시겠습니까?',
+                    primaryLabel: '로그아웃',
+                    secondaryLabel: '취소',
+                    onSecondaryPressed: () => Navigator.of(context).pop(),
+                    onPrimaryPressed: () async {
+                      Navigator.of(context).pop();
+
+                      try {
+                        await AuthService.signOut();
+
+                        if (!context.mounted) {
+                          return;
+                        }
+
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                            builder: (_) => const WelcomeScreen(),
+                          ),
+                              (route) => false,
+                        );
+                      } catch (error) {
+                        if (!context.mounted) {
+                          return;
+                        }
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('로그아웃에 실패했습니다. 잠시 후 다시 시도해 주세요.'),
+                          ),
+                        );
+                      }
+                    },
+                  );
                 },
               ),
 
@@ -1019,80 +1055,6 @@ class _MyPageScreenState extends State<MyPageScreen> {
     );
 
     await _loadSummaryData();
-  }
-
-  static void _showLogoutDialog(
-      BuildContext context,
-      ) {
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          title: const Text(
-            '로그아웃',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          content: const Text(
-            '현재 계정에서 로그아웃하시겠습니까?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-              },
-              child: const Text(
-                '취소',
-                style: TextStyle(
-                  color: Color(0xFF9AA0AC),
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(dialogContext);
-
-                try {
-                  await AuthService.signOut();
-
-                  if (!context.mounted) {
-                    return;
-                  }
-
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(
-                      builder: (_) => const WelcomeScreen(),
-                    ),
-                        (route) => false,
-                  );
-                } catch (error) {
-                  if (!context.mounted) {
-                    return;
-                  }
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        '로그아웃에 실패했습니다. 잠시 후 다시 시도해 주세요.',
-                      ),
-                    ),
-                  );
-                }
-              },
-              child: const Text(
-                '로그아웃',
-                style: TextStyle(
-                  color: Color(0xFFF0788F),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
   }
 }
 
