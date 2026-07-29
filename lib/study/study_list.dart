@@ -183,6 +183,16 @@ class _StudyListPageState extends State<StudyListPage> {
     setState(() {});
   }
 
+  Future<void> _refreshStudyList() async {
+    setState(() {
+      _studyGroupStream = null;
+    });
+
+    await Future<void>.delayed(
+      Duration(milliseconds: 300),
+    );
+  }
+
   Future<void> _openCreatePage() async {
     FocusScope.of(context).unfocus();
 
@@ -292,7 +302,34 @@ class _StudyListPageState extends State<StudyListPage> {
       }
     }
 
-    return myStudyList;
+    if (_searchText.trim().isEmpty) {
+      return myStudyList;
+    }
+
+    return myStudyList.where((studyDocument) {
+      return _matchesStudySearch(studyDocument.data());
+    }).toList();
+  }
+
+  bool _matchesStudySearch(
+      Map<String, dynamic> studyData,
+      ) {
+    String keyword = _searchText.trim().toLowerCase();
+
+    if (keyword.isEmpty) {
+      return true;
+    }
+
+    String groupName =
+        studyData['groupName']?.toString().toLowerCase() ?? '';
+    String description =
+        studyData['description']?.toString().toLowerCase() ?? '';
+    String certificateName =
+        studyData['certificateName']?.toString().toLowerCase() ?? '';
+
+    return groupName.contains(keyword) ||
+        description.contains(keyword) ||
+        certificateName.contains(keyword);
   }
 
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _filterFindStudyList(
@@ -397,6 +434,73 @@ class _StudyListPageState extends State<StudyListPage> {
     );
   }
 
+  Widget _buildStudySearchField() {
+    return SizedBox(
+      height: 44,
+      child: TextField(
+        controller: _searchController,
+        textInputAction: TextInputAction.search,
+        onChanged: (value) {
+          setState(() {
+            _searchText = value.trim();
+          });
+        },
+        decoration: InputDecoration(
+          hintText: '스터디 이름 또는 자격증 검색',
+          hintStyle: TextStyle(
+            fontSize: 13,
+            color: _studyColors.textSecondary,
+          ),
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            size: 21,
+            color: _studyColors.textSecondary,
+          ),
+          suffixIcon: _searchText.isEmpty
+              ? null
+              : IconButton(
+            tooltip: '검색어 지우기',
+            onPressed: () {
+              _searchController.clear();
+
+              setState(() {
+                _searchText = '';
+              });
+            },
+            icon: Icon(
+              Icons.close_rounded,
+              size: 19,
+            ),
+          ),
+          filled: true,
+          fillColor: _studyColorScheme.surface,
+          isDense: true,
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 12,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(
+              color: _studyColors.pinkSoft,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(
+              color: _studyColors.pinkStart,
+              width: 1.3,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildFindFilter(String title) {
     bool isSelected = _selectedFindFilter == title;
 
@@ -447,8 +551,8 @@ class _StudyListPageState extends State<StudyListPage> {
       ) {
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 4,
+        horizontal: 9,
+        vertical: 5,
       ),
       decoration: BoxDecoration(
         color: backgroundColor,
@@ -459,9 +563,9 @@ class _StudyListPageState extends State<StudyListPage> {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          fontSize: 10,
+          fontSize: 11,
           color: textColor,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -569,127 +673,157 @@ class _StudyListPageState extends State<StudyListPage> {
           );
         },
         child: Padding(
-          padding: EdgeInsets.only(bottom: 9),
+          padding: EdgeInsets.only(bottom: 10),
           child: AppCard(
             borderRadius: 16,
             padding: EdgeInsets.all(14),
             backgroundColor: _studyColorScheme.surface,
-            child: Row(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildStudyCircle(
-                  certificateName,
-                  thumbnailUrl,
+                Row(
+                  children: [
+                    Flexible(
+                      child: _buildBadge(
+                        certificateName,
+                        _studyColors.pinkSoft,
+                        _studyColors.textPrimary,
+                      ),
+                    ),
+                    SizedBox(width: 7),
+                    _buildBadge(
+                      roleText,
+                      roleBackgroundColor,
+                      roleTextColor,
+                    ),
+                  ],
                 ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                if (isOwner)
+                  _buildJoinRequestNotice(
+                    studyDocument.id,
+                  ),
+                SizedBox(height: 9),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment:
+                        CrossAxisAlignment.start,
                         children: [
-                          Flexible(
-                            child: _buildBadge(
-                              certificateName,
-                              _studyColors.lavender,
-                              _studyColors.pinkStart,
+                          Text(
+                            groupName,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 15,
+                              height: 1.35,
+                              fontWeight: FontWeight.w700,
+                              color: _studyColors.textPrimary,
                             ),
                           ),
-                          SizedBox(width: 6),
-                          _buildBadge(
-                            roleText,
-                            roleBackgroundColor,
-                            roleTextColor,
+                          SizedBox(height: 5),
+                          Text(
+                            description,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.4,
+                              color:
+                              _studyColors.textSecondary,
+                            ),
                           ),
                         ],
                       ),
-                      if (isOwner)
-                        _buildJoinRequestNotice(
-                          studyDocument.id,
-                        ),
-                      SizedBox(height: 8),
-                      Text(
-                        groupName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 15,
-                          height: 1.35,
-                          fontWeight: FontWeight.w700,
-                          color: _studyColors.textPrimary,
+                    ),
+                    if (thumbnailUrl.isNotEmpty) ...[
+                      SizedBox(width: 11),
+                      ClipRRect(
+                        borderRadius:
+                        BorderRadius.circular(12),
+                        child: Image.network(
+                          thumbnailUrl,
+                          width: 68,
+                          height: 68,
+                          fit: BoxFit.cover,
+                          errorBuilder: (
+                              context,
+                              error,
+                              stackTrace,
+                              ) {
+                            return Container(
+                              width: 68,
+                              height: 68,
+                              color: _studyColors.pinkSoft,
+                              child: Icon(
+                                Icons
+                                    .image_not_supported_outlined,
+                              ),
+                            );
+                          },
                         ),
                       ),
-                      SizedBox(height: 4),
-                      Text(
-                        description,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                    ],
+                  ],
+                ),
+                SizedBox(height: 11),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.groups_outlined,
+                      size: 15,
+                      color: _studyColors.textSecondary,
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      memberText,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: _studyColors.textSecondary,
+                      ),
+                    ),
+                    Spacer(),
+                    TextButton(
+                      onPressed: () {
+                        _openStudyDetail(
+                          studyDocument.id,
+                          studyData,
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        minimumSize: Size(0, 28),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
+                        tapTargetSize:
+                        MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        '정보',
                         style: TextStyle(
-                          fontSize: 12,
-                          height: 1.4,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                           color: _studyColors.textSecondary,
                         ),
                       ),
-                      SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.groups_outlined,
-                            size: 17,
-                            color: _studyColors.textSecondary,
-                          ),
-                          SizedBox(width: 5),
-                          Text(
-                            memberText,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: _studyColors.textSecondary,
-                            ),
-                          ),
-                          Spacer(),
-                          TextButton(
-                            onPressed: () {
-                              _openStudyDetail(
-                                studyDocument.id,
-                                studyData,
-                              );
-                            },
-                            style: TextButton.styleFrom(
-                              minimumSize: Size(0, 30),
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              tapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            child: Text(
-                              '정보',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: _studyColors.textSecondary,
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: 2),
-                          Text(
-                            '스터디방',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: _studyColors.pinkStart,
-                            ),
-                          ),
-                          Icon(
-                            Icons.chevron_right_rounded,
-                            size: 20,
-                            color: _studyColors.pinkStart,
-                          ),
-                        ],
+                    ),
+                    SizedBox(width: 2),
+                    Text(
+                      '스터디방',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _studyColors.pinkStart,
                       ),
-                    ],
-                  ),
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 19,
+                      color: _studyColors.pinkStart,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -826,6 +960,9 @@ class _StudyListPageState extends State<StudyListPage> {
     String certificateName =
         studyData['certificateName']?.toString() ?? '공통 스터디';
 
+    String thumbnailUrl =
+        studyData['thumbnailUrl']?.toString() ?? '';
+
     int currentMemberCount = _getInt(
       studyData,
       'currentMemberCount',
@@ -863,7 +1000,7 @@ class _StudyListPageState extends State<StudyListPage> {
           );
         },
         child: Padding(
-          padding: EdgeInsets.only(bottom: 9),
+          padding: EdgeInsets.only(bottom: 10),
           child: AppCard(
             borderRadius: 16,
             padding: EdgeInsets.all(14),
@@ -889,41 +1026,83 @@ class _StudyListPageState extends State<StudyListPage> {
                   ],
                 ),
                 SizedBox(height: 9),
-                Text(
-                  groupName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15,
-                    height: 1.35,
-                    fontWeight: FontWeight.w700,
-                    color: _studyColors.textPrimary,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            groupName,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 15,
+                              height: 1.35,
+                              fontWeight: FontWeight.w700,
+                              color: _studyColors.textPrimary,
+                            ),
+                          ),
+                          SizedBox(height: 5),
+                          Text(
+                            description,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.4,
+                              color:
+                              _studyColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (thumbnailUrl.isNotEmpty) ...[
+                      SizedBox(width: 11),
+                      ClipRRect(
+                        borderRadius:
+                        BorderRadius.circular(12),
+                        child: Image.network(
+                          thumbnailUrl,
+                          width: 68,
+                          height: 68,
+                          fit: BoxFit.cover,
+                          errorBuilder: (
+                              context,
+                              error,
+                              stackTrace,
+                              ) {
+                            return Container(
+                              width: 68,
+                              height: 68,
+                              color: _studyColors.pinkSoft,
+                              child: Icon(
+                                Icons
+                                    .image_not_supported_outlined,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                SizedBox(height: 4),
-                Text(
-                  description,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    height: 1.4,
-                    color: _studyColors.textSecondary,
-                  ),
-                ),
-                SizedBox(height: 9),
+                SizedBox(height: 11),
                 Row(
                   children: [
                     Icon(
                       Icons.groups_outlined,
-                      size: 17,
+                      size: 15,
                       color: _studyColors.textSecondary,
                     ),
-                    SizedBox(width: 5),
+                    SizedBox(width: 4),
                     Text(
                       '$currentMemberCount / $maxMemberCount명',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         color: _studyColors.textSecondary,
                       ),
                     ),
@@ -931,14 +1110,14 @@ class _StudyListPageState extends State<StudyListPage> {
                     Text(
                       '상세 보기',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: _studyColors.pinkStart,
                       ),
                     ),
                     Icon(
                       Icons.chevron_right_rounded,
-                      size: 20,
+                      size: 19,
                       color: _studyColors.pinkStart,
                     ),
                   ],
@@ -1029,16 +1208,16 @@ class _StudyListPageState extends State<StudyListPage> {
                 ],
               ),
             ),
-            Expanded(
-              child: ListView.builder(
-                padding: EdgeInsets.zero,
-                itemCount: myStudyList.length,
-                itemBuilder: (context, index) {
-                  return _buildMyStudyCard(
-                    myStudyList[index],
-                  );
-                },
-              ),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
+              itemCount: myStudyList.length,
+              itemBuilder: (context, index) {
+                return _buildMyStudyCard(
+                  myStudyList[index],
+                );
+              },
             ),
           ],
         );
@@ -1055,67 +1234,6 @@ class _StudyListPageState extends State<StudyListPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          height: 44,
-          child: TextField(
-            controller: _searchController,
-            enabled: true,
-            readOnly: false,
-            keyboardType: TextInputType.text,
-            textInputAction: TextInputAction.search,
-            onChanged: (value) {
-              setState(() {
-                _searchText = value.trim();
-              });
-            },
-            decoration: InputDecoration(
-              hintText: '스터디 이름 또는 자격증 검색',
-              hintStyle: TextStyle(
-                fontSize: 13,
-                color: _studyColors.textSecondary,
-              ),
-              prefixIcon: Icon(
-                Icons.search_rounded,
-                size: 21,
-                color: _studyColors.textSecondary,
-              ),
-              suffixIcon: _searchText.isNotEmpty
-                  ? IconButton(
-                onPressed: () {
-                  _searchController.clear();
-
-                  setState(() {
-                    _searchText = '';
-                  });
-                },
-                icon: Icon(
-                  Icons.close_rounded,
-                  size: 19,
-                ),
-              )
-                  : null,
-              filled: true,
-              fillColor: _studyColorScheme.surface,
-              contentPadding: EdgeInsets.symmetric(
-                vertical: 9,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(
-                  color: _studyColors.pinkSoft,
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(
-                  color: _studyColors.pinkStart,
-                  width: 1.5,
-                ),
-              ),
-            ),
-          ),
-        ),
-        SizedBox(height: 10),
         Row(
           children: [
             _buildFindFilter('전체'),
@@ -1126,52 +1244,48 @@ class _StudyListPageState extends State<StudyListPage> {
           ],
         ),
         SizedBox(height: 14),
-        Expanded(
-          child: visibleStudyList.isEmpty
-              ? _buildFindEmptyScreen()
-              : Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: EdgeInsets.only(left: 2, bottom: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '스터디 찾기',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        color: _studyColors.textPrimary,
-                      ),
-                    ),
-                    SizedBox(height: 3),
-                    Text(
-                      '${visibleStudyList.length}개의 스터디',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: _studyColors.textSecondary,
-                      ),
-                    ),
-                  ],
+        if (visibleStudyList.isEmpty)
+          SizedBox(
+            height: 390,
+            child: _buildFindEmptyScreen(),
+          )
+        else ...[
+          Padding(
+            padding: EdgeInsets.only(left: 2, bottom: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '스터디 찾기',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: _studyColors.textPrimary,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  keyboardDismissBehavior:
-                  ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding: EdgeInsets.zero,
-                  itemCount: visibleStudyList.length,
-                  itemBuilder: (context, index) {
-                    return _buildFindStudyCard(
-                      visibleStudyList[index],
-                    );
-                  },
+                SizedBox(height: 3),
+                Text(
+                  '${visibleStudyList.length}개의 스터디',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _studyColors.textSecondary,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.zero,
+            itemCount: visibleStudyList.length,
+            itemBuilder: (context, index) {
+              return _buildFindStudyCard(
+                visibleStudyList[index],
+              );
+            },
+          ),
+        ],
       ],
     );
   }
@@ -1232,85 +1346,129 @@ class _StudyListPageState extends State<StudyListPage> {
             16,
             bottomPadding,
           ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  _buildTopTab('내 스터디'),
-                  SizedBox(width: 8),
-                  _buildTopTab('스터디 찾기'),
-                ],
-              ),
-              SizedBox(height: 9),
-              Expanded(
-                child: StreamBuilder<
-                    QuerySnapshot<Map<String, dynamic>>>(
-                  stream: _getStudyGroupStream(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState ==
-                        ConnectionState.waiting) {
-                      return AppLoadingView(
-                        message: '스터디 목록을 불러오는 중입니다.',
-                      );
-                    }
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              double bodyMinHeight =
+                  constraints.maxHeight - 99;
 
-                    if (snapshot.hasError) {
-                      debugPrint(
-                        '스터디 목록 조회 오류: ${snapshot.error}',
-                      );
+              if (bodyMinHeight < 0) {
+                bodyMinHeight = 0;
+              }
 
-                      if (_isNetworkError(snapshot.error)) {
-                        return AppNetworkErrorView(
-                          message: '인터넷 연결을 확인해 주세요.',
-                          description:
-                          'Wi-Fi 또는 모바일 데이터를 확인한 뒤 다시 시도해 주세요.',
-                          retryButtonText: '다시 시도',
-                          onRetryPressed: _reloadStudyList,
-                        );
-                      }
+              return RefreshIndicator(
+                color: _studyColors.pinkStart,
+                onRefresh: _refreshStudyList,
+                child: ListView(
+                  keyboardDismissBehavior:
+                  ScrollViewKeyboardDismissBehavior.onDrag,
+                  physics:
+                  AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.only(bottom: 100),
+                  children: [
+                    _buildStudySearchField(),
+                    SizedBox(height: 10),
+                    Row(
+                      children: [
+                        _buildTopTab('내 스터디'),
+                        SizedBox(width: 8),
+                        _buildTopTab('스터디 찾기'),
+                      ],
+                    ),
+                    SizedBox(height: 14),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: bodyMinHeight,
+                      ),
+                      child: StreamBuilder<
+                          QuerySnapshot<Map<String, dynamic>>>(
+                        stream: _getStudyGroupStream(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return AppLoadingView(
+                              message:
+                              '스터디 목록을 불러오는 중입니다.',
+                            );
+                          }
 
-                      return AppErrorView(
-                        message: '스터디 목록을 불러오지 못했습니다.',
-                        description: '잠시 후 다시 시도해 주세요.',
-                        retryButtonText: '다시 시도',
-                        onRetryPressed: _reloadStudyList,
-                      );
-                    }
+                          if (snapshot.hasError) {
+                            debugPrint(
+                              '스터디 목록 조회 오류: '
+                                  '${snapshot.error}',
+                            );
 
-                    List<QueryDocumentSnapshot<Map<String, dynamic>>>
-                    allStudyList = [];
+                            if (_isNetworkError(
+                              snapshot.error,
+                            )) {
+                              return AppNetworkErrorView(
+                                message:
+                                '인터넷 연결을 확인해 주세요.',
+                                description:
+                                'Wi-Fi 또는 모바일 데이터를 확인한 뒤 다시 시도해 주세요.',
+                                retryButtonText: '다시 시도',
+                                onRetryPressed:
+                                _reloadStudyList,
+                              );
+                            }
 
-                    if (snapshot.data != null) {
-                      allStudyList = snapshot.data!.docs.toList();
-                    }
+                            return AppErrorView(
+                              message:
+                              '스터디 목록을 불러오지 못했습니다.',
+                              description:
+                              '잠시 후 다시 시도해 주세요.',
+                              retryButtonText: '다시 시도',
+                              onRetryPressed:
+                              _reloadStudyList,
+                            );
+                          }
 
-                    allStudyList.sort((a, b) {
-                      dynamic aCreatedAt = a.data()['createdAt'];
-                      dynamic bCreatedAt = b.data()['createdAt'];
+                          List<QueryDocumentSnapshot<
+                              Map<String, dynamic>>>
+                          allStudyList = [];
 
-                      int aTime = 0;
-                      int bTime = 0;
+                          if (snapshot.data != null) {
+                            allStudyList =
+                                snapshot.data!.docs.toList();
+                          }
 
-                      if (aCreatedAt is Timestamp) {
-                        aTime = aCreatedAt.millisecondsSinceEpoch;
-                      }
+                          allStudyList.sort((a, b) {
+                            dynamic aCreatedAt =
+                            a.data()['createdAt'];
+                            dynamic bCreatedAt =
+                            b.data()['createdAt'];
 
-                      if (bCreatedAt is Timestamp) {
-                        bTime = bCreatedAt.millisecondsSinceEpoch;
-                      }
+                            int aTime = 0;
+                            int bTime = 0;
 
-                      return bTime.compareTo(aTime);
-                    });
+                            if (aCreatedAt is Timestamp) {
+                              aTime = aCreatedAt
+                                  .millisecondsSinceEpoch;
+                            }
 
-                    if (_selectedTab == '내 스터디') {
-                      return _buildMyStudyBody(allStudyList);
-                    }
+                            if (bCreatedAt is Timestamp) {
+                              bTime = bCreatedAt
+                                  .millisecondsSinceEpoch;
+                            }
 
-                    return _buildFindStudyBody(allStudyList);
-                  },
+                            return bTime.compareTo(aTime);
+                          });
+
+                          if (_selectedTab == '내 스터디') {
+                            return _buildMyStudyBody(
+                              allStudyList,
+                            );
+                          }
+
+                          return _buildFindStudyBody(
+                            allStudyList,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),

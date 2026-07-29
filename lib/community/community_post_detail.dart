@@ -49,6 +49,7 @@ class _CommunityPostDetailPageState
   bool _isSubmittingComment = false;
   bool _isTogglingLike = false;
   bool _isTogglingBookmark = false;
+  bool _isUpdatingRecruitStatus = false;
   final Set<String> _togglingCommentLikeIds = {};
   String _replyToCommentId = '';
   String _replyToNickname = '';
@@ -174,6 +175,130 @@ class _CommunityPostDetailPageState
 
     if (value == 'DELETE') {
       _confirmDelete(post);
+    }
+  }
+
+  String _normalizedRecruitStatus(String status) {
+    if (status == 'OPEN' || status.isEmpty) {
+      return 'RECRUITING';
+    }
+
+    return status;
+  }
+
+  String? _nextRecruitStatus(String status) {
+    switch (_normalizedRecruitStatus(status)) {
+      case 'RECRUITING':
+        return 'CLOSED';
+      case 'CLOSED':
+        return 'ACTIVE';
+      case 'ACTIVE':
+        return 'COMPLETED';
+      default:
+        return null;
+    }
+  }
+
+  String _recruitActionLabel(String nextStatus) {
+    switch (nextStatus) {
+      case 'CLOSED':
+        return '모집 마감하기';
+      case 'ACTIVE':
+        return '활동 시작하기';
+      case 'COMPLETED':
+        return '활동 종료하기';
+      default:
+        return '';
+    }
+  }
+
+  Future<void> _changeRecruitStatus(
+      CommunityPost post,
+      ) async {
+    User? user = FirebaseAuth.instance.currentUser;
+    String? nextStatus =
+    _nextRecruitStatus(post.recruitStatus);
+
+    if (_isUpdatingRecruitStatus ||
+        user == null ||
+        !_isWriter(post) ||
+        nextStatus == null) {
+      return;
+    }
+
+    String actionLabel =
+    _recruitActionLabel(nextStatus);
+
+    bool? shouldChange = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(actionLabel),
+          content: Text(
+            '$actionLabel 상태로 변경할까요?\n변경 후에는 이전 상태로 되돌릴 수 없어요.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+              },
+              child: const Text('취소'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
+              child: const Text('변경'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldChange != true || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _isUpdatingRecruitStatus = true;
+    });
+
+    try {
+      await _service.updateRecruitStatus(
+        postId: post.id,
+        writerUid: user.uid,
+        nextStatus: nextStatus,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${_recruitStatusLabel(nextStatus)} 상태로 변경했어요.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '모집 상태를 변경하지 못했어요. 다시 시도해 주세요.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdatingRecruitStatus = false;
+        });
+      }
     }
   }
 
@@ -787,12 +912,73 @@ class _CommunityPostDetailPageState
               ),
               const SizedBox(height: 15),
               _buildPostCounts(post),
+              if (post.boardType ==
+                  CommunityBoardType.groupRecruit &&
+                  _isWriter(post) &&
+                  _nextRecruitStatus(
+                    post.recruitStatus,
+                  ) !=
+                      null) ...[
+                const SizedBox(height: 18),
+                _buildRecruitStatusButton(post),
+              ],
             ],
           ),
         ),
         const SizedBox(height: 16),
         _buildCommentsSection(post),
       ],
+    );
+  }
+
+  Widget _buildRecruitStatusButton(
+      CommunityPost post,
+      ) {
+    String? nextStatus =
+    _nextRecruitStatus(post.recruitStatus);
+
+    if (nextStatus == null) {
+      return const SizedBox.shrink();
+    }
+
+    return SizedBox(
+      width: double.infinity,
+      height: 46,
+      child: FilledButton.icon(
+        onPressed: _isUpdatingRecruitStatus
+            ? null
+            : () {
+          _changeRecruitStatus(post);
+        },
+        style: FilledButton.styleFrom(
+          backgroundColor:
+          context.communityColors.pinkStart,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        icon: _isUpdatingRecruitStatus
+            ? const SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Colors.white,
+          ),
+        )
+            : const Icon(
+          Icons.sync_alt_rounded,
+          size: 19,
+        ),
+        label: Text(
+          _recruitActionLabel(nextStatus),
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
     );
   }
 

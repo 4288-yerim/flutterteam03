@@ -440,34 +440,28 @@ class _CommunityPostAddPageState
     return PopScope(
       canPop: !_isSaving,
       child: Scaffold(
-        extendBodyBehindAppBar: true,
         appBar: const AppTopBar(
           title: '게시글 작성',
         ),
         body: AppMainBackground(
-          child: Padding(
-            padding: const EdgeInsets.only(
-              top: kToolbarHeight,
-            ),
-            child: Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(
-                  20,
-                  18,
-                  20,
-                  40,
-                ),
-                children: [
-                  _buildGuideCard(),
-                  const SizedBox(height: 16),
-                  _buildPostForm(),
-                  const SizedBox(height: 16),
-                  _buildAttachmentCard(),
-                  const SizedBox(height: 20),
-                  _buildSaveButton(),
-                ],
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(
+                20,
+                4,
+                20,
+                40,
               ),
+              children: [
+                _buildGuideCard(),
+                const SizedBox(height: 16),
+                _buildPostForm(),
+                const SizedBox(height: 16),
+                _buildAttachmentCard(),
+                const SizedBox(height: 20),
+                _buildSaveButton(),
+              ],
             ),
           ),
         ),
