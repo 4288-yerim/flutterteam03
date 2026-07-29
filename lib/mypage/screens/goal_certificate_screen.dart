@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../appwidgets/goal_schedule_app_widget.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/app_confirm_dialog.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
 import '../../widgets/app_state_views.dart';
@@ -290,50 +291,21 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
   Future<void> _showDeleteDialog(int index) async {
     final GoalCertificateItem goal = _goals[index];
 
-    final bool? deleteResult = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          title: const Text(
-            '목표 삭제',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          content: Text(
-            '${goal.certificateName} '
-                '${goal.targetRound} '
-                '${_formatExamType(goal.targetExamType)} 목표를 '
-                '삭제하시겠습니까?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, false);
-              },
-              child: const Text(
-                '취소',
-                style: TextStyle(
-                  color: Color(0xFF9AA0AC),
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, true);
-              },
-              child: const Text(
-                '삭제',
-                style: TextStyle(
-                  color: Colors.red,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+    // 기본 AlertDialog 대신 공통 AppConfirmDialog 사용.
+    // 삭제는 되돌릴 수 없는 파괴적 액션이라 isDestructive: true로 레드 강조.
+    final bool? deleteResult = await AppConfirmDialog.show<bool>(
+      context,
+      icon: Icons.delete_outline,
+      title: '목표 삭제',
+      description: '${goal.certificateName} '
+          '${goal.targetRound} '
+          '${_formatExamType(goal.targetExamType)} 목표를 '
+          '삭제하시겠습니까?',
+      primaryLabel: '삭제',
+      onPrimaryPressed: () => Navigator.pop(context, true),
+      secondaryLabel: '취소',
+      onSecondaryPressed: () => Navigator.pop(context, false),
+      isDestructive: true,
     );
 
     if (deleteResult != true) {
@@ -604,206 +576,234 @@ class GoalCertificateCard extends StatelessWidget {
         ? null
         : _calculateDday(goal.targetExamDate!);
 
+    // D-day 임박도에 따라 색을 다르게 — 장식이 아니라 실제 정보 신호로 사용.
+    // 7일 이내: 긴급(레드) / 30일 이내: 다가옴(핑크) / 그 이상: 여유(다크 뉴트럴) / 지남·미정: 무채색
+    final Color dDayColor = dDay == null || dDay < 0
+        ? const Color(0xFF9AA0AC)
+        : dDay <= 7
+        ? const Color(0xFFE0483B)
+        : dDay <= 30
+        ? const Color(0xFFF0788F)
+        : const Color(0xFF44474E);
+
     return AppCard(
       padding: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 대표 목표일 때만 골드 강조 바 — "대표 목표" 뱃지와 같은 톤으로 통일
+          if (goal.isMainGoal)
+            Container(
+              height: 4,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFFFD98E), Color(0xFFFFC24B)],
+                ),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFCEFF3),
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: const Icon(
-                    Icons.workspace_premium_outlined,
-                    color: Color(0xFFF0788F),
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        // 대표 목표일 때만 골드 강조, 나머지는 무채색으로 정리
+                        color: goal.isMainGoal
+                            ? const Color(0xFFFFF6DF)
+                            : const Color(0xFFF2F3F5),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Icon(
+                        Icons.workspace_premium_outlined,
+                        color: goal.isMainGoal
+                            ? const Color(0xFF9A6B00)
+                            : const Color(0xFF5B5F68),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            goal.certificateName,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1A1A1A),
+                            ),
+                          ),
+                          const SizedBox(height: 7),
+                          Wrap(
+                            spacing: 7,
+                            runSpacing: 7,
+                            children: [
+                              _GoalLabel(
+                                text: goal.targetRound,
+                                backgroundColor:
+                                const Color(0xFFF4F1FF),
+                                textColor:
+                                const Color(0xFF7665A7),
+                              ),
+                              _GoalLabel(
+                                text: _formatExamType(
+                                  goal.targetExamType,
+                                ),
+                                backgroundColor:
+                                const Color(0xFFFCEFF3),
+                                textColor:
+                                const Color(0xFFF0788F),
+                              ),
+                              if (goal.isMainGoal)
+                                const _GoalLabel(
+                                  text: '대표 목표',
+                                  backgroundColor:
+                                  Color(0xFFFFE8AE),
+                                  textColor:
+                                  Color(0xFF9A6B00),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: '목표 자격증 삭제',
+                      onPressed: onDelete,
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: Colors.red,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                const SizedBox(height: 18),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8F8FA),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
                     children: [
-                      Text(
-                        goal.certificateName,
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1A1A1A),
+                      const Icon(
+                        Icons.calendar_month_outlined,
+                        size: 20,
+                        color: Color(0xFF6B7078),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              '목표 시험일',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF9AA0AC),
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              goal.targetExamDate == null
+                                  ? '시험 일정 미선택'
+                                  : _formatDate(
+                                goal.targetExamDate!,
+                              ),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF1A1A1A),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 7),
-                      Wrap(
-                        spacing: 7,
-                        runSpacing: 7,
-                        children: [
-                          _GoalLabel(
-                            text: goal.targetRound,
-                            backgroundColor:
-                            const Color(0xFFF4F1FF),
-                            textColor:
-                            const Color(0xFF7665A7),
-                          ),
-                          _GoalLabel(
-                            text: _formatExamType(
-                              goal.targetExamType,
-                            ),
-                            backgroundColor:
-                            const Color(0xFFFCEFF3),
-                            textColor:
-                            const Color(0xFFF0788F),
-                          ),
-                          if (goal.isMainGoal)
-                            const _GoalLabel(
-                              text: '대표 목표',
-                              backgroundColor:
-                              Color(0xFFFFE8AE),
-                              textColor:
-                              Color(0xFF9A6B00),
-                            ),
-                        ],
+                      Text(
+                        dDay == null
+                            ? '-'
+                            : _formatDday(dDay),
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: dDayColor,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                IconButton(
-                  tooltip: '목표 자격증 삭제',
-                  onPressed: onDelete,
-                  icon: const Icon(
-                    Icons.delete_outline,
-                    color: Colors.red,
+                if (goal.passAnnouncementDate != null) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.campaign_outlined,
+                        size: 18,
+                        color: Color(0xFF9AA0AC),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        '합격 발표',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF777B84),
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        _formatPassAnnouncement(
+                          goal.passAnnouncementDate!,
+                          goal.passAnnouncementEndDate,
+                        ),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF44474E),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                ],
+                if (!goal.isMainGoal) ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: onSetMain,
+                      icon: const Icon(
+                        Icons.star_outline,
+                        size: 19,
+                      ),
+                      label: const Text(
+                        '대표 목표로 설정',
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor:
+                        const Color(0xFFF0788F),
+                        side: const BorderSide(
+                          color: Color(0xFFF0788F),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                          BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
-            const SizedBox(height: 18),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8F8FA),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.calendar_month_outlined,
-                    size: 20,
-                    color: Color(0xFFF0788F),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          '목표 시험일',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF9AA0AC),
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          goal.targetExamDate == null
-                              ? '시험 일정 미선택'
-                              : _formatDate(
-                            goal.targetExamDate!,
-                          ),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF1A1A1A),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Text(
-                    dDay == null
-                        ? '-'
-                        : _formatDday(dDay),
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: dDay != null && dDay >= 0
-                          ? const Color(0xFFF0788F)
-                          : const Color(0xFF9AA0AC),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (goal.passAnnouncementDate != null) ...[
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.campaign_outlined,
-                    size: 18,
-                    color: Color(0xFF9AA0AC),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    '합격 발표',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF777B84),
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    _formatPassAnnouncement(
-                      goal.passAnnouncementDate!,
-                      goal.passAnnouncementEndDate,
-                    ),
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF44474E),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            if (!goal.isMainGoal) ...[
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: onSetMain,
-                  icon: const Icon(
-                    Icons.star_outline,
-                    size: 19,
-                  ),
-                  label: const Text(
-                    '대표 목표로 설정',
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor:
-                    const Color(0xFFF0788F),
-                    side: const BorderSide(
-                      color: Color(0xFFF0788F),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                      BorderRadius.circular(14),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

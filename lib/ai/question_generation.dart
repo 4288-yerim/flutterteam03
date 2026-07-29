@@ -8,13 +8,19 @@ import 'services/question_generation_api_service.dart';
 import 'dart:async';
 
 class QuestionGenerationPage extends StatefulWidget {
-  const QuestionGenerationPage({super.key});
+  final String? initialCertificate;
+  final String? initialSubject;
+
+  const QuestionGenerationPage({
+    super.key,
+    this.initialCertificate,
+    this.initialSubject,
+  });
 
   @override
   State<QuestionGenerationPage> createState() =>
       _QuestionGenerationPageState();
 }
-
 class _QuestionGenerationPageState extends State<QuestionGenerationPage>
     with SingleTickerProviderStateMixin {
   static const Color _textColor = Color(0xFF302C2E);
@@ -103,6 +109,16 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
   void initState() {
     super.initState();
     _loadingController = AnimationController(vsync: this);
+
+    final initialCertificate = widget.initialCertificate?.trim();
+    if (initialCertificate != null && initialCertificate.isNotEmpty) {
+      _certNameController.text = initialCertificate;
+      _selectedGenerationType = QuestionGenerationType.wrongAnswer;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _fetchCertificateStructure();
+      });
+    }
   }
 
   @override
@@ -162,7 +178,6 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
         _isLoadingStructure = false;
         _selectedSubject = '전체';
 
-        // 기본 시험 유형 결정
         if (certification.isIntegrated) {
           _selectedExamType = ExamType.integrated;
         } else if (certification.hasWritten) {
@@ -171,6 +186,13 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
           _selectedExamType = ExamType.practical;
         }
       });
+
+      final desiredSubject = widget.initialSubject?.trim();
+      if (desiredSubject != null &&
+          desiredSubject.isNotEmpty &&
+          _currentSubjects.contains(desiredSubject)) {
+        setState(() => _selectedSubject = desiredSubject);
+      }
 
       _goToStep(1);
     } catch (e) {

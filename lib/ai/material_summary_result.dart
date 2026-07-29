@@ -624,6 +624,11 @@ class _SummaryResultHeader extends StatelessWidget {
     required this.hasError,
   });
 
+  // 그라데이션 배경 위에서는 테마 색상 대신 고정 색을 써서 대비를 보장한다.
+  static const Color _titleColor = Color(0xFF302C2E);
+  static const Color _descColor = Color(0xFF6B6265);
+  static const Color _accentColor = Color(0xFFE85D82);
+
   @override
   Widget build(BuildContext context) {
     final String title;
@@ -652,8 +657,20 @@ class _SummaryResultHeader extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(22, 24, 20, 22),
       decoration: BoxDecoration(
-        gradient: AppColors.heroGradient,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFFE4ED), Color(0xFFF6D7FF)],
+        ),
         borderRadius: BorderRadius.circular(25),
+        border: Border.all(color: Colors.white, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -663,9 +680,9 @@ class _SummaryResultHeader extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: TextStyle(
-                    color: context.colors.textPrimary,
-                    fontSize: 23,
+                  style: const TextStyle(
+                    color: _titleColor,
+                    fontSize: 22,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.6,
                   ),
@@ -673,28 +690,27 @@ class _SummaryResultHeader extends StatelessWidget {
                 const SizedBox(height: 9),
                 Text(
                   description,
-                  style: TextStyle(color: context.colors.textSecondary, fontSize: 14, height: 1.5),
+                  style: const TextStyle(color: _descColor, fontSize: 13.5, height: 1.5),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 6),
                 Text(
                   '업로드 자료 $fileCount개',
                   style: const TextStyle(
-                    color: AppColors.pink,
+                    color: _accentColor,
                     fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ],
             ),
           ),
           Container(
-            width: 68,
-            height: 68,
-            decoration: BoxDecoration(color: context.colors.pinkSoftAlt, shape: BoxShape.circle),
+            width: 64,
+            height: 64,
+            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
             alignment: Alignment.center,
-            child: Icon(icon, color: AppColors.pink, size: 32),
+            child: Icon(icon, color: _accentColor, size: 30),
           ),
-          const SizedBox(width: 4),
         ],
       ),
     );
