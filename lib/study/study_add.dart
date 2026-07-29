@@ -997,23 +997,56 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                               icon: Icons.workspace_premium_outlined,
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _descriptionController,
-                            maxLines: 4,
-                            maxLength: 200,
-                            textInputAction: TextInputAction.newline,
-                            decoration: studyFieldDecoration(
-                              labelText: '스터디 소개',
-                              hintText: '스터디 목표와 진행 방법을 입력해주세요.',
-                              icon: Icons.edit_note_rounded,
-                              alignLabelWithHint: true,
-                            ),
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return '스터디 소개를 입력해주세요.';
-                              }
-                              return null;
+                          SizedBox(height: 16),
+                          ValueListenableBuilder<TextEditingValue>(
+                            valueListenable: _descriptionController,
+                            builder: (context, value, child) {
+                              return Stack(
+                                children: [
+                                  TextFormField(
+                                    controller: _descriptionController,
+                                    maxLines: 4,
+                                    maxLength: 200,
+                                    textInputAction: TextInputAction.newline,
+                                    decoration: studyFieldDecoration(
+                                      labelText: '스터디 소개',
+                                      hintText: '스터디 목표와 진행 방법을 입력해주세요.',
+                                      icon: Icons.edit_note_rounded,
+                                      alignLabelWithHint: true,
+                                    ).copyWith(
+                                      counterText: '',
+                                      helperText: ' ',
+                                      contentPadding: const EdgeInsets.fromLTRB(
+                                        14,
+                                        20,
+                                        14,
+                                        30,
+                                      ),
+                                    ),
+                                    validator: (value) {
+                                      if (value == null || value.trim().isEmpty) {
+                                        return '스터디 소개를 입력해주세요.';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  Positioned(
+                                    right: 14,
+                                    bottom: 28,
+                                    child: IgnorePointer(
+                                      child: Text(
+                                        '${value.text.length}/200',
+                                        style: TextStyle(
+                                          color: colors.textSecondary
+                                              .withOpacity(0.45),
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
                             },
                           ),
                         ],
