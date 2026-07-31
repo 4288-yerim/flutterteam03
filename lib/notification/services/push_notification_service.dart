@@ -1,17 +1,26 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
+import '../../community/community_post_detail.dart';
+import '../../mypage/screens/friend_screen.dart';
+import '../../mypage/screens/study_plan_screen.dart';
+import '../../study/study_chat.dart';
+import '../../study/study_join_requests.dart';
+import '../../study/study_room.dart';
 import 'local_notification_service.dart';
 
 class PushNotificationService {
   PushNotificationService._();
 
-  static final PushNotificationService instance =
-  PushNotificationService._();
+  static final PushNotificationService instance = PushNotificationService._();
+
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -30,7 +39,9 @@ class PushNotificationService {
       return;
     }
 
-    await LocalNotificationService.instance.initialize();
+    await LocalNotificationService.instance.initialize(
+      onPayload: handlePayload,
+    );
     await _requestPermission();
     await _configureForegroundNotification();
     _listenAuthState();
@@ -50,9 +61,7 @@ class PushNotificationService {
       provisional: false,
     );
 
-    debugPrint(
-      'FCM 알림 권한 상태: ${settings.authorizationStatus}',
-    );
+    debugPrint('FCM 알림 권한 상태: ${settings.authorizationStatus}');
   }
 
   void _listenAuthState() {
@@ -97,20 +106,21 @@ class PushNotificationService {
   void _listenTokenRefresh(String uid) {
     _tokenRefreshSubscription?.cancel();
 
-    _tokenRefreshSubscription =
-        _messaging.onTokenRefresh.listen((newToken) async {
-          try {
-            await _firestore.collection('users').doc(uid).set({
-              'fcmTokens': FieldValue.arrayUnion([newToken]),
-              'updatedAt': FieldValue.serverTimestamp(),
-            }, SetOptions(merge: true));
+    _tokenRefreshSubscription = _messaging.onTokenRefresh.listen((
+      newToken,
+    ) async {
+      try {
+        await _firestore.collection('users').doc(uid).set({
+          'fcmTokens': FieldValue.arrayUnion([newToken]),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
 
-            debugPrint('갱신된 FCM 토큰 저장 완료');
-          } catch (error, stackTrace) {
-            debugPrint('갱신된 FCM 토큰 저장 실패: $error');
-            debugPrintStack(stackTrace: stackTrace);
-          }
-        });
+        debugPrint('갱신된 FCM 토큰 저장 완료');
+      } catch (error, stackTrace) {
+        debugPrint('갱신된 FCM 토큰 저장 실패: $error');
+        debugPrintStack(stackTrace: stackTrace);
+      }
+    });
   }
 
   Future<void> _removeCurrentToken() async {
@@ -148,46 +158,53 @@ class PushNotificationService {
 
     _foregroundMessageSubscription?.cancel();
 
-    _foregroundMessageSubscription =
-        FirebaseMessaging.onMessage.listen((message) async {
-          final title =
-              message.notification?.title ??
-                  message.data['title']?.toString() ??
-                  '';
+    _foregroundMessageSubscription = FirebaseMessaging.onMessage.listen((
+      message,
+    ) async {
+      final title =
+          message.notification?.title ??
+          message.data['title']?.toString() ??
+          '';
 
-          final body =
-              message.notification?.body ??
-                  message.data['body']?.toString() ??
-                  '';
+      final body =
+          message.notification?.body ?? message.data['body']?.toString() ?? '';
 
-          if (title.isEmpty && body.isEmpty) {
-            return;
-          }
+      if (title.isEmpty && body.isEmpty) {
+        return;
+      }
 
-          final refType = message.data['refType']?.toString();
-          final refId = message.data['refId']?.toString();
+      final refType = message.data['refType']?.toString();
+      final planDate = message.data['planDate']?.toString();
 
-          final payload = refType == null || refType.isEmpty
-              ? null
-              : '$refType:${refId ?? ''}';
+      final payload = refType == null || refType.isEmpty
+          ? null
+          : jsonEncode({
+              'refType': refType,
+              'planDate': planDate ?? '',
+              'studyId': message.data['studyId']?.toString() ?? '',
+              'groupName': message.data['groupName']?.toString() ?? '',
+              'postId': message.data['postId']?.toString() ?? '',
+            });
 
-          await LocalNotificationService.instance.showNotification(
-            id: message.messageId?.hashCode ??
-                DateTime.now().millisecondsSinceEpoch.remainder(2147483647),
-            title: title,
-            body: body,
-            payload: payload,
-          );
-        });
+      await LocalNotificationService.instance.showNotification(
+        id:
+            message.messageId?.hashCode ??
+            DateTime.now().millisecondsSinceEpoch.remainder(2147483647),
+        title: title,
+        body: body,
+        payload: payload,
+      );
+    });
   }
 
   void _listenMessageOpened() {
     _messageOpenedSubscription?.cancel();
 
-    _messageOpenedSubscription =
-        FirebaseMessaging.onMessageOpenedApp.listen((message) {
-          _handleMessageNavigation(message);
-        });
+    _messageOpenedSubscription = FirebaseMessaging.onMessageOpenedApp.listen((
+      message,
+    ) {
+      _handleMessageNavigation(message);
+    });
   }
 
   Future<void> handleInitialMessage() async {
@@ -202,13 +219,143 @@ class PushNotificationService {
 
   void _handleMessageNavigation(RemoteMessage message) {
     final refType = message.data['refType']?.toString();
-    final refId = message.data['refId']?.toString();
+    final planDate = message.data['planDate']?.toString();
 
-    debugPrint(
-      'FCM 알림 클릭: refType=$refType, refId=$refId',
+    debugPrint('FCM 알림 클릭: refType=$refType, planDate=$planDate');
+
+    if (refType == null || refType.isEmpty) {
+      return;
+    }
+
+    handlePayload(
+      jsonEncode({
+        'refType': refType,
+        'planDate': planDate ?? '',
+        'studyId': message.data['studyId']?.toString() ?? '',
+        'groupName': message.data['groupName']?.toString() ?? '',
+        'postId': message.data['postId']?.toString() ?? '',
+      }),
     );
+  }
 
-    // 실제 화면 이동은 각 화면 경로를 확인한 후 추가합니다.
+  void handlePayload(String payload) {
+    if (payload.startsWith('{')) {
+      _handleStructuredPayload(payload);
+      return;
+    }
+
+    final separatorIndex = payload.indexOf(':');
+    final refType = separatorIndex < 0
+        ? payload
+        : payload.substring(0, separatorIndex);
+    final rawPlanDate = separatorIndex < 0
+        ? ''
+        : payload.substring(separatorIndex + 1);
+
+    if (refType != 'STUDY_PLAN') {
+      return;
+    }
+
+    final parsedDate = DateTime.tryParse(rawPlanDate);
+    final initialDate = parsedDate == null
+        ? DateTime.now()
+        : DateTime(parsedDate.year, parsedDate.month, parsedDate.day);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final navigator = navigatorKey.currentState;
+
+      if (navigator == null) {
+        debugPrint('학습 계획 화면 이동 실패: Navigator 준비 안 됨');
+        return;
+      }
+
+      navigator.push(
+        MaterialPageRoute<void>(
+          builder: (_) => StudyPlanScreen(initialDate: initialDate),
+        ),
+      );
+    });
+  }
+
+  void _handleStructuredPayload(String payload) {
+    final Object? decoded;
+
+    try {
+      decoded = jsonDecode(payload);
+    } on FormatException {
+      return;
+    }
+
+    if (decoded is! Map<String, dynamic>) {
+      return;
+    }
+
+    final refType = decoded['refType']?.toString() ?? '';
+    final rawPlanDate = decoded['planDate']?.toString() ?? '';
+    final studyId = decoded['studyId']?.toString() ?? '';
+    final groupName = decoded['groupName']?.toString() ?? '';
+    final postId = decoded['postId']?.toString() ?? '';
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final navigator = navigatorKey.currentState;
+      if (navigator == null) {
+        return;
+      }
+
+      if (refType == 'STUDY_PLAN') {
+        final parsedDate = DateTime.tryParse(rawPlanDate);
+        navigator.push(
+          MaterialPageRoute<void>(
+            builder: (_) =>
+                StudyPlanScreen(initialDate: parsedDate ?? DateTime.now()),
+          ),
+        );
+        return;
+      }
+
+      if (refType == 'COMMUNITY_POST') {
+        if (postId.isEmpty) {
+          return;
+        }
+        navigator.push(
+          MaterialPageRoute<void>(
+            builder: (_) => CommunityPostDetailPage(postId: postId),
+          ),
+        );
+        return;
+      }
+
+      if (refType == 'FRIENDS') {
+        navigator.push(
+          MaterialPageRoute<void>(builder: (_) => const FriendScreen()),
+        );
+        return;
+      }
+
+      if (studyId.isEmpty) {
+        return;
+      }
+
+      Widget? destination;
+      switch (refType) {
+        case 'STUDY_ROOM':
+          destination = StudyRoomPage(
+            studyId: studyId,
+            groupName: groupName.isEmpty ? '스터디' : groupName,
+          );
+        case 'STUDY_JOIN_REQUESTS':
+          destination = StudyJoinRequestsPage(studyId: studyId);
+        case 'STUDY_CHAT':
+          destination = StudyChatPage(
+            studyId: studyId,
+            groupName: groupName.isEmpty ? '스터디' : groupName,
+          );
+      }
+
+      if (destination != null) {
+        navigator.push(MaterialPageRoute<void>(builder: (_) => destination!));
+      }
+    });
   }
 
   Future<void> dispose() async {

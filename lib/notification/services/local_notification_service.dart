@@ -14,9 +14,14 @@ class LocalNotificationService {
   final FlutterLocalNotificationsPlugin _plugin =
   FlutterLocalNotificationsPlugin();
 
+  void Function(String payload)? _onPayload;
   bool _initialized = false;
 
-  Future<void> initialize() async {
+  Future<void> initialize({
+    void Function(String payload)? onPayload,
+  }) async {
+    _onPayload = onPayload ?? _onPayload;
+
     if (_initialized) {
       return;
     }
@@ -62,8 +67,7 @@ class LocalNotificationService {
     }
 
     debugPrint('로컬 알림 클릭 payload: $payload');
-
-    // 알림 클릭 후 화면 이동은 추후 추가합니다.
+    _onPayload?.call(payload);
   }
 
   Future<void> showNotification({
