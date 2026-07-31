@@ -1,11 +1,14 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../admin/screens/admin.dart';
 import '../../appwidgets/app_widget_sync.dart';
 import '../../auth/screens/welcome_screen.dart';
 import '../../main_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../mypage/screens/withdrawal_pending_screen.dart';
 import '../../mypage/services/withdrawal_status_service.dart';
 import '../../theme.dart';
+import '../../auth/services/account_status_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -81,18 +84,41 @@ class _SplashScreenState extends State<SplashScreen>
       nextScreen = const WelcomeScreen();
     } else {
       try {
-        final bool isWithdrawalPending =
-        await WithdrawalStatusService
-            .isCurrentUserWithdrawalPending();
+        final check = await AccountStatusService.checkCurrentUserStatus();
 
-        if (isWithdrawalPending) {
+        if (check.result == AccountCheckResult.suspended) {
           await AppWidgetSync.clearAll();
 
-          nextScreen = const WithdrawalPendingScreen();
-        } else {
-          await AppWidgetSync.syncAll();
+          final untilText = check.suspendedUntil != null
+              ? '${check.suspendedUntil!.year}.${check.suspendedUntil!.month}.${check.suspendedUntil!.day}까지'
+              : '별도 안내 시까지';
 
-          nextScreen = const MainPage();
+          nextScreen = WelcomeScreen(
+            blockedMessage: '이용이 정지된 계정입니다.\n정지 기간: $untilText\n\n정지 해제 문의는 DdaiT@naver.com으로 해주세요.',
+          );
+        } else {
+          final bool isWithdrawalPending =
+          await WithdrawalStatusService
+              .isCurrentUserWithdrawalPending();
+
+          if (isWithdrawalPending) {
+            await AppWidgetSync.clearAll();
+            nextScreen = const WithdrawalPendingScreen();
+          } else {
+            final userDoc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .get();
+            final String? role = userDoc.data()?['role'] as String?;
+
+            if (role == 'ADMIN') {
+              await AppWidgetSync.clearAll();
+              nextScreen = const AdminPage();
+            } else {
+              await AppWidgetSync.syncAll();
+              nextScreen = const MainPage();
+            }
+          }
         }
       } catch (_) {
         await FirebaseAuth.instance.signOut();

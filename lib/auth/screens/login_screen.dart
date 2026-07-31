@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import '../../main_page.dart';
 import '../../mypage/screens/withdrawal_pending_screen.dart';
 import '../../mypage/services/withdrawal_status_service.dart';
+import '../services/account_status_service.dart';
 import '../../theme.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_top_bar.dart';
 import '../../widgets/loading_overlay.dart';
 import 'reset_password_screen.dart';
+import '../../widgets/app_confirm_dialog.dart';
 import '../../admin/screens/admin.dart';
 
 class _StepReveal extends StatelessWidget {
@@ -196,10 +198,31 @@ class _LoginScreenState extends State<LoginScreen>
       final userDocRef = FirebaseFirestore.instance
           .collection('users')
           .doc(credential.user!.uid);
-
       await userDocRef.update({
         'lastLoginAt': FieldValue.serverTimestamp(),
       });
+
+      final check = await AccountStatusService.checkCurrentUserStatus();
+      if (!mounted) return;
+      if (check.result == AccountCheckResult.suspended) {
+        final untilText = check.suspendedUntil != null
+            ? '${check.suspendedUntil!.year}.${check.suspendedUntil!.month}.${check.suspendedUntil!.day}까지'
+            : '별도 안내 시까지';
+        setState(() => _isLoading = false);
+        if (!mounted) return;
+        AppConfirmDialog.show(
+          context,
+          icon: Icons.pause_circle_filled_rounded,
+          title: '로그인 불가',
+          description: '이용이 정지된 계정입니다.\n정지 기간: $untilText\n\n정지 해제 문의는 DdaiT@naver.com으로 해주세요.',
+          primaryLabel: '확인',
+          onPrimaryPressed: () => Navigator.of(context).pop(),
+          barrierDismissible: false,
+          preventBack: true,
+          isDestructive: true,
+        );
+        return;
+      }
 
       final userDoc = await userDocRef.get();
       final String? role = userDoc.data()?['role'] as String?;
