@@ -43,9 +43,18 @@ class AdminMemberService {
     required String nickname,
     required String bio,
   }) {
+    final trimmedNickname = nickname.trim();
+    final trimmedBio = bio.trim();
+    if (trimmedNickname.isEmpty || trimmedNickname.length > 12) {
+      throw ArgumentError('닉네임은 1자 이상 12자 이하로 입력해야 합니다.');
+    }
+    if (trimmedBio.length > 100) {
+      throw ArgumentError('소개글은 100자 이하로 입력해야 합니다.');
+    }
+
     return _firestore.collection('users').doc(uid).update({
-      'nickname': nickname.trim(),
-      'bio': bio.trim(),
+      'nickname': trimmedNickname,
+      'bio': trimmedBio,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }

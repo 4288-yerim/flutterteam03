@@ -73,52 +73,174 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
     final bioController = TextEditingController(text: member.bio);
     final formKey = GlobalKey<FormState>();
 
-    final shouldSave = await showDialog<bool>(
+    InputDecoration fieldDecoration({
+      required String label,
+      required String hint,
+      required IconData icon,
+    }) {
+      return InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: Icon(icon, color: const Color(0xFF6C63FF)),
+        filled: true,
+        fillColor: const Color(0xFFF7F5FA),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFFE2DFE6)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFFE2DFE6)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFF6C63FF), width: 1.5),
+        ),
+      );
+    }
+
+    final shouldSave = await showModalBottomSheet<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('회원 정보 수정'),
-        content: Form(
-          key: formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: nicknameController,
-                  maxLength: 20,
-                  decoration: const InputDecoration(labelText: '닉네임'),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return '닉네임을 입력해 주세요.';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 10),
-                TextFormField(
-                  controller: bioController,
-                  maxLength: 60,
-                  maxLines: 3,
-                  decoration: const InputDecoration(labelText: '소개글'),
-                ),
-              ],
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalContext) => Container(
+        padding: EdgeInsets.fromLTRB(
+          22,
+          14,
+          22,
+          MediaQuery.of(modalContext).viewInsets.bottom + 24,
+        ),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF77747E).withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0EDFF),
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: const Icon(
+                          Icons.manage_accounts_rounded,
+                          color: Color(0xFF6C63FF),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '회원 정보 수정',
+                              style: TextStyle(
+                                color: Color(0xFF242126),
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            SizedBox(height: 3),
+                            Text(
+                              '닉네임과 소개글을 변경할 수 있어요.',
+                              style: TextStyle(
+                                color: Color(0xFF77747E),
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 22),
+                  TextFormField(
+                    controller: nicknameController,
+                    maxLength: 12,
+                    textInputAction: TextInputAction.next,
+                    decoration: fieldDecoration(
+                      label: '닉네임',
+                      hint: '닉네임을 입력해 주세요.',
+                      icon: Icons.badge_outlined,
+                    ),
+                    validator: (value) {
+                      final nickname = value?.trim() ?? '';
+                      if (nickname.isEmpty) {
+                        return '닉네임을 입력해 주세요.';
+                      }
+                      if (nickname.length > 12) {
+                        return '닉네임은 12자 이하로 입력해 주세요.';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: bioController,
+                    maxLength: 100,
+                    maxLines: 4,
+                    decoration: fieldDecoration(
+                      label: '소개글',
+                      hint: '회원 소개글을 입력해 주세요.',
+                      icon: Icons.subject_rounded,
+                    ),
+                    validator: (value) {
+                      if ((value ?? '').trim().length > 100) {
+                        return '소개글은 100자 이하로 입력해 주세요.';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: FilledButton.icon(
+                      onPressed: () {
+                        if (formKey.currentState?.validate() == true) {
+                          Navigator.pop(modalContext, true);
+                        }
+                      },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF6C63FF),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                      ),
+                      icon: const Icon(Icons.save_outlined),
+                      label: const Text(
+                        '변경사항 저장',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (formKey.currentState?.validate() == true) {
-                Navigator.pop(dialogContext, true);
-              }
-            },
-            child: const Text('저장'),
-          ),
-        ],
       ),
     );
 
@@ -143,8 +265,10 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
         }
       }
     }
-    nicknameController.dispose();
-    bioController.dispose();
+    Future<void>.delayed(const Duration(milliseconds: 400), () {
+      nicknameController.dispose();
+      bioController.dispose();
+    });
   }
 
   @override
@@ -219,10 +343,6 @@ class _DetailBody extends StatelessWidget {
             ('가입 일시', _formatDateTime(member.createdAt)),
             ('마지막 로그인', _formatDateTime(member.lastLoginAt)),
             ('상시 로그인 여부', member.hasPersistentLogin ? '상시 로그인' : '아님'),
-            ('신고 누적 횟수', '${member.reportCount}회'),
-            ('게시글 신고 누적', '${member.postReportCount}회'),
-            ('댓글 신고 누적', '${member.commentsReportCount}회'),
-            ('스터디원 신고 누적', '${member.studyMemberReportCount}회'),
             ('상태', member.statusLabel),
             ('가입 유형', member.providerLabel),
             ('구독 여부', detail.isSubscribed ? '구독 중' : '미구독'),
@@ -238,6 +358,19 @@ class _DetailBody extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 12),
+        _ActivityCard(
+          icon: Icons.report_problem_outlined,
+          label: '신고 누적 횟수',
+          count: member.reportCount,
+          countSuffix: '회',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => MemberReportSummaryScreen(member: member),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
         Row(
           children: [
             Expanded(
@@ -360,6 +493,163 @@ class _DetailBody extends StatelessWidget {
           posts: detail.posts,
           comments: detail.comments,
         ),
+      ),
+    );
+  }
+}
+
+class MemberReportSummaryScreen extends StatelessWidget {
+  const MemberReportSummaryScreen({super.key, required this.member});
+
+  final AdminMember member;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          '신고 누적 상세보기',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+        ),
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+      ),
+      body: AppMainBackground(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 36),
+          children: [
+            Text(
+              '${member.nickname} 회원 신고 현황',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              '회원에게 누적된 신고 건수를 확인할 수 있어요.',
+              style: TextStyle(color: Color(0xFF77747E), fontSize: 13),
+            ),
+            const SizedBox(height: 18),
+            _ReportCountCard(
+              icon: Icons.report_problem_outlined,
+              label: '신고 누적 횟수',
+              count: member.reportCount,
+              isPrimary: true,
+            ),
+            const SizedBox(height: 10),
+            _ReportCountCard(
+              icon: Icons.article_outlined,
+              label: '게시글 신고 누적 횟수',
+              count: member.postReportCount,
+            ),
+            const SizedBox(height: 10),
+            _ReportCountCard(
+              icon: Icons.chat_bubble_outline_rounded,
+              label: '댓글 신고 누적 횟수',
+              count: member.commentsReportCount,
+            ),
+            const SizedBox(height: 10),
+            _ReportCountCard(
+              icon: Icons.groups_outlined,
+              label: '스터디원 신고 누적 횟수',
+              count: member.studyMemberReportCount,
+            ),
+            const SizedBox(height: 26),
+            const Row(
+              children: [
+                Icon(Icons.receipt_long_outlined, color: Color(0xFF6C63FF)),
+                SizedBox(width: 9),
+                Text(
+                  '신고 내역',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const AdminMemberDetailSurface(
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 38),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.inbox_outlined,
+                    color: Color(0xFF99949E),
+                    size: 34,
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    '표시할 신고 내역이 없습니다.',
+                    style: TextStyle(
+                      color: Color(0xFF77747E),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    '신고 내역 데이터는 추후 연결될 예정입니다.',
+                    style: TextStyle(color: Color(0xFF99949E), fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReportCountCard extends StatelessWidget {
+  const _ReportCountCard({
+    required this.icon,
+    required this.label,
+    required this.count,
+    this.isPrimary = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final int count;
+  final bool isPrimary;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = isPrimary
+        ? const Color(0xFFE85D68)
+        : const Color(0xFF6C63FF);
+    return AdminMemberDetailSurface(
+      padding: const EdgeInsets.all(18),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.11),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: accent),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF5D5962),
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Text(
+            '$count건',
+            style: TextStyle(
+              color: accent,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -542,11 +832,13 @@ class _ActivityCard extends StatelessWidget {
     required this.label,
     required this.count,
     required this.onTap,
+    this.countSuffix = '개',
   });
   final IconData icon;
   final String label;
   final int count;
   final VoidCallback onTap;
+  final String countSuffix;
 
   @override
   Widget build(BuildContext context) {
@@ -574,7 +866,7 @@ class _ActivityCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '$count개',
+                      '$count$countSuffix',
                       style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w900,

@@ -2462,9 +2462,12 @@ class StudyRoomPage extends StatelessWidget {
 
     bool isSaving = false;
 
-    showDialog<void>(
+    showModalBottomSheet<void>(
       context: context,
-      barrierDismissible: false,
+      isScrollControlled: true,
+      isDismissible: true,
+      enableDrag: true,
+      backgroundColor: Colors.transparent,
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (
@@ -4870,9 +4873,12 @@ class StudyRoomPage extends StatelessWidget {
     String selectedReason = 'SPAM';
     bool isSaving = false;
 
-    await showDialog<void>(
+    await showModalBottomSheet<void>(
       context: context,
-      barrierDismissible: false,
+      isScrollControlled: true,
+      isDismissible: true,
+      enableDrag: true,
+      backgroundColor: Colors.transparent,
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
@@ -5164,7 +5170,10 @@ class StudyRoomPage extends StatelessWidget {
       },
     );
 
-    detailController.dispose();
+    Future<void>.delayed(
+      const Duration(milliseconds: 400),
+      detailController.dispose,
+    );
   }
 
   void _openMemberList(BuildContext context) {
