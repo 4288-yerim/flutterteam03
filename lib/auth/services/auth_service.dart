@@ -1,11 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:naver_login_sdk/naver_login_sdk.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart' as kakao;
 import 'package:cloud_functions/cloud_functions.dart';
+
+import '../../notification/services/push_notification_service.dart';
 
 class AuthResult {
   final User? user;
@@ -34,8 +35,9 @@ class AuthService {
 
   static final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   static final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
-  static final FirebaseFunctions _functions =
-  FirebaseFunctions.instanceFor(region: 'us-central1');
+  static final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
+    region: 'us-central1',
+  );
 
   static Future<AuthResult?> signInWithGoogle() async {
     try {
@@ -46,7 +48,9 @@ class AuthService {
         idToken: googleAuth.idToken,
       );
 
-      final userCredential = await _firebaseAuth.signInWithCredential(credential);
+      final userCredential = await _firebaseAuth.signInWithCredential(
+        credential,
+      );
       final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
 
       if (!isNewUser) {
@@ -106,7 +110,9 @@ class AuthService {
       if (!isNewUser) {
         final customToken = result['firebaseCustomToken'] as String?;
         if (customToken == null) return null;
-        final userCredential = await _firebaseAuth.signInWithCustomToken(customToken);
+        final userCredential = await _firebaseAuth.signInWithCustomToken(
+          customToken,
+        );
         return AuthResult(user: userCredential.user, isNewUser: false);
       }
 
@@ -161,7 +167,9 @@ class AuthService {
       if (!isNewUser) {
         final customToken = result['firebaseCustomToken'] as String?;
         if (customToken == null) return null;
-        final userCredential = await _firebaseAuth.signInWithCustomToken(customToken);
+        final userCredential = await _firebaseAuth.signInWithCustomToken(
+          customToken,
+        );
         return AuthResult(user: userCredential.user, isNewUser: false);
       }
 
@@ -219,8 +227,12 @@ class AuthService {
   }) async {
     if (ticket.provider == 'google') {
       try {
-        final credential = GoogleAuthProvider.credential(idToken: ticket.signupToken);
-        final userCredential = await _firebaseAuth.signInWithCredential(credential);
+        final credential = GoogleAuthProvider.credential(
+          idToken: ticket.signupToken,
+        );
+        final userCredential = await _firebaseAuth.signInWithCredential(
+          credential,
+        );
         final user = userCredential.user;
         if (user == null) return null;
 
@@ -250,7 +262,6 @@ class AuthService {
       }
     }
 
-
     try {
       final callable = _functions.httpsCallable('completeSocialSignup');
       final result = await callable.call({
@@ -265,7 +276,9 @@ class AuthService {
       final customToken = body['firebaseCustomToken'] as String?;
       if (customToken == null) return null;
 
-      final userCredential = await _firebaseAuth.signInWithCustomToken(customToken);
+      final userCredential = await _firebaseAuth.signInWithCustomToken(
+        customToken,
+      );
       return AuthResult(user: userCredential.user, isNewUser: true);
     } on FirebaseFunctionsException catch (e) {
       debugPrint('[${ticket.provider}] 가입 완료 실패: ${e.code} ${e.message}');
@@ -277,22 +290,7 @@ class AuthService {
   }
 
   static Future<void> signOut() async {
-    final User? currentUser = _firebaseAuth.currentUser;
-
-    if (currentUser != null) {
-      final String? currentToken =
-      await FirebaseMessaging.instance.getToken();
-
-      if (currentToken != null && currentToken.isNotEmpty) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(currentUser.uid)
-            .update({
-          'fcmTokens': FieldValue.arrayRemove([currentToken]),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      }
-    }
+    await PushNotificationService.instance.unregisterCurrentDevice();
 
     await Future.wait([
       _firebaseAuth.signOut(),
@@ -305,7 +303,6 @@ class AuthService {
   static Future<void> _safeSignOut(Future<void> Function() fn) async {
     try {
       await fn();
-    } catch (_) {
-    }
+    } catch (_) {}
   }
 }
