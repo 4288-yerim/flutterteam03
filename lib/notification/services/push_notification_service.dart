@@ -33,6 +33,7 @@ class PushNotificationService {
 
   String? _registeredUid;
   bool _initialized = false;
+  bool _isUnregistering = false;
 
   Future<void> initialize() async {
     if (_initialized) {
@@ -69,11 +70,14 @@ class PushNotificationService {
 
     _authSubscription = _auth.authStateChanges().listen((user) async {
       if (user == null) {
+        await _tokenRefreshSubscription?.cancel();
+        _tokenRefreshSubscription = null;
         await _removeCurrentToken();
         _registeredUid = null;
         return;
       }
 
+      _isUnregistering = false;
       _registeredUid = user.uid;
 
       await _registerCurrentToken(user.uid);
@@ -87,6 +91,10 @@ class PushNotificationService {
 
       if (token == null || token.isEmpty) {
         debugPrint('FCM 토큰을 가져오지 못했습니다.');
+        return;
+      }
+
+      if (_isUnregistering || _registeredUid != uid) {
         return;
       }
 
@@ -110,6 +118,10 @@ class PushNotificationService {
       newToken,
     ) async {
       try {
+        if (_isUnregistering || _registeredUid != uid) {
+          return;
+        }
+
         await _firestore.collection('users').doc(uid).set({
           'fcmTokens': FieldValue.arrayUnion([newToken]),
           'updatedAt': FieldValue.serverTimestamp(),
@@ -121,6 +133,26 @@ class PushNotificationService {
         debugPrintStack(stackTrace: stackTrace);
       }
     });
+  }
+
+  Future<void> unregisterCurrentDevice() async {
+    _isUnregistering = true;
+    await _tokenRefreshSubscription?.cancel();
+    _tokenRefreshSubscription = null;
+
+    final uid = _registeredUid ?? _auth.currentUser?.uid;
+    final token = await _messaging.getToken();
+
+    if (uid != null && token != null && token.isNotEmpty) {
+      await _firestore.collection('users').doc(uid).update({
+        'fcmTokens': FieldValue.arrayRemove([token]),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    await _messaging.deleteToken();
+    _registeredUid = null;
+    debugPrint('로그아웃 FCM 토큰 정리 완료');
   }
 
   Future<void> _removeCurrentToken() async {
