@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
+import 'dart:async';
 import '../notification/screens/notification.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
@@ -97,18 +97,26 @@ class _AiPageState extends State<AiPage> {
   _WeeklyStats? _weeklyStats;
   _RecentSummary? _recentSummary;
 
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _nicknameSub;
+
   @override
   void initState() {
     super.initState();
 
     FirebaseAuth.instance.authStateChanges().listen((user) {
-      _loadNickname(user);
+      _listenNickname(user);
       _loadInsights(user);
     });
   }
 
-  Future<void> _loadNickname(User? user) async {
-    if (!mounted) return;
+  @override
+  void dispose() {
+    _nicknameSub?.cancel();
+    super.dispose();
+  }
+
+  void _listenNickname(User? user) {
+    _nicknameSub?.cancel();
 
     if (user == null) {
       setState(() {
@@ -120,14 +128,12 @@ class _AiPageState extends State<AiPage> {
 
     setState(() => _isNicknameLoading = true);
 
-    try {
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('uid', isEqualTo: user.uid)
-          .limit(1)
-          .get()
-          .timeout(const Duration(seconds: 10));
-
+    _nicknameSub = FirebaseFirestore.instance
+        .collection('users')
+        .where('uid', isEqualTo: user.uid)
+        .limit(1)
+        .snapshots()
+        .listen((querySnapshot) {
       if (!mounted) return;
 
       if (querySnapshot.docs.isEmpty) {
@@ -147,17 +153,16 @@ class _AiPageState extends State<AiPage> {
             : '사용자';
         _isNicknameLoading = false;
       });
-    } catch (error) {
+    }, onError: (error) {
       debugPrint('닉네임 불러오기 실패: $error');
       if (!mounted) return;
       setState(() {
         _nickname = '사용자';
         _isNicknameLoading = false;
       });
-    }
+    });
   }
 
-  /// 오답노트 기반 취약 주제 + 이번주 학습 통계 + 최근 요약 자료를 한번에 불러온다.
   Future<void> _loadInsights(User? user) async {
     if (!mounted) return;
 
@@ -601,8 +606,8 @@ class _AiWelcomeCard extends StatelessWidget {
             ),
           ),
           Positioned(
-            right: -18,
-            bottom: -5,
+            right: 15,
+            bottom: 0,
             child: Image.asset(
               'assets/images/cloud_it.png',
               width: 140,

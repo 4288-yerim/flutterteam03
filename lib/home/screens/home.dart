@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'package:showcaseview/showcaseview.dart';
 import '../../appwidgets/today_todo_app_widget.dart';
 import '../../certificate/screens/certificate_schedule.dart';
 import '../../mypage/screens/study_plan_screen.dart';
@@ -9,9 +9,21 @@ import '../../widgets/loading_overlay.dart';
 import '../services/home_service.dart';
 import '../widgets/home_widgets.dart';
 import '../../notification/screens/notification.dart';
+import '../../widgets/tutorial_card.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final GlobalKey? notificationKey;
+  final GlobalKey? certScheduleKey;
+  final GlobalKey? todayTodoKey;
+  final GlobalKey? todayStudyKey;
+
+  const HomePage({
+    super.key,
+    this.notificationKey,
+    this.certScheduleKey,
+    this.todayTodoKey,
+    this.todayStudyKey,
+  });
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -102,6 +114,35 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Widget _wrapShowcase({
+    required GlobalKey? key,
+    required IconData icon,
+    required String title,
+    required String description,
+    required Widget child,
+    bool showArrow = true,
+    double arrowAlignX = 0.0,
+  }) {
+    if (key == null) return child;
+    return Showcase.withWidget(
+      key: key,
+      targetBorderRadius: BorderRadius.circular(18),
+      targetPadding: const EdgeInsets.all(14),
+      overlayColor: Colors.black,
+      overlayOpacity: 0.65,
+      tooltipPosition: TooltipPosition.bottom,
+      container: TutorialCard(
+        icon: icon,
+        title: title,
+        description: description,
+        pointUp: true,
+        showArrow: showArrow,
+        arrowAlignX: arrowAlignX,
+      ),
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<String>(
@@ -119,11 +160,18 @@ class _HomePageState extends State<HomePage> {
           appBar: AppTopBar(
             title: '안녕하세요, $nickname님!',
             actions: [
-              IconButton(
-                onPressed: _onNotificationPressed,
-                icon: const Icon(
-                  Icons.notifications_none_rounded,
-                  color: Color(0xFF302C2E),
+              _wrapShowcase(
+                key: widget.notificationKey,
+                icon: Icons.notifications_rounded,
+                title: '알림',
+                description: '새로운 소식을 여기서 확인하세요!',
+                arrowAlignX: 0.85,
+                child: IconButton(
+                  onPressed: _onNotificationPressed,
+                  icon: const Icon(
+                    Icons.notifications_none_rounded,
+                    color: Color(0xFF302C2E),
+                  ),
                 ),
               ),
             ],
@@ -139,15 +187,21 @@ class _HomePageState extends State<HomePage> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(24, 20, 24, 50),
                     children: [
-                      HomeCertificateScheduleButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const CertificateSchedulePage(),
-                            ),
-                          );
-                        },
+                      _wrapShowcase(
+                        key: widget.certScheduleKey,
+                        icon: Icons.calendar_month_rounded,
+                        title: '자격증 일정',
+                        description: '목표로 하는 자격증 일정을 확인해보세요.',
+                        child: HomeCertificateScheduleButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const CertificateSchedulePage(),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                       const SizedBox(height: 14),
                       StreamBuilder<List<HomeGoal>>(
@@ -193,23 +247,31 @@ class _HomePageState extends State<HomePage> {
                           );
                         },
                       ),
-                      const SizedBox(height: 28),
-                      HomeSectionHeader(
-                        title: '오늘의 할 일',
-                        actionText: '전체보기',
-                        onActionPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const StudyPlanScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 14),
-                      StreamBuilder<List<HomeTodo>>(
-                        stream: _todayTodosStream,
-                        builder: (context, snapshot) {
+                  const SizedBox(height: 28),
+                  _wrapShowcase(
+                    key: widget.todayTodoKey,
+                    icon: Icons.checklist_rounded,
+                    title: '오늘의 할 일',
+                    description: '오늘 해야 할 공부를 체크해보세요!',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        HomeSectionHeader(
+                          title: '오늘의 할 일',
+                          actionText: '전체보기',
+                          onActionPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const StudyPlanScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        StreamBuilder<List<HomeTodo>>(
+                          stream: _todayTodosStream,
+                          builder: (context, snapshot) {
                           if (snapshot.connectionState ==
                                   ConnectionState.waiting &&
                               !snapshot.hasData) {
@@ -300,43 +362,76 @@ class _HomePageState extends State<HomePage> {
                               }
                             },
                           );
-                        },
-                      ),
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
                       const SizedBox(height: 32),
-                      HomeSectionHeader(title: '오늘 공부 시간'),
-                      const SizedBox(height: 14),
                       StreamBuilder<HomeTodayStudySummary>(
                         stream: _todayStudySummaryStream,
                         builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                                  ConnectionState.waiting &&
-                              !snapshot.hasData) {
-                            return const HomeTodayStudyLoadingCard();
-                          }
-
-                          if (snapshot.hasError) {
-                            return HomeTodayStudyErrorCard(
-                              message: snapshot.error is HomeServiceException
-                                  ? (snapshot.error! as HomeServiceException)
-                                        .message
-                                  : '오늘 공부 기록을 불러오지 못했습니다.',
+                          if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                            return _wrapShowcase(
+                              key: widget.todayStudyKey,
+                              icon: Icons.timer_rounded,
+                              title: '오늘 공부 시간',
+                              description: '오늘 하루 얼마나 공부했는지 확인할 수 있어요.',
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const HomeSectionHeader(title: '오늘 공부 시간'),
+                                  const SizedBox(height: 14),
+                                  const HomeTodayStudyLoadingCard(),
+                                ],
+                              ),
                             );
                           }
 
-                          final summary =
-                              snapshot.data ??
-                              const HomeTodayStudySummary.empty();
+                          if (snapshot.hasError) {
+                            return _wrapShowcase(
+                              key: widget.todayStudyKey,
+                              icon: Icons.timer_rounded,
+                              title: '오늘 공부 시간',
+                              description: '오늘 하루 얼마나 공부했는지 확인할 수 있어요.',
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const HomeSectionHeader(title: '오늘 공부 시간'),
+                                  const SizedBox(height: 14),
+                                  HomeTodayStudyErrorCard(
+                                    message: snapshot.error is HomeServiceException
+                                        ? (snapshot.error! as HomeServiceException).message
+                                        : '오늘 공부 기록을 불러오지 못했습니다.',
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          final summary = snapshot.data ?? const HomeTodayStudySummary.empty();
 
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              HomeTodayStudyCard(summary: summary),
+                              _wrapShowcase(
+                                key: widget.todayStudyKey,
+                                icon: Icons.timer_rounded,
+                                title: '오늘 공부 시간',
+                                description: '오늘 하루 얼마나 공부했는지 확인할 수 있어요.',
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const HomeSectionHeader(title: '오늘 공부 시간'),
+                                    const SizedBox(height: 14),
+                                    HomeTodayStudyCard(summary: summary),
+                                  ],
+                                ),
+                              ),
                               const SizedBox(height: 32),
                               const HomeSectionHeader(title: '스터디 공부 시간'),
                               const SizedBox(height: 14),
-                              HomeStudyGroupStatusCard(
-                                studyGroups: summary.studyGroups,
-                              ),
+                              HomeStudyGroupStatusCard(studyGroups: summary.studyGroups),
                             ],
                           );
                         },
@@ -345,7 +440,6 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ),
-
               if (_isRefreshing) const Positioned.fill(child: LoadingOverlay()),
             ],
           ),
