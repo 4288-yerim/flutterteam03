@@ -6,6 +6,7 @@ import 'package:flutterteam03/auth/screens/signup_screen.dart';
 import 'terms_agreement_screen.dart';
 import '../../theme.dart';
 import '../../widgets/loading_overlay.dart';
+import '../../widgets/app_confirm_dialog.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -13,11 +14,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../main_page.dart';
 import '../../mypage/screens/withdrawal_pending_screen.dart';
 import '../../mypage/services/withdrawal_status_service.dart';
+import '../services/account_status_service.dart';
 import 'goal_certificate_screen.dart';
 import 'profile_setup_screen.dart';
 
 class WelcomeScreen extends StatefulWidget {
-  const WelcomeScreen({super.key});
+  final String? blockedMessage;
+
+  const WelcomeScreen({super.key, this.blockedMessage});
 
   @override
   State<WelcomeScreen> createState() => _WelcomeScreenState();
@@ -37,8 +41,24 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       duration: const Duration(milliseconds: 1600),
     );
     _entryController.forward();
-  }
 
+    if (widget.blockedMessage != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        AppConfirmDialog.show(
+          context,
+          icon: Icons.pause_circle_filled_rounded,
+          title: '이용 정지 안내',
+          description: widget.blockedMessage!,
+          primaryLabel: '확인',
+          onPrimaryPressed: () => Navigator.of(context).pop(),
+          barrierDismissible: false,
+          preventBack: true,
+          isDestructive: true,
+        );
+      });
+    }
+  }
   @override
   void dispose() {
     _entryController.dispose();
@@ -138,6 +158,26 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
             'lastLoginAt': FieldValue.serverTimestamp(),
           });
+        }
+
+        final check = await AccountStatusService.checkCurrentUserStatus();
+        if (!context.mounted) return;
+        if (check.result == AccountCheckResult.suspended) {
+          final untilText = check.suspendedUntil != null
+              ? '${check.suspendedUntil!.year}.${check.suspendedUntil!.month}.${check.suspendedUntil!.day}까지'
+              : '별도 안내 시까지';
+          AppConfirmDialog.show(
+            context,
+            icon: Icons.pause_circle_filled_rounded,
+            title: '이용 정지 안내',
+            description: '이용이 정지된 계정입니다.\n정지 기간: $untilText\n\n정지 해제 문의는 DdaiT@naver.com으로 해주세요.',
+            primaryLabel: '확인',
+            onPrimaryPressed: () => Navigator.of(context).pop(),
+            barrierDismissible: false,
+            preventBack: true,
+            isDestructive: true,
+          );
+          return;
         }
 
         final bool isWithdrawalPending =
