@@ -285,10 +285,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
           }
         }
       }
-
       if (!termsContext.mounted) return;
       Navigator.of(termsContext).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const MainPage()),
+        MaterialPageRoute(builder: (_) => const MainPage(showTutorial: true)),
             (route) => false,
       );
     } on FirebaseFunctionsException catch (e) {

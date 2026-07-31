@@ -1475,6 +1475,7 @@ class _StudyListPageState extends State<StudyListPage> {
       floatingActionButton: isKeyboardOpen
           ? null
           : FloatingActionButton.extended(
+        heroTag: 'study_list_fab',
         onPressed: _openCreatePage,
         backgroundColor: _studyColors.pinkStart,
         foregroundColor: Colors.white,

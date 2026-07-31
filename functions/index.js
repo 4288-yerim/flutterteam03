@@ -2021,3 +2021,6 @@ exports.sendMidnightCertificateNotifications =
 
 exports.sendMorningCertificateNotifications =
     sendMorningCertificateNotifications;
+
+const { chatbotReply } = require("./chat/chatbotReply");
+exports.chatbotReply = chatbotReply;
