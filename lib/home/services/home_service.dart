@@ -4,14 +4,49 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class HomeService {
-  HomeService({
-    FirebaseAuth? firebaseAuth,
-    FirebaseFirestore? firestore,
-  })  : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance;
+  HomeService({FirebaseAuth? firebaseAuth, FirebaseFirestore? firestore})
+    : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
+      _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseAuth _firebaseAuth;
   final FirebaseFirestore _firestore;
+
+  Stream<T> _cancelOnSignOut<T>(Stream<T> source) {
+    late final StreamController<T> controller;
+    StreamSubscription<T>? sourceSubscription;
+    StreamSubscription<User?>? authSubscription;
+
+    controller = StreamController<T>(
+      onListen: () {
+        sourceSubscription = source.listen(
+          controller.add,
+          onError: controller.addError,
+          onDone: controller.close,
+        );
+        authSubscription = _firebaseAuth.authStateChanges().listen((
+          user,
+        ) async {
+          if (user != null) {
+            return;
+          }
+
+          await sourceSubscription?.cancel();
+          sourceSubscription = null;
+          if (!controller.isClosed) {
+            await controller.close();
+          }
+        });
+      },
+      onCancel: () async {
+        await sourceSubscription?.cancel();
+        sourceSubscription = null;
+        await authSubscription?.cancel();
+        authSubscription = null;
+      },
+    );
+
+    return controller.stream;
+  }
 
   /// 홈 새로고침 시 현재 사용자의 스터디 프로필을 다시 동기화합니다.
   ///
@@ -22,9 +57,7 @@ class HomeService {
     final User? currentUser = _firebaseAuth.currentUser;
 
     if (currentUser == null) {
-      throw const HomeServiceException(
-        '로그인 정보를 확인할 수 없습니다.',
-      );
+      throw const HomeServiceException('로그인 정보를 확인할 수 없습니다.');
     }
 
     try {
@@ -32,32 +65,25 @@ class HomeService {
 
       // 우선 users/{uid} 문서 구조를 확인합니다.
       final DocumentSnapshot<Map<String, dynamic>> directUserSnapshot =
-      await _firestore
-          .collection('users')
-          .doc(currentUser.uid)
-          .get();
+          await _firestore.collection('users').doc(currentUser.uid).get();
 
       if (directUserSnapshot.exists) {
         userData = directUserSnapshot.data() ?? <String, dynamic>{};
       } else {
         // 기존 데이터가 자동 문서 ID를 사용한 경우 uid 필드로 다시 찾습니다.
         final QuerySnapshot<Map<String, dynamic>> userSnapshot =
-        await _firestore
-            .collection('users')
-            .where(
-          'uid',
-          isEqualTo: currentUser.uid,
-        )
-            .limit(1)
-            .get();
+            await _firestore
+                .collection('users')
+                .where('uid', isEqualTo: currentUser.uid)
+                .limit(1)
+                .get();
 
         if (userSnapshot.docs.isNotEmpty) {
           userData = userSnapshot.docs.first.data();
         }
       }
 
-      String nickname =
-          userData['nickname']?.toString().trim() ?? '';
+      String nickname = userData['nickname']?.toString().trim() ?? '';
 
       // Firestore 닉네임이 없는 기존 사용자는
       // Firebase Auth displayName을 보조값으로 사용합니다.
@@ -71,23 +97,19 @@ class HomeService {
         return;
       }
 
-      final QuerySnapshot<Map<String, dynamic>> groupSnapshot =
-      await _firestore
+      final QuerySnapshot<Map<String, dynamic>> groupSnapshot = await _firestore
           .collection('studyGroups')
           .get();
 
       for (final QueryDocumentSnapshot<Map<String, dynamic>> groupDocument
-      in groupSnapshot.docs) {
-        final Map<String, dynamic> groupData =
-        groupDocument.data();
+          in groupSnapshot.docs) {
+        final Map<String, dynamic> groupData = groupDocument.data();
 
         final DocumentReference<Map<String, dynamic>> memberDocument =
-        groupDocument.reference
-            .collection('members')
-            .doc(currentUser.uid);
+            groupDocument.reference.collection('members').doc(currentUser.uid);
 
         final DocumentSnapshot<Map<String, dynamic>> memberSnapshot =
-        await memberDocument.get();
+            await memberDocument.get();
 
         // 가입하지 않은 스터디는 건너뜁니다.
         if (!memberSnapshot.exists) {
@@ -102,18 +124,14 @@ class HomeService {
 
         // 스터디 멤버 문서의 닉네임이 다를 때만 수정합니다.
         if (savedMemberNickname != nickname) {
-          await memberDocument.set(
-            <String, dynamic>{
-              'uid': currentUser.uid,
-              'nickname': nickname,
-              'updatedAt': FieldValue.serverTimestamp(),
-            },
-            SetOptions(merge: true),
-          );
+          await memberDocument.set(<String, dynamic>{
+            'uid': currentUser.uid,
+            'nickname': nickname,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
         }
 
-        final String ownerUid =
-            groupData['ownerUid']?.toString().trim() ?? '';
+        final String ownerUid = groupData['ownerUid']?.toString().trim() ?? '';
 
         // 현재 사용자가 방장인 경우 그룹 문서의 방장 닉네임도 수정합니다.
         if (ownerUid == currentUser.uid) {
@@ -121,26 +139,19 @@ class HomeService {
               groupData['ownerNickname']?.toString().trim() ?? '';
 
           if (savedOwnerNickname != nickname) {
-            await groupDocument.reference.set(
-              <String, dynamic>{
-                'ownerNickname': nickname,
-                'updatedAt': FieldValue.serverTimestamp(),
-              },
-              SetOptions(merge: true),
-            );
+            await groupDocument.reference.set(<String, dynamic>{
+              'ownerNickname': nickname,
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
           }
         }
       }
     } on FirebaseException catch (error) {
-      throw HomeServiceException(
-        error.message ?? '홈 정보를 새로고침하지 못했습니다.',
-      );
+      throw HomeServiceException(error.message ?? '홈 정보를 새로고침하지 못했습니다.');
     } on HomeServiceException {
       rethrow;
     } catch (error) {
-      throw HomeServiceException(
-        '홈 정보를 새로고침하는 중 오류가 발생했습니다.\n$error',
-      );
+      throw HomeServiceException('홈 정보를 새로고침하는 중 오류가 발생했습니다.\n$error');
     }
   }
 
@@ -170,13 +181,9 @@ class HomeService {
 
       return '사용자';
     } on FirebaseException catch (error) {
-      throw HomeServiceException(
-        error.message ?? '닉네임을 불러오지 못했습니다.',
-      );
+      throw HomeServiceException(error.message ?? '닉네임을 불러오지 못했습니다.');
     } catch (_) {
-      throw const HomeServiceException(
-        '닉네임을 불러오는 중 오류가 발생했습니다.',
-      );
+      throw const HomeServiceException('닉네임을 불러오는 중 오류가 발생했습니다.');
     }
   }
 
@@ -187,34 +194,33 @@ class HomeService {
       return Stream<String>.value('사용자');
     }
 
-    return _firestore
-        .collection('users')
-        .where('uid', isEqualTo: user.uid)
-        .limit(1)
-        .snapshots()
-        .map((snapshot) {
-      if (snapshot.docs.isEmpty) {
-        return '사용자';
-      }
+    return _cancelOnSignOut(
+      _firestore
+          .collection('users')
+          .where('uid', isEqualTo: user.uid)
+          .limit(1)
+          .snapshots()
+          .map((snapshot) {
+            if (snapshot.docs.isEmpty) {
+              return '사용자';
+            }
 
-      final nickname = snapshot.docs.first.data()['nickname'];
+            final nickname = snapshot.docs.first.data()['nickname'];
 
-      if (nickname is String && nickname.trim().isNotEmpty) {
-        return nickname.trim();
-      }
+            if (nickname is String && nickname.trim().isNotEmpty) {
+              return nickname.trim();
+            }
 
-      return '사용자';
-    }).handleError((Object error) {
-      if (error is FirebaseException) {
-        throw HomeServiceException(
-          error.message ?? '닉네임을 불러오지 못했습니다.',
-        );
-      }
+            return '사용자';
+          })
+          .handleError((Object error) {
+            if (error is FirebaseException) {
+              throw HomeServiceException(error.message ?? '닉네임을 불러오지 못했습니다.');
+            }
 
-      throw const HomeServiceException(
-        '닉네임을 불러오는 중 오류가 발생했습니다.',
-      );
-    });
+            throw const HomeServiceException('닉네임을 불러오는 중 오류가 발생했습니다.');
+          }),
+    );
   }
 
   Stream<List<HomeGoal>> watchActiveGoals() {
@@ -224,143 +230,126 @@ class HomeService {
       return Stream<List<HomeGoal>>.value(const []);
     }
 
-    return _firestore
-        .collection('users')
-        .doc(user.uid)
-        .collection('goals')
-        .where('goalStatus', isEqualTo: 'ACTIVE')
-        .snapshots()
-        .map((snapshot) {
-      final today = _dateOnly(DateTime.now());
+    return _cancelOnSignOut(
+      _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('goals')
+          .where('goalStatus', isEqualTo: 'ACTIVE')
+          .snapshots()
+          .map((snapshot) {
+            final today = _dateOnly(DateTime.now());
 
-      final goals = snapshot.docs
-          .map(HomeGoal.fromFirestore)
-          .where((goal) {
-        return !goal.examDateOnly.isBefore(today);
-      }).toList();
+            final goals = snapshot.docs.map(HomeGoal.fromFirestore).where((
+              goal,
+            ) {
+              return !goal.examDateOnly.isBefore(today);
+            }).toList();
 
-      goals.sort((first, second) {
-        if (first.isMainGoal != second.isMainGoal) {
-          return first.isMainGoal ? -1 : 1;
-        }
+            goals.sort((first, second) {
+              if (first.isMainGoal != second.isMainGoal) {
+                return first.isMainGoal ? -1 : 1;
+              }
 
-        return first.targetExamDate.compareTo(
-          second.targetExamDate,
-        );
-      });
+              return first.targetExamDate.compareTo(second.targetExamDate);
+            });
 
-      return goals;
-    }).handleError((Object error) {
-      if (error is FirebaseException) {
-        throw HomeServiceException(
-          error.message ?? '목표 자격증을 불러오지 못했습니다.',
-        );
-      }
+            return goals;
+          })
+          .handleError((Object error) {
+            if (error is FirebaseException) {
+              throw HomeServiceException(
+                error.message ?? '목표 자격증을 불러오지 못했습니다.',
+              );
+            }
 
-      throw const HomeServiceException(
-        '목표 자격증을 불러오는 중 오류가 발생했습니다.',
-      );
-    });
+            throw const HomeServiceException('목표 자격증을 불러오는 중 오류가 발생했습니다.');
+          }),
+    );
   }
 
   Stream<List<HomeTodo>> watchTodayTodos() {
     final User? user = _firebaseAuth.currentUser;
 
     if (user == null) {
-      return Stream<List<HomeTodo>>.value(
-        const <HomeTodo>[],
-      );
+      return Stream<List<HomeTodo>>.value(const <HomeTodo>[]);
     }
 
     final DateTime now = DateTime.now();
 
-    final DateTime today = DateTime(
-      now.year,
-      now.month,
-      now.day,
+    final DateTime today = DateTime(now.year, now.month, now.day);
+
+    return _cancelOnSignOut(
+      _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('studyPlans')
+          .snapshots()
+          .map((snapshot) {
+            final List<HomeTodo> allTodos = <HomeTodo>[];
+
+            for (final document in snapshot.docs) {
+              final Map<String, dynamic> data = document.data();
+              final Object? rawSteps = data['steps'];
+
+              if (rawSteps is List) {
+                allTodos.addAll(HomeTodo.fromAiPlanDocument(document));
+              } else {
+                allTodos.add(HomeTodo.fromFirestore(document));
+              }
+            }
+
+            final List<HomeTodo> todayTodos = allTodos.where((todo) {
+              return _isSameDate(todo.planDate, today);
+            }).toList();
+
+            todayTodos.sort((first, second) {
+              final DateTime? firstStart = first.startPlannedAt;
+              final DateTime? secondStart = second.startPlannedAt;
+
+              if (firstStart == null && secondStart == null) {
+                return first.order.compareTo(second.order);
+              }
+
+              if (firstStart == null) {
+                return 1;
+              }
+
+              if (secondStart == null) {
+                return -1;
+              }
+
+              return firstStart.compareTo(secondStart);
+            });
+
+            return todayTodos;
+          })
+          .handleError((Object error) {
+            if (error is FirebaseException) {
+              throw HomeServiceException(
+                error.message ?? '오늘의 학습 계획을 불러오지 못했습니다.',
+              );
+            }
+
+            if (error is HomeServiceException) {
+              throw error;
+            }
+
+            throw HomeServiceException('오늘의 학습 계획을 불러오는 중 오류가 발생했습니다.\n$error');
+          }),
     );
-
-    return _firestore
-        .collection('users')
-        .doc(user.uid)
-        .collection('studyPlans')
-        .snapshots()
-        .map((snapshot) {
-      final List<HomeTodo> allTodos = <HomeTodo>[];
-
-      for (final document in snapshot.docs) {
-        final Map<String, dynamic> data = document.data();
-        final Object? rawSteps = data['steps'];
-
-        if (rawSteps is List) {
-          allTodos.addAll(
-            HomeTodo.fromAiPlanDocument(document),
-          );
-        } else {
-          allTodos.add(
-            HomeTodo.fromFirestore(document),
-          );
-        }
-      }
-
-      final List<HomeTodo> todayTodos = allTodos.where((todo) {
-        return _isSameDate(todo.planDate, today);
-      }).toList();
-
-      todayTodos.sort((first, second) {
-        final DateTime? firstStart = first.startPlannedAt;
-        final DateTime? secondStart = second.startPlannedAt;
-
-        if (firstStart == null && secondStart == null) {
-          return first.order.compareTo(second.order);
-        }
-
-        if (firstStart == null) {
-          return 1;
-        }
-
-        if (secondStart == null) {
-          return -1;
-        }
-
-        return firstStart.compareTo(secondStart);
-      });
-
-      return todayTodos;
-    })
-        .handleError((Object error) {
-      if (error is FirebaseException) {
-        throw HomeServiceException(
-          error.message ??
-              '오늘의 학습 계획을 불러오지 못했습니다.',
-        );
-      }
-
-      if (error is HomeServiceException) {
-        throw error;
-      }
-
-      throw HomeServiceException(
-        '오늘의 학습 계획을 불러오는 중 오류가 발생했습니다.\n$error',
-      );
-    });
   }
 
   Future<void> toggleTodoStatus(HomeTodo todo) async {
     final User? user = _firebaseAuth.currentUser;
 
     if (user == null) {
-      throw const HomeServiceException(
-        '로그인이 필요합니다.',
-      );
+      throw const HomeServiceException('로그인이 필요합니다.');
     }
 
     try {
       if (todo.isAiStep) {
-        await _toggleAiTodoStatus(
-          uid: user.uid,
-          todo: todo,
-        );
+        await _toggleAiTodoStatus(uid: user.uid, todo: todo);
       } else {
         final bool nextStatus = !todo.isCompleted;
 
@@ -370,24 +359,17 @@ class HomeService {
             .collection('studyPlans')
             .doc(todo.sourceDocumentId)
             .update({
-          'status': nextStatus,
-          'completedat': nextStatus
-              ? FieldValue.serverTimestamp()
-              : null,
-          'updatedat': FieldValue.serverTimestamp(),
-        });
+              'status': nextStatus,
+              'completedat': nextStatus ? FieldValue.serverTimestamp() : null,
+              'updatedat': FieldValue.serverTimestamp(),
+            });
       }
     } on FirebaseException catch (error) {
-      throw HomeServiceException(
-        error.message ??
-            '학습 계획 상태를 변경하지 못했습니다.',
-      );
+      throw HomeServiceException(error.message ?? '학습 계획 상태를 변경하지 못했습니다.');
     } on HomeServiceException {
       rethrow;
     } catch (error) {
-      throw HomeServiceException(
-        '학습 계획 상태를 변경하는 중 오류가 발생했습니다.\n$error',
-      );
+      throw HomeServiceException('학습 계획 상태를 변경하는 중 오류가 발생했습니다.\n$error');
     }
   }
 
@@ -398,42 +380,32 @@ class HomeService {
     final int? stepIndex = todo.aiStepIndex;
 
     if (stepIndex == null) {
-      throw const HomeServiceException(
-        'AI 학습 단계 정보를 찾을 수 없습니다.',
-      );
+      throw const HomeServiceException('AI 학습 단계 정보를 찾을 수 없습니다.');
     }
 
-    final DocumentReference<Map<String, dynamic>> document =
-    _firestore
+    final DocumentReference<Map<String, dynamic>> document = _firestore
         .collection('users')
         .doc(uid)
         .collection('studyPlans')
         .doc(todo.sourceDocumentId);
 
     await _firestore.runTransaction((transaction) async {
-      final DocumentSnapshot<Map<String, dynamic>> snapshot =
-      await transaction.get(document);
+      final DocumentSnapshot<Map<String, dynamic>> snapshot = await transaction
+          .get(document);
 
       final Map<String, dynamic>? data = snapshot.data();
 
       if (data == null) {
-        throw const HomeServiceException(
-          'AI 학습 플랜을 찾을 수 없습니다.',
-        );
+        throw const HomeServiceException('AI 학습 플랜을 찾을 수 없습니다.');
       }
 
       final Object? rawSteps = data['steps'];
 
-      if (rawSteps is! List ||
-          stepIndex < 0 ||
-          stepIndex >= rawSteps.length) {
-        throw const HomeServiceException(
-          'AI 학습 단계를 찾을 수 없습니다.',
-        );
+      if (rawSteps is! List || stepIndex < 0 || stepIndex >= rawSteps.length) {
+        throw const HomeServiceException('AI 학습 단계를 찾을 수 없습니다.');
       }
 
-      final List<Map<String, dynamic>> steps =
-      rawSteps.map((rawStep) {
+      final List<Map<String, dynamic>> steps = rawSteps.map((rawStep) {
         if (rawStep is Map) {
           return Map<String, dynamic>.from(rawStep);
         }
@@ -460,8 +432,7 @@ class HomeService {
 
       String planStatus = 'NOT_STARTED';
 
-      if (totalStepCount > 0 &&
-          completedStepCount == totalStepCount) {
+      if (totalStepCount > 0 && completedStepCount == totalStepCount) {
         planStatus = 'COMPLETED';
       } else if (completedStepCount > 0) {
         planStatus = 'IN_PROGRESS';
@@ -495,8 +466,8 @@ class HomeService {
     StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
     studyGroupSubscription;
 
-    final groupSubscriptions = <
-        StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
+    final groupSubscriptions =
+        <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
 
     bool isLoading = false;
     bool reloadRequested = false;
@@ -515,9 +486,7 @@ class HomeService {
         do {
           reloadRequested = false;
 
-          final summary = await _loadTodayStudySummary(
-            user.uid,
-          );
+          final summary = await _loadTodayStudySummary(user.uid);
 
           if (!controller.isClosed) {
             controller.add(summary);
@@ -531,15 +500,13 @@ class HomeService {
             controller.addError(
               HomeServiceException(
                 '[${error.code}] '
-                    '${error.message ?? '오늘 공부 기록 조회 실패'}',
+                '${error.message ?? '오늘 공부 기록 조회 실패'}',
               ),
               stackTrace,
             );
           } else {
             controller.addError(
-              HomeServiceException(
-                error.toString(),
-              ),
+              HomeServiceException(error.toString()),
               stackTrace,
             );
           }
@@ -567,8 +534,9 @@ class HomeService {
 
           groupSubscriptions.clear();
 
-          final groupReferences =
-          await _loadMyActiveStudyGroupReferences(user.uid);
+          final groupReferences = await _loadMyActiveStudyGroupReferences(
+            user.uid,
+          );
 
           for (final groupReference in groupReferences) {
             final memberSubscription = groupReference
@@ -576,51 +544,42 @@ class HomeService {
                 .snapshots()
                 .listen(
                   (_) {
-                loadAndEmit();
-              },
-              onError: (Object error, StackTrace stackTrace) {
-                print(
-                  '홈 스터디 멤버 실시간 조회 오류: $error',
+                    loadAndEmit();
+                  },
+                  onError: (Object error, StackTrace stackTrace) {
+                    print('홈 스터디 멤버 실시간 조회 오류: $error');
+                  },
                 );
-              },
-            );
 
             final recordSubscription = groupReference
                 .collection('studyRecords')
                 .snapshots()
                 .listen(
                   (_) {
-                loadAndEmit();
-              },
-              onError: (Object error, StackTrace stackTrace) {
-                print(
-                  '홈 스터디 기록 실시간 조회 오류: $error',
+                    loadAndEmit();
+                  },
+                  onError: (Object error, StackTrace stackTrace) {
+                    print('홈 스터디 기록 실시간 조회 오류: $error');
+                  },
                 );
-              },
-            );
 
             groupSubscriptions.add(memberSubscription);
             groupSubscriptions.add(recordSubscription);
           }
 
           await loadAndEmit();
-        } while (groupSubscriptionUpdateRequested &&
-            !controller.isClosed);
+        } while (groupSubscriptionUpdateRequested && !controller.isClosed);
       } catch (error, stackTrace) {
-        print(
-          '홈 참여 스터디 실시간 연결 오류: $error',
-        );
+        print('홈 참여 스터디 실시간 연결 오류: $error');
 
         if (!controller.isClosed) {
           controller.addError(
             error is FirebaseException
                 ? HomeServiceException(
-              '[${error.code}] '
-                  '${error.message ?? '참여 스터디 조회 실패'}',
-            )
-                : HomeServiceException(
-              error.toString(),
-            ),
+                    '[${error.code}] '
+                    '${error.message ?? '참여 스터디 조회 실패'}',
+                  )
+                : HomeServiceException(error.toString()),
             stackTrace,
           );
         }
@@ -638,28 +597,28 @@ class HomeService {
             .snapshots()
             .listen(
               (_) {
-            loadAndEmit();
-          },
-          onError: (Object error, StackTrace stackTrace) {
-            if (!controller.isClosed) {
-              controller.addError(error, stackTrace);
-            }
-          },
-        );
+                loadAndEmit();
+              },
+              onError: (Object error, StackTrace stackTrace) {
+                if (!controller.isClosed) {
+                  controller.addError(error, stackTrace);
+                }
+              },
+            );
 
         studyGroupSubscription = _firestore
             .collection('studyGroups')
             .snapshots()
             .listen(
               (_) {
-            updateGroupSubscriptions();
-          },
-          onError: (Object error, StackTrace stackTrace) {
-            if (!controller.isClosed) {
-              controller.addError(error, stackTrace);
-            }
-          },
-        );
+                updateGroupSubscriptions();
+              },
+              onError: (Object error, StackTrace stackTrace) {
+                if (!controller.isClosed) {
+                  controller.addError(error, stackTrace);
+                }
+              },
+            );
 
         updateGroupSubscriptions();
       },
@@ -678,12 +637,10 @@ class HomeService {
       },
     );
 
-    return controller.stream;
+    return _cancelOnSignOut(controller.stream);
   }
 
-  Future<HomeTodayStudySummary> _loadTodayStudySummary(
-      String uid,
-      ) async {
+  Future<HomeTodayStudySummary> _loadTodayStudySummary(String uid) async {
     final today = _dateOnly(DateTime.now());
 
     final personalRecords = await _loadTodayPersonalRecords(
@@ -694,50 +651,36 @@ class HomeService {
     List<HomeStudyGroupSummary> studyGroups = [];
 
     try {
-      studyGroups = await _loadTodayStudyGroups(
-        uid: uid,
-        today: today,
-      );
+      studyGroups = await _loadTodayStudyGroups(uid: uid, today: today);
     } on FirebaseException catch (error) {
       print(
         '홈 스터디 공부시간 조회 실패: '
-            '${error.code} / ${error.message}',
+        '${error.code} / ${error.message}',
       );
     } catch (error) {
-      print(
-        '홈 스터디 공부시간 조회 실패: $error',
-      );
+      print('홈 스터디 공부시간 조회 실패: $error');
     }
 
     final studyRecords = studyGroups
         .expand((group) => group.myRecords)
         .toList();
 
-    final allRecords = <HomeStudyRecord>[
-      ...personalRecords,
-      ...studyRecords,
-    ]..sort(
-          (first, second) {
-        return second.studiedAt.compareTo(
-          first.studiedAt,
-        );
-      },
-    );
+    final allRecords = <HomeStudyRecord>[...personalRecords, ...studyRecords]
+      ..sort((first, second) {
+        return second.studiedAt.compareTo(first.studiedAt);
+      });
 
-    final personalSeconds = personalRecords.fold<int>(
-      0,
-          (sum, record) {
-        if (record.seconds > 0) {
-          return sum + record.seconds;
-        }
+    final personalSeconds = personalRecords.fold<int>(0, (sum, record) {
+      if (record.seconds > 0) {
+        return sum + record.seconds;
+      }
 
-        return sum + record.minutes * 60;
-      },
-    );
+      return sum + record.minutes * 60;
+    });
 
     final studySeconds = studyGroups.fold<int>(
       0,
-          (sum, group) => sum + group.myStudySeconds,
+      (sum, group) => sum + group.myStudySeconds,
     );
 
     return HomeTodayStudySummary(
@@ -763,10 +706,7 @@ class HomeService {
     for (final dailyDocument in snapshot.docs) {
       final dailyData = dailyDocument.data();
 
-      final fallbackDate = _readStudyDate(
-        dailyData['date'],
-        dailyDocument.id,
-      );
+      final fallbackDate = _readStudyDate(dailyData['date'], dailyDocument.id);
 
       if (!_isSameDate(fallbackDate, today)) {
         continue;
@@ -823,54 +763,37 @@ class HomeService {
 
         final minutes = durationSeconds ~/ 60;
 
-        final subject = _readStudyText(
-          data,
-          const [
-            'subject',
-            'studyTypeName',
-            'certificateName',
-          ],
-          '학습 기록',
-        );
+        final subject = _readStudyText(data, const [
+          'subject',
+          'studyTypeName',
+          'certificateName',
+        ], '학습 기록');
 
-        final memo = _readStudyText(
-          data,
-          const ['memo'],
-          '',
-        );
+        final memo = _readStudyText(data, const ['memo'], '');
 
-        final studyTypeName = _readStudyText(
-          data,
-          const ['studyTypeName'],
-          '자유 학습',
-        );
+        final studyTypeName = _readStudyText(data, const [
+          'studyTypeName',
+        ], '자유 학습');
 
-        final certificateName = _readStudyText(
-          data,
-          const ['certificateName'],
-          '',
-        );
+        final certificateName = _readStudyText(data, const [
+          'certificateName',
+        ], '');
 
         final description = memo.isNotEmpty
             ? memo
-            : certificateName.isNotEmpty &&
-            certificateName != subject
+            : certificateName.isNotEmpty && certificateName != subject
             ? '$studyTypeName · $certificateName'
             : studyTypeName;
 
         records.add(
           HomeStudyRecord(
             id: sessionDocument.id,
-            studiedAt: _readStudySessionDate(
-              data,
-              fallbackDate,
-            ),
+            studiedAt: _readStudySessionDate(data, fallbackDate),
             subject: subject,
             description: description,
             minutes: minutes,
             seconds: durationSeconds,
-            studyType:
-            (data['studyType'] as String? ?? 'OTHER')
+            studyType: (data['studyType'] as String? ?? 'OTHER')
                 .trim()
                 .toUpperCase(),
           ),
@@ -883,17 +806,13 @@ class HomeService {
 
   Future<List<DocumentReference<Map<String, dynamic>>>>
   _loadMyActiveStudyGroupReferences(String uid) async {
-    final groupSnapshot = await _firestore
-        .collection('studyGroups')
-        .get();
+    final groupSnapshot = await _firestore.collection('studyGroups').get();
 
-    final groupReferences =
-    <DocumentReference<Map<String, dynamic>>>[];
+    final groupReferences = <DocumentReference<Map<String, dynamic>>>[];
 
     for (final groupDocument in groupSnapshot.docs) {
       final groupData = groupDocument.data();
-      final ownerUid =
-      (groupData['ownerUid'] as String? ?? '').trim();
+      final ownerUid = (groupData['ownerUid'] as String? ?? '').trim();
 
       if (ownerUid == uid) {
         groupReferences.add(groupDocument.reference);
@@ -910,8 +829,7 @@ class HomeService {
       }
 
       final memberData = memberSnapshot.data() ?? {};
-      final memberStatus =
-      (memberData['status'] as String? ?? '')
+      final memberStatus = (memberData['status'] as String? ?? '')
           .trim()
           .toUpperCase();
 
@@ -927,21 +845,14 @@ class HomeService {
     required String uid,
     required DateTime today,
   }) async {
-    final groupReferences =
-    await _loadMyActiveStudyGroupReferences(uid);
+    final groupReferences = await _loadMyActiveStudyGroupReferences(uid);
 
     final groups = <HomeStudyGroupSummary>[];
 
     for (final groupReference in groupReferences) {
-      final todayStart = DateTime(
-        today.year,
-        today.month,
-        today.day,
-      );
+      final todayStart = DateTime(today.year, today.month, today.day);
 
-      final tomorrowStart = todayStart.add(
-        const Duration(days: 1),
-      );
+      final tomorrowStart = todayStart.add(const Duration(days: 1));
 
       final weekStart = todayStart.subtract(
         Duration(days: todayStart.weekday - DateTime.monday),
@@ -953,26 +864,19 @@ class HomeService {
         groupReference
             .collection('studyRecords')
             .where(
-          'endedAt',
-          isGreaterThanOrEqualTo:
-          Timestamp.fromDate(weekStart),
-        )
-            .where(
-          'endedAt',
-          isLessThan:
-          Timestamp.fromDate(tomorrowStart),
-        )
+              'endedAt',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(weekStart),
+            )
+            .where('endedAt', isLessThan: Timestamp.fromDate(tomorrowStart))
             .get(),
       ]);
 
       final groupSnapshot =
-      results[0] as DocumentSnapshot<Map<String, dynamic>>;
+          results[0] as DocumentSnapshot<Map<String, dynamic>>;
 
-      final memberSnapshot =
-      results[1] as QuerySnapshot<Map<String, dynamic>>;
+      final memberSnapshot = results[1] as QuerySnapshot<Map<String, dynamic>>;
 
-      final recordSnapshot =
-      results[2] as QuerySnapshot<Map<String, dynamic>>;
+      final recordSnapshot = results[2] as QuerySnapshot<Map<String, dynamic>>;
 
       if (!groupSnapshot.exists) {
         continue;
@@ -980,21 +884,15 @@ class HomeService {
 
       final groupData = groupSnapshot.data() ?? {};
 
-      final groupName = _readStudyText(
-        groupData,
-        const [
-          'groupName',
-          'studyName',
-          'name',
-          'title',
-        ],
-        '스터디',
-      );
+      final groupName = _readStudyText(groupData, const [
+        'groupName',
+        'studyName',
+        'name',
+        'title',
+      ], '스터디');
 
       final weeklyGoalMinutes =
-          (groupData['weeklyGoalMinutes'] as num?)
-              ?.toInt() ??
-              0;
+          (groupData['weeklyGoalMinutes'] as num?)?.toInt() ?? 0;
 
       final nicknameByUid = <String, String>{};
       final memberStatusByUid = <String, String>{};
@@ -1007,22 +905,18 @@ class HomeService {
       for (final memberDocument in memberSnapshot.docs) {
         final memberData = memberDocument.data();
 
-        final memberUid =
-        (memberData['uid'] as String? ??
-            memberDocument.id)
+        final memberUid = (memberData['uid'] as String? ?? memberDocument.id)
             .trim();
 
         if (memberUid.isEmpty) {
           continue;
         }
 
-        final memberStatus =
-        (memberData['status'] as String? ?? '')
+        final memberStatus = (memberData['status'] as String? ?? '')
             .trim()
             .toUpperCase();
 
-        final memberRole =
-        (memberData['role'] as String? ?? 'MEMBER')
+        final memberRole = (memberData['role'] as String? ?? 'MEMBER')
             .trim()
             .toUpperCase();
 
@@ -1031,25 +925,19 @@ class HomeService {
         memberStatusByUid[memberUid] = memberStatus;
 
         // 탈퇴한 멤버의 기존 닉네임도 일단 보관합니다.
-        nicknameByUid[memberUid] = _readStudyText(
-          memberData,
-          const [
-            'nickname',
-            'displayName',
-            'name',
-          ],
-          memberUid == uid ? '나' : '사용자',
-        );
+        nicknameByUid[memberUid] = _readStudyText(memberData, const [
+          'nickname',
+          'displayName',
+          'name',
+        ], memberUid == uid ? '나' : '사용자');
 
         // 현재 활동 중인 멤버와 방장만
         // 현재 멤버 상태 및 0초 순위 목록에 포함합니다.
-        if (memberStatus != 'ACTIVE' &&
-            memberRole != 'OWNER') {
+        if (memberStatus != 'ACTIVE' && memberRole != 'OWNER') {
           continue;
         }
 
-        final studyStatus =
-        _readMemberStudyStatus(memberData);
+        final studyStatus = _readMemberStudyStatus(memberData);
 
         switch (studyStatus) {
           case 'STUDYING':
@@ -1068,25 +956,18 @@ class HomeService {
         activeMemberUids.add(memberUid);
       }
 
-      final ownerUid =
-      (groupData['ownerUid'] as String? ?? '').trim();
+      final ownerUid = (groupData['ownerUid'] as String? ?? '').trim();
 
-      if (ownerUid.isNotEmpty &&
-          !activeMemberUids.contains(ownerUid)) {
+      if (ownerUid.isNotEmpty && !activeMemberUids.contains(ownerUid)) {
         activeMemberUids.add(ownerUid);
-        nicknameByUid[ownerUid] = _readStudyText(
-          groupData,
-          const [
-            'ownerNickname',
-            'nickname',
-          ],
-          ownerUid == uid ? '나' : '방장',
-        );
+        nicknameByUid[ownerUid] = _readStudyText(groupData, const [
+          'ownerNickname',
+          'nickname',
+        ], ownerUid == uid ? '나' : '방장');
       }
 
       final memberSeconds = <String, int>{
-        for (final memberUid in activeMemberUids)
-          memberUid: 0,
+        for (final memberUid in activeMemberUids) memberUid: 0,
       };
 
       int weeklyStudySeconds = 0;
@@ -1096,51 +977,43 @@ class HomeService {
       for (final recordDocument in recordSnapshot.docs) {
         final data = recordDocument.data();
 
-        final recordDate =
-        _readGroupStudyRecordDate(data);
+        final recordDate = _readGroupStudyRecordDate(data);
 
         if (recordDate == null) {
           continue;
         }
 
-        final recordUid =
-        (data['uid'] as String? ?? '').trim();
+        final recordUid = (data['uid'] as String? ?? '').trim();
 
         if (recordUid.isEmpty) {
           continue;
         }
 
-        final studySeconds =
-        _readGroupStudySeconds(data);
+        final studySeconds = _readGroupStudySeconds(data);
 
         if (studySeconds <= 0) {
           continue;
         }
 
-// 이번 주 스터디원 전체 공부시간
+        // 이번 주 스터디원 전체 공부시간
         weeklyStudySeconds += studySeconds;
 
-// 아래부터는 오늘 기록만 계산
+        // 아래부터는 오늘 기록만 계산
         if (!_isSameDate(recordDate, today)) {
           continue;
         }
 
         memberSeconds[recordUid] =
-            (memberSeconds[recordUid] ?? 0) +
-                studySeconds;
+            (memberSeconds[recordUid] ?? 0) + studySeconds;
 
         if (recordUid != uid) {
           continue;
         }
 
-        final subject = _readStudyText(
-          data,
-          const [
-            'subject',
-            'studySubject',
-          ],
-          '스터디 공부',
-        );
+        final subject = _readStudyText(data, const [
+          'subject',
+          'studySubject',
+        ], '스터디 공부');
 
         myRecords.add(
           HomeStudyRecord(
@@ -1158,41 +1031,36 @@ class HomeService {
         );
       }
 
-      final members = memberSeconds.entries.map((entry) {
-        final memberStatus =
-            memberStatusByUid[entry.key] ?? '';
+      final members =
+          memberSeconds.entries.map((entry) {
+            final memberStatus = memberStatusByUid[entry.key] ?? '';
 
-        final hasLeft = memberStatus == 'LEFT';
+            final hasLeft = memberStatus == 'LEFT';
 
-        return HomeStudyGroupMemberSummary(
-          uid: entry.key,
-          nickname: hasLeft
-              ? '스터디 탈퇴 사용자'
-              : nicknameByUid[entry.key] ?? '사용자',
-          studySeconds: entry.value,
-          isCurrentUser: entry.key == uid,
-          memberStatus: memberStatus,
-        );
-      }).toList()
-        ..sort((first, second) {
-          final secondsCompare =
-          second.studySeconds.compareTo(
-            first.studySeconds,
-          );
+            return HomeStudyGroupMemberSummary(
+              uid: entry.key,
+              nickname: hasLeft
+                  ? '스터디 탈퇴 사용자'
+                  : nicknameByUid[entry.key] ?? '사용자',
+              studySeconds: entry.value,
+              isCurrentUser: entry.key == uid,
+              memberStatus: memberStatus,
+            );
+          }).toList()..sort((first, second) {
+            final secondsCompare = second.studySeconds.compareTo(
+              first.studySeconds,
+            );
 
-          if (secondsCompare != 0) {
-            return secondsCompare;
-          }
+            if (secondsCompare != 0) {
+              return secondsCompare;
+            }
 
-          if (first.isCurrentUser !=
-              second.isCurrentUser) {
-            return first.isCurrentUser ? -1 : 1;
-          }
+            if (first.isCurrentUser != second.isCurrentUser) {
+              return first.isCurrentUser ? -1 : 1;
+            }
 
-          return first.nickname.compareTo(
-            second.nickname,
-          );
-        });
+            return first.nickname.compareTo(second.nickname);
+          });
 
       groups.add(
         HomeStudyGroupSummary(
@@ -1209,22 +1077,15 @@ class HomeService {
       );
     }
 
-    groups.sort(
-          (first, second) {
-        return first.groupName.compareTo(
-          second.groupName,
-        );
-      },
-    );
+    groups.sort((first, second) {
+      return first.groupName.compareTo(second.groupName);
+    });
 
     return groups;
   }
 
-  static String _readMemberStudyStatus(
-      Map<String, dynamic> data,
-      ) {
-    final studyStatus =
-    (data['studyStatus'] as String? ?? '')
+  static String _readMemberStudyStatus(Map<String, dynamic> data) {
+    final studyStatus = (data['studyStatus'] as String? ?? '')
         .trim()
         .toUpperCase();
 
@@ -1235,11 +1096,9 @@ class HomeService {
       return studyStatus;
     }
 
-    final timerSessionActive =
-        data['timerSessionActive'] == true;
+    final timerSessionActive = data['timerSessionActive'] == true;
 
-    if (timerSessionActive &&
-        data['timerPaused'] == true) {
+    if (timerSessionActive && data['timerPaused'] == true) {
       return 'PAUSED';
     }
 
@@ -1254,9 +1113,7 @@ class HomeService {
     return 'IDLE';
   }
 
-  static int _readGroupStudySeconds(
-      Map<String, dynamic> data,
-      ) {
+  static int _readGroupStudySeconds(Map<String, dynamic> data) {
     final studySeconds = data['studySeconds'];
 
     if (studySeconds is num) {
@@ -1278,14 +1135,8 @@ class HomeService {
     return 0;
   }
 
-  static DateTime? _readGroupStudyRecordDate(
-      Map<String, dynamic> data,
-      ) {
-    for (final fieldName in [
-      'endedAt',
-      'startedAt',
-      'createdAt',
-    ]) {
+  static DateTime? _readGroupStudyRecordDate(Map<String, dynamic> data) {
+    for (final fieldName in ['endedAt', 'startedAt', 'createdAt']) {
       final value = data[fieldName];
 
       if (value is Timestamp) {
@@ -1299,18 +1150,14 @@ class HomeService {
 
     final studyDate = data['studyDate'];
 
-    if (studyDate is String &&
-        studyDate.trim().isNotEmpty) {
+    if (studyDate is String && studyDate.trim().isNotEmpty) {
       return DateTime.tryParse(studyDate.trim());
     }
 
     return null;
   }
 
-  static DateTime _readStudyDate(
-      dynamic value,
-      String documentId,
-      ) {
+  static DateTime _readStudyDate(dynamic value, String documentId) {
     if (value is Timestamp) {
       return value.toDate();
     }
@@ -1331,14 +1178,10 @@ class HomeService {
   }
 
   static DateTime _readStudySessionDate(
-      Map<String, dynamic> data,
-      DateTime fallbackDate,
-      ) {
-    for (final fieldName in [
-      'endedAt',
-      'startedAt',
-      'createdAt',
-    ]) {
+    Map<String, dynamic> data,
+    DateTime fallbackDate,
+  ) {
+    for (final fieldName in ['endedAt', 'startedAt', 'createdAt']) {
       final value = data[fieldName];
 
       if (value is Timestamp) {
@@ -1354,10 +1197,10 @@ class HomeService {
   }
 
   static String _readStudyText(
-      Map<String, dynamic> data,
-      List<String> fieldNames,
-      String fallback,
-      ) {
+    Map<String, dynamic> data,
+    List<String> fieldNames,
+    String fallback,
+  ) {
     for (final fieldName in fieldNames) {
       final value = data[fieldName];
 
@@ -1369,10 +1212,7 @@ class HomeService {
     return fallback;
   }
 
-  static bool _isSameDate(
-      DateTime first,
-      DateTime second,
-      ) {
+  static bool _isSameDate(DateTime first, DateTime second) {
     final firstLocal = first.toLocal();
     final secondLocal = second.toLocal();
 
@@ -1384,11 +1224,7 @@ class HomeService {
   static DateTime _dateOnly(DateTime date) {
     final local = date.toLocal();
 
-    return DateTime(
-      local.year,
-      local.month,
-      local.day,
-    );
+    return DateTime(local.year, local.month, local.day);
   }
 }
 
@@ -1406,10 +1242,10 @@ class HomeTodayStudySummary {
   });
 
   const HomeTodayStudySummary.empty()
-      : personalSeconds = 0,
-        studySeconds = 0,
-        records = const [],
-        studyGroups = const [];
+    : personalSeconds = 0,
+      studySeconds = 0,
+      records = const [],
+      studyGroups = const [];
 
   int get totalSeconds {
     return personalSeconds + studySeconds;
@@ -1481,10 +1317,7 @@ class HomeStudyGroupSummary {
 
   // 토글 내부 멤버별 오늘 공부시간 합계
   int get totalStudySeconds {
-    return members.fold<int>(
-      0,
-          (sum, member) => sum + member.studySeconds,
-    );
+    return members.fold<int>(0, (sum, member) => sum + member.studySeconds);
   }
 
   int get weeklyGoalSeconds {
@@ -1492,16 +1325,13 @@ class HomeStudyGroupSummary {
   }
 
   int get myStudySeconds {
-    return myRecords.fold<int>(
-      0,
-          (sum, record) {
-        if (record.seconds > 0) {
-          return sum + record.seconds;
-        }
+    return myRecords.fold<int>(0, (sum, record) {
+      if (record.seconds > 0) {
+        return sum + record.seconds;
+      }
 
-        return sum + record.minutes * 60;
-      },
-    );
+      return sum + record.minutes * 60;
+    });
   }
 }
 
@@ -1560,30 +1390,21 @@ class HomeTodo {
   bool get isAiStep => aiStepIndex != null;
 
   bool get hasTime {
-    return startPlannedAt != null &&
-        endPlannedAt != null;
+    return startPlannedAt != null && endPlannedAt != null;
   }
 
   factory HomeTodo.fromFirestore(
-      DocumentSnapshot<Map<String, dynamic>> document,
-      ) {
-    final Map<String, dynamic> data =
-        document.data() ?? <String, dynamic>{};
+    DocumentSnapshot<Map<String, dynamic>> document,
+  ) {
+    final Map<String, dynamic> data = document.data() ?? <String, dynamic>{};
 
-    final DateTime? planDay = _readDateTime(
-      data['planday'],
-    );
+    final DateTime? planDay = _readDateTime(data['planday']);
 
-    final DateTime? startPlannedAt = _readDateTime(
-      data['startplannedat'],
-    );
+    final DateTime? startPlannedAt = _readDateTime(data['startplannedat']);
 
-    final DateTime? endPlannedAt = _readDateTime(
-      data['endplannedat'],
-    );
+    final DateTime? endPlannedAt = _readDateTime(data['endplannedat']);
 
-    final DateTime fallbackDate =
-        startPlannedAt ?? DateTime.now();
+    final DateTime fallbackDate = startPlannedAt ?? DateTime.now();
 
     final String rawPlanType = _readString(
       data['plantype'],
@@ -1595,30 +1416,17 @@ class HomeTodo {
       sourceDocumentId: document.id,
       aiStepIndex: null,
       order: 0,
-      title: _readString(
-        data['plantitle'],
-        fallback: '학습 계획',
-      ),
-      description: _readString(
-        data['plandescription'],
-        fallback: '',
-      ),
-      certificateName: _readString(
-        data['certificatename'],
-        fallback: '',
-      ),
+      title: _readString(data['plantitle'], fallback: '학습 계획'),
+      description: _readString(data['plandescription'], fallback: ''),
+      certificateName: _readString(data['certificatename'], fallback: ''),
 
       // USERADD만 직접 추가로 처리하고,
       // 필드가 없거나 다른 값이면 AI 계획으로 처리
-      planType: rawPlanType == 'USERADD'
-          ? 'USERADD'
-          : 'AIADD',
+      planType: rawPlanType == 'USERADD' ? 'USERADD' : 'AIADD',
 
-      planDate: planDay ?? DateTime(
-        fallbackDate.year,
-        fallbackDate.month,
-        fallbackDate.day,
-      ),
+      planDate:
+          planDay ??
+          DateTime(fallbackDate.year, fallbackDate.month, fallbackDate.day),
       startPlannedAt: startPlannedAt,
       endPlannedAt: endPlannedAt,
       isCompleted: data['status'] == true,
@@ -1626,10 +1434,9 @@ class HomeTodo {
   }
 
   static List<HomeTodo> fromAiPlanDocument(
-      DocumentSnapshot<Map<String, dynamic>> document,
-      ) {
-    final Map<String, dynamic> data =
-        document.data() ?? <String, dynamic>{};
+    DocumentSnapshot<Map<String, dynamic>> document,
+  ) {
+    final Map<String, dynamic> data = document.data() ?? <String, dynamic>{};
 
     final Object? rawSteps = data['steps'];
 
@@ -1642,8 +1449,7 @@ class HomeTodo {
       fallback: '',
     );
 
-    final DateTime recommendedStartDate =
-    _readRecommendedStartDate(
+    final DateTime recommendedStartDate = _readRecommendedStartDate(
       data['recommendedStudyStartDate'],
     );
 
@@ -1656,13 +1462,9 @@ class HomeTodo {
         continue;
       }
 
-      final Map<String, dynamic> step =
-      Map<String, dynamic>.from(rawStep);
+      final Map<String, dynamic> step = Map<String, dynamic>.from(rawStep);
 
-      final String dayLabel = _readString(
-        step['dayLabel'],
-        fallback: '',
-      );
+      final String dayLabel = _readString(step['dayLabel'], fallback: '');
 
       final int order = step['order'] is num
           ? (step['order'] as num).toInt()
@@ -1680,14 +1482,8 @@ class HomeTodo {
           sourceDocumentId: document.id,
           aiStepIndex: index,
           order: order,
-          title: _readString(
-            step['title'],
-            fallback: 'AI 학습 계획',
-          ),
-          description: _readString(
-            step['detail'],
-            fallback: '',
-          ),
+          title: _readString(step['title'], fallback: 'AI 학습 계획'),
+          description: _readString(step['detail'], fallback: ''),
           certificateName: certificateName,
           planType: 'AIADD',
           planDate: planDate,
@@ -1701,29 +1497,18 @@ class HomeTodo {
     return todos;
   }
 
-  static DateTime _readRecommendedStartDate(
-      Object? value,
-      ) {
+  static DateTime _readRecommendedStartDate(Object? value) {
     if (value is String) {
-      final DateTime? parsed =
-      DateTime.tryParse(value.trim());
+      final DateTime? parsed = DateTime.tryParse(value.trim());
 
       if (parsed != null) {
-        return DateTime(
-          parsed.year,
-          parsed.month,
-          parsed.day,
-        );
+        return DateTime(parsed.year, parsed.month, parsed.day);
       }
     }
 
     final DateTime now = DateTime.now();
 
-    return DateTime(
-      now.year,
-      now.month,
-      now.day,
-    );
+    return DateTime(now.year, now.month, now.day);
   }
 
   static DateTime _readStepDate({
@@ -1736,21 +1521,15 @@ class HomeTodo {
     ).firstMatch(dayLabel);
 
     if (match == null) {
-      return recommendedStartDate.add(
-        Duration(days: fallbackIndex),
-      );
+      return recommendedStartDate.add(Duration(days: fallbackIndex));
     }
 
-    final int? month =
-    int.tryParse(match.group(1) ?? '');
+    final int? month = int.tryParse(match.group(1) ?? '');
 
-    final int? day =
-    int.tryParse(match.group(2) ?? '');
+    final int? day = int.tryParse(match.group(2) ?? '');
 
     if (month == null || day == null) {
-      return recommendedStartDate.add(
-        Duration(days: fallbackIndex),
-      );
+      return recommendedStartDate.add(Duration(days: fallbackIndex));
     }
 
     int year = recommendedStartDate.year;
@@ -1759,17 +1538,10 @@ class HomeTodo {
       year += 1;
     }
 
-    return DateTime(
-      year,
-      month,
-      day,
-    );
+    return DateTime(year, month, day);
   }
 
-  static String _readString(
-      dynamic value, {
-        required String fallback,
-      }) {
+  static String _readString(dynamic value, {required String fallback}) {
     if (value == null) {
       return fallback;
     }
@@ -1788,8 +1560,7 @@ class HomeTodo {
       return value;
     }
 
-    if (value is String &&
-        value.trim().isNotEmpty) {
+    if (value is String && value.trim().isNotEmpty) {
       return DateTime.tryParse(value.trim());
     }
 
@@ -1869,76 +1640,54 @@ class HomeGoal {
   DateTime get examDateOnly {
     final local = targetExamDate.toLocal();
 
-    return DateTime(
-      local.year,
-      local.month,
-      local.day,
-    );
+    return DateTime(local.year, local.month, local.day);
   }
 
   factory HomeGoal.fromFirestore(
-      DocumentSnapshot<Map<String, dynamic>> document,
-      ) {
+    DocumentSnapshot<Map<String, dynamic>> document,
+  ) {
     final data = document.data() ?? {};
 
-    final targetExamDate =
-    _readDateTime(data['targetExamDate']);
+    final targetExamDate = _readDateTime(data['targetExamDate']);
 
     if (targetExamDate == null) {
-      throw const HomeServiceException(
-        '시험일이 없는 목표 데이터가 있습니다.',
-      );
+      throw const HomeServiceException('시험일이 없는 목표 데이터가 있습니다.');
     }
 
-    final rawQualificationType =
-    _readString(
+    final rawQualificationType = _readString(
       data['qualificationType'],
     ).toUpperCase();
 
-    final qualificationType =
-    rawQualificationType == 'PROFESSIONAL'
+    final qualificationType = rawQualificationType == 'PROFESSIONAL'
         ? 'PROFESSIONAL'
         : 'TECHNICAL';
 
     return HomeGoal(
       id: document.id,
-      certificateId:
-      _readString(data['certificateId']),
-      certificateName:
-      _readString(data['certificateName']),
+      certificateId: _readString(data['certificateId']),
+      certificateName: _readString(data['certificateName']),
       qualificationType: qualificationType,
-      scheduleId:
-      _readString(data['scheduleId']),
+      scheduleId: _readString(data['scheduleId']),
       targetExamDate: targetExamDate,
-      targetExamType:
-      _readString(
-        data['targetExamType'],
-      ).toUpperCase(),
-      targetRound:
-      _readString(data['targetRound']),
+      targetExamType: _readString(data['targetExamType']).toUpperCase(),
+      targetRound: _readString(data['targetRound']),
 
-      targetRegistrationStartDate:
-      _readDateTime(
+      targetRegistrationStartDate: _readDateTime(
         data['targetRegistrationStartDate'],
       ),
-      targetRegistrationEndDate:
-      _readDateTime(
+      targetRegistrationEndDate: _readDateTime(
         data['targetRegistrationEndDate'],
       ),
 
-      targetPassAnnouncementDate:
-      _readDateTime(
+      targetPassAnnouncementDate: _readDateTime(
         data['targetPassAnnouncementDate'],
       ),
-      targetPassAnnouncementEndDate:
-      _readDateTime(
+      targetPassAnnouncementEndDate: _readDateTime(
         data['targetPassAnnouncementEndDate'],
       ),
 
-      isMainGoal:
-      _readBool(data['isMainGoal']),
-      calendarLinked:
-      _readBool(data['calendarLinked']),
+      isMainGoal: _readBool(data['isMainGoal']),
+      calendarLinked: _readBool(data['calendarLinked']),
     );
   }
 
@@ -1955,15 +1704,10 @@ class HomeGoal {
       return value;
     }
 
-    return value
-        ?.toString()
-        .toLowerCase() ==
-        'true';
+    return value?.toString().toLowerCase() == 'true';
   }
 
-  static DateTime? _readDateTime(
-      dynamic value,
-      ) {
+  static DateTime? _readDateTime(dynamic value) {
     if (value is Timestamp) {
       return value.toDate();
     }
@@ -1972,11 +1716,8 @@ class HomeGoal {
       return value;
     }
 
-    if (value is String &&
-        value.trim().isNotEmpty) {
-      return DateTime.tryParse(
-        value.trim(),
-      );
+    if (value is String && value.trim().isNotEmpty) {
+      return DateTime.tryParse(value.trim());
     }
 
     return null;
