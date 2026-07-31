@@ -465,6 +465,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                         );
                       },
                     ),
+                    const _MenuDivider(),
                     MyPageMenuTile(
                       icon: Icons.calendar_month_outlined,
                       title: '캘린더',
