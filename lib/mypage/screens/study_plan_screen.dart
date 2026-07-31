@@ -8,7 +8,12 @@ import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
 
 class StudyPlanScreen extends StatefulWidget {
-  const StudyPlanScreen({super.key});
+  const StudyPlanScreen({
+    super.key,
+    this.initialDate,
+  });
+
+  final DateTime? initialDate;
 
   @override
   State<StudyPlanScreen> createState() => _StudyPlanScreenState();
@@ -18,13 +23,22 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  DateTime _selectedDate = DateTime(
-    DateTime.now().year,
-    DateTime.now().month,
-    DateTime.now().day,
-  );
+  late DateTime _selectedDate;
 
   bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final initialDate = widget.initialDate ?? DateTime.now();
+
+    _selectedDate = DateTime(
+      initialDate.year,
+      initialDate.month,
+      initialDate.day,
+    );
+  }
 
   CollectionReference<Map<String, dynamic>>? get _studyPlansCollection {
     final User? user = _firebaseAuth.currentUser;

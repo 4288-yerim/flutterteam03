@@ -2009,18 +2009,10 @@ exports.createInitialGoal = onCall(async (request) => {
   }
 });
 
-const {
-  sendMidnightCertificateNotifications,
-  sendMorningCertificateNotifications,
-} = require(
-    "./notifications/certificate_notification",
+Object.assign(
+    exports,
+    require("./notifications"),
 );
-
-exports.sendMidnightCertificateNotifications =
-    sendMidnightCertificateNotifications;
-
-exports.sendMorningCertificateNotifications =
-    sendMorningCertificateNotifications;
 
 const { chatbotReply } = require("./chat/chatbotReply");
 exports.chatbotReply = chatbotReply;
