@@ -295,6 +295,7 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
       ),
 
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'community_fab',
         onPressed: _openWriter,
         backgroundColor: context.communityColors.pinkStart,
         foregroundColor: Colors.white,

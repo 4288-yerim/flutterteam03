@@ -2013,3 +2013,6 @@ Object.assign(
     exports,
     require("./notifications"),
 );
+
+const { chatbotReply } = require("./chat/chatbotReply");
+exports.chatbotReply = chatbotReply;

@@ -62,6 +62,7 @@ dependencies:
   home_widget: ^0.9.3
   tflite_flutter: ^0.12.1
   firebase_messaging: ^16.0.4
+  showcaseview: ^5.0.2
 
 dev_dependencies:
   flutter:

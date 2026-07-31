@@ -49,7 +49,11 @@ class AppCard extends StatelessWidget {
         color: backgroundColor,
         borderRadius: BorderRadius.circular(borderRadius),
         boxShadow: [
-
+          BoxShadow(
+            color: Colors.black.withOpacity(0.045),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
         ],
       ),
       child: child ??
