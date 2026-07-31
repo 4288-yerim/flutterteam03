@@ -77,8 +77,10 @@ class AdminMemberSearchControls extends StatelessWidget {
         Row(
           children: [
             Expanded(
+              flex: 9,
               child: DropdownButtonFormField<AdminMemberStatusFilter>(
                 initialValue: selectedFilter,
+                isExpanded: true,
                 decoration: _dropdownDecoration('회원 상태'),
                 items: AdminMemberStatusFilter.values.map((filter) {
                   return DropdownMenuItem(
@@ -86,6 +88,8 @@ class AdminMemberSearchControls extends StatelessWidget {
                     child: Text(
                       '${adminMemberFilterLabel(filter)} '
                       '(${counts[filter] ?? 0})',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   );
                 }).toList(),
@@ -96,13 +100,19 @@ class AdminMemberSearchControls extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Expanded(
+              flex: 11,
               child: DropdownButtonFormField<AdminMemberViewFilter>(
                 initialValue: selectedViewFilter,
+                isExpanded: true,
                 decoration: _dropdownDecoration('정렬·조건'),
                 items: AdminMemberViewFilter.values.map((filter) {
                   return DropdownMenuItem(
                     value: filter,
-                    child: Text(adminMemberViewFilterLabel(filter)),
+                    child: Text(
+                      adminMemberViewFilterLabel(filter),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   );
                 }).toList(),
                 onChanged: (value) {

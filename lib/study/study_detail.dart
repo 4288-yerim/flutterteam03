@@ -4595,9 +4595,12 @@ class StudyDetailPage extends StatelessWidget {
       return;
     }
 
-    await showDialog<void>(
+    await showModalBottomSheet<void>(
       context: context,
-      barrierDismissible: false,
+      isScrollControlled: true,
+      isDismissible: true,
+      enableDrag: true,
+      backgroundColor: Colors.transparent,
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
