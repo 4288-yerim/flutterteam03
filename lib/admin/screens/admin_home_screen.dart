@@ -1,54 +1,96 @@
 import 'package:flutter/material.dart';
 
-class AdminHomeScreen extends StatelessWidget {
-  const AdminHomeScreen({super.key});
+import '../services/admin_home_service.dart';
+import '../widgets/admin_home_widgets.dart';
+
+class AdminHomeScreen extends StatefulWidget {
+  const AdminHomeScreen({
+    super.key,
+    required this.onReportTap,
+    required this.onInquiryTap,
+  });
+
+  final VoidCallback onReportTap;
+  final VoidCallback onInquiryTap;
+
+  @override
+  State<AdminHomeScreen> createState() => _AdminHomeScreenState();
+}
+
+class _AdminHomeScreenState extends State<AdminHomeScreen> {
+  final AdminHomeService _service = AdminHomeService();
+  late Future<AdminHomeData> _homeData;
+
+  @override
+  void initState() {
+    super.initState();
+    _homeData = _service.fetchHomeData();
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _homeData = _service.fetchHomeData();
+    });
+    await _homeData;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        Container(
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFFF0EDFF), Color(0xFFFDFBFF)],
-            ),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFE4DFFF)),
-          ),
-          child: const Row(
+    return FutureBuilder<AdminHomeData>(
+      future: _homeData,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return const AdminHomeLoadingView();
+        }
+
+        if (snapshot.hasError || !snapshot.hasData) {
+          return AdminHomeErrorView(onRetry: _refresh);
+        }
+
+        final data = snapshot.data!;
+
+        return RefreshIndicator(
+          color: const Color(0xFF6C63FF),
+          onRefresh: _refresh,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
             children: [
-              CircleAvatar(
-                radius: 27,
-                backgroundColor: Color(0xFF6C63FF),
-                child: Icon(
-                  Icons.admin_panel_settings_rounded,
-                  color: Colors.white,
-                  size: 30,
-                ),
+              AdminWelcomeCard(
+                administratorName: data.administratorName,
+                todayLabel: data.todayLabel,
               ),
-              SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '관리자 홈',
-                      style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
-                    ),
-                    SizedBox(height: 6),
-                    Text(
-                      '메뉴에서 관리할 항목을 선택해 주세요.',
-                      style: TextStyle(color: Color(0xFF666270)),
-                    ),
-                  ],
-                ),
+              const SizedBox(height: 24),
+              const AdminSectionTitle(
+                title: '처리 대기',
+                subtitle: '우선 확인이 필요한 항목이에요.',
               ),
+              const SizedBox(height: 12),
+              AdminPendingSummary(
+                reportCount: data.pendingReportCount,
+                inquiryCount: data.pendingInquiryCount,
+                onReportTap: widget.onReportTap,
+                onInquiryTap: widget.onInquiryTap,
+              ),
+              const SizedBox(height: 26),
+              const AdminSectionTitle(
+                title: '오늘의 서비스 현황',
+                subtitle: '주요 운영 지표를 한눈에 확인하세요.',
+              ),
+              const SizedBox(height: 12),
+              AdminMetricGrid(metrics: data.metrics),
+              const SizedBox(height: 26),
+              const AdminSectionTitle(
+                title: '최근 운영 현황',
+                subtitle: '최근 7일 기준',
+              ),
+              const SizedBox(height: 12),
+              AdminWeeklyStatusCard(statuses: data.weeklyStatuses),
             ],
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 }

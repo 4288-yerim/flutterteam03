@@ -80,6 +80,69 @@ class CommunityService {
     });
   }
 
+  Future<void> reportPost({
+    required String postId,
+    required String reporterUid,
+    required String reporterNickname,
+    required String targetTitle,
+    required String targetNickname,
+    required String targetUid,
+    required String reasonType,
+    String? description,
+  }) async {
+    String reportId =
+        'POST_${postId}_${reporterUid}_$targetUid';
+
+    await _firestore.collection('reports').doc(reportId).set({
+      'reporterNicname': reporterNickname,
+      'reporterUid': reporterUid,
+      'targetType': 'POST',
+      'targetId': [postId],
+      'targettitle': targetTitle,
+      'targetNickname': targetNickname,
+      'targetUid': targetUid,
+      'reasonType': reasonType,
+      'description': description,
+      'status': 'PENDING',
+      'actionType': <String>[],
+      'processedBy': null,
+      'processedAt': null,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> reportComment({
+    required String postId,
+    required String commentId,
+    required String reporterUid,
+    required String reporterNickname,
+    required String targetContent,
+    required String targetNickname,
+    required String targetUid,
+    required String reasonType,
+    String? description,
+  }) async {
+    String reportId =
+        'COMMENT_${postId}_${commentId}_${reporterUid}_$targetUid';
+
+    await _firestore.collection('reports').doc(reportId).set({
+      'reporterNicname': reporterNickname,
+      'reporterUid': reporterUid,
+      'targetType': 'COMMENT',
+      'targetId': [postId, commentId],
+      'targettitle': targetContent,
+      'targetNickname': targetNickname,
+      'targetUid': targetUid,
+      'reasonType': reasonType,
+      'description': description,
+      'status': 'PENDING',
+      'actionType': <String>[],
+      'processedBy': null,
+      'processedAt': null,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   String createPostId() {
     return _firestore.collection('posts').doc().id;
   }

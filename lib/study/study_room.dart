@@ -2367,7 +2367,7 @@ class StudyRoomPage extends StatelessWidget {
   /// 스터디 신고 저장
   Future<void> _saveStudyReport({
     required Map<String, dynamic> groupData,
-    required String reason,
+    required String reasonType,
     required String detail,
   }) async {
     User? currentUser =
@@ -2404,30 +2404,42 @@ class StudyRoomPage extends StatelessWidget {
       reporterNickname = '사용자';
     }
 
-    await FirebaseFirestore.instance
-        .collection('studyReports')
-        .add({
-      'reportType': 'GROUP',
-      'groupId': studyId,
-      'groupName':
-      groupData['groupName']
-          ?.toString() ??
-          groupName,
-      'reportedOwnerUid':
-      groupData['ownerUid']
-          ?.toString() ??
-          '',
-      'reporterUid':
-      currentUser.uid,
-      'reporterNickname':
-      reporterNickname,
-      'reason': reason,
-      'detail': detail,
-      'status': 'PENDING',
-      'createdAt':
-      FieldValue.serverTimestamp(),
-      'updatedAt':
-      FieldValue.serverTimestamp(),
+    String targetTitle =
+        groupData['groupName']?.toString() ?? groupName;
+    String reportId =
+        'STUDY_GROUP_${studyId}_${currentUser.uid}';
+    DocumentReference<Map<String, dynamic>> reportReference =
+        FirebaseFirestore.instance.collection('reports').doc(reportId);
+
+    await FirebaseFirestore.instance.runTransaction((transaction) async {
+      DocumentSnapshot<Map<String, dynamic>> reportSnapshot =
+          await transaction.get(reportReference);
+
+      if (reportSnapshot.exists) {
+        throw Exception('이미 신고한 스터디입니다.');
+      }
+
+      transaction.set(reportReference, {
+        'reporterNicname': reporterNickname,
+        'reporterUid': currentUser.uid,
+        'targetType': 'STUDY_GROUP',
+        'targetId': <Map<String, String>>[
+          {
+            'type': 'STUDY_GROUP',
+            'id': studyId,
+          },
+        ],
+        'targettitle': targetTitle,
+        'targetNickname': null,
+        'targetUid': null,
+        'reasonType': reasonType,
+        'description': detail.isEmpty ? null : detail,
+        'status': 'PENDING',
+        'actionType': <String>[],
+        'processedBy': null,
+        'processedAt': null,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
     });
   }
 
@@ -2436,14 +2448,19 @@ class StudyRoomPage extends StatelessWidget {
       BuildContext context,
       Map<String, dynamic> groupData,
       ) {
-    String selectedReason =
-        '부적절한 스터디';
+    const Map<String, String> reasons = {
+      'SPAM': '스팸',
+      'ABUSE': '욕설 또는 괴롭힘',
+      'INAPPROPRIATE': '부적절한 콘텐츠',
+      'FRAUD': '사기 또는 허위 정보',
+      'ETC': '기타',
+    };
+    String selectedReason = 'SPAM';
 
     TextEditingController detailController =
     TextEditingController();
 
     bool isSaving = false;
-    int detailLength = 0;
 
     showDialog<void>(
       context: context,
@@ -2458,19 +2475,6 @@ class StudyRoomPage extends StatelessWidget {
               String detail =
               detailController.text.trim();
 
-              if (detail.isEmpty) {
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '신고 내용을 입력해 주세요.',
-                    ),
-                  ),
-                );
-
-                return;
-              }
-
               setDialogState(() {
                 isSaving = true;
               });
@@ -2478,7 +2482,7 @@ class StudyRoomPage extends StatelessWidget {
               try {
                 await _saveStudyReport(
                   groupData: groupData,
-                  reason: selectedReason,
+                  reasonType: selectedReason,
                   detail: detail,
                 );
 
@@ -2515,11 +2519,10 @@ class StudyRoomPage extends StatelessWidget {
                   isSaving = false;
                 });
 
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(
+                ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      '스터디 신고를 접수하지 못했습니다.',
+                      error.toString().replaceFirst('Exception: ', ''),
                     ),
                   ),
                 );
@@ -2527,19 +2530,70 @@ class StudyRoomPage extends StatelessWidget {
             }
 
             return AlertDialog(
+              alignment: Alignment.bottomCenter,
+              insetPadding: EdgeInsets.zero,
+              backgroundColor: AppColors.light.surface,
+              surfaceTintColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              elevation: 0,
+              titlePadding: EdgeInsets.fromLTRB(22, 14, 22, 0),
+              contentPadding: EdgeInsets.fromLTRB(22, 20, 22, 0),
+              actionsPadding: EdgeInsets.fromLTRB(22, 12, 22, 24),
               shape: RoundedRectangleBorder(
-                borderRadius:
-                BorderRadius.circular(22),
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(26),
+                ),
               ),
-              title: Row(
+              title: Column(
                 children: [
-                  Icon(
-                    Icons.report_outlined,
-                    color:
-                    _studyColorScheme.error,
+                  Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.light.textSecondary.withOpacity(0.25),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                  SizedBox(width: 10),
-                  Text('스터디 신고'),
+                  SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: AppColors.light.incorrectSoft,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(
+                          Icons.report_outlined,
+                          color: AppColors.light.incorrect,
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '스터디 신고',
+                            style: TextStyle(
+                              color: AppColors.light.textPrimary,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            '신고 사유를 선택해 주세요.',
+                            style: TextStyle(
+                              color: AppColors.light.textSecondary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ],
               ),
               content:
@@ -2550,160 +2604,147 @@ class StudyRoomPage extends StatelessWidget {
                   crossAxisAlignment:
                   CrossAxisAlignment.start,
                   children: [
-                    DropdownButtonFormField<
-                        String>(
-                      value: selectedReason,
-                      decoration:
-                      InputDecoration(
-                        labelText: '신고 사유',
-                        border:
-                        OutlineInputBorder(
-                          borderRadius:
-                          BorderRadius
-                              .circular(
-                            14,
-                          ),
-                        ),
-                      ),
-                      items: [
-                        DropdownMenuItem(
-                          value:
-                          '부적절한 스터디',
-                          child: Text(
-                            '부적절한 스터디',
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value:
-                          '광고 또는 홍보',
-                          child: Text(
-                            '광고 또는 홍보',
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value:
-                          '허위 또는 오해 정보',
-                          child: Text(
-                            '허위 또는 오해 정보',
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: '기타',
-                          child: Text('기타'),
-                        ),
-                      ],
-                      onChanged: isSaving
-                          ? null
-                          : (value) {
-                        if (value ==
-                            null) {
-                          return;
-                        }
+                    ...reasons.entries.map((entry) {
+                      bool isSelected =
+                          selectedReason == entry.key;
 
-                        setDialogState(() {
-                          selectedReason =
-                              value;
-                        });
-                      },
-                    ),
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: 8),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: isSaving
+                              ? null
+                              : () {
+                            setDialogState(() {
+                              selectedReason = entry.key;
+                            });
+                          },
+                          child: AnimatedContainer(
+                            duration: Duration(milliseconds: 160),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? AppColors.light.incorrectSoft
+                                  : AppColors.light.pinkSoft
+                                  .withOpacity(0.35),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isSelected
+                                    ? AppColors.light.incorrect
+                                    : Colors.transparent,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isSelected
+                                      ? Icons.radio_button_checked
+                                      : Icons.radio_button_off,
+                                  color: isSelected
+                                      ? AppColors.light.incorrect
+                                      : AppColors.light.textSecondary,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 10),
+                                Text(
+                                  entry.value,
+                                  style: TextStyle(
+                                    color: AppColors.light.textPrimary,
+                                    fontSize: 14,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
                     SizedBox(height: 14),
-                    Stack(
-                      children: [
                         TextField(
                           controller:
                           detailController,
                           enabled: !isSaving,
-                          maxLines: 5,
-                          maxLength: 300,
-                          onChanged: (value) {
-                            setDialogState(() {
-                              detailLength =
-                                  value.length;
-                            });
-                          },
+                          maxLines: 4,
+                          maxLength: 500,
+                          style: TextStyle(
+                            color: AppColors.light.textPrimary,
+                          ),
                           decoration:
                           InputDecoration(
+                            labelText: '상세 내용',
                             hintText:
-                            '신고 내용을 자세히 입력해 주세요.',
-                            counterText: '',
-                            contentPadding:
-                            EdgeInsets.fromLTRB(
-                              14,
-                              14,
-                              14,
-                              30,
+                            '신고 내용을 입력해 주세요. (선택)',
+                            labelStyle: TextStyle(
+                              color: AppColors.light.textSecondary,
                             ),
-                            border:
-                            OutlineInputBorder(
+                            hintStyle: TextStyle(
+                              color: AppColors.light.textSecondary,
+                            ),
+                            counterStyle: TextStyle(
+                              color: AppColors.light.textSecondary,
+                            ),
+                            alignLabelWithHint: true,
+                            filled: true,
+                            fillColor: AppColors.light.pinkSoft
+                                .withOpacity(0.3),
+                            border: OutlineInputBorder(
                               borderRadius:
                               BorderRadius
                                   .circular(
                                 14,
                               ),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(
+                                color: AppColors.light.incorrect,
+                              ),
                             ),
                           ),
-                        ),
-                        Positioned(
-                          right: 12,
-                          bottom: 9,
-                          child: Text(
-                            '$detailLength / 300',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: _studyColors
-                                  .textSecondary,
-                            ),
-                          ),
-                        ),
-                      ],
                     ),
                   ],
                 ),
               ),
               actions: [
-                TextButton(
-                  onPressed: isSaving
-                      ? null
-                      : () {
-                    Navigator.pop(
-                      dialogContext,
-                    );
-                  },
-                  child: Text('취소'),
-                ),
-                ElevatedButton(
-                  onPressed:
-                  isSaving ? null : saveReport,
-                  style:
-                  ElevatedButton.styleFrom(
-                    backgroundColor:
-                    _studyColorScheme.error,
-                    foregroundColor:
-                    _studyColorScheme
-                        .onPrimary,
-                  ),
-                  child: isSaving
-                      ? SizedBox(
-                    width: 18,
-                    height: 18,
-                    child:
-                    CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color:
-                      _studyColorScheme
-                          .onPrimary,
+                SizedBox(
+                  width: MediaQuery.of(context).size.width,
+                  height: 50,
+                  child: FilledButton.icon(
+                    onPressed: isSaving ? null : saveReport,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.light.incorrect,
+                      foregroundColor: AppColors.light.surface,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
-                  )
-                      : Text('신고'),
+                    icon: isSaving
+                        ? SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.light.surface,
+                      ),
+                    )
+                        : Icon(Icons.report_outlined),
+                    label: Text(
+                      '신고 접수하기',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
                 ),
               ],
             );
           },
         );
-      },
-    ).whenComplete(
-          () {
-        detailController.dispose();
       },
     );
   }
@@ -4813,13 +4854,20 @@ class StudyRoomPage extends StatelessWidget {
     required String memberUid,
     required String nickname,
   }) async {
+    const Map<String, String> reasons = {
+      'SPAM': '스팸',
+      'ABUSE': '욕설 또는 괴롭힘',
+      'INAPPROPRIATE': '부적절한 콘텐츠',
+      'FRAUD': '사기 또는 허위 정보',
+      'ETC': '기타',
+    };
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null || currentUser.uid == memberUid) {
       return;
     }
 
     final detailController = TextEditingController();
-    String selectedReason = '부적절한 활동';
+    String selectedReason = 'SPAM';
     bool isSaving = false;
 
     await showDialog<void>(
@@ -4829,98 +4877,238 @@ class StudyRoomPage extends StatelessWidget {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: Text('$nickname 님 신고'),
-              content: Column(
+              alignment: Alignment.bottomCenter,
+              insetPadding: EdgeInsets.zero,
+              backgroundColor: AppColors.light.surface,
+              surfaceTintColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              elevation: 0,
+              titlePadding: EdgeInsets.fromLTRB(22, 14, 22, 0),
+              contentPadding: EdgeInsets.fromLTRB(22, 20, 22, 0),
+              actionsPadding: EdgeInsets.fromLTRB(22, 12, 22, 24),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(26),
+                ),
+              ),
+              title: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  DropdownButtonFormField<String>(
-                    value: selectedReason,
-                    items: const [
-                      DropdownMenuItem(
-                        value: '부적절한 활동',
-                        child: Text('부적절한 활동'),
+                  Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.light.textSecondary.withOpacity(0.25),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: AppColors.light.incorrectSoft,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(
+                          Icons.report_outlined,
+                          color: AppColors.light.incorrect,
+                        ),
                       ),
-                      DropdownMenuItem(
-                        value: '욕설 또는 괴롭힘',
-                        child: Text('욕설 또는 괴롭힘'),
-                      ),
-                      DropdownMenuItem(
-                        value: '광고 또는 도배',
-                        child: Text('광고 또는 도배'),
-                      ),
-                      DropdownMenuItem(
-                        value: '기타',
-                        child: Text('기타'),
+                      SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '$nickname 님 신고',
+                            style: TextStyle(
+                              color: AppColors.light.textPrimary,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            '신고 사유를 선택해 주세요.',
+                            style: TextStyle(
+                              color: AppColors.light.textSecondary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
-                    onChanged: isSaving
-                        ? null
-                        : (value) {
-                      if (value != null) {
-                        setDialogState(() => selectedReason = value);
-                      }
-                    },
-                    decoration: InputDecoration(labelText: '신고 사유'),
                   ),
-                  SizedBox(height: 14),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ...reasons.entries.map((entry) {
+                      bool isSelected = selectedReason == entry.key;
+
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: 8),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: isSaving
+                              ? null
+                              : () {
+                            setDialogState(() {
+                              selectedReason = entry.key;
+                            });
+                          },
+                          child: AnimatedContainer(
+                            duration: Duration(milliseconds: 160),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? AppColors.light.incorrectSoft
+                                  : AppColors.light.pinkSoft.withOpacity(0.35),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isSelected
+                                    ? AppColors.light.incorrect
+                                    : Colors.transparent,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isSelected
+                                      ? Icons.radio_button_checked
+                                      : Icons.radio_button_off,
+                                  color: isSelected
+                                      ? AppColors.light.incorrect
+                                      : AppColors.light.textSecondary,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 10),
+                                Text(
+                                  entry.value,
+                                  style: TextStyle(
+                                    color: AppColors.light.textPrimary,
+                                    fontSize: 14,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                    SizedBox(height: 8),
                   TextField(
                     controller: detailController,
                     enabled: !isSaving,
                     maxLines: 4,
-                    maxLength: 300,
+                    maxLength: 500,
+                    style: TextStyle(
+                      color: AppColors.light.textPrimary,
+                    ),
                     decoration: InputDecoration(
                       labelText: '상세 내용',
+                      hintText: '신고 내용을 입력해 주세요. (선택)',
+                      labelStyle: TextStyle(
+                        color: AppColors.light.textSecondary,
+                      ),
+                      hintStyle: TextStyle(
+                        color: AppColors.light.textSecondary,
+                      ),
+                      counterStyle: TextStyle(
+                        color: AppColors.light.textSecondary,
+                      ),
                       alignLabelWithHint: true,
-                      border: OutlineInputBorder(),
+                      filled: true,
+                      fillColor: AppColors.light.pinkSoft.withOpacity(0.3),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(
+                          color: AppColors.light.incorrect,
+                        ),
+                      ),
                     ),
                   ),
                 ],
+                ),
               ),
               actions: [
-                TextButton(
-                  onPressed: isSaving
-                      ? null
-                      : () => Navigator.pop(dialogContext),
-                  child: Text('취소'),
-                ),
-                FilledButton(
-                  onPressed: isSaving
-                      ? null
-                      : () async {
+                SizedBox(
+                  width: MediaQuery.of(context).size.width,
+                  height: 50,
+                  child: FilledButton.icon(
+                    onPressed: isSaving
+                        ? null
+                        : () async {
                     final detail = detailController.text.trim();
-                    if (detail.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('신고 내용을 입력해 주세요.')),
-                      );
-                      return;
-                    }
-
                     setDialogState(() => isSaving = true);
                     try {
-                      final groupSnapshot = await FirebaseFirestore
+                      final memberSnapshot = await FirebaseFirestore
                           .instance
                           .collection('studyGroups')
                           .doc(studyId)
+                          .collection('members')
+                          .doc(currentUser.uid)
                           .get();
-                      final groupData = groupSnapshot.data() ?? {};
+                      String reporterNickname =
+                          memberSnapshot.data()?['nickname']
+                              ?.toString()
+                              .trim() ??
+                              '';
+                      if (reporterNickname.isEmpty) {
+                        reporterNickname =
+                            currentUser.displayName?.trim() ?? '';
+                      }
+                      if (reporterNickname.isEmpty) {
+                        reporterNickname = '사용자';
+                      }
+
+                      String reportId =
+                          'STUDY_MEMBER_${studyId}_${currentUser.uid}_$memberUid';
+                      DocumentReference<Map<String, dynamic>> reportReference =
+                          FirebaseFirestore.instance
+                              .collection('reports')
+                              .doc(reportId);
 
                       await FirebaseFirestore.instance
-                          .collection('studyReports')
-                          .add({
-                        'reportType': 'MEMBER',
-                        'groupId': studyId,
-                        'groupName': groupData['groupName']?.toString() ??
-                            groupName,
-                        'reporterUid': currentUser.uid,
-                        'reporterNickname':
-                        currentUser.displayName?.trim() ?? '사용자',
-                        'reportedUid': memberUid,
-                        'reportedNickname': nickname,
-                        'reason': selectedReason,
-                        'detail': detail,
-                        'status': 'PENDING',
-                        'createdAt': FieldValue.serverTimestamp(),
-                        'updatedAt': FieldValue.serverTimestamp(),
+                          .runTransaction((transaction) async {
+                        DocumentSnapshot<Map<String, dynamic>> reportSnapshot =
+                            await transaction.get(reportReference);
+
+                        if (reportSnapshot.exists) {
+                          throw Exception('이미 신고한 스터디원입니다.');
+                        }
+
+                        transaction.set(reportReference, {
+                          'reporterNicname': reporterNickname,
+                          'reporterUid': currentUser.uid,
+                          'targetType': 'STUDY_MEMBER',
+                          'targetId': null,
+                          'targettitle': nickname,
+                          'targetNickname': nickname,
+                          'targetUid': memberUid,
+                          'reasonType': selectedReason,
+                          'description': detail.isEmpty ? null : detail,
+                          'status': 'PENDING',
+                          'actionType': <String>[],
+                          'processedBy': null,
+                          'processedAt': null,
+                          'createdAt': FieldValue.serverTimestamp(),
+                        });
                       });
 
                       if (dialogContext.mounted) {
@@ -4937,18 +5125,37 @@ class StudyRoomPage extends StatelessWidget {
                       }
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('신고를 접수하지 못했습니다.')),
+                          SnackBar(
+                            content: Text(
+                              error.toString().replaceFirst('Exception: ', ''),
+                            ),
+                          ),
                         );
                       }
                     }
-                  },
-                  child: isSaving
-                      ? SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                      : Text('신고'),
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.light.incorrect,
+                      foregroundColor: AppColors.light.surface,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    icon: isSaving
+                        ? SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.light.surface,
+                      ),
+                    )
+                        : Icon(Icons.report_outlined),
+                    label: Text(
+                      '신고 접수하기',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
                 ),
               ],
             );

@@ -7,8 +7,8 @@ class AiUsageLogManagementScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const AdminSectionScreen(
-    title: 'AI 사용 로그 관리',
-    description: 'AI 기능의 사용 기록과 처리 결과를 확인합니다.',
+    title: '스터디 관리',
+    description: '스터디 관리합니다.',
     icon: Icons.smart_toy_outlined,
   );
 }

@@ -46,6 +46,7 @@ class _CommunityPostDetailPageState
   int _streamVersion = 0;
   bool _viewCountIncreased = false;
   bool _isDeleting = false;
+  bool _isReporting = false;
   bool _isSubmittingComment = false;
   bool _isTogglingLike = false;
   bool _isTogglingBookmark = false;
@@ -175,6 +176,313 @@ class _CommunityPostDetailPageState
 
     if (value == 'DELETE') {
       _confirmDelete(post);
+    }
+  }
+
+  Future<void> _showPostReportModal(
+    CommunityPost post, {
+    CommunityComment? comment,
+  }) async {
+    User? user = FirebaseAuth.instance.currentUser;
+    String targetUid = comment?.writerUid ?? post.writerUid;
+
+    if (user == null ||
+        user.uid == targetUid ||
+        _isReporting) {
+      return;
+    }
+
+    const Map<String, String> reasons = {
+      'SPAM': '스팸',
+      'ABUSE': '욕설 또는 괴롭힘',
+      'INAPPROPRIATE': '부적절한 콘텐츠',
+      'FRAUD': '사기 또는 허위 정보',
+      'ETC': '기타',
+    };
+    TextEditingController descriptionController =
+        TextEditingController();
+    String selectedReason = 'SPAM';
+
+    bool? shouldReport = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              padding: EdgeInsets.fromLTRB(
+                22,
+                14,
+                22,
+                MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.light.surface,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(26),
+                ),
+              ),
+              child: SafeArea(
+                top: false,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 42,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: AppColors.light.textSecondary
+                                .withOpacity(0.25),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: AppColors.light.incorrectSoft,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Icon(
+                              Icons.report_outlined,
+                              color: AppColors.light.incorrect,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  comment == null ? '게시글 신고' : '댓글 신고',
+                                  style: TextStyle(
+                                    color: AppColors.light.textPrimary,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  '신고 사유를 선택해 주세요.',
+                                  style: TextStyle(
+                                    color: AppColors.light.textSecondary,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      ...reasons.entries.map((entry) {
+                        bool isSelected =
+                            selectedReason == entry.key;
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () {
+                              setModalState(() {
+                                selectedReason = entry.key;
+                              });
+                            },
+                            child: AnimatedContainer(
+                              duration:
+                                  const Duration(milliseconds: 160),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppColors.light.incorrectSoft
+                                    : AppColors.light.pinkSoft
+                                        .withOpacity(0.35),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? AppColors.light.incorrect
+                                      : Colors.transparent,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    isSelected
+                                        ? Icons.radio_button_checked
+                                        : Icons.radio_button_off,
+                                    color: isSelected
+                                        ? AppColors.light.incorrect
+                                        : AppColors.light.textSecondary,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    entry.value,
+                                    style: TextStyle(
+                                      color: AppColors.light.textPrimary,
+                                      fontSize: 14,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: descriptionController,
+                        maxLength: 500,
+                        maxLines: 4,
+                        style: TextStyle(
+                          color: AppColors.light.textPrimary,
+                        ),
+                        decoration: InputDecoration(
+                          labelText: '상세 내용 (선택)',
+                          hintText: '신고 내용을 자세히 알려주세요.',
+                          labelStyle: TextStyle(
+                            color: AppColors.light.textSecondary,
+                          ),
+                          hintStyle: TextStyle(
+                            color: AppColors.light.textSecondary,
+                          ),
+                          counterStyle: TextStyle(
+                            color: AppColors.light.textSecondary,
+                          ),
+                          alignLabelWithHint: true,
+                          filled: true,
+                          fillColor: AppColors.light.pinkSoft
+                              .withOpacity(0.3),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(
+                              color: AppColors.light.incorrect,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: FilledButton.icon(
+                          onPressed: () {
+                            Navigator.pop(modalContext, true);
+                          },
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.light.incorrect,
+                            foregroundColor: AppColors.light.surface,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          icon: const Icon(Icons.report_outlined),
+                          label: const Text(
+                            '신고 접수하기',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    String description = descriptionController.text.trim();
+    Future<void>.delayed(
+      const Duration(milliseconds: 400),
+      descriptionController.dispose,
+    );
+
+    if (shouldReport != true || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _isReporting = true;
+    });
+
+    try {
+      Map<String, dynamic> reporterProfile =
+          await _loadWriterProfile(user);
+      String reporterNickname =
+          reporterProfile['nickname']?.toString().trim() ?? '';
+
+      if (comment == null) {
+        await _service.reportPost(
+          postId: post.id,
+          reporterUid: user.uid,
+          reporterNickname: reporterNickname,
+          targetTitle: post.title,
+          targetNickname: post.writerNickname,
+          targetUid: post.writerUid,
+          reasonType: selectedReason,
+          description: description.isEmpty ? null : description,
+        );
+      } else {
+        await _service.reportComment(
+          postId: post.id,
+          commentId: comment.id,
+          reporterUid: user.uid,
+          reporterNickname: reporterNickname,
+          targetContent: comment.content,
+          targetNickname: comment.writerNickname,
+          targetUid: comment.writerUid,
+          reasonType: selectedReason,
+          description: description.isEmpty ? null : description,
+        );
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('신고가 접수되었어요. 확인 후 처리할게요.'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('신고를 접수하지 못했어요. 다시 시도해 주세요.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isReporting = false;
+        });
+      }
     }
   }
 
@@ -1196,6 +1504,17 @@ class _CommunityPostDetailPageState
                     _startReply(comment);
                   },
                 ),
+              if (!canManage && currentUid.isNotEmpty)
+                _buildCompactCommentAction(
+                  icon: Icons.report_outlined,
+                  label: '신고',
+                  onPressed: () {
+                    _showPostReportModal(
+                      post,
+                      comment: comment,
+                    );
+                  },
+                ),
               if (canAccept)
                 _buildCompactCommentAction(
                   icon:
@@ -1620,6 +1939,29 @@ class _CommunityPostDetailPageState
                 : Icon(
               Icons.more_vert_rounded,
               color: context.communityColors.textSecondary,
+            ),
+          ),
+        if (!_isWriter(post) &&
+            FirebaseAuth.instance.currentUser != null)
+          IconButton(
+            tooltip: '게시글 신고',
+            onPressed: _isReporting
+                ? null
+                : () {
+              _showPostReportModal(post);
+            },
+            icon: _isReporting
+                ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.red,
+              ),
+            )
+                : const Icon(
+              Icons.report_outlined,
+              color: Colors.red,
             ),
           ),
       ],
