@@ -43,6 +43,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
   int _weeklyStudyMinutes = 0;
   int _joinedStudyCount = 0;
   int _postCount = 0;
+  bool _isLoggingOut = false;
 
   @override
   void initState() {
@@ -396,311 +397,348 @@ class _MyPageScreenState extends State<MyPageScreen> {
         title: '마이페이지',
       ),
 
-      body: AppMainBackground(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            20,
-            16,
-            20,
-            110,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildProfileCard(context),
-              const SizedBox(height: 16),
-
-              MyPageSummaryCard(
-                studyMinutes: _weeklyStudyMinutes,
-                studyGroupCount: _joinedStudyCount,
-                postCount: _postCount,
-                onStudyTap: () async {
-                  await _openPageAndRefreshSummary(
-                    context,
-                    const StudyRecordScreen(),
-                  );
-                },
-                onGroupTap: () async {
-                  await _openPageAndRefreshSummary(
-                    context,
-                    const JoinedStudyScreen(),
-                  );
-                },
-                onPostTap: () async {
-                  await _openPageAndRefreshSummary(
-                    context,
-                    const MyPostsScreen(),
-                  );
-                },
+      body: Stack(
+        children: [
+          AbsorbPointer(
+            absorbing: _isLoggingOut,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(
+                20,
+                16,
+                20,
+                110,
               ),
-              const SizedBox(height: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildProfileCard(context),
+                  const SizedBox(height: 16),
 
-              const _SectionTitle(title: '나의 학습'),
-              const SizedBox(height: 12),
-
-              AppCard(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  children: [
-                    MyPageMenuTile(
-                      icon: Icons.flag_outlined,
-                      title: '목표 자격증 관리',
-                      subtitle: '준비 중인 자격증과 시험일을 관리합니다.',
-                      onTap: () {
-                        _openGoalCertificate(context);
-                      },
-                    ),
-                    const _MenuDivider(),
-                    MyPageMenuTile(
-                      icon: Icons.route_outlined,
-                      title: '나의 자격증 로드맵',
-                      subtitle: '저장한 AI 추천 자격증 취득 순서를 확인합니다.',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                            const MyCertificateRoadmapScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    const _MenuDivider(),
-                    MyPageMenuTile(
-                      icon: Icons.calendar_month_outlined,
-                      title: '캘린더',
-                      subtitle: '시험 일정과 학습 계획을 날짜별로 확인합니다.',
-                      onTap: () {
-                        _openPage(
-                          context,
-                          const MyPageCalendarScreen(),
-                        );
-                      },
-                    ),
-                    const _MenuDivider(),
-                    MyPageMenuTile(
-                      icon: Icons.bar_chart_outlined,
-                      title: '학습 기록',
-                      subtitle: '공부 시간과 학습 통계를 확인합니다.',
-                      onTap: () {
-                        _openPage(
-                          context,
-                          const StudyRecordScreen(),
-                        );
-                      },
-                    ),
-                    const _MenuDivider(),
-                    MyPageMenuTile(
-                      icon: Icons.checklist_outlined,
-                      title: '학습 계획',
-                      subtitle: 'AI 학습 계획과 오늘의 할 일을 확인합니다.',
-                      onTap: () {
-                        _openPage(
-                          context,
-                          const StudyPlanScreen(),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-              const _SectionTitle(title: '나의 활동'),
-              const SizedBox(height: 12),
-
-              AppCard(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  children: [
-                    MyPageMenuTile(
-                      icon: Icons.article_outlined,
-                      title: '내가 쓴 글',
-                      subtitle: '작성한 게시글을 확인합니다.',
-                      onTap: () async {
-                        await _openPageAndRefreshSummary(
-                          context,
-                          const MyPostsScreen(),
-                        );
-                      },
-                    ),
-                    const _MenuDivider(),
-                    MyPageMenuTile(
-                      icon: Icons.chat_bubble_outline,
-                      title: '내가 쓴 댓글',
-                      subtitle: '작성한 댓글을 확인합니다.',
-                      onTap: () {
-                        _openPage(
-                          context,
-                          const MyCommentsScreen(),
-                        );
-                      },
-                    ),
-                    const _MenuDivider(),
-                    MyPageMenuTile(
-                      icon: Icons.favorite_border,
-                      title: '좋아요한 콘텐츠',
-                      subtitle: '좋아요한 게시글과 댓글을 확인합니다.',
-                      onTap: () {
-                        _openPage(
-                          context,
-                          const LikedContentScreen(),
-                        );
-                      },
-                    ),
-                    const _MenuDivider(),
-                    MyPageMenuTile(
-                      icon: Icons.bookmark_border,
-                      title: '북마크',
-                      subtitle: '저장한 게시글을 확인합니다.',
-                      onTap: () {
-                        _openPage(
-                          context,
-                          const BookmarkScreen(),
-                        );
-                      },
-                    ),
-                    const _MenuDivider(),
-                    MyPageMenuTile(
-                      icon: Icons.people_outline,
-                      title: '친구',
-                      subtitle: '친구를 검색하고 친구 목록을 확인합니다.',
-                      onTap: () {
-                        _openPage(
-                          context,
-                          const FriendScreen(),
-                        );
-                      },
-                    ),
-                    const _MenuDivider(),
-                    MyPageMenuTile(
-                      icon: Icons.groups_outlined,
-                      title: '참여 중인 스터디',
-                      subtitle: '가입한 스터디 그룹을 확인합니다.',
-                      onTap: () {
-                        _openPage(
-                          context,
-                          const JoinedStudyScreen(),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-              const _SectionTitle(title: '계정 및 설정'),
-              const SizedBox(height: 12),
-
-              AppCard(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  children: [
-                    MyPageMenuTile(
-                      icon: Icons.lock_outline,
-                      title: '비밀번호 변경',
-                      subtitle: '현재 비밀번호를 확인하고 변경합니다.',
-                      onTap: () {
-                        _openPage(
-                          context,
-                          const PasswordChangeScreen(),
-                        );
-                      },
-                    ),
-                    const _MenuDivider(),
-                    MyPageMenuTile(
-                      icon: Icons.settings_outlined,
-                      title: '설정',
-                      subtitle: '화면 표시와 알림 수신 여부를 설정합니다.',
-                      onTap: () {
-                        _openPage(
-                          context,
-                          const AppSettingScreen(),
-                        );
-                      },
-                    ),
-                    const _MenuDivider(),
-                    MyPageMenuTile(
-                      icon: Icons.help_outline,
-                      title: '문의 및 도움말',
-                      subtitle: '문의 내역과 자주 묻는 질문을 확인합니다.',
-                      onTap: () {
-                        _openPage(
-                          context,
-                          const HelpAndInquiryScreen(),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              AppButton(
-                text: '로그아웃',
-                type: AppButtonType.outlinePink,
-                onPressed: () {
-                  AppConfirmDialog.show(
-                    context,
-                    icon: Icons.logout_rounded,
-                    title: '로그아웃',
-                    description: '현재 계정에서 로그아웃하시겠습니까?',
-                    primaryLabel: '로그아웃',
-                    secondaryLabel: '취소',
-                    onSecondaryPressed: () => Navigator.of(context).pop(),
-                    onPrimaryPressed: () async {
-                      Navigator.of(context).pop();
-
-                      try {
-                        await AuthService.signOut();
-
-                        if (!context.mounted) {
-                          return;
-                        }
-
-                        Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(
-                            builder: (_) => const WelcomeScreen(),
-                          ),
-                              (route) => false,
-                        );
-                      } catch (error) {
-                        if (!context.mounted) {
-                          return;
-                        }
-
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('로그아웃에 실패했습니다. 잠시 후 다시 시도해 주세요.'),
-                          ),
-                        );
-                      }
+                  MyPageSummaryCard(
+                    studyMinutes: _weeklyStudyMinutes,
+                    studyGroupCount: _joinedStudyCount,
+                    postCount: _postCount,
+                    onStudyTap: () async {
+                      await _openPageAndRefreshSummary(
+                        context,
+                        const StudyRecordScreen(),
+                      );
                     },
-                  );
-                },
+                    onGroupTap: () async {
+                      await _openPageAndRefreshSummary(
+                        context,
+                        const JoinedStudyScreen(),
+                      );
+                    },
+                    onPostTap: () async {
+                      await _openPageAndRefreshSummary(
+                        context,
+                        const MyPostsScreen(),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 24),
+
+                  const _SectionTitle(title: '나의 학습'),
+                  const SizedBox(height: 12),
+
+                  AppCard(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      children: [
+                        MyPageMenuTile(
+                          icon: Icons.flag_outlined,
+                          title: '목표 자격증 관리',
+                          subtitle: '준비 중인 자격증과 시험일을 관리합니다.',
+                          onTap: () {
+                            _openGoalCertificate(context);
+                          },
+                        ),
+                        const _MenuDivider(),
+                        MyPageMenuTile(
+                          icon: Icons.route_outlined,
+                          title: '나의 자격증 로드맵',
+                          subtitle: '저장한 AI 추천 자격증 취득 순서를 확인합니다.',
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                const MyCertificateRoadmapScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        const _MenuDivider(),
+                        MyPageMenuTile(
+                          icon: Icons.calendar_month_outlined,
+                          title: '캘린더',
+                          subtitle: '시험 일정과 학습 계획을 날짜별로 확인합니다.',
+                          onTap: () {
+                            _openPage(
+                              context,
+                              const MyPageCalendarScreen(),
+                            );
+                          },
+                        ),
+                        const _MenuDivider(),
+                        MyPageMenuTile(
+                          icon: Icons.bar_chart_outlined,
+                          title: '학습 기록',
+                          subtitle: '공부 시간과 학습 통계를 확인합니다.',
+                          onTap: () {
+                            _openPage(
+                              context,
+                              const StudyRecordScreen(),
+                            );
+                          },
+                        ),
+                        const _MenuDivider(),
+                        MyPageMenuTile(
+                          icon: Icons.checklist_outlined,
+                          title: '학습 계획',
+                          subtitle: 'AI 학습 계획과 오늘의 할 일을 확인합니다.',
+                          onTap: () {
+                            _openPage(
+                              context,
+                              const StudyPlanScreen(),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+                  const _SectionTitle(title: '나의 활동'),
+                  const SizedBox(height: 12),
+
+                  AppCard(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      children: [
+                        MyPageMenuTile(
+                          icon: Icons.article_outlined,
+                          title: '내가 쓴 글',
+                          subtitle: '작성한 게시글을 확인합니다.',
+                          onTap: () async {
+                            await _openPageAndRefreshSummary(
+                              context,
+                              const MyPostsScreen(),
+                            );
+                          },
+                        ),
+                        const _MenuDivider(),
+                        MyPageMenuTile(
+                          icon: Icons.chat_bubble_outline,
+                          title: '내가 쓴 댓글',
+                          subtitle: '작성한 댓글을 확인합니다.',
+                          onTap: () {
+                            _openPage(
+                              context,
+                              const MyCommentsScreen(),
+                            );
+                          },
+                        ),
+                        const _MenuDivider(),
+                        MyPageMenuTile(
+                          icon: Icons.favorite_border,
+                          title: '좋아요한 콘텐츠',
+                          subtitle: '좋아요한 게시글과 댓글을 확인합니다.',
+                          onTap: () {
+                            _openPage(
+                              context,
+                              const LikedContentScreen(),
+                            );
+                          },
+                        ),
+                        const _MenuDivider(),
+                        MyPageMenuTile(
+                          icon: Icons.bookmark_border,
+                          title: '북마크',
+                          subtitle: '저장한 게시글을 확인합니다.',
+                          onTap: () {
+                            _openPage(
+                              context,
+                              const BookmarkScreen(),
+                            );
+                          },
+                        ),
+                        const _MenuDivider(),
+                        MyPageMenuTile(
+                          icon: Icons.people_outline,
+                          title: '친구',
+                          subtitle: '친구를 검색하고 친구 목록을 확인합니다.',
+                          onTap: () {
+                            _openPage(
+                              context,
+                              const FriendScreen(),
+                            );
+                          },
+                        ),
+                        const _MenuDivider(),
+                        MyPageMenuTile(
+                          icon: Icons.groups_outlined,
+                          title: '참여 중인 스터디',
+                          subtitle: '가입한 스터디 그룹을 확인합니다.',
+                          onTap: () {
+                            _openPage(
+                              context,
+                              const JoinedStudyScreen(),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+                  const _SectionTitle(title: '계정 및 설정'),
+                  const SizedBox(height: 12),
+
+                  AppCard(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      children: [
+                        MyPageMenuTile(
+                          icon: Icons.lock_outline,
+                          title: '비밀번호 변경',
+                          subtitle: '현재 비밀번호를 확인하고 변경합니다.',
+                          onTap: () {
+                            _openPage(
+                              context,
+                              const PasswordChangeScreen(),
+                            );
+                          },
+                        ),
+                        const _MenuDivider(),
+                        MyPageMenuTile(
+                          icon: Icons.settings_outlined,
+                          title: '설정',
+                          subtitle: '화면 표시와 알림 수신 여부를 설정합니다.',
+                          onTap: () {
+                            _openPage(
+                              context,
+                              const AppSettingScreen(),
+                            );
+                          },
+                        ),
+                        const _MenuDivider(),
+                        MyPageMenuTile(
+                          icon: Icons.help_outline,
+                          title: '문의 및 도움말',
+                          subtitle: '문의 내역과 자주 묻는 질문을 확인합니다.',
+                          onTap: () {
+                            _openPage(
+                              context,
+                              const HelpAndInquiryScreen(),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  AppButton(
+                    text: '로그아웃',
+                    type: AppButtonType.outlinePink,
+                    onPressed: () {
+                      AppConfirmDialog.show(
+                        context,
+                        icon: Icons.logout_rounded,
+                        title: '로그아웃',
+                        description: '현재 계정에서 로그아웃하시겠습니까?',
+                        primaryLabel: '로그아웃',
+                        secondaryLabel: '취소',
+                        onSecondaryPressed: () => Navigator.of(context).pop(),
+                        onPrimaryPressed: () async {
+                          Navigator.of(context).pop();
+
+                          setState(() {
+                            _isLoggingOut = true;
+                          });
+
+                          try {
+                            await AuthService.signOut();
+
+                            if (!context.mounted) {
+                              return;
+                            }
+
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(
+                                builder: (_) => const WelcomeScreen(),
+                              ),
+                                  (route) => false,
+                            );
+                          } catch (error) {
+                            if (!context.mounted) {
+                              return;
+                            }
+                            setState(() {
+                              _isLoggingOut = false;
+                            });
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('로그아웃에 실패했습니다. 잠시 후 다시 시도해 주세요.'),
+                              ),
+                            );
+                          }
+                        },
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  TextButton(
+                    onPressed: () {
+                      _openPage(
+                        context,
+                        const AccountWithdrawalScreen(),
+                      );
+                    },
+                    child: const Text(
+                      '회원 탈퇴',
+                      style: TextStyle(
+                        color: Color(0xFF9AA0AC),
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-
-              const SizedBox(height: 12),
-
-              TextButton(
-                onPressed: () {
-                  _openPage(
-                    context,
-                    const AccountWithdrawalScreen(),
-                  );
-                },
-                child: const Text(
-                  '회원 탈퇴',
-                  style: TextStyle(
-                    color: Color(0xFF9AA0AC),
-                    decoration: TextDecoration.underline,
+          ),
+        ),
+          if (_isLoggingOut)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.25),
+                child: const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(
+                        color: Color(0xFFF0788F),
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        '로그아웃 중...',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ],
-          ),
-        ),
+            ),
+        ],
       ),
     );
   }
