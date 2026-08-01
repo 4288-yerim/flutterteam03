@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../theme.dart';
 import '../../widgets/app_card.dart';
 import '../utils/study_time_formatter.dart';
 
@@ -91,24 +90,24 @@ class _SummaryItem extends StatelessWidget {
             Icon(
               icon,
               size: 22,
-              color: context.colors.pinkDeep,
+              color: const Color(0xFFF0788F),
             ),
             const SizedBox(height: 8),
             Text(
               value,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
-                color: context.colors.textPrimary,
+                color: Color(0xFF1A1A1A),
               ),
             ),
             const SizedBox(height: 4),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 11,
-                color: context.colors.textSecondary,
+                color: Color(0xFF9AA0AC),
               ),
             ),
           ],
@@ -126,7 +125,7 @@ class _VerticalSummaryDivider extends StatelessWidget {
     return Container(
       width: 1,
       height: 54,
-      color: context.colors.divider,
+      color: const Color(0xFFF0F0F2),
     );
   }
 }
