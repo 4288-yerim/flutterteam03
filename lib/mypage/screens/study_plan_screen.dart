@@ -2,16 +2,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../widgets/app_dialog.dart';
+
+import '../../theme.dart';
+
 import '../../appwidgets/today_todo_app_widget.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
 
 class StudyPlanScreen extends StatefulWidget {
-  const StudyPlanScreen({
-    super.key,
-    this.initialDate,
-  });
+  const StudyPlanScreen({super.key, this.initialDate});
 
   final DateTime? initialDate;
 
@@ -58,9 +59,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
         _studyPlansCollection;
 
     if (collection == null) {
-      return Stream<List<StudyPlanTask>>.value(
-        const <StudyPlanTask>[],
-      );
+      return Stream<List<StudyPlanTask>>.value(<StudyPlanTask>[]);
     }
 
     return collection.snapshots().map((snapshot) {
@@ -71,13 +70,9 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
         final Object? stepsData = data['steps'];
 
         if (stepsData is List) {
-          allTasks.addAll(
-            StudyPlanTask.fromAiPlanDocument(document),
-          );
+          allTasks.addAll(StudyPlanTask.fromAiPlanDocument(document));
         } else {
-          allTasks.add(
-            StudyPlanTask.fromDocument(document),
-          );
+          allTasks.add(StudyPlanTask.fromDocument(document));
         }
       }
 
@@ -123,7 +118,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                 stream: _watchTasksForSelectedDate(),
                 builder: (context, snapshot) {
                   final List<StudyPlanTask> selectedTasks =
-                      snapshot.data ?? const <StudyPlanTask>[];
+                      snapshot.data ?? <StudyPlanTask>[];
 
                   final int completedCount = selectedTasks
                       .where((task) => task.isCompleted)
@@ -134,20 +129,20 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                       : completedCount / selectedTasks.length;
 
                   return SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                    padding: EdgeInsets.fromLTRB(20, 16, 20, 12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         _buildDateSelector(),
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16),
                         _buildProgressCard(
                           completedCount: completedCount,
                           totalCount: selectedTasks.length,
                           progress: progress,
                         ),
-                        const SizedBox(height: 22),
+                        SizedBox(height: 22),
                         _buildTaskHeader(taskCount: selectedTasks.length),
-                        const SizedBox(height: 12),
+                        SizedBox(height: 12),
                         if (_firebaseAuth.currentUser == null)
                           _buildMessageCard(
                             icon: Icons.login_rounded,
@@ -171,7 +166,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                         else
                           ...selectedTasks.map(
                             (task) => Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
+                              padding: EdgeInsets.only(bottom: 12),
                               child: _buildTaskCard(task),
                             ),
                           ),
@@ -182,7 +177,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 24),
               child: _buildAddTaskButton(),
             ),
           ],
@@ -198,10 +193,10 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
           IconButton(
             tooltip: '이전 날짜',
             onPressed: _moveToPreviousDate,
-            icon: const Icon(
+            icon: Icon(
               Icons.chevron_left_rounded,
               size: 28,
-              color: Color(0xFF666A73),
+              color: context.colors.textSecondary,
             ),
           ),
           Expanded(
@@ -209,25 +204,25 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
               borderRadius: BorderRadius.circular(12),
               onTap: _selectDate,
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: EdgeInsets.symmetric(vertical: 8),
                 child: Column(
                   children: [
                     Text(
                       _formatDate(_selectedDate),
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 19,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF1A1A1A),
+                        color: context.colors.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Text(
                       _getDateLabel(_selectedDate),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFFF0788F),
+                        color: context.colors.pinkStart,
                       ),
                     ),
                   ],
@@ -238,10 +233,10 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
           IconButton(
             tooltip: '다음 날짜',
             onPressed: _moveToNextDate,
-            icon: const Icon(
+            icon: Icon(
               Icons.chevron_right_rounded,
               size: 28,
-              color: Color(0xFF666A73),
+              color: context.colors.textSecondary,
             ),
           ),
         ],
@@ -264,17 +259,17 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFCEFF3),
+                    color: context.colors.pinkSoft,
                     borderRadius: BorderRadius.circular(13),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.auto_awesome_outlined,
                     size: 22,
-                    color: Color(0xFFF0788F),
+                    color: context.colors.pinkStart,
                   ),
                 ),
-                const SizedBox(width: 13),
-                const Expanded(
+                SizedBox(width: 13),
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -283,7 +278,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF666A73),
+                          color: context.colors.textSecondary,
                         ),
                       ),
                       SizedBox(height: 3),
@@ -292,7 +287,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF9AA0AC),
+                          color: context.colors.textSecondary,
                         ),
                       ),
                     ],
@@ -309,17 +304,17 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFCEFF3),
+                        color: context.colors.pinkSoft,
                         borderRadius: BorderRadius.circular(13),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.auto_awesome_outlined,
                         size: 22,
-                        color: Color(0xFFF0788F),
+                        color: context.colors.pinkStart,
                       ),
                     ),
-                    const SizedBox(width: 13),
-                    const Expanded(
+                    SizedBox(width: 13),
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -328,7 +323,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF666A73),
+                              color: context.colors.textSecondary,
                             ),
                           ),
                           SizedBox(height: 3),
@@ -336,7 +331,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                             '학습 계획을 완료해보세요.',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF9AA0AC),
+                              color: context.colors.textSecondary,
                             ),
                           ),
                         ],
@@ -344,35 +339,35 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                     ),
                     Text(
                       '$completedCount / $totalCount',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFFF0788F),
+                        color: context.colors.pinkStart,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 18),
+                SizedBox(height: 18),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(20),
                   child: LinearProgressIndicator(
                     value: progress,
                     minHeight: 10,
-                    backgroundColor: const Color(0xFFF1EDEF),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      Color(0xFFF0788F),
+                    backgroundColor: context.colors.surfaceMuted,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      context.colors.pinkStart,
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Align(
                   alignment: Alignment.centerRight,
                   child: Text(
                     '$percentage% 완료',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF9AA0AC),
+                      color: context.colors.textSecondary,
                     ),
                   ),
                 ),
@@ -384,22 +379,22 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
   Widget _buildTaskHeader({required int taskCount}) {
     return Row(
       children: [
-        const Expanded(
+        Expanded(
           child: Text(
             '오늘의 학습 계획',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1A1A1A),
+              color: context.colors.textPrimary,
             ),
           ),
         ),
         Text(
           '$taskCount개',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: Color(0xFFF0788F),
+            color: context.colors.pinkStart,
           ),
         ),
       ],
@@ -417,38 +412,38 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
           _toggleTask(task);
         },
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 15, 8, 15),
+          padding: EdgeInsets.fromLTRB(16, 15, 8, 15),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: const EdgeInsets.only(top: 2),
+                padding: EdgeInsets.only(top: 2),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 160),
+                  duration: Duration(milliseconds: 160),
                   width: 26,
                   height: 26,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: task.isCompleted
-                        ? const Color(0xFFF0788F)
-                        : Colors.white,
+                        ? context.colors.pinkStart
+                        : context.colors.surface,
                     border: Border.all(
                       color: task.isCompleted
-                          ? const Color(0xFFF0788F)
-                          : const Color(0xFFD6D8DE),
+                          ? context.colors.pinkStart
+                          : context.colors.border,
                       width: 2,
                     ),
                   ),
                   child: task.isCompleted
-                      ? const Icon(
+                      ? Icon(
                           Icons.check_rounded,
                           size: 18,
-                          color: Colors.white,
+                          color: context.colors.onPrimary,
                         )
                       : null,
                 ),
               ),
-              const SizedBox(width: 13),
+              SizedBox(width: 13),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -456,7 +451,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(
+                          padding: EdgeInsets.symmetric(
                             horizontal: 8,
                             vertical: 3,
                           ),
@@ -473,20 +468,20 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             task.certificateName,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF9AA0AC),
+                              color: context.colors.textSecondary,
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 9),
+                    SizedBox(height: 9),
                     Text(
                       task.title,
                       style: TextStyle(
@@ -494,52 +489,52 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                         height: 1.4,
                         fontWeight: FontWeight.w700,
                         color: task.isCompleted
-                            ? const Color(0xFF9AA0AC)
-                            : const Color(0xFF1A1A1A),
+                            ? context.colors.textSecondary
+                            : context.colors.textPrimary,
                         decoration: task.isCompleted
                             ? TextDecoration.lineThrough
                             : TextDecoration.none,
                       ),
                     ),
                     if (task.subjectName?.isNotEmpty == true) ...[
-                      const SizedBox(height: 5),
+                      SizedBox(height: 5),
                       Text(
                         task.subjectName!,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF777B84),
+                          color: context.colors.textSecondary,
                         ),
                       ),
                     ],
                     if (task.description.isNotEmpty) ...[
-                      const SizedBox(height: 5),
+                      SizedBox(height: 5),
                       Text(
                         task.description,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           height: 1.4,
-                          color: Color(0xFF9AA0AC),
+                          color: context.colors.textSecondary,
                         ),
                       ),
                     ],
                     if (task.startPlannedAt != null) ...[
-                      const SizedBox(height: 7),
+                      SizedBox(height: 7),
                       Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.schedule_outlined,
                             size: 15,
-                            color: Color(0xFF9AA0AC),
+                            color: context.colors.textSecondary,
                           ),
-                          const SizedBox(width: 5),
+                          SizedBox(width: 5),
                           Text(
                             _formatTaskTime(task),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF9AA0AC),
+                              color: context.colors.textSecondary,
                             ),
                           ),
                         ],
@@ -551,10 +546,10 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
               if (task.type == StudyPlanTaskType.user)
                 PopupMenuButton<String>(
                   tooltip: '학습 계획 메뉴',
-                  color: Colors.white,
-                  icon: const Icon(
+                  color: context.colors.surface,
+                  icon: Icon(
                     Icons.more_vert_rounded,
-                    color: Color(0xFF9AA0AC),
+                    color: context.colors.textSecondary,
                   ),
                   onSelected: (value) {
                     if (value == 'delete') {
@@ -562,7 +557,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                     }
                   },
                   itemBuilder: (context) {
-                    return const [
+                    return [
                       PopupMenuItem<String>(
                         value: 'delete',
                         child: Row(
@@ -570,7 +565,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                             Icon(
                               Icons.delete_outline_rounded,
                               size: 20,
-                              color: Colors.redAccent,
+                              color: context.colors.incorrect,
                             ),
                             SizedBox(width: 10),
                             Text('학습 계획 삭제'),
@@ -589,10 +584,10 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
 
   Widget _buildLoadingCard() {
     return AppCard(
-      child: const Padding(
+      child: Padding(
         padding: EdgeInsets.symmetric(vertical: 34),
         child: Center(
-          child: CircularProgressIndicator(color: Color(0xFFF0788F)),
+          child: CircularProgressIndicator(color: context.colors.pinkStart),
         ),
       ),
     );
@@ -600,18 +595,22 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
 
   Widget _buildEmptyTaskCard() {
     return AppCard(
-      child: const Padding(
+      child: Padding(
         padding: EdgeInsets.symmetric(vertical: 32),
         child: Column(
           children: [
-            Icon(Icons.task_alt_rounded, size: 44, color: Color(0xFFB4B8C2)),
+            Icon(
+              Icons.task_alt_rounded,
+              size: 44,
+              color: context.colors.textMuted,
+            ),
             SizedBox(height: 12),
             Text(
               '등록된 학습 계획이 없습니다.',
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF1A1A1A),
+                color: context.colors.textPrimary,
               ),
             ),
             SizedBox(height: 6),
@@ -621,7 +620,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
               style: TextStyle(
                 fontSize: 13,
                 height: 1.5,
-                color: Color(0xFF9AA0AC),
+                color: context.colors.textSecondary,
               ),
             ),
           ],
@@ -637,28 +636,28 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
   }) {
     return AppCard(
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 30),
+        padding: EdgeInsets.symmetric(vertical: 30),
         child: Column(
           children: [
-            Icon(icon, size: 42, color: const Color(0xFFB4B8C2)),
-            const SizedBox(height: 12),
+            Icon(icon, size: 42, color: context.colors.textMuted),
+            SizedBox(height: 12),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A1A),
+                color: context.colors.textPrimary,
               ),
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             Text(
               description,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 height: 1.5,
-                color: Color(0xFF9AA0AC),
+                color: context.colors.textSecondary,
               ),
             ),
           ],
@@ -674,28 +673,28 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
       child: ElevatedButton.icon(
         onPressed: _isSaving ? null : _showAddTaskDialog,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFF0788F),
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: const Color(0xFFF3B7C5),
-          disabledForegroundColor: Colors.white,
+          backgroundColor: context.colors.pinkStart,
+          foregroundColor: context.colors.onPrimary,
+          disabledBackgroundColor: context.colors.pinkSoft,
+          disabledForegroundColor: context.colors.textDisabled,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
         ),
         icon: _isSaving
-            ? const SizedBox(
+            ? SizedBox(
                 width: 18,
                 height: 18,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: Colors.white,
+                  color: context.colors.onPrimary,
                 ),
               )
-            : const Icon(Icons.add_rounded),
+            : Icon(Icons.add_rounded),
         label: Text(
           _isSaving ? '저장 중...' : '학습 계획 추가',
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
         ),
       ),
     );
@@ -703,13 +702,13 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
 
   void _moveToPreviousDate() {
     setState(() {
-      _selectedDate = _selectedDate.subtract(const Duration(days: 1));
+      _selectedDate = _selectedDate.subtract(Duration(days: 1));
     });
   }
 
   void _moveToNextDate() {
     setState(() {
-      _selectedDate = _selectedDate.add(const Duration(days: 1));
+      _selectedDate = _selectedDate.add(Duration(days: 1));
     });
   }
 
@@ -745,10 +744,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
 
     try {
       if (task.isAiStep) {
-        await _toggleAiPlanStep(
-          collection: collection,
-          task: task,
-        );
+        await _toggleAiPlanStep(collection: collection, task: task);
       } else {
         await collection.doc(task.sourceDocumentId).update({
           'status': !task.isCompleted,
@@ -781,12 +777,13 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
       return;
     }
 
-    final DocumentReference<Map<String, dynamic>> document =
-    collection.doc(task.sourceDocumentId);
+    final DocumentReference<Map<String, dynamic>> document = collection.doc(
+      task.sourceDocumentId,
+    );
 
     await _firestore.runTransaction((transaction) async {
-      final DocumentSnapshot<Map<String, dynamic>> snapshot =
-      await transaction.get(document);
+      final DocumentSnapshot<Map<String, dynamic>> snapshot = await transaction
+          .get(document);
 
       final Map<String, dynamic>? data = snapshot.data();
 
@@ -827,8 +824,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
 
       String planStatus = 'NOT_STARTED';
 
-      if (completedStepCount == totalStepCount &&
-          totalStepCount > 0) {
+      if (completedStepCount == totalStepCount && totalStepCount > 0) {
         planStatus = 'COMPLETED';
       } else if (completedStepCount > 0) {
         planStatus = 'IN_PROGRESS';
@@ -865,9 +861,9 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
-              backgroundColor: Colors.white,
-              title: const Text(
+            return AppAlertDialog(
+              icon: Icons.event_note_outlined,
+              title: Text(
                 '학습 계획 추가',
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
@@ -879,47 +875,47 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                     TextField(
                       controller: titleController,
                       textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: '학습 과제 이름',
                         hintText: '학습 과제 이름을 적어주세요',
                         border: OutlineInputBorder(),
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    SizedBox(height: 14),
                     TextField(
                       controller: descriptionController,
                       minLines: 2,
                       maxLines: 4,
                       maxLength: 50,
                       textInputAction: TextInputAction.newline,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: '학습 과제 설명',
                         hintText: '학습 과제 내용을 적어주세요',
                         counterText: '최대 50자',
                         border: OutlineInputBorder(),
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    SizedBox(height: 14),
                     TextField(
                       controller: subjectController,
                       textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: '과목명 (선택)',
                         hintText: '과목명을 입력해주세요',
                         border: OutlineInputBorder(),
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    SizedBox(height: 14),
                     TextField(
                       controller: certificateController,
                       textInputAction: TextInputAction.done,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: '자격증명',
                         hintText: '자격증 이름을 입력해주세요',
                         border: OutlineInputBorder(),
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    SizedBox(height: 14),
                     _StudyPlanSelectTile(
                       icon: Icons.calendar_month_outlined,
                       title: '학습 날짜',
@@ -943,7 +939,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                         }
                       },
                     ),
-                    const SizedBox(height: 10),
+                    SizedBox(height: 10),
                     _StudyPlanSelectTile(
                       icon: Icons.schedule_outlined,
                       title: '공부 시작 시간 (선택)',
@@ -963,7 +959,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                         }
                       },
                     ),
-                    const SizedBox(height: 10),
+                    SizedBox(height: 10),
                     _StudyPlanSelectTile(
                       icon: Icons.schedule_send_outlined,
                       title: '공부 종료 시간 (선택)',
@@ -991,9 +987,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                   onPressed: () async {
                     FocusManager.instance.primaryFocus?.unfocus();
 
-                    await Future<void>.delayed(
-                      const Duration(milliseconds: 100),
-                    );
+                    await Future<void>.delayed(Duration(milliseconds: 100));
 
                     if (!dialogContext.mounted) {
                       return;
@@ -1001,9 +995,9 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
 
                     Navigator.pop(dialogContext, false);
                   },
-                  child: const Text(
+                  child: Text(
                     '취소',
-                    style: TextStyle(color: Color(0xFF9AA0AC)),
+                    style: TextStyle(color: context.colors.textSecondary),
                   ),
                 ),
                 TextButton(
@@ -1025,9 +1019,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
 
                     FocusManager.instance.primaryFocus?.unfocus();
 
-                    await Future<void>.delayed(
-                      const Duration(milliseconds: 100),
-                    );
+                    await Future<void>.delayed(Duration(milliseconds: 100));
 
                     if (!dialogContext.mounted) {
                       return;
@@ -1035,10 +1027,10 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
 
                     Navigator.pop(dialogContext, true);
                   },
-                  child: const Text(
+                  child: Text(
                     '추가',
                     style: TextStyle(
-                      color: Color(0xFFF0788F),
+                      color: context.colors.pinkStart,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -1062,7 +1054,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
       );
     }
 
-    await Future<void>.delayed(const Duration(milliseconds: 300));
+    await Future<void>.delayed(Duration(milliseconds: 300));
 
     titleController.dispose();
     descriptionController.dispose();
@@ -1169,17 +1161,17 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
         );
       }
 
-      final DocumentReference<Map<String, dynamic>>
-      studyPlanDocument = collection.doc();
+      final DocumentReference<Map<String, dynamic>> studyPlanDocument =
+          collection.doc();
 
       final String planId = studyPlanDocument.id;
 
-      final DocumentReference<Map<String, dynamic>>
-      calendarDocument = _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('calendarEvents')
-          .doc('study_plan_$planId');
+      final DocumentReference<Map<String, dynamic>> calendarDocument =
+          _firestore
+              .collection('users')
+              .doc(user.uid)
+              .collection('calendarEvents')
+              .doc('study_plan_$planId');
 
       final WriteBatch batch = _firestore.batch();
 
@@ -1196,17 +1188,12 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
       };
 
       if (startPlannedAt != null && endPlannedAt != null) {
-        studyPlanData['startplannedat'] =
-            Timestamp.fromDate(startPlannedAt);
+        studyPlanData['startplannedat'] = Timestamp.fromDate(startPlannedAt);
 
-        studyPlanData['endplannedat'] =
-            Timestamp.fromDate(endPlannedAt);
+        studyPlanData['endplannedat'] = Timestamp.fromDate(endPlannedAt);
       }
 
-      batch.set(
-        studyPlanDocument,
-        studyPlanData,
-      );
+      batch.set(studyPlanDocument, studyPlanData);
 
       if (startPlannedAt != null && endPlannedAt != null) {
         batch.set(calendarDocument, {
@@ -1220,9 +1207,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
         batch.set(calendarDocument, {
           'title': title,
           'startAt': Timestamp.fromDate(planDate),
-          'endAt': Timestamp.fromDate(
-            planDate.add(const Duration(days: 1)),
-          ),
+          'endAt': Timestamp.fromDate(planDate.add(Duration(days: 1))),
           'allDay': true,
           'eventType': 'STUDY',
         });
@@ -1260,9 +1245,10 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
     final bool? result = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          title: const Text(
+        return AppAlertDialog(
+          icon: Icons.delete_outline_rounded,
+          isDestructive: true,
+          title: Text(
             '학습 계획 삭제',
             style: TextStyle(fontWeight: FontWeight.w700),
           ),
@@ -1272,19 +1258,19 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
               onPressed: () {
                 Navigator.pop(dialogContext, false);
               },
-              child: const Text(
+              child: Text(
                 '취소',
-                style: TextStyle(color: Color(0xFF9AA0AC)),
+                style: TextStyle(color: context.colors.textSecondary),
               ),
             ),
             TextButton(
               onPressed: () {
                 Navigator.pop(dialogContext, true);
               },
-              child: const Text(
+              child: Text(
                 '삭제',
                 style: TextStyle(
-                  color: Colors.redAccent,
+                  color: context.colors.incorrect,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1365,7 +1351,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
   }
 
   String _formatDate(DateTime date) {
-    const List<String> weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+    List<String> weekdays = ['월', '화', '수', '목', '금', '토', '일'];
 
     return '${date.year}년 ${date.month}월 ${date.day}일 '
         '${weekdays[date.weekday - 1]}요일';
@@ -1411,16 +1397,16 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
   StudyPlanTaskStyle _getTaskStyle(StudyPlanTaskType type) {
     switch (type) {
       case StudyPlanTaskType.aiPlan:
-        return const StudyPlanTaskStyle(
+        return StudyPlanTaskStyle(
           label: 'AI 학습 계획',
-          foregroundColor: Color(0xFF6F63C2),
-          backgroundColor: Color(0xFFF0EEFC),
+          foregroundColor: context.colors.lavenderAccent,
+          backgroundColor: context.colors.lavender,
         );
       case StudyPlanTaskType.user:
-        return const StudyPlanTaskStyle(
+        return StudyPlanTaskStyle(
           label: '직접 추가',
-          foregroundColor: Color(0xFF4A8F73),
-          backgroundColor: Color(0xFFEAF6F1),
+          foregroundColor: context.colors.mintAccent,
+          backgroundColor: context.colors.mint,
         );
     }
   }
@@ -1464,7 +1450,7 @@ class StudyPlanTask {
   final DateTime? completedAt;
   final DateTime? updatedAt;
 
-  const StudyPlanTask({
+  StudyPlanTask({
     required this.id,
     required this.sourceDocumentId,
     required this.aiStepIndex,
@@ -1485,19 +1471,15 @@ class StudyPlanTask {
   bool get isAiStep => aiStepIndex != null;
 
   factory StudyPlanTask.fromDocument(
-      QueryDocumentSnapshot<Map<String, dynamic>> document,
-      ) {
+    QueryDocumentSnapshot<Map<String, dynamic>> document,
+  ) {
     final Map<String, dynamic> data = document.data();
 
     final Timestamp? planDay = data['planday'] as Timestamp?;
-    final Timestamp? startPlannedAt =
-    data['startplannedat'] as Timestamp?;
-    final Timestamp? endPlannedAt =
-    data['endplannedat'] as Timestamp?;
-    final Timestamp? completedAt =
-    data['completedat'] as Timestamp?;
-    final Timestamp? updatedAt =
-    data['updatedat'] as Timestamp?;
+    final Timestamp? startPlannedAt = data['startplannedat'] as Timestamp?;
+    final Timestamp? endPlannedAt = data['endplannedat'] as Timestamp?;
+    final Timestamp? completedAt = data['completedat'] as Timestamp?;
+    final Timestamp? updatedAt = data['updatedat'] as Timestamp?;
 
     final String? rawType = data['plantype'] is String
         ? (data['plantype'] as String).trim()
@@ -1509,11 +1491,9 @@ class StudyPlanTask {
       aiStepIndex: null,
       order: 0,
       title: (data['plantitle'] as String? ?? '').trim(),
-      description:
-      (data['plandescription'] as String? ?? '').trim(),
+      description: (data['plandescription'] as String? ?? '').trim(),
       subjectName: _readNullableString(data['subjectname']),
-      certificateName:
-      (data['certificatename'] as String? ?? '').trim(),
+      certificateName: (data['certificatename'] as String? ?? '').trim(),
       date: planDay?.toDate() ?? DateTime.now(),
       type: rawType == 'USERADD'
           ? StudyPlanTaskType.user
@@ -1527,21 +1507,20 @@ class StudyPlanTask {
   }
 
   static List<StudyPlanTask> fromAiPlanDocument(
-      QueryDocumentSnapshot<Map<String, dynamic>> document,
-      ) {
+    QueryDocumentSnapshot<Map<String, dynamic>> document,
+  ) {
     final Map<String, dynamic> data = document.data();
 
-    final List<dynamic> rawSteps =
-    data['steps'] is List ? data['steps'] as List<dynamic> : <dynamic>[];
+    final List<dynamic> rawSteps = data['steps'] is List
+        ? data['steps'] as List<dynamic>
+        : <dynamic>[];
 
-    final String certificateName =
-    (data['certificateName'] as String? ?? '').trim();
+    final String certificateName = (data['certificateName'] as String? ?? '')
+        .trim();
 
-    final Timestamp? updatedAt =
-    data['updatedAt'] as Timestamp?;
+    final Timestamp? updatedAt = data['updatedAt'] as Timestamp?;
 
-    final DateTime recommendedStartDate =
-    _parseRecommendedStartDate(
+    final DateTime recommendedStartDate = _parseRecommendedStartDate(
       data['recommendedStudyStartDate'],
     );
 
@@ -1554,15 +1533,13 @@ class StudyPlanTask {
         continue;
       }
 
-      final Map<String, dynamic> step =
-      Map<String, dynamic>.from(rawStep);
+      final Map<String, dynamic> step = Map<String, dynamic>.from(rawStep);
 
       final int order = step['order'] is num
           ? (step['order'] as num).toInt()
           : index + 1;
 
-      final String dayLabel =
-      (step['dayLabel'] as String? ?? '').trim();
+      final String dayLabel = (step['dayLabel'] as String? ?? '').trim();
 
       final DateTime stepDate = _parseStepDate(
         dayLabel: dayLabel,
@@ -1577,16 +1554,14 @@ class StudyPlanTask {
           aiStepIndex: index,
           order: order,
           title: (step['title'] as String? ?? '').trim(),
-          description:
-          (step['detail'] as String? ?? '').trim(),
+          description: (step['detail'] as String? ?? '').trim(),
           subjectName: null,
           certificateName: certificateName,
           date: stepDate,
           type: StudyPlanTaskType.aiPlan,
           startPlannedAt: null,
           endPlannedAt: null,
-          isCompleted:
-          step['isCompleted'] as bool? ?? false,
+          isCompleted: step['isCompleted'] as bool? ?? false,
           completedAt: null,
           updatedAt: updatedAt?.toDate(),
         ),
@@ -1596,28 +1571,18 @@ class StudyPlanTask {
     return tasks;
   }
 
-  static DateTime _parseRecommendedStartDate(
-      Object? value,
-      ) {
+  static DateTime _parseRecommendedStartDate(Object? value) {
     if (value is String) {
       final DateTime? parsed = DateTime.tryParse(value.trim());
 
       if (parsed != null) {
-        return DateTime(
-          parsed.year,
-          parsed.month,
-          parsed.day,
-        );
+        return DateTime(parsed.year, parsed.month, parsed.day);
       }
     }
 
     final DateTime now = DateTime.now();
 
-    return DateTime(
-      now.year,
-      now.month,
-      now.day,
-    );
+    return DateTime(now.year, now.month, now.day);
   }
 
   static DateTime _parseStepDate({
@@ -1630,18 +1595,14 @@ class StudyPlanTask {
     ).firstMatch(dayLabel);
 
     if (match == null) {
-      return recommendedStartDate.add(
-        Duration(days: fallbackIndex),
-      );
+      return recommendedStartDate.add(Duration(days: fallbackIndex));
     }
 
     final int? month = int.tryParse(match.group(1) ?? '');
     final int? day = int.tryParse(match.group(2) ?? '');
 
     if (month == null || day == null) {
-      return recommendedStartDate.add(
-        Duration(days: fallbackIndex),
-      );
+      return recommendedStartDate.add(Duration(days: fallbackIndex));
     }
 
     int year = recommendedStartDate.year;
@@ -1651,11 +1612,7 @@ class StudyPlanTask {
       year += 1;
     }
 
-    return DateTime(
-      year,
-      month,
-      day,
-    );
+    return DateTime(year, month, day);
   }
 
   static String? _readNullableString(Object? value) {
@@ -1674,7 +1631,7 @@ class StudyPlanTaskStyle {
   final Color foregroundColor;
   final Color backgroundColor;
 
-  const StudyPlanTaskStyle({
+  StudyPlanTaskStyle({
     required this.label,
     required this.foregroundColor,
     required this.backgroundColor,
@@ -1700,42 +1657,42 @@ class _StudyPlanSelectTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(13),
+        padding: EdgeInsets.all(13),
         decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFE2E2E6)),
+          border: Border.all(color: context.colors.border),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: const Color(0xFFF0788F)),
-            const SizedBox(width: 11),
+            Icon(icon, size: 20, color: context.colors.pinkStart),
+            SizedBox(width: 11),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF9AA0AC),
+                      color: context.colors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  SizedBox(height: 3),
                   Text(
                     value,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF1A1A1A),
+                      color: context.colors.textPrimary,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
               size: 20,
-              color: Color(0xFF9AA0AC),
+              color: context.colors.textSecondary,
             ),
           ],
         ),

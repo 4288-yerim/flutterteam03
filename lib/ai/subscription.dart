@@ -1,8 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import 'package:portone_flutter/iamport_payment.dart';
 import 'package:portone_flutter/model/payment_data.dart';
 import '../widgets/app_button.dart';
+import '../widgets/loading_overlay.dart';
 import 'services/subscription_service.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
@@ -10,15 +12,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'study_plan.dart';
 
 class SubscriptionPage extends StatefulWidget {
-  const SubscriptionPage({super.key});
+  SubscriptionPage({super.key});
 
-  static const Color textColor = Color(0xFF2E2635);
-  static const Color subTextColor = Color(0xFF847E88);
-  static const Color pinkColor = Color(0xFFFF6F9C);
-  static const Color violetColor = Color(0xFF8A6FF0);
-  static const Color skyColor = Color(0xFF4FB6E8);
-  static const Color mintColor = Color(0xFF2FC6A6);
-  static const Color sunColor = Color(0xFFFFB648);
+  static Color pinkColor = Color(0xFFFF6F9C);
+  static Color violetColor = Color(0xFF8A6FF0);
+  static Color skyColor = Color(0xFF4FB6E8);
+  static Color mintColor = Color(0xFF2FC6A6);
+  static Color sunColor = Color(0xFFFFB648);
 
   @override
   State<SubscriptionPage> createState() => _SubscriptionPageState();
@@ -31,7 +31,7 @@ class _SubscriptionPageState extends State<SubscriptionPage>
 
   final SubscriptionService _subscriptionService = SubscriptionService.instance;
   bool _isPurchasing = false;
-  bool _hasNavigatedToStudyPlan = false;
+  bool _isSuccessSheetVisible = false;
 
   @override
   void initState() {
@@ -42,12 +42,12 @@ class _SubscriptionPageState extends State<SubscriptionPage>
 
     _enterController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: Duration(milliseconds: 900),
     )..forward();
 
     _badgeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1600),
+      duration: Duration(milliseconds: 1600),
     )..repeat();
   }
 
@@ -60,7 +60,8 @@ class _SubscriptionPageState extends State<SubscriptionPage>
     super.dispose();
   }
 
-  void _onPurchaseStateChanged(SubscriptionPurchaseState state, {
+  void _onPurchaseStateChanged(
+    SubscriptionPurchaseState state, {
     String? message,
   }) {
     if (!mounted) return;
@@ -74,9 +75,9 @@ class _SubscriptionPageState extends State<SubscriptionPage>
         _showSuccessSheet();
         break;
       case SubscriptionPurchaseState.cancelled:
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('결제가 취소되었어요.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('결제가 취소되었어요.')));
         break;
       case SubscriptionPurchaseState.error:
         ScaffoldMessenger.of(context).showSnackBar(
@@ -89,134 +90,155 @@ class _SubscriptionPageState extends State<SubscriptionPage>
     }
   }
 
-  void _showSuccessSheet() {
-    showModalBottomSheet(
+  Future<void> _showSuccessSheet() async {
+    if (_isSuccessSheetVisible) return;
+    _isSuccessSheetVisible = true;
+
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) {
-        return ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          child: Container(
-            color: Colors.white,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Stack(
+        return SafeArea(
+          top: false,
+          child: ClipRRect(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            child: Container(
+              color: context.colors.surface,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Image.asset(
-                      'assets/images/subscribe_success.png',
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      height: 16,
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Color(0x00FFFFFF),
-                              Color(0xFFFFFFFF),
-                            ],
-                          ),
+                    Stack(
+                      children: [
+                        Image.asset(
+                          Theme.of(context).brightness == Brightness.dark
+                              ? 'assets/images/subscribe_success_dart.png'
+                              : 'assets/images/subscribe_success.png',
+                          width: double.infinity,
+                          fit: BoxFit.cover,
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        '구독이 시작됐어요!',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: SubscriptionPage.textColor,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        '첫 달 1,000원 결제가 완료되었어요.\n지금부터 구름iT의 모든 혜택을 이용할 수 있어요.',
-                        style: TextStyle(
-                          fontSize: 14,
-                          height: 1.5,
-                          color: SubscriptionPage.subTextColor,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFAF7FB),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Column(
-                          children: [
-                            _SuccessSheetRow(label: '결제 금액', value: '1,000원'),
-                            const SizedBox(height: 10),
-                            _SuccessSheetRow(label: '다음 결제 금액', value: '2,900원 / 월'),
-                            const SizedBox(height: 10),
-                            _SuccessSheetRow(label: '요금제', value: '월간 구독'),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            gradient: const LinearGradient(
-                              colors: [SubscriptionPage.pinkColor, SubscriptionPage.violetColor],
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          height: 16,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  context.colors.surface.withValues(alpha: 0),
+                                  context.colors.surface,
+                                ],
+                              ),
                             ),
                           ),
-                          child: Material(
-                            color: Colors.transparent,
-                            borderRadius: BorderRadius.circular(16),
-                            child: InkWell(
+                        ),
+                      ],
+                    ),
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(24, 24, 24, 40),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '구독이 시작됐어요!',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: context.colors.textPrimary,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            '첫 달 1,000원 결제가 완료되었어요.\n지금부터 구름iT의 모든 혜택을 이용할 수 있어요.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              height: 1.5,
+                              color: context.colors.textSecondary,
+                            ),
+                          ),
+                          SizedBox(height: 24),
+                          Container(
+                            width: double.infinity,
+                            padding: EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: context.colors.background,
                               borderRadius: BorderRadius.circular(16),
-                              onTap: () {
-                                Navigator.of(sheetContext).pop();
-                                Navigator.of(context).pushReplacement(
-                                  MaterialPageRoute(
-                                    builder: (_) => const AiStudyPlanPage(),
-                                  ),
-                                );
-                              },
-                              child: const Center(
-                                child: Text(
-                                  '확인',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
+                            ),
+                            child: Column(
+                              children: [
+                                _SuccessSheetRow(
+                                  label: '결제 금액',
+                                  value: '1,000원',
+                                ),
+                                SizedBox(height: 10),
+                                _SuccessSheetRow(
+                                  label: '다음 결제 금액',
+                                  value: '2,900원 / 월',
+                                ),
+                                SizedBox(height: 10),
+                                _SuccessSheetRow(label: '요금제', value: '월간 구독'),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: 24),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                gradient: LinearGradient(
+                                  colors: [
+                                    SubscriptionPage.pinkColor,
+                                    SubscriptionPage.violetColor,
+                                  ],
+                                ),
+                              ),
+                              child: Material(
+                                color: Colors.transparent,
+                                borderRadius: BorderRadius.circular(16),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(16),
+                                  onTap: () {
+                                    Navigator.of(sheetContext).pop();
+                                    Navigator.of(context).pushReplacement(
+                                      MaterialPageRoute(
+                                        builder: (_) => AiStudyPlanPage(),
+                                      ),
+                                    );
+                                  },
+                                  child: Center(
+                                    child: Text(
+                                      '확인',
+                                      style: TextStyle(
+                                        color: context.colors.onPrimary,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         );
       },
     );
+
+    _isSuccessSheetVisible = false;
   }
 
   Animation<double> _fadeFor(int index, {int total = 7}) {
@@ -253,8 +275,8 @@ class _SubscriptionPageState extends State<SubscriptionPage>
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => IamportPayment(
-          appBar: AppBar(title: const Text('결제')),
-          initialChild: const Center(child: CircularProgressIndicator()),
+          appBar: AppBar(title: Text('결제')),
+          initialChild: Center(child: CircularProgressIndicator()),
           userCode: kImpUserCode,
           data: PaymentData(
             pg: 'html5_inicis.INIBillTst',
@@ -292,55 +314,52 @@ class _SubscriptionPageState extends State<SubscriptionPage>
     return Scaffold(
       extendBodyBehindAppBar: true,
       backgroundColor: Colors.transparent,
-      appBar: const AppTopBar(
-        title: '구름iT 구독',
-        centerTitle: false,
-      ),
-      body: AppMainBackground(
-        child: SafeArea(
-          child: uid == null
-              ? const Center(child: Text('로그인이 필요합니다.'))
-              : StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-            stream: _subscriptionService.subscriptionStream(uid),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      '구독 정보를 불러오지 못했어요.\n${snapshot.error}',
-                      textAlign: TextAlign.center,
+      appBar: AppTopBar(title: '구름iT 구독', centerTitle: false),
+      body: Stack(
+        children: [
+          AppMainBackground(
+            child: SafeArea(
+              child: uid == null
+                  ? Center(child: Text('로그인이 필요합니다.'))
+                  : StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                      stream: _subscriptionService.subscriptionStream(uid),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          return Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(24),
+                              child: Text(
+                                '구독 정보를 불러오지 못했어요.\n${snapshot.error}',
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          );
+                        }
+
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return Center(child: CircularProgressIndicator());
+                        }
+
+                        final data = snapshot.data?.data();
+                        final isActive =
+                            data != null && data['status'] == 'ACTIVE';
+
+                        if (isActive) {
+                          return _ActiveSubscriptionView(
+                            data: data,
+                            onCancel: _isPurchasing ? null : _onCancelPressed,
+                            isLoading: _isPurchasing,
+                          );
+                        }
+
+                        return _buildPurchaseView();
+                      },
                     ),
-                  ),
-                );
-              }
-
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              final data = snapshot.data?.data();
-              final isActive = data != null && data['status'] == 'ACTIVE';
-
-              if (isActive) {
-                if (!_hasNavigatedToStudyPlan) {
-                  _hasNavigatedToStudyPlan = true;
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (!mounted) return;
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(
-                        builder: (_) => const AiStudyPlanPage(),
-                      ),
-                    );
-                  });
-                }
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              return _buildPurchaseView();
-            },
+            ),
           ),
-        ),
+          if (_isPurchasing) Positioned.fill(child: LoadingOverlay()),
+        ],
       ),
     );
   }
@@ -349,17 +368,16 @@ class _SubscriptionPageState extends State<SubscriptionPage>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('구독 해지'),
-        content: const Text(
-            '구독을 해지하면 다음 결제일부터 자동 결제가 중단돼요.\n남은 기간까지는 계속 이용할 수 있어요.'),
+        title: Text('구독 해지'),
+        content: Text('구독을 해지하면 다음 결제일부터 자동 결제가 중단돼요.\n남은 기간까지는 계속 이용할 수 있어요.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
+            child: Text('취소'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('해지하기'),
+            child: Text('해지하기'),
           ),
         ],
       ),
@@ -379,88 +397,73 @@ class _SubscriptionPageState extends State<SubscriptionPage>
 
   Widget _buildPurchaseView() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+      padding: EdgeInsets.fromLTRB(24, 24, 24, 40),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _staggered(index: 0, child: const _SubscriptionHeader()),
-          const SizedBox(height: 28),
+          _staggered(index: 0, child: _SubscriptionHeader()),
+          SizedBox(height: 28),
           _staggered(
             index: 1,
-            child: const Text(
+            child: Text(
               '구독 혜택',
               style: TextStyle(
-                color: SubscriptionPage.textColor,
+                color: context.colors.textPrimary,
                 fontSize: 23,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.6,
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           _staggered(
             index: 2,
-            child: const _BenefitCard(
+            child: _BenefitCard(
               icon: Icons.calendar_month_rounded,
               accentColor: SubscriptionPage.violetColor,
-              gradientColors: [Color(0xFFF1ECFF), Color(0xFFFFFFFF)],
+              gradientColors: [context.colors.lavender, context.colors.surface],
               title: '맞춤형 AI 학습 플랜',
               description: '자격증 시험 일정에 맞춰 구름iT이 학습 플랜을 생성해요.',
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           _staggered(
             index: 3,
-            child: const _BenefitCard(
+            child: _BenefitCard(
               icon: Icons.insights_rounded,
               accentColor: SubscriptionPage.skyColor,
-              gradientColors: [Color(0xFFE7F6FF), Color(0xFFFFFFFF)],
+              gradientColors: [context.colors.softBlue, context.colors.surface],
               title: '합격 가능성 예측',
               description: '사용자의 학습량을 분석해 현재 합격 가능성을 예측해요.',
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           _staggered(
             index: 4,
-            child: const _BenefitCard(
+            child: _BenefitCard(
               icon: Icons.auto_fix_high_rounded,
               accentColor: SubscriptionPage.mintColor,
-              gradientColors: [Color(0xFFE3FBF4), Color(0xFFFFFFFF)],
+              gradientColors: [context.colors.mint, context.colors.surface],
               title: '학습 플랜 자동 조정',
               description: '학습량이 부족하면 남은 일정에 맞게 학습 플랜을 조정해요.',
             ),
           ),
-          const SizedBox(height: 28),
+          SizedBox(height: 28),
           _staggered(
             index: 5,
             child: _PriceCard(badgeController: _badgeController),
           ),
-          const SizedBox(height: 18),
+          SizedBox(height: 18),
           _staggered(
             index: 6,
-            child: _isPurchasing
-                ? const SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: Center(
-                child: SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.4,
-                    color: SubscriptionPage.pinkColor,
-                  ),
-                ),
-              ),
-            )
-                : AppButton(
+            child: AppButton(
               text: '첫 달 1,000원으로 시작하기',
               type: AppButtonType.primaryPink,
-              onPressed: _onSubscribePressed,
+              onPressed: _isPurchasing ? null : _onSubscribePressed,
             ),
           ),
-          const SizedBox(height: 16),
-          const _NoticeCard(),
+          SizedBox(height: 16),
+          _NoticeCard(),
         ],
       ),
     );
@@ -468,24 +471,21 @@ class _SubscriptionPageState extends State<SubscriptionPage>
 }
 
 class _SubscriptionHeader extends StatelessWidget {
-  const _SubscriptionHeader();
+  _SubscriptionHeader();
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFFFE4ED),
-            Color(0xFFF6D7FF),
-          ],
+          colors: [context.colors.pinkSoft, context.colors.lavender],
         ),
         borderRadius: BorderRadius.circular(24),
       ),
-      padding: const EdgeInsets.fromLTRB(22, 28, 22, 26),
+      padding: EdgeInsets.fromLTRB(22, 28, 22, 26),
       child: Center(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -496,24 +496,24 @@ class _SubscriptionHeader extends StatelessWidget {
               height: 120,
               fit: BoxFit.contain,
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Text(
               '구름iT과 함께\n합격까지 계획적으로 공부해요',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: SubscriptionPage.textColor.withValues(alpha: 0.85),
+                color: context.colors.textPrimary.withValues(alpha: 0.85),
                 fontSize: 23,
                 height: 1.35,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.7,
               ),
             ),
-            const SizedBox(height: 10),
-            const Text(
+            SizedBox(height: 10),
+            Text(
               '시험 일정과 학습 기록을 분석해\n나에게 맞는 학습 계획을 제공해요.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: SubscriptionPage.subTextColor,
+                color: context.colors.textSecondary,
                 fontSize: 15,
                 height: 1.55,
                 fontWeight: FontWeight.w400,
@@ -533,7 +533,7 @@ class _BenefitCard extends StatelessWidget {
   final String title;
   final String description;
 
-  const _BenefitCard({
+  _BenefitCard({
     required this.icon,
     required this.accentColor,
     required this.gradientColors,
@@ -545,7 +545,7 @@ class _BenefitCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -561,7 +561,7 @@ class _BenefitCard extends StatelessWidget {
           BoxShadow(
             color: accentColor.withValues(alpha: 0.10),
             blurRadius: 16,
-            offset: const Offset(0, 6),
+            offset: Offset(0, 6),
           ),
         ],
       ),
@@ -582,31 +582,31 @@ class _BenefitCard extends StatelessWidget {
                 BoxShadow(
                   color: accentColor.withValues(alpha: 0.35),
                   blurRadius: 10,
-                  offset: const Offset(0, 4),
+                  offset: Offset(0, 4),
                 ),
               ],
             ),
             alignment: Alignment.center,
-            child: Icon(icon, color: Colors.white, size: 27),
+            child: Icon(icon, color: context.colors.onPrimary, size: 27),
           ),
-          const SizedBox(width: 15),
+          SizedBox(width: 15),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    color: SubscriptionPage.textColor,
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 7),
+                SizedBox(height: 7),
                 Text(
                   description,
-                  style: const TextStyle(
-                    color: SubscriptionPage.subTextColor,
+                  style: TextStyle(
+                    color: context.colors.textSecondary,
                     fontSize: 14,
                     height: 1.5,
                   ),
@@ -623,16 +623,16 @@ class _BenefitCard extends StatelessWidget {
 class _PriceCard extends StatelessWidget {
   final AnimationController badgeController;
 
-  const _PriceCard({required this.badgeController});
+  _PriceCard({required this.badgeController});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(2),
+      padding: EdgeInsets.all(2),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(26),
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
@@ -645,56 +645,58 @@ class _PriceCard extends StatelessWidget {
           BoxShadow(
             color: SubscriptionPage.pinkColor.withValues(alpha: 0.25),
             blurRadius: 24,
-            offset: const Offset(0, 10),
+            offset: Offset(0, 10),
           ),
         ],
       ),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
+        padding: EdgeInsets.fromLTRB(22, 20, 22, 20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(24),
         ),
         child: Column(
           children: [
             Row(
               children: [
-                const Text(
+                Text(
                   '월간 구독',
                   style: TextStyle(
-                    color: SubscriptionPage.textColor,
+                    color: context.colors.textPrimary,
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const Spacer(),
+                Spacer(),
                 AnimatedBuilder(
                   animation: badgeController,
                   builder: (context, child) {
                     final shimmer =
-                    (0.5 + 0.5 * (badgeController.value * 2 - 1).abs())
-                        .clamp(0.6, 1.0);
+                        (0.5 + 0.5 * (badgeController.value * 2 - 1).abs())
+                            .clamp(0.6, 1.0);
                     return Opacity(opacity: shimmer, child: child);
                   },
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
+                      gradient: LinearGradient(
                         colors: [
                           SubscriptionPage.sunColor,
                           SubscriptionPage.pinkColor,
                         ],
                       ),
-                      borderRadius: const BorderRadius.all(Radius.circular(30)),
+                      borderRadius: BorderRadius.all(Radius.circular(30)),
                       boxShadow: [
                         BoxShadow(
-                          color: SubscriptionPage.sunColor.withValues(alpha: 0.4),
+                          color: SubscriptionPage.sunColor.withValues(
+                            alpha: 0.4,
+                          ),
                           blurRadius: 10,
-                          offset: const Offset(0, 3),
+                          offset: Offset(0, 3),
                         ),
                       ],
                     ),
-                    child: const Padding(
+                    child: Padding(
                       padding: EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 7,
@@ -705,13 +707,13 @@ class _PriceCard extends StatelessWidget {
                           Icon(
                             Icons.local_fire_department_rounded,
                             size: 14,
-                            color: Colors.white,
+                            color: context.colors.onPrimary,
                           ),
                           SizedBox(width: 3),
                           Text(
                             '65% 첫 달 할인',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: context.colors.onPrimary,
                               fontSize: 12,
                               fontWeight: FontWeight.w800,
                             ),
@@ -723,31 +725,31 @@ class _PriceCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                const Text(
+                Text(
                   '첫 달',
                   style: TextStyle(
-                    color: SubscriptionPage.subTextColor,
+                    color: context.colors.textSecondary,
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(width: 10),
-                const Text(
+                SizedBox(width: 10),
+                Text(
                   '2,900원',
                   style: TextStyle(
-                    color: Color(0xFFC5BFC1),
+                    color: context.colors.textDisabled,
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
                     decoration: TextDecoration.lineThrough,
-                    decorationColor: Color(0xFFC5BFC1),
+                    decorationColor: context.colors.textDisabled,
                     decorationThickness: 2,
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 ShaderMask(
                   shaderCallback: (bounds) => LinearGradient(
                     colors: [
@@ -755,10 +757,10 @@ class _PriceCard extends StatelessWidget {
                       SubscriptionPage.pinkColor.withValues(alpha: 0.75),
                     ],
                   ).createShader(bounds),
-                  child: const Text(
+                  child: Text(
                     '1,000원',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: context.colors.onPrimary,
                       fontSize: 34,
                       height: 1,
                       fontWeight: FontWeight.w900,
@@ -768,8 +770,8 @@ class _PriceCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 6),
-            const Align(
+            SizedBox(height: 6),
+            Align(
               alignment: Alignment.centerLeft,
               child: Text(
                 '1,900원 절약 · 오늘만 이 가격',
@@ -780,23 +782,23 @@ class _PriceCard extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 18),
-            const _DashedDivider(),
-            const SizedBox(height: 16),
+            SizedBox(height: 18),
+            _DashedDivider(),
+            SizedBox(height: 16),
             Row(
               children: [
-                const Text(
+                Text(
                   '다음 달부터',
                   style: TextStyle(
-                    color: SubscriptionPage.subTextColor,
+                    color: context.colors.textSecondary,
                     fontSize: 14,
                   ),
                 ),
-                const Spacer(),
-                const Text(
+                Spacer(),
+                Text(
                   '월 2,900원',
                   style: TextStyle(
-                    color: SubscriptionPage.textColor,
+                    color: context.colors.textPrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
@@ -811,7 +813,7 @@ class _PriceCard extends StatelessWidget {
 }
 
 class _DashedDivider extends StatelessWidget {
-  const _DashedDivider();
+  _DashedDivider();
 
   @override
   Widget build(BuildContext context) {
@@ -819,16 +821,16 @@ class _DashedDivider extends StatelessWidget {
       builder: (context, constraints) {
         const dashWidth = 6.0;
         const dashGap = 5.0;
-        final dashCount =
-        (constraints.maxWidth / (dashWidth + dashGap)).floor();
+        final dashCount = (constraints.maxWidth / (dashWidth + dashGap))
+            .floor();
         return Row(
           children: List.generate(dashCount, (index) {
             return Padding(
-              padding: const EdgeInsets.only(right: dashGap),
+              padding: EdgeInsets.only(right: dashGap),
               child: Container(
                 width: dashWidth,
                 height: 1.5,
-                color: const Color(0xFFEFE3E8),
+                color: context.colors.divider,
               ),
             );
           }),
@@ -839,15 +841,15 @@ class _DashedDivider extends StatelessWidget {
 }
 
 class _NoticeCard extends StatelessWidget {
-  const _NoticeCard();
+  _NoticeCard();
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFAF7FB),
+        color: context.colors.background,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: SubscriptionPage.violetColor.withValues(alpha: 0.12),
@@ -860,12 +862,12 @@ class _NoticeCard extends StatelessWidget {
             icon: Icons.credit_card_rounded,
             text: '카드 등록 화면에는 0원으로 표시되며, 등록 직후 첫 달 1,000원이 자동 결제돼요.',
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           _NoticeRow(
             icon: Icons.autorenew_rounded,
             text: '첫 달 이후에는 매월 2,900원이 결제되며, 언제든 해지가 가능해요.',
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           _NoticeRow(
             icon: Icons.insights_outlined,
             text: '합격 가능성 예측 결과는 학습 참고용이며, 실제 시험 결과를 보장하지 않아요.',
@@ -880,7 +882,7 @@ class _NoticeRow extends StatelessWidget {
   final IconData icon;
   final String text;
 
-  const _NoticeRow({required this.icon, required this.text});
+  _NoticeRow({required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -892,12 +894,12 @@ class _NoticeRow extends StatelessWidget {
           size: 16,
           color: SubscriptionPage.violetColor.withValues(alpha: 0.7),
         ),
-        const SizedBox(width: 8),
+        SizedBox(width: 8),
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(
-              color: SubscriptionPage.subTextColor,
+            style: TextStyle(
+              color: context.colors.textSecondary,
               fontSize: 12.5,
               height: 1.5,
             ),
@@ -913,7 +915,7 @@ class _ActiveSubscriptionView extends StatelessWidget {
   final VoidCallback? onCancel;
   final bool isLoading;
 
-  const _ActiveSubscriptionView({
+  _ActiveSubscriptionView({
     required this.data,
     required this.onCancel,
     required this.isLoading,
@@ -930,89 +932,104 @@ class _ActiveSubscriptionView extends StatelessWidget {
     final expiresAtRaw = data['expiresAt'];
     final expiresAt = expiresAtRaw is Timestamp ? expiresAtRaw : null;
     final amountRaw = data['amount'];
-    final amount = amountRaw is int ? amountRaw : (amountRaw as num?)?.toInt() ?? 2900;
+    final amount = amountRaw is int
+        ? amountRaw
+        : (amountRaw as num?)?.toInt() ?? 2900;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+      padding: EdgeInsets.fromLTRB(24, 24, 24, 40),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(22),
+            padding: EdgeInsets.all(22),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [SubscriptionPage.violetColor, SubscriptionPage.pinkColor],
+                colors: [
+                  SubscriptionPage.violetColor,
+                  SubscriptionPage.pinkColor,
+                ],
               ),
               borderRadius: BorderRadius.circular(24),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
                   children: [
-                    Icon(Icons.verified_rounded, color: Colors.white, size: 22),
+                    Icon(
+                      Icons.verified_rounded,
+                      color: context.colors.onPrimary,
+                      size: 22,
+                    ),
                     SizedBox(width: 8),
                     Text(
                       '구독 중',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: context.colors.onPrimary,
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
+                SizedBox(height: 14),
                 Text(
                   '다음 결제일: ${_formatDate(expiresAt)}',
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  style: TextStyle(
+                    color: context.colors.onPrimary,
+                    fontSize: 14,
+                  ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   '결제 금액: ${amount.toString()}원 / 월',
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  style: TextStyle(
+                    color: context.colors.onPrimary,
+                    fontSize: 14,
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
-          const _BenefitCard(
+          SizedBox(height: 24),
+          _BenefitCard(
             icon: Icons.calendar_month_rounded,
             accentColor: SubscriptionPage.violetColor,
-            gradientColors: [Color(0xFFF1ECFF), Color(0xFFFFFFFF)],
+            gradientColors: [context.colors.lavender, context.colors.surface],
             title: '맞춤형 AI 학습 플랜',
             description: '자격증 시험 일정에 맞춰 구름iT이 학습 플랜을 생성해요.',
           ),
-          const SizedBox(height: 12),
-          const _BenefitCard(
+          SizedBox(height: 12),
+          _BenefitCard(
             icon: Icons.insights_rounded,
             accentColor: SubscriptionPage.skyColor,
-            gradientColors: [Color(0xFFE7F6FF), Color(0xFFFFFFFF)],
+            gradientColors: [context.colors.softBlue, context.colors.surface],
             title: '합격 가능성 예측',
             description: '사용자의 학습량을 분석해 현재 합격 가능성을 예측해요.',
           ),
-          const SizedBox(height: 32),
+          SizedBox(height: 32),
           Center(
             child: TextButton(
               onPressed: onCancel,
               child: isLoading
-                  ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-                  : const Text(
-                '구독 해지하기',
-                style: TextStyle(
-                  color: SubscriptionPage.subTextColor,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  decoration: TextDecoration.underline,
-                ),
-              ),
+                  ? SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(
+                      '구독 해지하기',
+                      style: TextStyle(
+                        color: context.colors.textSecondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
             ),
           ),
         ],
@@ -1025,7 +1042,7 @@ class _SuccessSheetRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _SuccessSheetRow({required this.label, required this.value});
+  _SuccessSheetRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -1034,15 +1051,12 @@ class _SuccessSheetRow extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: SubscriptionPage.subTextColor,
-            fontSize: 13,
-          ),
+          style: TextStyle(color: context.colors.textSecondary, fontSize: 13),
         ),
         Text(
           value,
-          style: const TextStyle(
-            color: SubscriptionPage.textColor,
+          style: TextStyle(
+            color: context.colors.textPrimary,
             fontSize: 13,
             fontWeight: FontWeight.w700,
           ),

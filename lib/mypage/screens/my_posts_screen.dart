@@ -2,6 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../widgets/app_dialog.dart';
+
+import '../../theme.dart';
+
 import '../../community/community_main.dart';
 import '../../community/community_models.dart';
 import '../../community/community_post_detail.dart';
@@ -53,20 +57,16 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
 
     try {
       final QuerySnapshot<Map<String, dynamic>> snapshot =
-      await FirebaseFirestore.instance
-          .collection('posts')
-          .where(
-        'writerUid',
-        isEqualTo: user.uid,
-      )
-          .get();
+          await FirebaseFirestore.instance
+              .collection('posts')
+              .where('writerUid', isEqualTo: user.uid)
+              .get();
 
       final List<CommunityPost> loadedPosts = [];
 
       for (final QueryDocumentSnapshot<Map<String, dynamic>> document
-      in snapshot.docs) {
-        final CommunityPost post =
-        CommunityPost.fromDocument(document);
+          in snapshot.docs) {
+        final CommunityPost post = CommunityPost.fromDocument(document);
 
         if (post.postStatus != 'NORMAL') {
           continue;
@@ -83,17 +83,13 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
         loadedPosts.add(post);
       }
 
-      loadedPosts.sort(
-            (CommunityPost first, CommunityPost second) {
-          final int firstTime =
-              first.createdAt?.millisecondsSinceEpoch ?? 0;
+      loadedPosts.sort((CommunityPost first, CommunityPost second) {
+        final int firstTime = first.createdAt?.millisecondsSinceEpoch ?? 0;
 
-          final int secondTime =
-              second.createdAt?.millisecondsSinceEpoch ?? 0;
+        final int secondTime = second.createdAt?.millisecondsSinceEpoch ?? 0;
 
-          return secondTime.compareTo(firstTime);
-        },
-      );
+        return secondTime.compareTo(firstTime);
+      });
 
       if (!mounted) {
         return;
@@ -144,7 +140,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
       context,
       MaterialPageRoute(
         builder: (_) {
-          return const CommunityMainPage();
+          return CommunityMainPage();
         },
       ),
     );
@@ -161,9 +157,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
     await _loadMyPosts();
   }
 
-  Future<void> _openPostDetail(
-      CommunityPost post,
-      ) async {
+  Future<void> _openPostDetail(CommunityPost post) async {
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -188,17 +182,12 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
     await _loadMyPosts();
   }
 
-  Future<void> _editPost(
-      CommunityPost post,
-      ) async {
+  Future<void> _editPost(CommunityPost post) async {
     final bool? wasUpdated = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) {
-          return CommunityPostEditPage(
-            post: post,
-            service: _communityService,
-          );
+          return CommunityPostEditPage(post: post, service: _communityService);
         },
       ),
     );
@@ -221,9 +210,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
     _showMessage('게시글을 수정했습니다.');
   }
 
-  Future<void> _showDeleteDialog(
-      CommunityPost post,
-      ) async {
+  Future<void> _showDeleteDialog(CommunityPost post) async {
     if (_isDeleting) {
       return;
     }
@@ -231,44 +218,30 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
     final bool? shouldDelete = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          title: const Text(
-            '게시글 삭제',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+        return AppAlertDialog(
+          title: Text('게시글 삭제', style: TextStyle(fontWeight: FontWeight.w700)),
           content: Text(
             '"${post.title}" 게시글을 삭제하시겠습니까?\n'
-                '삭제한 게시글은 다시 표시되지 않습니다.',
+            '삭제한 게시글은 다시 표시되지 않습니다.',
           ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                  false,
-                );
+                Navigator.pop(dialogContext, false);
               },
-              child: const Text(
+              child: Text(
                 '취소',
-                style: TextStyle(
-                  color: Color(0xFF9AA0AC),
-                ),
+                style: TextStyle(color: context.colors.textSecondary),
               ),
             ),
             TextButton(
               onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                  true,
-                );
+                Navigator.pop(dialogContext, true);
               },
-              child: const Text(
+              child: Text(
                 '삭제',
                 style: TextStyle(
-                  color: Color(0xFFF0788F),
+                  color: context.colors.pinkStart,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -285,9 +258,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
     await _deletePost(post);
   }
 
-  Future<void> _deletePost(
-      CommunityPost post,
-      ) async {
+  Future<void> _deletePost(CommunityPost post) async {
     final User? user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
@@ -312,11 +283,9 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
       }
 
       setState(() {
-        _posts.removeWhere(
-              (CommunityPost item) {
-            return item.id == post.id;
-          },
-        );
+        _posts.removeWhere((CommunityPost item) {
+          return item.id == post.id;
+        });
       });
 
       _showMessage('게시글을 삭제했습니다.');
@@ -338,11 +307,9 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   String _formatDate(DateTime? date) {
@@ -350,11 +317,9 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
       return '날짜 정보 없음';
     }
 
-    final String month =
-    date.month.toString().padLeft(2, '0');
+    final String month = date.month.toString().padLeft(2, '0');
 
-    final String day =
-    date.day.toString().padLeft(2, '0');
+    final String day = date.day.toString().padLeft(2, '0');
 
     return '${date.year}.$month.$day';
   }
@@ -380,50 +345,46 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
     return '게시 중';
   }
 
-  Color _getStatusBackgroundColor(
-      CommunityPost post,
-      ) {
+  Color _getStatusBackgroundColor(CommunityPost post) {
     if (post.boardType == CommunityBoardType.groupRecruit) {
       if (post.recruitStatus == 'CLOSED') {
-        return const Color(0xFFF3F3F5);
+        return context.colors.surfaceMuted;
       }
 
-      return const Color(0xFFF2F3FF);
+      return context.colors.infoSoft;
     }
 
     if (post.boardType == CommunityBoardType.question) {
       if (post.questionStatus == 'SOLVED' ||
           post.questionStatus == 'COMPLETED') {
-        return const Color(0xFFF1F7F3);
+        return context.colors.correctSoft;
       }
 
-      return const Color(0xFFFFF6DF);
+      return context.colors.warningSoft;
     }
 
-    return const Color(0xFFF1F7F3);
+    return context.colors.correctSoft;
   }
 
-  Color _getStatusTextColor(
-      CommunityPost post,
-      ) {
+  Color _getStatusTextColor(CommunityPost post) {
     if (post.boardType == CommunityBoardType.groupRecruit) {
       if (post.recruitStatus == 'CLOSED') {
-        return const Color(0xFF777B84);
+        return context.colors.textSecondary;
       }
 
-      return const Color(0xFF666ED8);
+      return context.colors.info;
     }
 
     if (post.boardType == CommunityBoardType.question) {
       if (post.questionStatus == 'SOLVED' ||
           post.questionStatus == 'COMPLETED') {
-        return const Color(0xFF4C9A65);
+        return context.colors.correct;
       }
 
-      return const Color(0xFFD89422);
+      return context.colors.warning;
     }
 
-    return const Color(0xFF4C9A65);
+    return context.colors.correct;
   }
 
   @override
@@ -437,27 +398,22 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
           onPressed: () {
             Navigator.pop(context);
           },
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new,
             size: 20,
-            color: Color(0xFF1A1A1A),
+            color: context.colors.textPrimary,
           ),
         ),
       ),
       body: AppMainBackground(
-        child: RefreshIndicator(
-          onRefresh: _loadMyPosts,
-          child: _buildBody(),
-        ),
+        child: RefreshIndicator(onRefresh: _loadMyPosts, child: _buildBody()),
       ),
     );
   }
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const AppLoadingView(
-        message: '작성한 게시글을 불러오는 중입니다.',
-      );
+      return AppLoadingView(message: '작성한 게시글을 불러오는 중입니다.');
     }
 
     if (_errorMessage != null) {
@@ -485,47 +441,42 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
     }
 
     return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        16,
-        20,
-        110,
-      ),
+      physics: AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(20, 16, 20, 110),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildPostSummary(),
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   '작성한 게시글',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1A1A1A),
+                    color: context.colors.textPrimary,
                   ),
                 ),
               ),
               Text(
                 '총 ${_posts.length}개',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
-                  color: Color(0xFF9AA0AC),
+                  color: context.colors.textSecondary,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           ListView.separated(
             padding: EdgeInsets.zero,
             shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+            physics: NeverScrollableScrollPhysics(),
             itemCount: _posts.length,
             separatorBuilder: (_, _) {
-              return const SizedBox(height: 12);
+              return SizedBox(height: 12);
             },
             itemBuilder: (context, index) {
               final CommunityPost post = _posts[index];
@@ -533,12 +484,9 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
               return _MyPostCard(
                 post: post,
                 statusText: _getStatusText(post),
-                statusBackgroundColor:
-                _getStatusBackgroundColor(post),
-                statusTextColor:
-                _getStatusTextColor(post),
-                formattedDate:
-                _formatDate(post.createdAt),
+                statusBackgroundColor: _getStatusBackgroundColor(post),
+                statusTextColor: _getStatusTextColor(post),
+                formattedDate: _formatDate(post.createdAt),
                 isDeleting: _isDeleting,
                 onTap: () {
                   _openPostDetail(post);
@@ -558,35 +506,17 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
   }
 
   Widget _buildPostSummary() {
-    final int totalViews = _posts.fold(
-      0,
-          (
-          int sum,
-          CommunityPost post,
-          ) {
-        return sum + post.viewCount;
-      },
-    );
+    final int totalViews = _posts.fold(0, (int sum, CommunityPost post) {
+      return sum + post.viewCount;
+    });
 
-    final int totalComments = _posts.fold(
-      0,
-          (
-          int sum,
-          CommunityPost post,
-          ) {
-        return sum + post.commentCount;
-      },
-    );
+    final int totalComments = _posts.fold(0, (int sum, CommunityPost post) {
+      return sum + post.commentCount;
+    });
 
-    final int totalLikes = _posts.fold(
-      0,
-          (
-          int sum,
-          CommunityPost post,
-          ) {
-        return sum + post.likeCount;
-      },
-    );
+    final int totalLikes = _posts.fold(0, (int sum, CommunityPost post) {
+      return sum + post.likeCount;
+    });
 
     return AppCard(
       child: Row(
@@ -598,7 +528,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
               value: '${_posts.length}개',
             ),
           ),
-          const _SummaryDivider(),
+          _SummaryDivider(),
           Expanded(
             child: _SummaryItem(
               icon: Icons.visibility_outlined,
@@ -606,7 +536,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
               value: '$totalViews회',
             ),
           ),
-          const _SummaryDivider(),
+          _SummaryDivider(),
           Expanded(
             child: _SummaryItem(
               icon: Icons.chat_bubble_outline,
@@ -614,7 +544,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
               value: '$totalComments개',
             ),
           ),
-          const _SummaryDivider(),
+          _SummaryDivider(),
           Expanded(
             child: _SummaryItem(
               icon: Icons.favorite_border,
@@ -659,36 +589,28 @@ class _MyPostCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(22),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            18,
-            16,
-            10,
-            16,
-          ),
+          padding: EdgeInsets.fromLTRB(18, 16, 10, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  _BoardChip(
-                    text: post.boardType.label,
-                  ),
-                  const SizedBox(width: 8),
+                  _BoardChip(text: post.boardType.label),
+                  SizedBox(width: 8),
                   _StatusChip(
                     text: statusText,
-                    backgroundColor:
-                    statusBackgroundColor,
+                    backgroundColor: statusBackgroundColor,
                     textColor: statusTextColor,
                   ),
-                  const Spacer(),
+                  Spacer(),
                   PopupMenuButton<String>(
                     enabled: !isDeleting,
                     tooltip: '게시글 메뉴',
-                    color: Colors.white,
-                    icon: const Icon(
+                    color: context.colors.surface,
+                    icon: Icon(
                       Icons.more_vert,
                       size: 21,
-                      color: Color(0xFF9AA0AC),
+                      color: context.colors.textSecondary,
                     ),
                     onSelected: (value) {
                       if (value == 'edit') {
@@ -700,15 +622,12 @@ class _MyPostCard extends StatelessWidget {
                       }
                     },
                     itemBuilder: (_) {
-                      return const [
+                      return [
                         PopupMenuItem<String>(
                           value: 'edit',
                           child: Row(
                             children: [
-                              Icon(
-                                Icons.edit_outlined,
-                                size: 19,
-                              ),
+                              Icon(Icons.edit_outlined, size: 19),
                               SizedBox(width: 10),
                               Text('수정'),
                             ],
@@ -721,13 +640,13 @@ class _MyPostCard extends StatelessWidget {
                               Icon(
                                 Icons.delete_outline,
                                 size: 19,
-                                color: Color(0xFFF0788F),
+                                color: context.colors.pinkStart,
                               ),
                               SizedBox(width: 10),
                               Text(
                                 '삭제',
                                 style: TextStyle(
-                                  color: Color(0xFFF0788F),
+                                  color: context.colors.pinkStart,
                                 ),
                               ),
                             ],
@@ -738,50 +657,50 @@ class _MyPostCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Text(
                 post.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   height: 1.4,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF1A1A1A),
+                  color: context.colors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 7),
+              SizedBox(height: 7),
               Text(
                 post.content,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   height: 1.5,
-                  color: Color(0xFF666A73),
+                  color: context.colors.textSecondary,
                 ),
               ),
-              const SizedBox(height: 14),
+              SizedBox(height: 14),
               Row(
                 children: [
                   Text(
                     formattedDate,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: Color(0xFF9AA0AC),
+                      color: context.colors.textSecondary,
                     ),
                   ),
-                  const Spacer(),
+                  Spacer(),
                   _PostCount(
                     icon: Icons.visibility_outlined,
                     count: post.viewCount,
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   _PostCount(
                     icon: Icons.chat_bubble_outline,
                     count: post.commentCount,
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   _PostCount(
                     icon: Icons.favorite_border,
                     count: post.likeCount,
@@ -811,29 +730,22 @@ class _SummaryItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Icon(
-          icon,
-          size: 20,
-          color: const Color(0xFFF0788F),
-        ),
-        const SizedBox(height: 7),
+        Icon(icon, size: 20, color: context.colors.pinkStart),
+        SizedBox(height: 7),
         Text(
           value,
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF1A1A1A),
+            color: context.colors.textPrimary,
           ),
         ),
-        const SizedBox(height: 3),
+        SizedBox(height: 3),
         Text(
           label,
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 10,
-            color: Color(0xFF9AA0AC),
-          ),
+          style: TextStyle(fontSize: 10, color: context.colors.textSecondary),
         ),
       ],
     );
@@ -845,42 +757,31 @@ class _SummaryDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 48,
-      color: const Color(0xFFF0F0F2),
-    );
+    return Container(width: 1, height: 48, color: context.colors.divider);
   }
 }
 
 class _BoardChip extends StatelessWidget {
   final String text;
 
-  const _BoardChip({
-    required this.text,
-  });
+  const _BoardChip({required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(
-        maxWidth: 110,
-      ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 5,
-      ),
+      constraints: BoxConstraints(maxWidth: 110),
+      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFFFCEFF3),
+        color: context.colors.pinkSoft,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         text,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,
-          color: Color(0xFFF0788F),
+          color: context.colors.pinkStart,
         ),
       ),
     );
@@ -901,10 +802,7 @@ class _StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 5,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(20),
@@ -925,27 +823,17 @@ class _PostCount extends StatelessWidget {
   final IconData icon;
   final int count;
 
-  const _PostCount({
-    required this.icon,
-    required this.count,
-  });
+  const _PostCount({required this.icon, required this.count});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(
-          icon,
-          size: 15,
-          color: const Color(0xFF9AA0AC),
-        ),
-        const SizedBox(width: 4),
+        Icon(icon, size: 15, color: context.colors.textSecondary),
+        SizedBox(width: 4),
         Text(
           '$count',
-          style: const TextStyle(
-            fontSize: 11,
-            color: Color(0xFF9AA0AC),
-          ),
+          style: TextStyle(fontSize: 11, color: context.colors.textSecondary),
         ),
       ],
     );

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
 import '../../certificate/screens/certificate_schedule.dart';
 import '../../mypage/screens/study_plan_screen.dart';
 import '../../notification/screens/notification.dart';
@@ -52,12 +53,6 @@ class ChatbotScreen extends StatefulWidget {
 }
 
 class _ChatbotScreenState extends State<ChatbotScreen> {
-  static const Color _pink = Color(0xFFF0788F);
-  static const Color _pinkDeep = Color(0xFFE85C79);
-  static const Color _ink = Color(0xFF232326);
-  static const Color _muted = Color(0xFF9AA0AC);
-  static const Color _neutralSurface = Color(0xFFF6F6F7);
-
   static final Map<String, WidgetBuilder> _quickLinkRoutes = {
     'certificate_schedule': (_) => const CertificateSchedulePage(),
     'study_plan': (_) => const StudyPlanScreen(),
@@ -107,15 +102,17 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       setState(() {
         _messages
           ..clear()
-          ..addAll(records.map(
-                (r) => _ChatMessage(
-              text: r.text,
-              isBot: r.isBot,
-              createdAt: r.createdAt ?? DateTime.now(),
-              quickLinkLabel: r.quickLinkLabel,
-              quickLinkRoute: r.quickLinkRoute,
+          ..addAll(
+            records.map(
+              (r) => _ChatMessage(
+                text: r.text,
+                isBot: r.isBot,
+                createdAt: r.createdAt ?? DateTime.now(),
+                quickLinkLabel: r.quickLinkLabel,
+                quickLinkRoute: r.quickLinkRoute,
+              ),
             ),
-          ));
+          );
 
         if (_messages.isNotEmpty && _messages.last.isBot) {
           _messages.last.options = _buildRootOptions();
@@ -130,11 +127,13 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _messages.add(_ChatMessage(
-          text: '대화 기록을 불러오지 못했어요.',
-          isBot: true,
-          createdAt: DateTime.now(),
-        ));
+        _messages.add(
+          _ChatMessage(
+            text: '대화 기록을 불러오지 못했어요.',
+            isBot: true,
+            createdAt: DateTime.now(),
+          ),
+        );
         _isLoadingHistory = false;
       });
     }
@@ -144,11 +143,11 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     final options = widget.faqItems
         .map(
           (faq) => _QuickOption(
-        label: faq.question,
-        icon: Icons.help_outline_rounded,
-        onTap: () => _onFaqSelected(faq),
-      ),
-    )
+            label: faq.question,
+            icon: Icons.help_outline_rounded,
+            onTap: () => _onFaqSelected(faq),
+          ),
+        )
         .toList();
 
     options.add(
@@ -194,17 +193,38 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       for (final m in _messages) {
         m.options = null;
       }
-      _messages.add(_ChatMessage(text: faq.question, isBot: false, createdAt: DateTime.now()));
+      _messages.add(
+        _ChatMessage(
+          text: faq.question,
+          isBot: false,
+          createdAt: DateTime.now(),
+        ),
+      );
     });
     _scrollToBottom();
 
     try {
       final sessionId = await _ensureSession();
-      unawaited(_helpService.addChatMessage(sessionId: sessionId, text: faq.question, isBot: false));
+      unawaited(
+        _helpService.addChatMessage(
+          sessionId: sessionId,
+          text: faq.question,
+          isBot: false,
+        ),
+      );
     } catch (_) {}
 
     if (mounted) {
-      setState(() => _messages.add(_ChatMessage(text: '', isBot: true, isTyping: true, createdAt: DateTime.now())));
+      setState(
+        () => _messages.add(
+          _ChatMessage(
+            text: '',
+            isBot: true,
+            isTyping: true,
+            createdAt: DateTime.now(),
+          ),
+        ),
+      );
       _scrollToBottom();
     }
 
@@ -250,18 +270,35 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       for (final m in _messages) {
         m.options = null;
       }
-      _messages.add(_ChatMessage(text: text, isBot: false, createdAt: DateTime.now()));
+      _messages.add(
+        _ChatMessage(text: text, isBot: false, createdAt: DateTime.now()),
+      );
     });
     _inputController.clear();
     _scrollToBottom();
 
     try {
       final sessionId = await _ensureSession();
-      unawaited(_helpService.addChatMessage(sessionId: sessionId, text: text, isBot: false));
+      unawaited(
+        _helpService.addChatMessage(
+          sessionId: sessionId,
+          text: text,
+          isBot: false,
+        ),
+      );
     } catch (_) {}
 
     if (mounted) {
-      setState(() => _messages.add(_ChatMessage(text: '', isBot: true, isTyping: true, createdAt: DateTime.now())));
+      setState(
+        () => _messages.add(
+          _ChatMessage(
+            text: '',
+            isBot: true,
+            isTyping: true,
+            createdAt: DateTime.now(),
+          ),
+        ),
+      );
       _scrollToBottom();
     }
 
@@ -274,18 +311,24 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     if (mounted) {
       setState(() {
         _messages.removeWhere((m) => m.isTyping);
-        _messages.add(_ChatMessage(
-          text: reply,
-          isBot: true,
-          createdAt: DateTime.now(),
-          options: _buildRootOptions(),
-        ));
+        _messages.add(
+          _ChatMessage(
+            text: reply,
+            isBot: true,
+            createdAt: DateTime.now(),
+            options: _buildRootOptions(),
+          ),
+        );
       });
       _scrollToBottom();
     }
 
     if (_sessionId != null) {
-      await _helpService.addChatMessage(sessionId: _sessionId!, text: reply, isBot: true);
+      await _helpService.addChatMessage(
+        sessionId: _sessionId!,
+        text: reply,
+        isBot: true,
+      );
 
       if (mounted) {
         _markCurrentSessionRead();
@@ -322,18 +365,18 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       Navigator.of(context).pop(true);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('문의 등록에 실패했어요. 다시 시도해주세요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('문의 등록에 실패했어요. 다시 시도해주세요.')));
     }
   }
 
   void _onQuickLinkTap(String route) {
     final builder = _quickLinkRoutes[route];
     if (builder == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('아직 연결되지 않은 페이지예요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('아직 연결되지 않은 페이지예요.')));
       return;
     }
     Navigator.push(context, MaterialPageRoute(builder: builder));
@@ -353,7 +396,10 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 builder: (_) => ChatHistoryScreen(faqItems: widget.faqItems),
               ),
             ),
-            icon: const Icon(Icons.history_rounded, color: Color(0xFF302C2E)),
+            icon: Icon(
+              Icons.history_rounded,
+              color: context.colors.iconPrimary,
+            ),
           ),
         ],
       ),
@@ -363,25 +409,37 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             children: [
               Expanded(
                 child: _isLoadingHistory
-                    ? const Center(child: CircularProgressIndicator(color: _pink))
+                    ? Center(
+                        child: CircularProgressIndicator(
+                          color: context.colors.pinkStart,
+                        ),
+                      )
                     : ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                  itemCount: _messages.length,
-                  itemBuilder: (context, index) {
-                    final msg = _messages[index];
-                    final showDivider = index == 0 ||
-                        !isSameDate(_messages[index - 1].createdAt, msg.createdAt);
+                        controller: _scrollController,
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                        itemCount: _messages.length,
+                        itemBuilder: (context, index) {
+                          final msg = _messages[index];
+                          final showDivider =
+                              index == 0 ||
+                              !isSameDate(
+                                _messages[index - 1].createdAt,
+                                msg.createdAt,
+                              );
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (showDivider) _DateDivider(date: msg.createdAt),
-                        _ChatBubble(message: msg, onQuickLinkTap: _onQuickLinkTap),
-                      ],
-                    );
-                  },
-                ),
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (showDivider)
+                                _DateDivider(date: msg.createdAt),
+                              _ChatBubble(
+                                message: msg,
+                                onQuickLinkTap: _onQuickLinkTap,
+                              ),
+                            ],
+                          );
+                        },
+                      ),
               ),
               _buildInputBar(),
             ],
@@ -400,9 +458,13 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         MediaQuery.of(context).viewInsets.bottom > 0 ? 10 : 14,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, -4)),
+          BoxShadow(
+            color: context.colors.shadow,
+            blurRadius: 12,
+            offset: const Offset(0, -4),
+          ),
         ],
       ),
       child: Row(
@@ -414,8 +476,11 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               decoration: InputDecoration(
                 hintText: '메시지를 입력하세요',
                 filled: true,
-                fillColor: _neutralSurface,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                fillColor: context.colors.surfaceMuted,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide.none,
@@ -429,11 +494,15 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             child: Container(
               width: 44,
               height: 44,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: LinearGradient(colors: [_pink, _pinkDeep]),
+                gradient: context.colors.themedPinkGradient,
               ),
-              child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+              child: Icon(
+                Icons.send_rounded,
+                color: context.colors.onPrimary,
+                size: 20,
+              ),
             ),
           ),
         ],
@@ -454,12 +523,16 @@ class _DateDivider extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.06),
+            color: context.colors.shadow,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
             formatDateDivider(date),
-            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFF6B6E76)),
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: context.colors.textSecondary,
+            ),
           ),
         ),
       ),
@@ -480,15 +553,19 @@ class _BotAvatar extends StatelessWidget {
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFF5D9E1), width: 1.4),
+        color: context.colors.surface,
+        border: Border.all(color: context.colors.pinkBorder, width: 1.4),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6, offset: const Offset(0, 2)),
+          BoxShadow(
+            color: context.colors.shadow,
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
-      child: const CircleAvatar(
-        backgroundColor: Color(0xFFFCEFF3),
-        backgroundImage: AssetImage('assets/images/cloud_it.png'),
+      child: CircleAvatar(
+        backgroundColor: context.colors.pinkSoft,
+        backgroundImage: const AssetImage('assets/images/cloud_it.png'),
       ),
     );
   }
@@ -500,9 +577,6 @@ class _ChatBubble extends StatelessWidget {
 
   const _ChatBubble({required this.message, required this.onQuickLinkTap});
 
-  static const Color _pink = Color(0xFFF0788F);
-  static const Color _pinkDeep = Color(0xFFE85C79);
-
   @override
   Widget build(BuildContext context) {
     final isBot = message.isBot;
@@ -511,25 +585,33 @@ class _ChatBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Row(
-        mainAxisAlignment: isBot ? MainAxisAlignment.start : MainAxisAlignment.end,
+        mainAxisAlignment: isBot
+            ? MainAxisAlignment.start
+            : MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (isBot) ...[
-            const _BotAvatar(size: 32),
-            const SizedBox(width: 8),
-          ],
+          if (isBot) ...[const _BotAvatar(size: 32), const SizedBox(width: 8)],
           Flexible(
             child: Column(
-              crossAxisAlignment: isBot ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+              crossAxisAlignment: isBot
+                  ? CrossAxisAlignment.start
+                  : CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
               children: [
                 ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.78,
+                  ),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
-                      gradient: isBot ? null : const LinearGradient(colors: [_pink, _pinkDeep]),
-                      color: isBot ? Colors.white : null,
+                      gradient: isBot
+                          ? null
+                          : context.colors.themedPinkGradient,
+                      color: isBot ? context.colors.surface : null,
                       borderRadius: BorderRadius.only(
                         topLeft: const Radius.circular(16),
                         topRight: const Radius.circular(16),
@@ -537,13 +619,19 @@ class _ChatBubble extends StatelessWidget {
                         bottomRight: Radius.circular(isBot ? 16 : 4),
                       ),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
+                        BoxShadow(
+                          color: context.colors.shadow,
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
                       ],
                     ),
                     // 옵션 버튼이 있을 때만 폭을 꽉 채우고,
                     // 없으면 텍스트 길이에 맞게 자연스럽게 줄어듭니다.
                     child: Column(
-                      crossAxisAlignment: hasOptions ? CrossAxisAlignment.stretch : CrossAxisAlignment.start,
+                      crossAxisAlignment: hasOptions
+                          ? CrossAxisAlignment.stretch
+                          : CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         if (message.isTyping)
@@ -554,7 +642,9 @@ class _ChatBubble extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 14,
                               height: 1.5,
-                              color: isBot ? const Color(0xFF302C2E) : Colors.white,
+                              color: isBot
+                                  ? context.colors.textPrimary
+                                  : context.colors.onPrimary,
                             ),
                           ),
                         if (message.quickLinkRoute != null) ...[
@@ -563,16 +653,17 @@ class _ChatBubble extends StatelessWidget {
                             alignment: Alignment.centerLeft,
                             child: _QuickLinkChip(
                               label: message.quickLinkLabel ?? '바로가기',
-                              onTap: () => onQuickLinkTap(message.quickLinkRoute!),
+                              onTap: () =>
+                                  onQuickLinkTap(message.quickLinkRoute!),
                             ),
                           ),
                         ],
                         if (hasOptions) ...[
                           const SizedBox(height: 12),
-                          const Divider(height: 1, color: Color(0xFFF0EEF0)),
+                          Divider(height: 1, color: context.colors.divider),
                           const SizedBox(height: 12),
                           ...message.options!.map(
-                                (opt) => Padding(
+                            (opt) => Padding(
                               padding: const EdgeInsets.only(bottom: 8),
                               child: _QuickOptionButton(option: opt),
                             ),
@@ -588,7 +679,10 @@ class _ChatBubble extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: Text(
                       formatBubbleTime(message.createdAt),
-                      style: const TextStyle(fontSize: 10.5, color: Color(0xFFB4B8C2)),
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: context.colors.textMuted,
+                      ),
                     ),
                   ),
                 ],
@@ -610,7 +704,7 @@ class _QuickLinkChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFFFCEFF3),
+      color: context.colors.pinkSoft,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -620,10 +714,20 @@ class _QuickLinkChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.north_east_rounded, size: 14, color: Color(0xFFF0788F)),
+              Icon(
+                Icons.north_east_rounded,
+                size: 14,
+                color: context.colors.pinkStart,
+              ),
               const SizedBox(width: 6),
-              Text(label,
-                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: Color(0xFFF0788F))),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                  color: context.colors.pinkStart,
+                ),
+              ),
             ],
           ),
         ),
@@ -641,7 +745,9 @@ class _QuickOptionButton extends StatelessWidget {
     final isWriteInquiry = option.icon == Icons.edit_note_rounded;
 
     return Material(
-      color: isWriteInquiry ? const Color(0xFFF0788F) : const Color(0xFFF9F6F7),
+      color: isWriteInquiry
+          ? context.colors.pinkStart
+          : context.colors.surfaceMuted,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -651,11 +757,19 @@ class _QuickOptionButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: isWriteInquiry ? null : Border.all(color: const Color(0xFFEFE9EA)),
+            border: isWriteInquiry
+                ? null
+                : Border.all(color: context.colors.border),
           ),
           child: Row(
             children: [
-              Icon(option.icon, size: 17, color: isWriteInquiry ? Colors.white : const Color(0xFFF0788F)),
+              Icon(
+                option.icon,
+                size: 17,
+                color: isWriteInquiry
+                    ? context.colors.onPrimary
+                    : context.colors.pinkStart,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -663,12 +777,19 @@ class _QuickOptionButton extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: isWriteInquiry ? Colors.white : const Color(0xFF302C2E),
+                    color: isWriteInquiry
+                        ? context.colors.onPrimary
+                        : context.colors.textPrimary,
                   ),
                 ),
               ),
-              Icon(Icons.chevron_right_rounded,
-                  size: 18, color: isWriteInquiry ? Colors.white : const Color(0xFFB4B8C2)),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: isWriteInquiry
+                    ? context.colors.onPrimary
+                    : context.colors.textMuted,
+              ),
             ],
           ),
         ),
@@ -685,13 +806,17 @@ class _TypingIndicator extends StatefulWidget {
   State<_TypingIndicator> createState() => _TypingIndicatorState();
 }
 
-class _TypingIndicatorState extends State<_TypingIndicator> with SingleTickerProviderStateMixin {
+class _TypingIndicatorState extends State<_TypingIndicator>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..repeat();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
   }
 
   @override
@@ -724,7 +849,10 @@ class _TypingIndicatorState extends State<_TypingIndicator> with SingleTickerPro
                     child: Container(
                       width: 7,
                       height: 7,
-                      decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFF0788F)),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: context.colors.pinkStart,
+                      ),
                     ),
                   ),
                 );

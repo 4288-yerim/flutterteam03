@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
+
 import '../../auth/screens/welcome_screen.dart';
 import '../../auth/services/auth_service.dart';
 import '../../main_page.dart';
@@ -195,8 +197,8 @@ class _AdminPageState extends State<AdminPage> {
             appBar: AppBar(
               title: Text(
                 selectedMenu.title,
-                style: const TextStyle(
-                  color: Color(0xFF1A1A1A),
+                style: TextStyle(
+                  color: context.colors.textPrimary,
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                 ),
@@ -205,7 +207,7 @@ class _AdminPageState extends State<AdminPage> {
               elevation: 0,
               scrolledUnderElevation: 0,
               backgroundColor: Colors.transparent,
-              foregroundColor: const Color(0xFF1A1A1A),
+              foregroundColor: context.colors.textPrimary,
               surfaceTintColor: Colors.transparent,
             ),
             drawer: Drawer(
@@ -228,22 +230,22 @@ class _AdminPageState extends State<AdminPage> {
                             padding: const EdgeInsets.only(bottom: 4),
                             child: ListTile(
                               selected: isSelected,
-                              selectedTileColor: const Color(0xFFF1EFFF),
+                              selectedTileColor: context.colors.lavender,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
                               leading: Icon(
                                 menu.icon,
                                 color: isSelected
-                                    ? const Color(0xFF5D54D6)
-                                    : const Color(0xFF65656D),
+                                    ? context.colors.lavenderAccent
+                                    : context.colors.iconSecondary,
                               ),
                               title: Text(
                                 menu.title,
                                 style: TextStyle(
                                   color: isSelected
-                                      ? const Color(0xFF4038A5)
-                                      : const Color(0xFF29292E),
+                                      ? context.colors.lavenderAccent
+                                      : context.colors.textPrimary,
                                   fontWeight: isSelected
                                       ? FontWeight.w800
                                       : FontWeight.w600,
@@ -259,22 +261,22 @@ class _AdminPageState extends State<AdminPage> {
                     ListTile(
                       enabled: !_isSigningOut,
                       leading: _isSigningOut
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 24,
                               height: 24,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Color(0xFFD14D4D),
+                                color: context.colors.incorrect,
                               ),
                             )
-                          : const Icon(
+                          : Icon(
                               Icons.logout_rounded,
-                              color: Color(0xFFD14D4D),
+                              color: context.colors.incorrect,
                             ),
                       title: Text(
                         _isSigningOut ? '로그아웃 중...' : '로그아웃',
-                        style: const TextStyle(
-                          color: Color(0xFFD14D4D),
+                        style: TextStyle(
+                          color: context.colors.incorrect,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -298,8 +300,11 @@ class _AdminPageState extends State<AdminPage> {
             ),
           ),
           if (_isSigningOut) ...[
-            const Positioned.fill(
-              child: ModalBarrier(dismissible: false, color: Color(0x73000000)),
+            Positioned.fill(
+              child: ModalBarrier(
+                dismissible: false,
+                color: context.colors.overlay,
+              ),
             ),
             Center(
               child: Container(
@@ -308,25 +313,25 @@ class _AdminPageState extends State<AdminPage> {
                   vertical: 24,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: context.colors.surfaceElevated,
                   borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [
+                  boxShadow: [
                     BoxShadow(
-                      color: Color(0x33000000),
+                      color: context.colors.shadow,
                       blurRadius: 18,
                       offset: Offset(0, 8),
                     ),
                   ],
                 ),
-                child: const Column(
+                child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircularProgressIndicator(color: Color(0xFFD14D4D)),
+                    CircularProgressIndicator(color: context.colors.incorrect),
                     SizedBox(height: 18),
                     Text(
                       '로그아웃 중...',
                       style: TextStyle(
-                        color: Color(0xFF29292E),
+                        color: context.colors.textPrimary,
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                         decoration: TextDecoration.none,
@@ -346,15 +351,15 @@ class _AdminPageState extends State<AdminPage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-      color: const Color(0xFFF4F1FF),
-      child: const Row(
+      color: context.colors.lavender,
+      child: Row(
         children: [
           CircleAvatar(
             radius: 25,
-            backgroundColor: Color(0xFF6C63FF),
+            backgroundColor: context.colors.lavenderAccent,
             child: Icon(
               Icons.admin_panel_settings_outlined,
-              color: Colors.white,
+              color: context.colors.onPrimary,
               size: 28,
             ),
           ),
@@ -369,7 +374,10 @@ class _AdminPageState extends State<AdminPage> {
               SizedBox(height: 4),
               Text(
                 '서비스 운영 관리',
-                style: TextStyle(color: Color(0xFF6B6B73), fontSize: 13),
+                style: TextStyle(
+                  color: context.colors.textSecondary,
+                  fontSize: 13,
+                ),
               ),
             ],
           ),

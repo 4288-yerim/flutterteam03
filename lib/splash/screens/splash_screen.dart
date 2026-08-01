@@ -40,15 +40,13 @@ class _SplashScreenState extends State<SplashScreen>
       parent: _controller,
       curve: const Interval(0.0, 0.4, curve: Curves.easeOut),
     );
-    _wordmarkSlide = Tween<Offset>(
-      begin: const Offset(0, 0.25),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.0, 0.5, curve: Curves.easeOutCubic),
-      ),
-    );
+    _wordmarkSlide =
+        Tween<Offset>(begin: const Offset(0, 0.25), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _controller,
+            curve: const Interval(0.0, 0.5, curve: Curves.easeOutCubic),
+          ),
+        );
 
     _dotsOpacity = CurvedAnimation(
       parent: _controller,
@@ -94,12 +92,12 @@ class _SplashScreenState extends State<SplashScreen>
               : '별도 안내 시까지';
 
           nextScreen = WelcomeScreen(
-            blockedMessage: '이용이 정지된 계정입니다.\n정지 기간: $untilText\n\n정지 해제 문의는 DdaiT@naver.com으로 해주세요.',
+            blockedMessage:
+                '이용이 정지된 계정입니다.\n정지 기간: $untilText\n\n정지 해제 문의는 DdaiT@naver.com으로 해주세요.',
           );
         } else {
           final bool isWithdrawalPending =
-          await WithdrawalStatusService
-              .isCurrentUserWithdrawalPending();
+              await WithdrawalStatusService.isCurrentUserWithdrawalPending();
 
           if (isWithdrawalPending) {
             await AppWidgetSync.clearAll();
@@ -200,7 +198,9 @@ class _SplashScreenState extends State<SplashScreen>
                     child: FadeTransition(
                       opacity: _wordmarkOpacity,
                       child: Image.asset(
-                        'assets/images/textLogo.png',
+                        Theme.of(context).brightness == Brightness.dark
+                            ? 'assets/images/textLogo_dark.png'
+                            : 'assets/images/textLogo.png',
                         height: 34,
                       ),
                     ),
@@ -289,17 +289,10 @@ class _WavingCharacter extends StatelessWidget {
         final bounce = -6 * (1 - (controller.value - 0.5).abs() * 2);
         return Transform.translate(
           offset: Offset(0, bounce),
-          child: Transform.rotate(
-            angle: tilt,
-            child: child,
-          ),
+          child: Transform.rotate(angle: tilt, child: child),
         );
       },
-      child: Image.asset(
-        'assets/icons/character.png',
-        width: 88,
-        height: 88,
-      ),
+      child: Image.asset('assets/icons/character.png', width: 88, height: 88),
     );
   }
 }

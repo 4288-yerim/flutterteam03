@@ -22,9 +22,7 @@ class StudyJoinRequestService {
     final groupDocument = FirebaseFirestore.instance
         .collection('studyGroups')
         .doc(studyId);
-    final memberDocument = groupDocument
-        .collection('members')
-        .doc(memberUid);
+    final memberDocument = groupDocument.collection('members').doc(memberUid);
 
     await FirebaseFirestore.instance.runTransaction((transaction) async {
       final groupSnapshot = await transaction.get(groupDocument);
@@ -83,9 +81,7 @@ class StudyJoinRequestService {
     final groupDocument = FirebaseFirestore.instance
         .collection('studyGroups')
         .doc(studyId);
-    final memberDocument = groupDocument
-        .collection('members')
-        .doc(memberUid);
+    final memberDocument = groupDocument.collection('members').doc(memberUid);
 
     await FirebaseFirestore.instance.runTransaction((transaction) async {
       final groupSnapshot = await transaction.get(groupDocument);
@@ -128,14 +124,10 @@ class StudyJoinRequestService {
 class StudyJoinRequestsPage extends StatefulWidget {
   final String studyId;
 
-  const StudyJoinRequestsPage({
-    super.key,
-    required this.studyId,
-  });
+  const StudyJoinRequestsPage({super.key, required this.studyId});
 
   @override
-  State<StudyJoinRequestsPage> createState() =>
-      _StudyJoinRequestsPageState();
+  State<StudyJoinRequestsPage> createState() => _StudyJoinRequestsPageState();
 }
 
 class _StudyJoinRequestsPageState extends State<StudyJoinRequestsPage> {
@@ -147,9 +139,9 @@ class _StudyJoinRequestsPageState extends State<StudyJoinRequestsPage> {
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   String _errorMessage(Object error) {
@@ -207,9 +199,7 @@ class _StudyJoinRequestsPageState extends State<StudyJoinRequestsPage> {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const AppLoadingView(
-            message: '참여 신청 목록을 불러오는 중입니다.',
-          );
+          return const AppLoadingView(message: '참여 신청 목록을 불러오는 중입니다.');
         }
         if (snapshot.hasError) {
           return const AppErrorView(
@@ -218,17 +208,18 @@ class _StudyJoinRequestsPageState extends State<StudyJoinRequestsPage> {
           );
         }
 
-        final requests = (snapshot.data?.docs ?? [])
-            .where((document) => document.data()['status'] == 'PENDING')
-            .toList()
-          ..sort((a, b) {
-            final aTime = a.data()['requestedAt'];
-            final bTime = b.data()['requestedAt'];
-            if (aTime is Timestamp && bTime is Timestamp) {
-              return aTime.compareTo(bTime);
-            }
-            return 0;
-          });
+        final requests =
+            (snapshot.data?.docs ?? [])
+                .where((document) => document.data()['status'] == 'PENDING')
+                .toList()
+              ..sort((a, b) {
+                final aTime = a.data()['requestedAt'];
+                final bTime = b.data()['requestedAt'];
+                if (aTime is Timestamp && bTime is Timestamp) {
+                  return aTime.compareTo(bTime);
+                }
+                return 0;
+              });
 
         if (requests.isEmpty) {
           return const AppEmptyView(
@@ -247,8 +238,7 @@ class _StudyJoinRequestsPageState extends State<StudyJoinRequestsPage> {
             final nickname = data['nickname']?.toString().trim();
             final profileImageUrl =
                 data['profileImageUrl']?.toString().trim() ?? '';
-            final isProcessing =
-            _processingMemberUids.contains(document.id);
+            final isProcessing = _processingMemberUids.contains(document.id);
 
             return Container(
               padding: const EdgeInsets.all(16),
@@ -261,7 +251,7 @@ class _StudyJoinRequestsPageState extends State<StudyJoinRequestsPage> {
                 children: [
                   CircleAvatar(
                     radius: 24,
-                    backgroundColor: const Color(0xFFF2ECFF),
+                    backgroundColor: _colorScheme.secondaryContainer,
                     backgroundImage: profileImageUrl.isEmpty
                         ? null
                         : NetworkImage(profileImageUrl),

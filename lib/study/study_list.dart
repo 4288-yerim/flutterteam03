@@ -10,6 +10,7 @@ import '../widgets/app_main_background.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_top_bar.dart';
 import '../notification/screens/notification.dart';
+import '../notification/widgets/notification_bell_button.dart';
 import 'study_add.dart';
 import 'study_detail.dart';
 import 'study_join_requests.dart';
@@ -37,26 +38,6 @@ Future<void> main() async {
 }
 
 /// main_page.dart에서 사용하는 스터디 화면
-
-Brightness get _studyBrightness {
-  return WidgetsBinding.instance.platformDispatcher.platformBrightness;
-}
-
-AppColors get _studyColors {
-  if (_studyBrightness == Brightness.dark) {
-    return AppColors.dark;
-  }
-
-  return AppColors.light;
-}
-
-ColorScheme get _studyColorScheme {
-  if (_studyBrightness == Brightness.dark) {
-    return darkTheme.colorScheme;
-  }
-
-  return lightTheme.colorScheme;
-}
 
 class StudyListApp extends StatelessWidget {
   const StudyListApp({super.key});
@@ -360,12 +341,12 @@ class _StudyListPageState extends State<StudyListPage> {
   Widget _buildTopTab(String title) {
     bool isSelected = _selectedTab == title;
 
-    Color backgroundColor = _studyColorScheme.surface;
-    Color textColor = _studyColors.textSecondary;
+    Color backgroundColor = Theme.of(context).colorScheme.surface;
+    Color textColor = context.colors.textSecondary;
 
     if (isSelected) {
-      backgroundColor = _studyColors.pinkStart;
-      textColor = Colors.white;
+      backgroundColor = context.colors.pinkStart;
+      textColor = context.colors.onPrimary;
     }
 
     return Expanded(
@@ -410,11 +391,14 @@ class _StudyListPageState extends State<StudyListPage> {
         },
         decoration: InputDecoration(
           hintText: '스터디 이름 또는 자격증 검색',
-          hintStyle: TextStyle(fontSize: 13, color: _studyColors.textSecondary),
+          hintStyle: TextStyle(
+            fontSize: 13,
+            color: context.colors.textSecondary,
+          ),
           prefixIcon: Icon(
             Icons.search_rounded,
             size: 21,
-            color: _studyColors.textSecondary,
+            color: context.colors.textSecondary,
           ),
           suffixIcon: _searchText.isEmpty
               ? null
@@ -430,7 +414,7 @@ class _StudyListPageState extends State<StudyListPage> {
                   icon: Icon(Icons.close_rounded, size: 19),
                 ),
           filled: true,
-          fillColor: _studyColorScheme.surface,
+          fillColor: Theme.of(context).colorScheme.surface,
           isDense: true,
           contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           border: OutlineInputBorder(
@@ -439,11 +423,11 @@ class _StudyListPageState extends State<StudyListPage> {
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: _studyColors.pinkSoft),
+            borderSide: BorderSide(color: context.colors.pinkSoft),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: _studyColors.pinkStart, width: 1.3),
+            borderSide: BorderSide(color: context.colors.pinkStart, width: 1.3),
           ),
         ),
       ),
@@ -453,14 +437,14 @@ class _StudyListPageState extends State<StudyListPage> {
   Widget _buildFindFilter(String title) {
     bool isSelected = _selectedFindFilter == title;
 
-    Color backgroundColor = _studyColorScheme.surface;
-    Color textColor = _studyColors.textSecondary;
-    Color borderColor = _studyColorScheme.outlineVariant;
+    Color backgroundColor = Theme.of(context).colorScheme.surface;
+    Color textColor = context.colors.textSecondary;
+    Color borderColor = Theme.of(context).colorScheme.outlineVariant;
 
     if (isSelected) {
-      backgroundColor = _studyColors.lavender;
-      textColor = _studyColors.pinkStart;
-      borderColor = _studyColors.pinkStart;
+      backgroundColor = context.colors.lavender;
+      textColor = context.colors.pinkStart;
+      borderColor = context.colors.pinkStart;
     }
 
     return ChoiceChip(
@@ -509,7 +493,7 @@ class _StudyListPageState extends State<StudyListPage> {
     if (thumbnailUrl.isNotEmpty) {
       return CircleAvatar(
         radius: 27,
-        backgroundColor: _studyColors.lavender,
+        backgroundColor: context.colors.lavender,
         backgroundImage: NetworkImage(thumbnailUrl),
       );
     }
@@ -522,13 +506,13 @@ class _StudyListPageState extends State<StudyListPage> {
 
     return CircleAvatar(
       radius: 27,
-      backgroundColor: _studyColors.lavender,
+      backgroundColor: context.colors.lavender,
       child: Text(
         firstLetter,
         style: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.bold,
-          color: _studyColors.pinkStart,
+          color: context.colors.pinkStart,
         ),
       ),
     );
@@ -573,13 +557,13 @@ class _StudyListPageState extends State<StudyListPage> {
     }
 
     String roleText = '참여 중';
-    Color roleBackgroundColor = _studyColors.mint;
-    Color roleTextColor = _studyColorScheme.tertiary;
+    Color roleBackgroundColor = context.colors.mint;
+    Color roleTextColor = Theme.of(context).colorScheme.tertiary;
 
     if (isOwner) {
       roleText = '방장';
-      roleBackgroundColor = _studyColors.pinkSoft;
-      roleTextColor = _studyColors.pinkStart;
+      roleBackgroundColor = context.colors.pinkSoft;
+      roleTextColor = context.colors.pinkStart;
     }
 
     return Material(
@@ -594,7 +578,7 @@ class _StudyListPageState extends State<StudyListPage> {
           child: AppCard(
             borderRadius: 16,
             padding: EdgeInsets.all(14),
-            backgroundColor: _studyColorScheme.surface,
+            backgroundColor: Theme.of(context).colorScheme.surface,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -603,8 +587,8 @@ class _StudyListPageState extends State<StudyListPage> {
                     Flexible(
                       child: _buildBadge(
                         certificateName,
-                        _studyColors.pinkSoft,
-                        _studyColors.textPrimary,
+                        context.colors.pinkSoft,
+                        context.colors.textPrimary,
                       ),
                     ),
                     SizedBox(width: 7),
@@ -628,7 +612,7 @@ class _StudyListPageState extends State<StudyListPage> {
                               fontSize: 15,
                               height: 1.35,
                               fontWeight: FontWeight.w700,
-                              color: _studyColors.textPrimary,
+                              color: context.colors.textPrimary,
                             ),
                           ),
                           SizedBox(height: 5),
@@ -639,7 +623,7 @@ class _StudyListPageState extends State<StudyListPage> {
                             style: TextStyle(
                               fontSize: 12,
                               height: 1.4,
-                              color: _studyColors.textSecondary,
+                              color: context.colors.textSecondary,
                             ),
                           ),
                         ],
@@ -658,7 +642,7 @@ class _StudyListPageState extends State<StudyListPage> {
                             return Container(
                               width: 68,
                               height: 68,
-                              color: _studyColors.pinkSoft,
+                              color: context.colors.pinkSoft,
                               child: Icon(Icons.image_not_supported_outlined),
                             );
                           },
@@ -673,14 +657,14 @@ class _StudyListPageState extends State<StudyListPage> {
                     Icon(
                       Icons.groups_outlined,
                       size: 15,
-                      color: _studyColors.textSecondary,
+                      color: context.colors.textSecondary,
                     ),
                     SizedBox(width: 4),
                     Text(
                       memberText,
                       style: TextStyle(
                         fontSize: 11,
-                        color: _studyColors.textSecondary,
+                        color: context.colors.textSecondary,
                       ),
                     ),
                     Spacer(),
@@ -701,7 +685,7 @@ class _StudyListPageState extends State<StudyListPage> {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: _studyColors.textSecondary,
+                          color: context.colors.textSecondary,
                         ),
                       ),
                     ),
@@ -711,13 +695,13 @@ class _StudyListPageState extends State<StudyListPage> {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: _studyColors.pinkStart,
+                        color: context.colors.pinkStart,
                       ),
                     ),
                     Icon(
                       Icons.chevron_right_rounded,
                       size: 19,
-                      color: _studyColors.pinkStart,
+                      color: context.colors.pinkStart,
                     ),
                   ],
                 ),
@@ -751,7 +735,7 @@ class _StudyListPageState extends State<StudyListPage> {
         return Padding(
           padding: EdgeInsets.only(top: 9),
           child: Material(
-            color: _studyColors.pinkSoft,
+            color: context.colors.pinkSoft,
             borderRadius: BorderRadius.circular(12),
             child: InkWell(
               onTap: () {
@@ -768,7 +752,7 @@ class _StudyListPageState extends State<StudyListPage> {
                         Icon(
                           Icons.notifications_active_outlined,
                           size: 21,
-                          color: _studyColors.pinkStart,
+                          color: context.colors.pinkStart,
                         ),
                         Positioned(
                           right: -5,
@@ -781,13 +765,13 @@ class _StudyListPageState extends State<StudyListPage> {
                             alignment: Alignment.center,
                             padding: EdgeInsets.symmetric(horizontal: 4),
                             decoration: BoxDecoration(
-                              color: _studyColors.pinkStart,
+                              color: context.colors.pinkStart,
                               shape: BoxShape.circle,
                             ),
                             child: Text(
                               '$pendingCount',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: context.colors.onPrimary,
                                 fontSize: 9,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -801,7 +785,7 @@ class _StudyListPageState extends State<StudyListPage> {
                       child: Text(
                         '새 참여 신청이 $pendingCount건 있어요.',
                         style: TextStyle(
-                          color: _studyColors.textPrimary,
+                          color: context.colors.textPrimary,
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
@@ -810,7 +794,7 @@ class _StudyListPageState extends State<StudyListPage> {
                     Text(
                       '확인',
                       style: TextStyle(
-                        color: _studyColors.pinkStart,
+                        color: context.colors.pinkStart,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                       ),
@@ -819,7 +803,7 @@ class _StudyListPageState extends State<StudyListPage> {
                     Icon(
                       Icons.chevron_right_rounded,
                       size: 19,
-                      color: _studyColors.pinkStart,
+                      color: context.colors.pinkStart,
                     ),
                   ],
                 ),
@@ -852,13 +836,15 @@ class _StudyListPageState extends State<StudyListPage> {
     bool isRecruiting = _isRecruiting(studyData);
 
     String recruitingText = '모집 마감';
-    Color recruitingBackgroundColor = _studyColorScheme.outlineVariant;
-    Color recruitingTextColor = _studyColors.textSecondary;
+    Color recruitingBackgroundColor = Theme.of(
+      context,
+    ).colorScheme.outlineVariant;
+    Color recruitingTextColor = context.colors.textSecondary;
 
     if (isRecruiting) {
       recruitingText = '모집 중';
-      recruitingBackgroundColor = _studyColors.mint;
-      recruitingTextColor = _studyColorScheme.tertiary;
+      recruitingBackgroundColor = context.colors.mint;
+      recruitingTextColor = Theme.of(context).colorScheme.tertiary;
     }
 
     if (description.isEmpty) {
@@ -877,7 +863,7 @@ class _StudyListPageState extends State<StudyListPage> {
           child: AppCard(
             borderRadius: 16,
             padding: EdgeInsets.all(14),
-            backgroundColor: _studyColorScheme.surface,
+            backgroundColor: Theme.of(context).colorScheme.surface,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -886,8 +872,8 @@ class _StudyListPageState extends State<StudyListPage> {
                     Flexible(
                       child: _buildBadge(
                         certificateName,
-                        _studyColors.lavender,
-                        _studyColors.pinkStart,
+                        context.colors.lavender,
+                        context.colors.pinkStart,
                       ),
                     ),
                     SizedBox(width: 6),
@@ -914,7 +900,7 @@ class _StudyListPageState extends State<StudyListPage> {
                               fontSize: 15,
                               height: 1.35,
                               fontWeight: FontWeight.w700,
-                              color: _studyColors.textPrimary,
+                              color: context.colors.textPrimary,
                             ),
                           ),
                           SizedBox(height: 5),
@@ -925,7 +911,7 @@ class _StudyListPageState extends State<StudyListPage> {
                             style: TextStyle(
                               fontSize: 12,
                               height: 1.4,
-                              color: _studyColors.textSecondary,
+                              color: context.colors.textSecondary,
                             ),
                           ),
                         ],
@@ -944,7 +930,7 @@ class _StudyListPageState extends State<StudyListPage> {
                             return Container(
                               width: 68,
                               height: 68,
-                              color: _studyColors.pinkSoft,
+                              color: context.colors.pinkSoft,
                               child: Icon(Icons.image_not_supported_outlined),
                             );
                           },
@@ -959,14 +945,14 @@ class _StudyListPageState extends State<StudyListPage> {
                     Icon(
                       Icons.groups_outlined,
                       size: 15,
-                      color: _studyColors.textSecondary,
+                      color: context.colors.textSecondary,
                     ),
                     SizedBox(width: 4),
                     Text(
                       '$currentMemberCount / $maxMemberCount명',
                       style: TextStyle(
                         fontSize: 11,
-                        color: _studyColors.textSecondary,
+                        color: context.colors.textSecondary,
                       ),
                     ),
                     Spacer(),
@@ -975,13 +961,13 @@ class _StudyListPageState extends State<StudyListPage> {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: _studyColors.pinkStart,
+                        color: context.colors.pinkStart,
                       ),
                     ),
                     Icon(
                       Icons.chevron_right_rounded,
                       size: 19,
-                      color: _studyColors.pinkStart,
+                      color: context.colors.pinkStart,
                     ),
                   ],
                 ),
@@ -1053,7 +1039,7 @@ class _StudyListPageState extends State<StudyListPage> {
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
-                      color: _studyColors.textPrimary,
+                      color: context.colors.textPrimary,
                     ),
                   ),
                   SizedBox(height: 3),
@@ -1061,7 +1047,7 @@ class _StudyListPageState extends State<StudyListPage> {
                     '${myStudyList.length}개의 스터디',
                     style: TextStyle(
                       fontSize: 12,
-                      color: _studyColors.textSecondary,
+                      color: context.colors.textSecondary,
                     ),
                   ),
                 ],
@@ -1114,7 +1100,7 @@ class _StudyListPageState extends State<StudyListPage> {
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
-                    color: _studyColors.textPrimary,
+                    color: context.colors.textPrimary,
                   ),
                 ),
                 SizedBox(height: 3),
@@ -1122,7 +1108,7 @@ class _StudyListPageState extends State<StudyListPage> {
                   '${visibleStudyList.length}개의 스터디',
                   style: TextStyle(
                     fontSize: 12,
-                    color: _studyColors.textSecondary,
+                    color: context.colors.textSecondary,
                   ),
                 ),
               ],
@@ -1190,18 +1176,13 @@ class _StudyListPageState extends State<StudyListPage> {
         title: '스터디',
         centerTitle: false,
         actions: [
-          IconButton(
-            tooltip: '알림',
+          NotificationBellButton(
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const NotificationPage()),
               );
             },
-            icon: const Icon(
-              Icons.notifications_none_rounded,
-              color: Color(0xFF302C2E),
-            ),
           ),
         ],
       ),
@@ -1217,7 +1198,7 @@ class _StudyListPageState extends State<StudyListPage> {
               }
 
               return RefreshIndicator(
-                color: _studyColors.pinkStart,
+                color: context.colors.pinkStart,
                 onRefresh: _refreshStudyList,
                 child: ListView(
                   keyboardDismissBehavior:
@@ -1316,8 +1297,8 @@ class _StudyListPageState extends State<StudyListPage> {
           : FloatingActionButton.extended(
               heroTag: 'study_list_fab',
               onPressed: _openCreatePage,
-              backgroundColor: _studyColors.pinkStart,
-              foregroundColor: Colors.white,
+              backgroundColor: context.colors.pinkStart,
+              foregroundColor: context.colors.onPrimary,
               icon: Icon(Icons.add_rounded),
               label: Text(
                 '스터디 만들기',

@@ -2,8 +2,6 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import '../theme.dart';
-
 import '../widgets/app_card.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
@@ -48,36 +46,55 @@ class _StudyEditPageState extends State<StudyEditPage> {
   void initState() {
     super.initState();
 
-    _groupNameController =
-        TextEditingController(text: widget.studyData['groupName']?.toString() ?? '');
+    _groupNameController = TextEditingController(
+      text: widget.studyData['groupName']?.toString() ?? '',
+    );
 
     _certificateNameController = TextEditingController(
       text: widget.studyData['certificateName']?.toString() ?? '',
     );
 
-    _descriptionController =
-        TextEditingController(text: widget.studyData['description']?.toString() ?? '');
+    _descriptionController = TextEditingController(
+      text: widget.studyData['description']?.toString() ?? '',
+    );
 
-    int weeklyGoalMinutes = _getInt(widget.studyData, 'weeklyGoalMinutes', fallback: 900);
+    int weeklyGoalMinutes = _getInt(
+      widget.studyData,
+      'weeklyGoalMinutes',
+      fallback: 900,
+    );
     int weeklyGoalHours = (weeklyGoalMinutes / 60).round();
     if (weeklyGoalHours < 1) weeklyGoalHours = 15;
 
-    _weeklyGoalHourController = TextEditingController(text: weeklyGoalHours.toString());
+    _weeklyGoalHourController = TextEditingController(
+      text: weeklyGoalHours.toString(),
+    );
 
     dynamic examDateValue = widget.studyData['examDate'];
     if (examDateValue is Timestamp) {
       DateTime savedExamDate = examDateValue.toDate().toLocal();
-      _examDate = DateTime(savedExamDate.year, savedExamDate.month, savedExamDate.day);
+      _examDate = DateTime(
+        savedExamDate.year,
+        savedExamDate.month,
+        savedExamDate.day,
+      );
     }
 
-    _currentMemberCount = _getInt(widget.studyData, 'currentMemberCount', fallback: 1);
+    _currentMemberCount = _getInt(
+      widget.studyData,
+      'currentMemberCount',
+      fallback: 1,
+    );
     _minimumMemberCount = max(2, _currentMemberCount);
 
     _maxMemberCount = _getInt(widget.studyData, 'maxMemberCount', fallback: 5);
-    if (_maxMemberCount < _minimumMemberCount) _maxMemberCount = _minimumMemberCount;
+    if (_maxMemberCount < _minimumMemberCount)
+      _maxMemberCount = _minimumMemberCount;
     if (_maxMemberCount > 30) _maxMemberCount = 30;
 
-    _isPublic = widget.studyData['isPublic'] is bool ? widget.studyData['isPublic'] as bool : true;
+    _isPublic = widget.studyData['isPublic'] is bool
+        ? widget.studyData['isPublic'] as bool
+        : true;
 
     _joinApprovalRequired = widget.studyData['joinApprovalRequired'] is bool
         ? widget.studyData['joinApprovalRequired'] as bool
@@ -118,7 +135,11 @@ class _StudyEditPageState extends State<StudyEditPage> {
     if (selectedDate == null || !mounted) return;
 
     setState(() {
-      _examDate = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+      _examDate = DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+      );
     });
   }
 
@@ -139,42 +160,51 @@ class _StudyEditPageState extends State<StudyEditPage> {
     setState(() => _isSaving = true);
 
     try {
-      final previousStatus = widget.studyData['status']?.toString() ?? 'RECRUITING';
+      final previousStatus =
+          widget.studyData['status']?.toString() ?? 'RECRUITING';
       String nextStatus = previousStatus;
 
       if (previousStatus != 'COMPLETED') {
-        nextStatus = _currentMemberCount >= _maxMemberCount ? 'CLOSED' : 'RECRUITING';
+        nextStatus = _currentMemberCount >= _maxMemberCount
+            ? 'CLOSED'
+            : 'RECRUITING';
       }
 
-      await FirebaseFirestore.instance.collection('studyGroups').doc(widget.studyId).update({
-        'groupName': _groupNameController.text.trim(),
-        'certificateName': _certificateNameController.text.trim().isEmpty
-            ? '공통 스터디'
-            : _certificateNameController.text.trim(),
-        'description': _descriptionController.text.trim(),
-        'examDate': _examDate == null ? null : Timestamp.fromDate(_examDate!),
-        'weeklyGoalMinutes':
-        (int.tryParse(_weeklyGoalHourController.text.trim()) ?? 15) * 60,
-        'maxMemberCount': _maxMemberCount,
-        'isPublic': _isPublic,
-        'joinApprovalRequired': _joinApprovalRequired,
-        'status': nextStatus,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      await FirebaseFirestore.instance
+          .collection('studyGroups')
+          .doc(widget.studyId)
+          .update({
+            'groupName': _groupNameController.text.trim(),
+            'certificateName': _certificateNameController.text.trim().isEmpty
+                ? '공통 스터디'
+                : _certificateNameController.text.trim(),
+            'description': _descriptionController.text.trim(),
+            'examDate': _examDate == null
+                ? null
+                : Timestamp.fromDate(_examDate!),
+            'weeklyGoalMinutes':
+                (int.tryParse(_weeklyGoalHourController.text.trim()) ?? 15) *
+                60,
+            'maxMemberCount': _maxMemberCount,
+            'isPublic': _isPublic,
+            'joinApprovalRequired': _joinApprovalRequired,
+            'status': nextStatus,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('스터디 정보가 수정되었습니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('스터디 정보가 수정되었습니다.')));
 
       Navigator.pop(context, true);
     } catch (error) {
       debugPrint('스터디 수정 오류: $error');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('스터디 수정 실패: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('스터디 수정 실패: $error')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -191,7 +221,8 @@ class _StudyEditPageState extends State<StudyEditPage> {
             applySafeArea: false,
             child: SafeArea(
               child: SingleChildScrollView(
-                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.fromLTRB(20, 25, 20, 40),
                 child: Form(
                   key: _formKey,
@@ -213,6 +244,7 @@ class _StudyEditPageState extends State<StudyEditPage> {
                             controller: _groupNameController,
                             textInputAction: TextInputAction.next,
                             decoration: studyFieldDecoration(
+                              context: context,
                               labelText: '스터디 이름',
                               hintText: '예: 정보처리기사 실기 스터디',
                               icon: Icons.groups_outlined,
@@ -232,6 +264,7 @@ class _StudyEditPageState extends State<StudyEditPage> {
                             controller: _certificateNameController,
                             textInputAction: TextInputAction.next,
                             decoration: studyFieldDecoration(
+                              context: context,
                               labelText: '자격증 이름',
                               hintText: '예: 정보처리기사',
                               icon: Icons.workspace_premium_outlined,
@@ -244,6 +277,7 @@ class _StudyEditPageState extends State<StudyEditPage> {
                             maxLength: 200,
                             textInputAction: TextInputAction.newline,
                             decoration: studyFieldDecoration(
+                              context: context,
                               labelText: '스터디 소개',
                               hintText: '스터디 목표와 진행 방법을 입력해주세요.',
                               icon: Icons.edit_note_rounded,
@@ -278,6 +312,7 @@ class _StudyEditPageState extends State<StudyEditPage> {
                             keyboardType: TextInputType.number,
                             textInputAction: TextInputAction.done,
                             decoration: studyFieldDecoration(
+                              context: context,
                               labelText: '주간 목표 공부시간',
                               hintText: '예: 15',
                               icon: Icons.flag_outlined,
@@ -285,7 +320,8 @@ class _StudyEditPageState extends State<StudyEditPage> {
                             ),
                             validator: (value) {
                               int? goalHour = int.tryParse(value?.trim() ?? '');
-                              if (goalHour == null) return '주간 목표시간을 숫자로 입력해주세요.';
+                              if (goalHour == null)
+                                return '주간 목표시간을 숫자로 입력해주세요.';
                               if (goalHour < 1 || goalHour > 168) {
                                 return '1시간 이상 168시간 이하로 입력해주세요.';
                               }
@@ -308,7 +344,8 @@ class _StudyEditPageState extends State<StudyEditPage> {
                             caption: _currentMemberCount > 2
                                 ? '현재 인원 $_currentMemberCount명 · 최대 30명'
                                 : '최소 2명 · 최대 30명',
-                            onChanged: (v) => setState(() => _maxMemberCount = v),
+                            onChanged: (v) =>
+                                setState(() => _maxMemberCount = v),
                           ),
                           const SizedBox(height: 20),
                           StudySwitchTile(
@@ -318,7 +355,8 @@ class _StudyEditPageState extends State<StudyEditPage> {
                                 ? '다른 사용자가 검색하고 확인할 수 있습니다.'
                                 : '초대받은 사용자만 확인할 수 있습니다.',
                             value: _isPublic,
-                            onChanged: (value) => setState(() => _isPublic = value),
+                            onChanged: (value) =>
+                                setState(() => _isPublic = value),
                           ),
                           StudySwitchTile(
                             icon: Icons.verified_user_rounded,
@@ -327,7 +365,8 @@ class _StudyEditPageState extends State<StudyEditPage> {
                                 ? '방장이 승인해야 참여할 수 있습니다.'
                                 : '신청하면 바로 참여할 수 있습니다.',
                             value: _joinApprovalRequired,
-                            onChanged: (value) => setState(() => _joinApprovalRequired = value),
+                            onChanged: (value) =>
+                                setState(() => _joinApprovalRequired = value),
                           ),
                         ],
                       ),

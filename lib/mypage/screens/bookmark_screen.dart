@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
+
 import '../../community/community_post_detail.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
@@ -32,39 +34,37 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
     }
 
     final QuerySnapshot<Map<String, dynamic>> bookmarkSnapshot =
-    await FirebaseFirestore.instance
-        .collection('postBookmarks')
-        .doc(user.uid)
-        .collection('items')
-        .get();
+        await FirebaseFirestore.instance
+            .collection('postBookmarks')
+            .doc(user.uid)
+            .collection('items')
+            .get();
 
     final List<_SavedPostItem> items = [];
 
     for (final QueryDocumentSnapshot<Map<String, dynamic>> bookmarkDocument
-    in bookmarkSnapshot.docs) {
+        in bookmarkSnapshot.docs) {
       final String postId =
-      bookmarkDocument.data()['postId']?.toString().trim().isNotEmpty ==
-          true
+          bookmarkDocument.data()['postId']?.toString().trim().isNotEmpty ==
+              true
           ? bookmarkDocument.data()['postId'].toString()
           : bookmarkDocument.id;
 
       final DocumentSnapshot<Map<String, dynamic>> postDocument =
-      await FirebaseFirestore.instance
-          .collection('posts')
-          .doc(postId)
-          .get();
+          await FirebaseFirestore.instance
+              .collection('posts')
+              .doc(postId)
+              .get();
       final Map<String, dynamic>? postData = postDocument.data();
 
       if (!postDocument.exists || postData == null) {
         continue;
       }
 
-      final String status =
-      (postData['postStatus'] as String? ?? 'NORMAL')
+      final String status = (postData['postStatus'] as String? ?? 'NORMAL')
           .trim()
           .toUpperCase();
-      final String visibility =
-      (postData['visibility'] as String? ?? 'PUBLIC')
+      final String visibility = (postData['visibility'] as String? ?? 'PUBLIC')
           .trim()
           .toUpperCase();
 
@@ -77,16 +77,12 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
       items.add(
         _SavedPostItem(
           postId: postId,
-          boardName: _boardLabel(
-            postData['boardType']?.toString() ?? 'FREE',
-          ),
+          boardName: _boardLabel(postData['boardType']?.toString() ?? 'FREE'),
           title: postData['title']?.toString() ?? '제목 없는 게시글',
           content: postData['content']?.toString() ?? '',
-          writerNickname:
-          postData['writerNickname']?.toString() ?? '사용자',
+          writerNickname: postData['writerNickname']?.toString() ?? '사용자',
           likeCount: (postData['likeCount'] as num?)?.toInt() ?? 0,
-          commentCount:
-          (postData['commentCount'] as num?)?.toInt() ?? 0,
+          commentCount: (postData['commentCount'] as num?)?.toInt() ?? 0,
           createdAt: postData['createdAt'],
           savedAt: bookmarkDocument.data()['createdAt'],
         ),
@@ -123,15 +119,13 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: const AppTopBar(title: '북마크'),
+      appBar: AppTopBar(title: '북마크'),
       body: AppMainBackground(
         child: FutureBuilder<List<_SavedPostItem>>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const AppLoadingView(
-                message: '저장한 게시글을 불러오는 중입니다.',
-              );
+              return AppLoadingView(message: '저장한 게시글을 불러오는 중입니다.');
             }
 
             if (snapshot.hasError) {
@@ -145,7 +139,7 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
             final List<_SavedPostItem> items = snapshot.data ?? [];
 
             if (items.isEmpty) {
-              return const AppEmptyView(
+              return AppEmptyView(
                 message: '저장한 게시글이 없습니다.',
                 description: '나중에 다시 보고 싶은 게시글을 저장해보세요.',
               );
@@ -154,9 +148,9 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
             return RefreshIndicator(
               onRefresh: _refresh,
               child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+                padding: EdgeInsets.fromLTRB(20, 16, 20, 40),
                 itemCount: items.length + 1,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, __) => SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   if (index == 0) {
                     return _buildSummary(items.length);
@@ -174,24 +168,21 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
 
   Widget _buildSummary(int count) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF2F6),
+        color: context.colors.pinkSoftAlt,
         borderRadius: BorderRadius.circular(22),
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.bookmark_rounded,
-            color: Color(0xFFF0788F),
-          ),
-          const SizedBox(width: 10),
+          Icon(Icons.bookmark_rounded, color: context.colors.pinkStart),
+          SizedBox(width: 10),
           Text(
             '저장한 게시글 $count개',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF303238),
+              color: context.colors.textPrimary,
             ),
           ),
         ],
@@ -203,7 +194,7 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
     return GestureDetector(
       onTap: () => _openPost(item.postId),
       child: AppCard(
-        padding: const EdgeInsets.all(17),
+        padding: EdgeInsets.all(17),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -211,78 +202,75 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
               children: [
                 Text(
                   item.boardName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFFF0788F),
+                    color: context.colors.pinkStart,
                   ),
                 ),
-                const Spacer(),
+                Spacer(),
                 Text(
                   _formatCommunityDate(item.createdAt),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
-                    color: Color(0xFFA0A3AA),
+                    color: context.colors.textSecondary,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: 10),
             Text(
               item.title,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 height: 1.4,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF303238),
+                color: context.colors.textPrimary,
               ),
             ),
             if (item.content.trim().isNotEmpty) ...[
-              const SizedBox(height: 7),
+              SizedBox(height: 7),
               Text(
                 item.content,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   height: 1.4,
-                  color: Color(0xFF777B84),
+                  color: context.colors.textSecondary,
                 ),
               ),
             ],
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Text(
               item.writerNickname,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: Color(0xFF777B84),
+                color: context.colors.textSecondary,
               ),
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: 10),
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.favorite_border,
                   size: 16,
-                  color: Color(0xFFF0788F),
+                  color: context.colors.pinkStart,
                 ),
-                const SizedBox(width: 4),
+                SizedBox(width: 4),
                 Text('${item.likeCount}'),
-                const SizedBox(width: 14),
-                const Icon(
+                SizedBox(width: 14),
+                Icon(
                   Icons.chat_bubble_outline,
                   size: 16,
-                  color: Color(0xFF8B8F98),
+                  color: context.colors.textSecondary,
                 ),
-                const SizedBox(width: 4),
+                SizedBox(width: 4),
                 Text('${item.commentCount}'),
-                const Spacer(),
-                const Icon(
-                  Icons.chevron_right,
-                  color: Color(0xFFB0B3BA),
-                ),
+                Spacer(),
+                Icon(Icons.chevron_right, color: context.colors.textMuted),
               ],
             ),
           ],
@@ -303,7 +291,7 @@ class _SavedPostItem {
   final dynamic createdAt;
   final dynamic savedAt;
 
-  const _SavedPostItem({
+  _SavedPostItem({
     required this.postId,
     required this.boardName,
     required this.title,
@@ -327,7 +315,6 @@ class _SavedPostItem {
     return null;
   }
 }
-
 
 String _formatCommunityDate(dynamic value) {
   DateTime? dateTime;
@@ -369,4 +356,3 @@ String _boardLabel(String code) {
       return '자유';
   }
 }
-

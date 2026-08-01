@@ -86,11 +86,14 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _fadeAnim = CurvedAnimation(parent: _entryController, curve: Curves.easeOut);
-    _slideAnim = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic));
+    _fadeAnim = CurvedAnimation(
+      parent: _entryController,
+      curve: Curves.easeOut,
+    );
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
+        );
     _logoScale = Tween<double>(begin: 0.6, end: 1.0).animate(
       CurvedAnimation(
         parent: _entryController,
@@ -157,14 +160,14 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
     });
 
     try {
-      final callable = FirebaseFunctions.instance.httpsCallable('sendPasswordResetOtp');
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'sendPasswordResetOtp',
+      );
       await callable.call({'email': email});
 
       if (!mounted) return;
       Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ResetPasswordOtpScreen(email: email),
-        ),
+        MaterialPageRoute(builder: (_) => ResetPasswordOtpScreen(email: email)),
       );
     } on FirebaseFunctionsException catch (e) {
       debugPrint('SEND_RESET_OTP ERROR CODE: ${e.code}');
@@ -274,9 +277,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
       suffixIcon: controller.text.isEmpty
           ? null
           : IconButton(
-        icon: Icon(Icons.close, color: colors.textSecondary, size: 18),
-        onPressed: () => controller.clear(),
-      ),
+              icon: Icon(Icons.close, color: colors.textSecondary, size: 18),
+              onPressed: () => controller.clear(),
+            ),
     );
   }
 
@@ -357,7 +360,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
                 return SingleChildScrollView(
                   padding: EdgeInsets.symmetric(horizontal: 24),
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
                     child: IntrinsicHeight(
                       child: FadeTransition(
                         opacity: _fadeAnim,
@@ -370,7 +375,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
                               _logoHeader(colors),
                               SizedBox(height: 8),
                               Image.asset(
-                                'assets/images/textLogo.png',
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? 'assets/images/textLogo_dark.png'
+                                    : 'assets/images/textLogo.png',
                                 height: 22,
                               ),
                               SizedBox(height: 20),
@@ -386,7 +393,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
                               Text(
                                 '가입하신 이메일로 인증코드를 보내드릴게요',
                                 textAlign: TextAlign.center,
-                                style: TextStyle(fontSize: 14, color: colors.textSecondary),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: colors.textSecondary,
+                                ),
                               ),
                               SizedBox(height: 36),
 
@@ -414,7 +424,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
                                   alignment: Alignment.centerLeft,
                                   child: Text(
                                     _emailDisplayError!,
-                                    style: TextStyle(color: errorColor, fontSize: 12),
+                                    style: TextStyle(
+                                      color: errorColor,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ),
                               ] else if (_showButtonStep) ...[
@@ -424,11 +437,18 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.check_circle, size: 14, color: colors.pinkStart),
+                                      Icon(
+                                        Icons.check_circle,
+                                        size: 14,
+                                        color: colors.pinkStart,
+                                      ),
                                       SizedBox(width: 4),
                                       Text(
                                         '좋은 이메일이에요',
-                                        style: TextStyle(color: colors.pinkStart, fontSize: 12),
+                                        style: TextStyle(
+                                          color: colors.pinkStart,
+                                          fontSize: 12,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -442,18 +462,23 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
                                   animation: _buttonPulseController,
                                   builder: (context, child) {
                                     final t = _buttonPulseController.value;
-                                    final scale = 1.0 +
+                                    final scale =
+                                        1.0 +
                                         (Curves.easeOutBack.transform(t) *
                                             (t < 1 ? 0.06 : 0.0));
-                                    return Transform.scale(scale: scale, child: child);
+                                    return Transform.scale(
+                                      scale: scale,
+                                      child: child,
+                                    );
                                   },
                                   child: AppButton(
                                     text: '인증코드 받기',
                                     type: _isFormValid
                                         ? AppButtonType.primaryPink
                                         : AppButtonType.gray,
-                                    onPressed:
-                                    (_isFormValid && !_isLoading) ? _sendCode : null,
+                                    onPressed: (_isFormValid && !_isLoading)
+                                        ? _sendCode
+                                        : null,
                                   ),
                                 ),
                               ),

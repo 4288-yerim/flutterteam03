@@ -2,33 +2,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
-
 import '../widgets/app_main_background.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_top_bar.dart';
 import '../widgets/app_button.dart';
 import '../widgets/loading_overlay.dart';
 
-Brightness get _studyBrightness {
-  return WidgetsBinding.instance.platformDispatcher.platformBrightness;
-}
-
-AppColors get studyColors {
-  if (_studyBrightness == Brightness.dark) {
-    return AppColors.dark;
-  }
-  return AppColors.light;
-}
-
-ColorScheme get studyColorScheme {
-  if (_studyBrightness == Brightness.dark) {
-    return darkTheme.colorScheme;
-  }
-  return lightTheme.colorScheme;
-}
-
 // ── 공통 스타일 헬퍼 (study_edit.dart 에서도 import해서 사용) ──────
 InputDecoration studyFieldDecoration({
+  required BuildContext context,
   required String labelText,
   required String hintText,
   required IconData icon,
@@ -44,20 +26,20 @@ InputDecoration studyFieldDecoration({
     floatingLabelBehavior: FloatingLabelBehavior.always,
     filled: true,
     // 카드가 흰색이 되므로, 필드 배경은 카드보다 한 톤 톤다운된 뉴트럴로 — 카드-필드 경계도 또렷해짐
-    fillColor: studyColors.background,
+    fillColor: context.colors.background,
     prefixIcon: alignLabelWithHint
         ? null
         : Padding(
-      padding: const EdgeInsets.only(left: 4, right: 4),
-      child: Icon(icon, color: studyColors.pinkStart, size: 21),
-    ),
+            padding: const EdgeInsets.only(left: 4, right: 4),
+            child: Icon(icon, color: context.colors.pinkStart, size: 21),
+          ),
     labelStyle: TextStyle(
-      color: studyColors.pinkStart,
+      color: context.colors.pinkStart,
       fontSize: 12.5,
       fontWeight: FontWeight.w700,
     ),
     hintStyle: TextStyle(
-      color: studyColors.textSecondary.withOpacity(0.55),
+      color: context.colors.textSecondary.withOpacity(0.55),
       fontSize: 14,
     ),
     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
@@ -71,11 +53,14 @@ InputDecoration studyFieldDecoration({
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(16),
-      borderSide: BorderSide(color: studyColors.pinkStart, width: 1.8),
+      borderSide: BorderSide(color: context.colors.pinkStart, width: 1.8),
     ),
     errorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(16),
-      borderSide: BorderSide(color: studyColorScheme.error, width: 1.2),
+      borderSide: BorderSide(
+        color: Theme.of(context).colorScheme.error,
+        width: 1.2,
+      ),
     ),
   );
 }
@@ -125,51 +110,99 @@ class _AppCalendarSheetState extends State<_AppCalendarSheet> {
   late DateTime _displayedMonth;
   late DateTime _selectedDate;
 
-  static const List<String> _weekdayLabels = ['일', '월', '화', '수', '목', '금', '토'];
+  static const List<String> _weekdayLabels = [
+    '일',
+    '월',
+    '화',
+    '수',
+    '목',
+    '금',
+    '토',
+  ];
 
   @override
   void initState() {
     super.initState();
     _selectedDate = widget.initialDate;
-    _displayedMonth = DateTime(widget.initialDate.year, widget.initialDate.month, 1);
+    _displayedMonth = DateTime(
+      widget.initialDate.year,
+      widget.initialDate.month,
+      1,
+    );
   }
 
   bool get _canGoPrev {
-    final prevMonthEnd = DateTime(_displayedMonth.year, _displayedMonth.month, 0);
+    final prevMonthEnd = DateTime(
+      _displayedMonth.year,
+      _displayedMonth.month,
+      0,
+    );
     return !prevMonthEnd.isBefore(widget.firstDate);
   }
 
   bool get _canGoNext {
-    final nextMonthStart = DateTime(_displayedMonth.year, _displayedMonth.month + 1, 1);
+    final nextMonthStart = DateTime(
+      _displayedMonth.year,
+      _displayedMonth.month + 1,
+      1,
+    );
     return !nextMonthStart.isAfter(widget.lastDate);
   }
 
   void _goPrevMonth() {
     if (!_canGoPrev) return;
-    setState(() => _displayedMonth = DateTime(_displayedMonth.year, _displayedMonth.month - 1, 1));
+    setState(
+      () => _displayedMonth = DateTime(
+        _displayedMonth.year,
+        _displayedMonth.month - 1,
+        1,
+      ),
+    );
   }
 
   void _goNextMonth() {
     if (!_canGoNext) return;
-    setState(() => _displayedMonth = DateTime(_displayedMonth.year, _displayedMonth.month + 1, 1));
+    setState(
+      () => _displayedMonth = DateTime(
+        _displayedMonth.year,
+        _displayedMonth.month + 1,
+        1,
+      ),
+    );
   }
 
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
   bool _isSelectable(DateTime day) {
-    final first = DateTime(widget.firstDate.year, widget.firstDate.month, widget.firstDate.day);
-    final last = DateTime(widget.lastDate.year, widget.lastDate.month, widget.lastDate.day);
+    final first = DateTime(
+      widget.firstDate.year,
+      widget.firstDate.month,
+      widget.firstDate.day,
+    );
+    final last = DateTime(
+      widget.lastDate.year,
+      widget.lastDate.month,
+      widget.lastDate.day,
+    );
     return !day.isBefore(first) && !day.isAfter(last);
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = studyColors;
+    final colors = context.colors;
     final today = DateTime.now();
 
-    final firstWeekday = DateTime(_displayedMonth.year, _displayedMonth.month, 1).weekday;
-    final daysInMonth = DateTime(_displayedMonth.year, _displayedMonth.month + 1, 0).day;
+    final firstWeekday = DateTime(
+      _displayedMonth.year,
+      _displayedMonth.month,
+      1,
+    ).weekday;
+    final daysInMonth = DateTime(
+      _displayedMonth.year,
+      _displayedMonth.month + 1,
+      0,
+    ).day;
     final leadingBlanks = firstWeekday % 7;
     final rowCount = ((leadingBlanks + daysInMonth) / 7).ceil();
 
@@ -178,7 +211,7 @@ class _AppCalendarSheetState extends State<_AppCalendarSheet> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
         decoration: BoxDecoration(
-          color: studyColorScheme.surface,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: Column(
@@ -195,18 +228,32 @@ class _AppCalendarSheetState extends State<_AppCalendarSheet> {
             ),
             Text(
               widget.helpText,
-              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: colors.textSecondary),
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: colors.textSecondary,
+              ),
             ),
             const SizedBox(height: 6),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _CalendarNavArrow(icon: Icons.chevron_left_rounded, onTap: _canGoPrev ? _goPrevMonth : null),
+                _CalendarNavArrow(
+                  icon: Icons.chevron_left_rounded,
+                  onTap: _canGoPrev ? _goPrevMonth : null,
+                ),
                 Text(
                   '${_displayedMonth.year}년 ${_displayedMonth.month}월',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: colors.textPrimary),
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: colors.textPrimary,
+                  ),
                 ),
-                _CalendarNavArrow(icon: Icons.chevron_right_rounded, onTap: _canGoNext ? _goNextMonth : null),
+                _CalendarNavArrow(
+                  icon: Icons.chevron_right_rounded,
+                  onTap: _canGoNext ? _goNextMonth : null,
+                ),
               ],
             ),
             const SizedBox(height: 14),
@@ -220,7 +267,9 @@ class _AppCalendarSheetState extends State<_AppCalendarSheet> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: isWeekend ? colors.pinkStart.withOpacity(0.8) : colors.textSecondary,
+                        color: isWeekend
+                            ? colors.pinkStart.withOpacity(0.8)
+                            : colors.textSecondary,
                       ),
                     ),
                   ),
@@ -238,21 +287,29 @@ class _AppCalendarSheetState extends State<_AppCalendarSheet> {
                     return const Expanded(child: SizedBox(height: 44));
                   }
 
-                  final date = DateTime(_displayedMonth.year, _displayedMonth.month, dayNumber);
+                  final date = DateTime(
+                    _displayedMonth.year,
+                    _displayedMonth.month,
+                    dayNumber,
+                  );
                   final selectable = _isSelectable(date);
                   final isSelected = _isSameDay(date, _selectedDate);
                   final isToday = _isSameDay(date, today);
 
                   return Expanded(
                     child: GestureDetector(
-                      onTap: selectable ? () => setState(() => _selectedDate = date) : null,
+                      onTap: selectable
+                          ? () => setState(() => _selectedDate = date)
+                          : null,
                       child: Container(
                         height: 44,
                         margin: const EdgeInsets.symmetric(vertical: 2),
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: isSelected ? colors.pinkStart : Colors.transparent,
+                          color: isSelected
+                              ? colors.pinkStart
+                              : Colors.transparent,
                           border: (isToday && !isSelected)
                               ? Border.all(color: colors.pinkStart, width: 1.4)
                               : null,
@@ -261,11 +318,13 @@ class _AppCalendarSheetState extends State<_AppCalendarSheet> {
                           '$dayNumber',
                           style: TextStyle(
                             fontSize: 14.5,
-                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                            fontWeight: isSelected
+                                ? FontWeight.w800
+                                : FontWeight.w600,
                             color: !selectable
                                 ? colors.textSecondary.withOpacity(0.28)
                                 : isSelected
-                                ? Colors.white
+                                ? colors.onPrimary
                                 : colors.textPrimary,
                           ),
                         ),
@@ -290,7 +349,10 @@ class _AppCalendarSheetState extends State<_AppCalendarSheet> {
                         child: Center(
                           child: Text(
                             '취소',
-                            style: TextStyle(fontWeight: FontWeight.w700, color: colors.textPrimary),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: colors.textPrimary,
+                            ),
                           ),
                         ),
                       ),
@@ -304,17 +366,25 @@ class _AppCalendarSheetState extends State<_AppCalendarSheet> {
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(16),
-                        gradient: LinearGradient(colors: [colors.pinkStart, colors.pinkStart.withOpacity(0.8)]),
+                        gradient: LinearGradient(
+                          colors: [
+                            colors.pinkStart,
+                            colors.pinkStart.withOpacity(0.8),
+                          ],
+                        ),
                       ),
                       child: Material(
                         color: Colors.transparent,
                         child: InkWell(
                           borderRadius: BorderRadius.circular(16),
                           onTap: () => Navigator.of(context).pop(_selectedDate),
-                          child: const Center(
+                          child: Center(
                             child: Text(
                               '선택 완료',
-                              style: TextStyle(fontWeight: FontWeight.w800, color: Colors.white),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: colors.onPrimary,
+                              ),
                             ),
                           ),
                         ),
@@ -339,7 +409,7 @@ class _CalendarNavArrow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = studyColors;
+    final colors = context.colors;
     final enabled = onTap != null;
     return GestureDetector(
       onTap: onTap,
@@ -350,7 +420,13 @@ class _CalendarNavArrow extends StatelessWidget {
           shape: BoxShape.circle,
           color: colors.textSecondary.withOpacity(0.08),
         ),
-        child: Icon(icon, size: 20, color: enabled ? colors.textPrimary : colors.textSecondary.withOpacity(0.3)),
+        child: Icon(
+          icon,
+          size: 20,
+          color: enabled
+              ? colors.textPrimary
+              : colors.textSecondary.withOpacity(0.3),
+        ),
       ),
     );
   }
@@ -378,10 +454,10 @@ class SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = studyColors;
+    final colors = context.colors;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           // 은은한 핑크 앰비언트 섀도우 — 배경과의 경계를 색으로도 분리
@@ -391,7 +467,7 @@ class SectionCard extends StatelessWidget {
             offset: const Offset(0, 16),
           ),
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: colors.shadow,
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -430,7 +506,10 @@ class SectionCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         title,
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                   ],
@@ -441,7 +520,11 @@ class SectionCard extends StatelessWidget {
                     padding: const EdgeInsets.only(left: 44),
                     child: Text(
                       subtitle!,
-                      style: TextStyle(fontSize: 12, height: 1.4, color: colors.textSecondary),
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.4,
+                        color: colors.textSecondary,
+                      ),
                     ),
                   ),
                 ],
@@ -477,7 +560,7 @@ class MemberCountPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = studyColors;
+    final colors = context.colors;
     final presets = _basePresets.where((p) => p >= min && p <= max).toList();
     if (!presets.contains(min)) presets.insert(0, min);
     if (!presets.contains(max)) presets.add(max);
@@ -488,16 +571,25 @@ class MemberCountPicker extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('최대 인원', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700)),
+            const Text(
+              '최대 인원',
+              style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700),
+            ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [colors.pinkStart, colors.pinkStart.withOpacity(0.8)]),
+                gradient: LinearGradient(
+                  colors: [colors.pinkStart, colors.pinkStart.withOpacity(0.8)],
+                ),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 '$value명',
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white),
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: colors.onPrimary,
+                ),
               ),
             ),
           ],
@@ -522,7 +614,9 @@ class MemberCountPicker extends StatelessWidget {
                     color: selected ? colors.pinkStart : colors.background,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: selected ? colors.pinkStart : colors.textSecondary.withOpacity(0.16),
+                      color: selected
+                          ? colors.pinkStart
+                          : colors.textSecondary.withOpacity(0.16),
                     ),
                   ),
                   child: Text(
@@ -530,7 +624,7 @@ class MemberCountPicker extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w700,
-                      color: selected ? Colors.white : colors.textPrimary,
+                      color: selected ? colors.onPrimary : colors.textPrimary,
                     ),
                   ),
                 ),
@@ -559,7 +653,10 @@ class MemberCountPicker extends StatelessWidget {
         ),
         Align(
           alignment: Alignment.centerRight,
-          child: Text(caption, style: TextStyle(fontSize: 12, color: colors.textSecondary)),
+          child: Text(
+            caption,
+            style: TextStyle(fontSize: 12, color: colors.textSecondary),
+          ),
         ),
       ],
     );
@@ -575,7 +672,7 @@ class _PillToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = studyColors;
+    final colors = context.colors;
     return GestureDetector(
       onTap: () => onChanged(!value),
       child: AnimatedContainer(
@@ -587,7 +684,12 @@ class _PillToggle extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           gradient: value
-              ? LinearGradient(colors: [colors.pinkStart, colors.pinkStart.withOpacity(0.75)])
+              ? LinearGradient(
+                  colors: [
+                    colors.pinkStart,
+                    colors.pinkStart.withOpacity(0.75),
+                  ],
+                )
               : null,
           color: value ? null : colors.textSecondary.withOpacity(0.2),
         ),
@@ -598,10 +700,16 @@ class _PillToggle extends StatelessWidget {
           child: Container(
             width: 24,
             height: 24,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 3, offset: Offset(0, 1))],
+              color: colors.surface,
+              boxShadow: [
+                BoxShadow(
+                  color: colors.shadow,
+                  blurRadius: 3,
+                  offset: const Offset(0, 1),
+                ),
+              ],
             ),
           ),
         ),
@@ -628,7 +736,7 @@ class StudySwitchTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = studyColors;
+    final colors = context.colors;
     // 카드 안에 또 박스를 두지 않고, 얇은 구분선을 쓰는 플랫한 리스트 로우 스타일로 변경
     // (중첩 박스가 많으면 "경계가 흐릿하다"는 느낌을 오히려 가중시킴)
     return InkWell(
@@ -642,19 +750,40 @@ class StudySwitchTile extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: value ? colors.pinkStart.withOpacity(0.14) : colors.textPrimary.withOpacity(0.05),
+                color: value
+                    ? colors.pinkStart.withOpacity(0.14)
+                    : colors.textPrimary.withOpacity(0.05),
                 borderRadius: BorderRadius.circular(11),
               ),
-              child: Icon(icon, size: 18, color: value ? colors.pinkStart : colors.textPrimary.withOpacity(0.6)),
+              child: Icon(
+                icon,
+                size: 18,
+                color: value
+                    ? colors.pinkStart
+                    : colors.textPrimary.withOpacity(0.6),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14.5,
+                    ),
+                  ),
                   const SizedBox(height: 3),
-                  Text(subtitle, style: TextStyle(fontSize: 12, color: colors.textSecondary, height: 1.3)),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colors.textSecondary,
+                      height: 1.3,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -685,7 +814,7 @@ class StudyPageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = studyColors;
+    final colors = context.colors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -718,7 +847,11 @@ class StudyPageHeader extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           description,
-          style: TextStyle(fontSize: 13, color: colors.textSecondary, height: 1.5),
+          style: TextStyle(
+            fontSize: 13,
+            color: colors.textSecondary,
+            height: 1.5,
+          ),
         ),
       ],
     );
@@ -742,7 +875,7 @@ class ExamDateTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = studyColors;
+    final colors = context.colors;
     final hasDate = examDate != null;
     return InkWell(
       borderRadius: BorderRadius.circular(16),
@@ -754,7 +887,9 @@ class ExamDateTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: colors.background,
           border: Border.all(
-            color: hasDate ? colors.pinkStart.withOpacity(0.45) : colors.textSecondary.withOpacity(0.18),
+            color: hasDate
+                ? colors.pinkStart.withOpacity(0.45)
+                : colors.textSecondary.withOpacity(0.18),
             width: hasDate ? 1.4 : 1,
           ),
           borderRadius: BorderRadius.circular(16),
@@ -765,13 +900,17 @@ class ExamDateTile extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: hasDate ? colors.pinkStart.withOpacity(0.14) : colors.textPrimary.withOpacity(0.06),
+                color: hasDate
+                    ? colors.pinkStart.withOpacity(0.14)
+                    : colors.textPrimary.withOpacity(0.06),
                 borderRadius: BorderRadius.circular(11),
               ),
               child: Icon(
                 Icons.calendar_month_rounded,
                 size: 19,
-                color: hasDate ? colors.pinkStart : colors.textPrimary.withOpacity(0.7),
+                color: hasDate
+                    ? colors.pinkStart
+                    : colors.textPrimary.withOpacity(0.7),
               ),
             ),
             const SizedBox(width: 12),
@@ -779,14 +918,19 @@ class ExamDateTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('시험일', style: TextStyle(fontSize: 11, color: colors.textSecondary)),
+                  Text(
+                    '시험일',
+                    style: TextStyle(fontSize: 11, color: colors.textSecondary),
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     hasDate ? formatDate(examDate!) : '시험일을 선택해 주세요.',
                     style: TextStyle(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w700,
-                      color: hasDate ? colors.textPrimary : colors.textSecondary,
+                      color: hasDate
+                          ? colors.textPrimary
+                          : colors.textSecondary,
                     ),
                   ),
                 ],
@@ -819,9 +963,12 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   final TextEditingController _groupNameController = TextEditingController();
-  final TextEditingController _certificateNameController = TextEditingController();
+  final TextEditingController _certificateNameController =
+      TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _weeklyGoalHourController = TextEditingController(text: '15');
+  final TextEditingController _weeklyGoalHourController = TextEditingController(
+    text: '15',
+  );
 
   DateTime? _examDate;
   int _maxMemberCount = 5;
@@ -860,7 +1007,11 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
     if (selectedDate == null || !mounted) return;
 
     setState(() {
-      _examDate = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+      _examDate = DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+      );
     });
   }
 
@@ -879,7 +1030,9 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
           ? user.displayName!.trim()
           : '익명 사용자';
 
-      final studyDocument = FirebaseFirestore.instance.collection('studyGroups').doc();
+      final studyDocument = FirebaseFirestore.instance
+          .collection('studyGroups')
+          .doc();
       final batch = FirebaseFirestore.instance.batch();
 
       batch.set(studyDocument, {
@@ -893,7 +1046,7 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
             : _certificateNameController.text.trim(),
         'examDate': _examDate == null ? null : Timestamp.fromDate(_examDate!),
         'weeklyGoalMinutes':
-        (int.tryParse(_weeklyGoalHourController.text.trim()) ?? 15) * 60,
+            (int.tryParse(_weeklyGoalHourController.text.trim()) ?? 15) * 60,
         'maxMemberCount': _maxMemberCount,
         'currentMemberCount': 1,
         'isPublic': _isPublic,
@@ -905,7 +1058,9 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      final ownerMemberDocument = studyDocument.collection('members').doc(user.uid);
+      final ownerMemberDocument = studyDocument
+          .collection('members')
+          .doc(user.uid);
       batch.set(ownerMemberDocument, {
         'uid': user.uid,
         'nickname': ownerNickname,
@@ -920,17 +1075,17 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('스터디가 등록되었습니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('스터디가 등록되었습니다.')));
 
       Navigator.pop(context, true);
     } catch (error) {
       debugPrint('스터디 등록 오류: $error');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('스터디 등록 실패: $error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('스터디 등록 실패: $error')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -938,7 +1093,7 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = studyColors;
+    final colors = context.colors;
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppTopBar(title: '스터디 만들기', centerTitle: false),
@@ -949,7 +1104,8 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
             child: SafeArea(
               bottom: false,
               child: SingleChildScrollView(
-                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 // 하단 고정 버튼에 가려지지 않도록 여유 패딩
                 padding: const EdgeInsets.fromLTRB(20, 25, 20, 110),
                 child: Form(
@@ -973,6 +1129,7 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                             controller: _groupNameController,
                             textInputAction: TextInputAction.next,
                             decoration: studyFieldDecoration(
+                              context: context,
                               labelText: '스터디 이름',
                               hintText: '예: 정보처리기사 실기 스터디',
                               icon: Icons.groups_outlined,
@@ -992,6 +1149,7 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                             controller: _certificateNameController,
                             textInputAction: TextInputAction.next,
                             decoration: studyFieldDecoration(
+                              context: context,
                               labelText: '자격증 이름',
                               hintText: '예: 정보처리기사',
                               icon: Icons.workspace_premium_outlined,
@@ -1008,23 +1166,27 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                                     maxLines: 4,
                                     maxLength: 200,
                                     textInputAction: TextInputAction.newline,
-                                    decoration: studyFieldDecoration(
-                                      labelText: '스터디 소개',
-                                      hintText: '스터디 목표와 진행 방법을 입력해주세요.',
-                                      icon: Icons.edit_note_rounded,
-                                      alignLabelWithHint: true,
-                                    ).copyWith(
-                                      counterText: '',
-                                      helperText: ' ',
-                                      contentPadding: const EdgeInsets.fromLTRB(
-                                        14,
-                                        20,
-                                        14,
-                                        30,
-                                      ),
-                                    ),
+                                    decoration:
+                                        studyFieldDecoration(
+                                          context: context,
+                                          labelText: '스터디 소개',
+                                          hintText: '스터디 목표와 진행 방법을 입력해주세요.',
+                                          icon: Icons.edit_note_rounded,
+                                          alignLabelWithHint: true,
+                                        ).copyWith(
+                                          counterText: '',
+                                          helperText: ' ',
+                                          contentPadding:
+                                              const EdgeInsets.fromLTRB(
+                                                14,
+                                                20,
+                                                14,
+                                                30,
+                                              ),
+                                        ),
                                     validator: (value) {
-                                      if (value == null || value.trim().isEmpty) {
+                                      if (value == null ||
+                                          value.trim().isEmpty) {
                                         return '스터디 소개를 입력해주세요.';
                                       }
                                       return null;
@@ -1071,6 +1233,7 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                             keyboardType: TextInputType.number,
                             textInputAction: TextInputAction.done,
                             decoration: studyFieldDecoration(
+                              context: context,
                               labelText: '주간 목표 공부시간',
                               hintText: '예: 15',
                               icon: Icons.flag_outlined,
@@ -1078,7 +1241,8 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                             ),
                             validator: (value) {
                               int? goalHour = int.tryParse(value?.trim() ?? '');
-                              if (goalHour == null) return '주간 목표시간을 숫자로 입력해주세요.';
+                              if (goalHour == null)
+                                return '주간 목표시간을 숫자로 입력해주세요.';
                               if (goalHour < 1 || goalHour > 168) {
                                 return '1시간 이상 168시간 이하로 입력해주세요.';
                               }
@@ -1099,10 +1263,14 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                             min: 2,
                             max: 30,
                             caption: '최소 2명 · 최대 30명',
-                            onChanged: (v) => setState(() => _maxMemberCount = v),
+                            onChanged: (v) =>
+                                setState(() => _maxMemberCount = v),
                           ),
                           const SizedBox(height: 8),
-                          Divider(height: 1, color: colors.textSecondary.withOpacity(0.1)),
+                          Divider(
+                            height: 1,
+                            color: colors.textSecondary.withOpacity(0.1),
+                          ),
                           StudySwitchTile(
                             icon: Icons.public_rounded,
                             title: '공개 스터디',
@@ -1110,9 +1278,13 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                                 ? '다른 사용자가 검색하고 확인할 수 있습니다.'
                                 : '초대받은 사용자만 확인할 수 있습니다.',
                             value: _isPublic,
-                            onChanged: (value) => setState(() => _isPublic = value),
+                            onChanged: (value) =>
+                                setState(() => _isPublic = value),
                           ),
-                          Divider(height: 1, color: colors.textSecondary.withOpacity(0.1)),
+                          Divider(
+                            height: 1,
+                            color: colors.textSecondary.withOpacity(0.1),
+                          ),
                           StudySwitchTile(
                             icon: Icons.verified_user_rounded,
                             title: '참여 승인 필요',
@@ -1120,7 +1292,8 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                                 ? '방장이 승인해야 참여할 수 있습니다.'
                                 : '신청하면 바로 참여할 수 있습니다.',
                             value: _joinApprovalRequired,
-                            onChanged: (value) => setState(() => _joinApprovalRequired = value),
+                            onChanged: (value) =>
+                                setState(() => _joinApprovalRequired = value),
                           ),
                         ],
                       ),
@@ -1138,10 +1311,10 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
         child: Container(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: colors.surface,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
+                color: colors.shadow,
                 blurRadius: 16,
                 offset: const Offset(0, -4),
               ),

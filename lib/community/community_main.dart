@@ -7,18 +7,13 @@ import '../widgets/app_main_background.dart';
 import '../widgets/app_state_views.dart';
 import '../widgets/app_top_bar.dart';
 import '../notification/screens/notification.dart';
+import '../notification/widgets/notification_bell_button.dart';
 import 'community_models.dart';
 import 'community_post_add.dart';
 import 'community_post_detail.dart';
 import 'community_service.dart';
 
 // theme.dart를 수정하지 않고 커뮤니티에서 테마 색상 사용
-extension _CommunityContextColors on BuildContext {
-  AppColors get communityColors {
-    return Theme.of(this).extension<AppColors>() ?? AppColors.light;
-  }
-}
-
 class CommunityMainPage extends StatefulWidget {
   final CommunityService? service;
   final ValueChanged<String>? onPostTap;
@@ -239,18 +234,13 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
         title: '커뮤니티',
         centerTitle: false,
         actions: [
-          IconButton(
-            tooltip: '알림',
+          NotificationBellButton(
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const NotificationPage()),
               );
             },
-            icon: const Icon(
-              Icons.notifications_none_rounded,
-              color: Color(0xFF302C2E),
-            ),
           ),
         ],
       ),
@@ -284,8 +274,8 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'community_fab',
         onPressed: _openWriter,
-        backgroundColor: context.communityColors.pinkStart,
-        foregroundColor: Colors.white,
+        backgroundColor: context.colors.pinkStart,
+        foregroundColor: context.colors.onPrimary,
         icon: const Icon(Icons.edit_rounded),
         label: const Text('글쓰기', style: TextStyle(fontWeight: FontWeight.w700)),
       ),
@@ -313,7 +303,7 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
         .collectCertificateTags(allPosts);
 
     return RefreshIndicator(
-      color: context.communityColors.pinkStart,
+      color: context.colors.pinkStart,
       onRefresh: () async {
         setState(() {
           _streamVersion++;
@@ -355,7 +345,7 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
                                 ? '전체 게시글'
                                 : '${_selectedBoard.label} 게시판',
                             style: TextStyle(
-                              color: context.communityColors.textPrimary,
+                              color: context.colors.textPrimary,
                               fontSize: 17,
                               fontWeight: FontWeight.w700,
                             ),
@@ -364,7 +354,7 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
                           Text(
                             '${posts.length}개의 글',
                             style: TextStyle(
-                              color: context.communityColors.textSecondary,
+                              color: context.colors.textSecondary,
                               fontSize: 12,
                             ),
                           ),
@@ -440,12 +430,12 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
         decoration: InputDecoration(
           hintText: '커뮤니티 검색',
           hintStyle: TextStyle(
-            color: context.communityColors.textSecondary,
+            color: context.colors.textSecondary,
             fontSize: 13,
           ),
           prefixIcon: Icon(
             Icons.search_rounded,
-            color: context.communityColors.textSecondary,
+            color: context.colors.textSecondary,
           ),
           suffixIcon: _searchController.text.isEmpty
               ? null
@@ -470,14 +460,11 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: context.communityColors.pinkSoft),
+            borderSide: BorderSide(color: context.colors.pinkSoft),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(
-              color: context.communityColors.pinkStart,
-              width: 1.3,
-            ),
+            borderSide: BorderSide(color: context.colors.pinkStart, width: 1.3),
           ),
         ),
       ),
@@ -515,7 +502,7 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
           const SizedBox(width: 8),
           Material(
             color: _showFavoriteSettings
-                ? context.communityColors.pinkStart
+                ? context.colors.pinkStart
                 : Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(19),
             child: InkWell(
@@ -534,8 +521,8 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
                       : Icons.star_border_rounded,
                   size: 20,
                   color: _showFavoriteSettings
-                      ? Colors.white
-                      : context.communityColors.textSecondary,
+                      ? context.colors.onPrimary
+                      : context.colors.textSecondary,
                 ),
               ),
             ),
@@ -555,11 +542,11 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           backgroundColor: selected
-              ? context.communityColors.pinkStart
+              ? context.colors.pinkStart
               : Theme.of(context).colorScheme.surface,
           foregroundColor: selected
-              ? Colors.white
-              : context.communityColors.textSecondary,
+              ? context.colors.onPrimary
+              : context.colors.textSecondary,
           side: BorderSide.none,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(19),
@@ -586,17 +573,14 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: context.communityColors.pinkSoft),
+        border: Border.all(color: context.colors.pinkSoft),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             '관심 게시판을 선택해 주세요.',
-            style: TextStyle(
-              color: context.communityColors.textSecondary,
-              fontSize: 11,
-            ),
+            style: TextStyle(color: context.colors.textSecondary, fontSize: 11),
           ),
           const SizedBox(height: 9),
           SizedBox(
@@ -618,8 +602,8 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
                     selected ? Icons.star_rounded : Icons.star_border_rounded,
                     size: 16,
                     color: selected
-                        ? context.communityColors.pinkStart
-                        : context.communityColors.textSecondary,
+                        ? context.colors.pinkStart
+                        : context.colors.textSecondary,
                   ),
                   selected: selected,
                   showCheckmark: false,
@@ -628,15 +612,15 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
                       : (value) {
                           _toggleFavoriteBoard(board);
                         },
-                  selectedColor: context.communityColors.pinkSoft,
+                  selectedColor: context.colors.pinkSoft,
                   backgroundColor: Theme.of(context).colorScheme.surface,
                   side: BorderSide(
                     color: selected
-                        ? context.communityColors.pinkStart
-                        : context.communityColors.pinkSoft,
+                        ? context.colors.pinkStart
+                        : context.colors.pinkSoft,
                   ),
                   labelStyle: TextStyle(
-                    color: context.communityColors.textPrimary,
+                    color: context.colors.textPrimary,
                     fontSize: 11,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   ),
@@ -672,13 +656,13 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
                 _selectedBoard = board;
               });
             },
-            selectedColor: context.communityColors.pinkStart,
+            selectedColor: context.colors.pinkStart,
             backgroundColor: Theme.of(context).colorScheme.surface,
             side: BorderSide.none,
             labelStyle: TextStyle(
               color: selected
-                  ? Colors.white
-                  : context.communityColors.textPrimary,
+                  ? context.colors.onPrimary
+                  : context.colors.textPrimary,
               fontSize: 12,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             ),
@@ -752,7 +736,7 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
             Text(
               _selectedSort.label,
               style: TextStyle(
-                color: context.communityColors.textPrimary,
+                color: context.colors.textPrimary,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -807,17 +791,17 @@ class _CertificateFilterChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 11),
         decoration: BoxDecoration(
           color: selected
-              ? context.communityColors.lavender
+              ? context.colors.lavender
               : Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(11),
-          border: Border.all(color: context.communityColors.lavender),
+          border: Border.all(color: context.colors.lavender),
         ),
         child: Text(
           label,
           style: TextStyle(
             color: selected
-                ? context.communityColors.textPrimary
-                : context.communityColors.textSecondary,
+                ? context.colors.textPrimary
+                : context.colors.textSecondary,
             fontSize: 12,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
           ),
@@ -862,13 +846,13 @@ class _CommunityPostCard extends StatelessWidget {
                   if (post.boardType == CommunityBoardType.question)
                     _StatusBadge(
                       label: _questionStatusLabel(post.questionStatus),
-                      backgroundColor: context.communityColors.softBlue,
+                      backgroundColor: context.colors.softBlue,
                     ),
 
                   if (post.boardType == CommunityBoardType.groupRecruit)
                     _StatusBadge(
                       label: _recruitStatusLabel(post.recruitStatus),
-                      backgroundColor: context.communityColors.mint,
+                      backgroundColor: context.colors.mint,
                     ),
 
                   const Spacer(),
@@ -877,7 +861,7 @@ class _CommunityPostCard extends StatelessWidget {
                     Icon(
                       Icons.attach_file_rounded,
                       size: 18,
-                      color: context.communityColors.textSecondary,
+                      color: context.colors.textSecondary,
                     ),
                 ],
               ),
@@ -896,7 +880,7 @@ class _CommunityPostCard extends StatelessWidget {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: context.communityColors.textPrimary,
+                            color: context.colors.textPrimary,
                             fontSize: 15,
                             height: 1.35,
                             fontWeight: FontWeight.w700,
@@ -910,7 +894,7 @@ class _CommunityPostCard extends StatelessWidget {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: context.communityColors.textSecondary,
+                            color: context.colors.textSecondary,
                             fontSize: 12,
                             height: 1.4,
                           ),
@@ -933,7 +917,7 @@ class _CommunityPostCard extends StatelessWidget {
                           return Container(
                             width: 68,
                             height: 68,
-                            color: context.communityColors.pinkSoft,
+                            color: context.colors.pinkSoft,
                             child: const Icon(
                               Icons.image_not_supported_outlined,
                             ),
@@ -955,7 +939,7 @@ class _CommunityPostCard extends StatelessWidget {
                     return Text(
                       '#${tag.certificateName}',
                       style: TextStyle(
-                        color: context.communityColors.textPrimary,
+                        color: context.colors.textPrimary,
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -999,7 +983,7 @@ class _CommunityPostCard extends StatelessWidget {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    color: context.communityColors.textPrimary,
+                                    color: context.colors.textPrimary,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -1012,7 +996,7 @@ class _CommunityPostCard extends StatelessWidget {
                             Icon(
                               Icons.verified_rounded,
                               size: 15,
-                              color: context.communityColors.pinkStart,
+                              color: context.colors.pinkStart,
                             ),
                           ],
                         ],
@@ -1025,7 +1009,7 @@ class _CommunityPostCard extends StatelessWidget {
                         Text(
                           _formatCreatedAt(post.createdAt),
                           style: TextStyle(
-                            color: context.communityColors.textSecondary,
+                            color: context.colors.textSecondary,
                             fontSize: 11,
                           ),
                         ),
@@ -1072,13 +1056,13 @@ class _BoardBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: context.communityColors.pinkSoft,
+        color: context.colors.pinkSoft,
         borderRadius: BorderRadius.circular(9),
       ),
       child: Text(
         boardType.label,
         style: TextStyle(
-          color: context.communityColors.textPrimary,
+          color: context.colors.textPrimary,
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
@@ -1104,7 +1088,7 @@ class _StatusBadge extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          color: context.communityColors.textPrimary,
+          color: context.colors.textPrimary,
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
@@ -1124,14 +1108,11 @@ class _PostCount extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 13, color: context.communityColors.textSecondary),
+        Icon(icon, size: 13, color: context.colors.textSecondary),
         const SizedBox(width: 2),
         Text(
           '$value',
-          style: TextStyle(
-            color: context.communityColors.textSecondary,
-            fontSize: 10,
-          ),
+          style: TextStyle(color: context.colors.textSecondary, fontSize: 10),
         ),
       ],
     );

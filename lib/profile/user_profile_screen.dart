@@ -44,11 +44,11 @@ class _ActivityItem extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: EdgeInsets.symmetric(vertical: 8),
           child: Column(
             children: [
               Icon(icon, size: 21, color: context.colors.pinkDeep),
-              const SizedBox(height: 7),
+              SizedBox(height: 7),
               Text(
                 value,
                 textAlign: TextAlign.center,
@@ -58,7 +58,7 @@ class _ActivityItem extends StatelessWidget {
                   color: context.colors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 3),
+              SizedBox(height: 3),
               Text(
                 label,
                 textAlign: TextAlign.center,
@@ -83,7 +83,7 @@ class _UserActivityStats {
   final int studyCount;
   final int studySeconds;
 
-  const _UserActivityStats({
+  _UserActivityStats({
     required this.postCount,
     required this.commentCount,
     required this.friendCount,
@@ -220,7 +220,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           ? activityVisibility
           : true;
 
-      const emptyStats = _UserActivityStats(
+      final emptyStats = _UserActivityStats(
         postCount: 0,
         commentCount: 0,
         friendCount: 0,
@@ -264,7 +264,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('사용자 프로필을 불러오지 못했습니다.')));
+      ).showSnackBar(SnackBar(content: Text('사용자 프로필을 불러오지 못했습니다.')));
     }
   }
 
@@ -570,7 +570,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     if (currentUid == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다.')));
+      ).showSnackBar(SnackBar(content: Text('로그인이 필요합니다.')));
       return;
     }
 
@@ -615,7 +615,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('차단 관계에 있는 사용자에게는 친구 요청을 보낼 수 없습니다.')),
+          SnackBar(content: Text('차단 관계에 있는 사용자에게는 친구 요청을 보낼 수 없습니다.')),
         );
 
         return;
@@ -682,7 +682,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('친구 요청을 보내지 못했습니다.')));
+      ).showSnackBar(SnackBar(content: Text('친구 요청을 보내지 못했습니다.')));
     }
   }
 
@@ -725,7 +725,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('차단 관계에 있는 사용자의 친구 요청은 수락할 수 없습니다.')),
+          SnackBar(content: Text('차단 관계에 있는 사용자의 친구 요청은 수락할 수 없습니다.')),
         );
 
         return;
@@ -766,9 +766,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           return;
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('이미 처리되었거나 확인할 수 없는 친구 요청입니다.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('이미 처리되었거나 확인할 수 없는 친구 요청입니다.')));
 
         return;
       }
@@ -803,7 +803,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('친구 요청을 수락하지 못했습니다.')));
+      ).showSnackBar(SnackBar(content: Text('친구 요청을 수락하지 못했습니다.')));
     }
   }
 
@@ -820,8 +820,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: Colors.white,
-          title: const Text(
+          backgroundColor: context.colors.surface,
+          title: Text(
             '친구 요청 거절',
             style: TextStyle(fontWeight: FontWeight.w700),
           ),
@@ -831,19 +831,19 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               onPressed: () {
                 Navigator.pop(dialogContext, false);
               },
-              child: const Text(
+              child: Text(
                 '취소',
-                style: TextStyle(color: Color(0xFF9AA0AC)),
+                style: TextStyle(color: context.colors.textSecondary),
               ),
             ),
             TextButton(
               onPressed: () {
                 Navigator.pop(dialogContext, true);
               },
-              child: const Text(
+              child: Text(
                 '거절',
                 style: TextStyle(
-                  color: Colors.redAccent,
+                  color: context.colors.incorrect,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -879,7 +879,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('친구 요청을 거절했습니다.')));
+      ).showSnackBar(SnackBar(content: Text('친구 요청을 거절했습니다.')));
     } catch (error) {
       if (!mounted) {
         return;
@@ -891,7 +891,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('친구 요청을 거절하지 못했습니다.')));
+      ).showSnackBar(SnackBar(content: Text('친구 요청을 거절하지 못했습니다.')));
     }
   }
 
@@ -906,8 +906,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: Colors.white,
-          title: const Text(
+          backgroundColor: context.colors.surface,
+          title: Text(
             '친구 요청 취소',
             style: TextStyle(fontWeight: FontWeight.w700),
           ),
@@ -917,19 +917,19 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               onPressed: () {
                 Navigator.pop(dialogContext, false);
               },
-              child: const Text(
+              child: Text(
                 '아니요',
-                style: TextStyle(color: Color(0xFF9AA0AC)),
+                style: TextStyle(color: context.colors.textSecondary),
               ),
             ),
             TextButton(
               onPressed: () {
                 Navigator.pop(dialogContext, true);
               },
-              child: const Text(
+              child: Text(
                 '요청 취소',
                 style: TextStyle(
-                  color: Color(0xFFF0788F),
+                  color: context.colors.pinkStart,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -965,7 +965,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('친구 요청을 취소했습니다.')));
+      ).showSnackBar(SnackBar(content: Text('친구 요청을 취소했습니다.')));
     } catch (error) {
       if (!mounted) {
         return;
@@ -977,7 +977,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('친구 요청을 취소하지 못했습니다.')));
+      ).showSnackBar(SnackBar(content: Text('친구 요청을 취소하지 못했습니다.')));
     }
   }
 
@@ -994,30 +994,27 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: Colors.white,
-          title: const Text(
-            '친구 삭제',
-            style: TextStyle(fontWeight: FontWeight.w700),
-          ),
+          backgroundColor: context.colors.surface,
+          title: Text('친구 삭제', style: TextStyle(fontWeight: FontWeight.w700)),
           content: Text('$_nickname님을 친구 목록에서 삭제하시겠습니까?'),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(dialogContext, false);
               },
-              child: const Text(
+              child: Text(
                 '취소',
-                style: TextStyle(color: Color(0xFF9AA0AC)),
+                style: TextStyle(color: context.colors.textSecondary),
               ),
             ),
             TextButton(
               onPressed: () {
                 Navigator.pop(dialogContext, true);
               },
-              child: const Text(
+              child: Text(
                 '삭제',
                 style: TextStyle(
-                  color: Colors.redAccent,
+                  color: context.colors.incorrect,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1065,7 +1062,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('친구를 삭제하지 못했습니다.')));
+      ).showSnackBar(SnackBar(content: Text('친구를 삭제하지 못했습니다.')));
     }
   }
 
@@ -1078,27 +1075,30 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: Colors.white,
+              backgroundColor: context.colors.surface,
               title: Text(
                 '$_nickname님 차단',
-                style: const TextStyle(fontWeight: FontWeight.w700),
+                style: TextStyle(fontWeight: FontWeight.w700),
               ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Align(
+                  Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
                       '차단 사유를 선택해주세요.',
-                      style: TextStyle(fontSize: 14, color: Color(0xFF666A73)),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: context.colors.textSecondary,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: 12),
                   RadioListTile<String>(
                     value: 'SPAM',
                     groupValue: selectedReason,
-                    activeColor: const Color(0xFFF0788F),
-                    title: const Text('스팸 또는 광고'),
+                    activeColor: context.colors.pinkStart,
+                    title: Text('스팸 또는 광고'),
                     onChanged: (value) {
                       if (value == null) {
                         return;
@@ -1112,8 +1112,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   RadioListTile<String>(
                     value: 'HARASSMENT',
                     groupValue: selectedReason,
-                    activeColor: const Color(0xFFF0788F),
-                    title: const Text('괴롭힘 또는 불쾌한 행동'),
+                    activeColor: context.colors.pinkStart,
+                    title: Text('괴롭힘 또는 불쾌한 행동'),
                     onChanged: (value) {
                       if (value == null) {
                         return;
@@ -1127,8 +1127,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   RadioListTile<String>(
                     value: 'UNWANTED',
                     groupValue: selectedReason,
-                    activeColor: const Color(0xFFF0788F),
-                    title: const Text('원하지 않는 사용자'),
+                    activeColor: context.colors.pinkStart,
+                    title: Text('원하지 않는 사용자'),
                     onChanged: (value) {
                       if (value == null) {
                         return;
@@ -1142,8 +1142,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   RadioListTile<String>(
                     value: 'OTHER',
                     groupValue: selectedReason,
-                    activeColor: const Color(0xFFF0788F),
-                    title: const Text('기타'),
+                    activeColor: context.colors.pinkStart,
+                    title: Text('기타'),
                     onChanged: (value) {
                       if (value == null) {
                         return;
@@ -1161,19 +1161,19 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   onPressed: () {
                     Navigator.pop(dialogContext);
                   },
-                  child: const Text(
+                  child: Text(
                     '취소',
-                    style: TextStyle(color: Color(0xFF9AA0AC)),
+                    style: TextStyle(color: context.colors.textSecondary),
                   ),
                 ),
                 TextButton(
                   onPressed: () {
                     Navigator.pop(dialogContext, selectedReason);
                   },
-                  child: const Text(
+                  child: Text(
                     '차단',
                     style: TextStyle(
-                      color: Colors.redAccent,
+                      color: context.colors.incorrect,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -1256,7 +1256,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('사용자를 차단하지 못했습니다.')));
+      ).showSnackBar(SnackBar(content: Text('사용자를 차단하지 못했습니다.')));
     }
   }
 
@@ -1271,30 +1271,27 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: Colors.white,
-          title: const Text(
-            '차단 해제',
-            style: TextStyle(fontWeight: FontWeight.w700),
-          ),
+          backgroundColor: context.colors.surface,
+          title: Text('차단 해제', style: TextStyle(fontWeight: FontWeight.w700)),
           content: Text('$_nickname님의 차단을 해제하시겠습니까?'),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(dialogContext, false);
               },
-              child: const Text(
+              child: Text(
                 '취소',
-                style: TextStyle(color: Color(0xFF9AA0AC)),
+                style: TextStyle(color: context.colors.textSecondary),
               ),
             ),
             TextButton(
               onPressed: () {
                 Navigator.pop(dialogContext, true);
               },
-              child: const Text(
+              child: Text(
                 '차단 해제',
                 style: TextStyle(
-                  color: Color(0xFFF0788F),
+                  color: context.colors.pinkStart,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1337,7 +1334,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('차단을 해제했습니다.')));
+      ).showSnackBar(SnackBar(content: Text('차단을 해제했습니다.')));
     } catch (error) {
       if (!mounted) {
         return;
@@ -1349,7 +1346,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('차단을 해제하지 못했습니다.')));
+      ).showSnackBar(SnackBar(content: Text('차단을 해제하지 못했습니다.')));
     }
   }
 
@@ -1412,32 +1409,32 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const AppLoadingView(message: '프로필을 불러오는 중입니다.');
+      return AppLoadingView(message: '프로필을 불러오는 중입니다.');
     }
 
     if (_hasError) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
+              Icon(
                 Icons.person_off_outlined,
                 size: 64,
-                color: Color(0xFFB5B7BE),
+                color: context.colors.textMuted,
               ),
-              const SizedBox(height: 16),
-              const Text(
+              SizedBox(height: 16),
+              Text(
                 '사용자 프로필을 불러올 수 없습니다.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF44474E),
+                  color: context.colors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
               SizedBox(
                 width: 180,
                 child: AppButton(
@@ -1460,7 +1457,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
 
     if (_isBlockedByOther) {
-      return const Center(
+      return Center(
         child: Padding(
           padding: EdgeInsets.all(24),
           child: Column(
@@ -1469,7 +1466,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               Icon(
                 Icons.person_off_outlined,
                 size: 64,
-                color: Color(0xFFB5B7BE),
+                color: context.colors.textMuted,
               ),
               SizedBox(height: 16),
               Text(
@@ -1478,7 +1475,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF44474E),
+                  color: context.colors.textPrimary,
                 ),
               ),
             ],
@@ -1488,11 +1485,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 110),
+      padding: EdgeInsets.fromLTRB(20, 16, 20, 110),
       child: Column(
         children: [
           _buildProfileCard(),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           _buildActivityCard(),
         ],
       ),
@@ -1507,7 +1504,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           Row(
             children: [
               Icon(Icons.insights_outlined, color: context.colors.pinkDeep),
-              const SizedBox(width: 9),
+              SizedBox(width: 9),
               Text(
                 '활동 기록',
                 style: TextStyle(
@@ -1518,7 +1515,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          SizedBox(height: 18),
           if (_isActivityPrivate)
             SizedBox(
               height: 76,
@@ -1530,7 +1527,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       Icons.lock_outline_rounded,
                       color: context.colors.textSecondary,
                     ),
-                    const SizedBox(height: 7),
+                    SizedBox(height: 7),
                     Text(
                       '비공개',
                       style: TextStyle(
@@ -1630,52 +1627,56 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(26),
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFFFFFFF), Color(0xFFFFF8FA), Color(0xFFFFF2F6)],
+          colors: [
+            context.colors.surface,
+            context.colors.surfaceElevated,
+            context.colors.pinkSoftAlt,
+          ],
         ),
-        border: Border.all(color: const Color(0xFFFFE8EE)),
+        border: Border.all(color: context.colors.pinkSoft),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFF0788F).withValues(alpha: 0.13),
+            color: context.colors.pinkStart.withValues(alpha: 0.13),
             blurRadius: 24,
-            offset: const Offset(0, 10),
+            offset: Offset(0, 10),
           ),
         ],
       ),
       child: Stack(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(24, 28, 24, 26),
+            padding: EdgeInsets.fromLTRB(24, 28, 24, 26),
             child: Column(
               children: [
                 _buildProfileImage(),
-                const SizedBox(height: 18),
+                SizedBox(height: 18),
                 Text(
                   _nickname,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 23,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF1A1A1A),
+                    color: context.colors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 7),
+                SizedBox(height: 7),
                 Text(
                   _bio.isEmpty ? '자기소개가 없습니다.' : _bio,
                   textAlign: TextAlign.center,
                   maxLines: 4,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     height: 1.45,
-                    color: Color(0xFF777B84),
+                    color: context.colors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 18),
+                SizedBox(height: 18),
                 _buildTargetCertificateChip(),
-                const SizedBox(height: 24),
+                SizedBox(height: 24),
                 if (_isMyProfile)
                   AppButton(
                     text: '내 프로필입니다',
@@ -1696,7 +1697,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             ? null
                             : _acceptReceivedFriendRequest,
                       ),
-                      const SizedBox(height: 10),
+                      SizedBox(height: 10),
                       AppButton(
                         text: '거절',
                         type: AppButtonType.gray,
@@ -1739,26 +1740,26 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       height: 40,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.white.withValues(alpha: 0.9),
-        border: Border.all(color: const Color(0xFFFFDCE4)),
+        color: context.colors.surface.withValues(alpha: 0.9),
+        border: Border.all(color: context.colors.pinkBorder),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFF0788F).withValues(alpha: 0.10),
+            color: context.colors.pinkStart.withValues(alpha: 0.10),
             blurRadius: 9,
-            offset: const Offset(0, 3),
+            offset: Offset(0, 3),
           ),
         ],
       ),
       child: PopupMenuButton<String>(
         tooltip: '사용자 메뉴',
         padding: EdgeInsets.zero,
-        color: Colors.white,
-        surfaceTintColor: Colors.white,
+        color: context.colors.surface,
+        surfaceTintColor: context.colors.surface,
         position: PopupMenuPosition.under,
-        icon: const Icon(
+        icon: Icon(
           Icons.more_horiz_rounded,
           size: 22,
-          color: Color(0xFF777B84),
+          color: context.colors.textSecondary,
         ),
         onSelected: (value) {
           if (value == 'block') {
@@ -1775,7 +1776,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         },
         itemBuilder: (context) {
           if (_isBlocked) {
-            return const [
+            return [
               PopupMenuItem<String>(
                 value: 'unblock',
                 child: Row(
@@ -1783,7 +1784,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     Icon(
                       Icons.person_add_alt_1_outlined,
                       size: 20,
-                      color: Color(0xFFF0788F),
+                      color: context.colors.pinkStart,
                     ),
                     SizedBox(width: 10),
                     Text('차단 해제'),
@@ -1797,14 +1798,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
           if (_friendStatus == 'ACCEPTED') {
             menuItems.add(
-              const PopupMenuItem<String>(
+              PopupMenuItem<String>(
                 value: 'deleteFriend',
                 child: Row(
                   children: [
                     Icon(
                       Icons.person_remove_outlined,
                       size: 20,
-                      color: Color(0xFF666A73),
+                      color: context.colors.textSecondary,
                     ),
                     SizedBox(width: 10),
                     Text('친구 삭제'),
@@ -1815,11 +1816,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           }
 
           menuItems.add(
-            const PopupMenuItem<String>(
+            PopupMenuItem<String>(
               value: 'block',
               child: Row(
                 children: [
-                  Icon(Icons.block_outlined, size: 20, color: Colors.redAccent),
+                  Icon(
+                    Icons.block_outlined,
+                    size: 20,
+                    color: context.colors.incorrect,
+                  ),
                   SizedBox(width: 10),
                   Text('사용자 차단'),
                 ],
@@ -1837,16 +1842,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     return Container(
       width: 104,
       height: 104,
-      padding: const EdgeInsets.all(5),
+      padding: EdgeInsets.all(5),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFFFDCE4), width: 2),
+        color: context.colors.surface,
+        border: Border.all(color: context.colors.pinkBorder, width: 2),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFF0788F).withValues(alpha: 0.18),
+            color: context.colors.pinkStart.withValues(alpha: 0.18),
             blurRadius: 18,
-            offset: const Offset(0, 7),
+            offset: Offset(0, 7),
           ),
         ],
       ),
@@ -1868,61 +1873,61 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   Widget _buildDefaultProfileImage() {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFFFE8EE), Color(0xFFFFF6F8)],
+          colors: [context.colors.pinkSoft, context.colors.surface],
         ),
       ),
-      child: const Icon(Icons.person, size: 58, color: Color(0xFFF0788F)),
+      child: Icon(Icons.person, size: 58, color: context.colors.pinkStart),
     );
   }
 
   Widget _buildTargetCertificateChip() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 11),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.82),
+        color: context.colors.surface.withValues(alpha: 0.82),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFFFD5DF)),
+        border: Border.all(color: context.colors.pinkBorder),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFF0788F).withValues(alpha: 0.08),
+            color: context.colors.pinkStart.withValues(alpha: 0.08),
             blurRadius: 10,
-            offset: const Offset(0, 4),
+            offset: Offset(0, 4),
           ),
         ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             Icons.track_changes_outlined,
             size: 20,
-            color: Color(0xFFF0788F),
+            color: context.colors.pinkStart,
           ),
-          const SizedBox(width: 8),
-          const Text(
+          SizedBox(width: 8),
+          Text(
             '목표 자격증',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF44474E),
+              color: context.colors.textPrimary,
             ),
           ),
-          const SizedBox(width: 5),
-          const Text('·', style: TextStyle(color: Color(0xFFB5B7BE))),
-          const SizedBox(width: 5),
+          SizedBox(width: 5),
+          Text('·', style: TextStyle(color: context.colors.textMuted)),
+          SizedBox(width: 5),
           Flexible(
             child: Text(
               _targetCertificateName,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFFF0788F),
+                color: context.colors.pinkStart,
               ),
             ),
           ),

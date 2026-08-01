@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import '../widgets/app_dialog.dart';
 import 'package:flutterteam03/widgets/app_state_views.dart';
 
 import '../widgets/app_card.dart';
@@ -16,27 +17,6 @@ import 'study_join_requests.dart';
 import 'study_quiz.dart';
 import 'study_room.dart';
 import 'study_timer.dart';
-
-
-Brightness get _studyBrightness {
-  return WidgetsBinding.instance.platformDispatcher.platformBrightness;
-}
-
-AppColors get _studyColors {
-  if (_studyBrightness == Brightness.dark) {
-    return AppColors.dark;
-  }
-
-  return AppColors.light;
-}
-
-ColorScheme get _studyColorScheme {
-  if (_studyBrightness == Brightness.dark) {
-    return darkTheme.colorScheme;
-  }
-
-  return lightTheme.colorScheme;
-}
 
 class StudyDetailPage extends StatelessWidget {
   final String studyId;
@@ -51,10 +31,7 @@ class StudyDetailPage extends StatelessWidget {
   });
 
   /// Firestore 숫자 가져오기
-  int _getInt(
-      Map<String, dynamic> data,
-      String fieldName,
-      ) {
+  int _getInt(Map<String, dynamic> data, String fieldName) {
     final value = data[fieldName];
 
     if (value is int) {
@@ -70,21 +47,13 @@ class StudyDetailPage extends StatelessWidget {
 
   /// 현재 모집 중인지 확인
   bool _isRecruiting(Map<String, dynamic> data) {
-    String recruitmentStatus =
-        data['recruitmentStatus']?.toString() ?? '';
+    String recruitmentStatus = data['recruitmentStatus']?.toString() ?? '';
 
-    String groupStatus =
-        data['status']?.toString() ?? '';
+    String groupStatus = data['status']?.toString() ?? '';
 
-    int currentMemberCount = _getInt(
-      data,
-      'currentMemberCount',
-    );
+    int currentMemberCount = _getInt(data, 'currentMemberCount');
 
-    int maxMemberCount = _getInt(
-      data,
-      'maxMemberCount',
-    );
+    int maxMemberCount = _getInt(data, 'maxMemberCount');
 
     if (groupStatus == 'COMPLETED') {
       return false;
@@ -94,13 +63,11 @@ class StudyDetailPage extends StatelessWidget {
       return false;
     }
 
-    if (recruitmentStatus.isEmpty &&
-        groupStatus == 'CLOSED') {
+    if (recruitmentStatus.isEmpty && groupStatus == 'CLOSED') {
       return false;
     }
 
-    if (maxMemberCount > 0 &&
-        currentMemberCount >= maxMemberCount) {
+    if (maxMemberCount > 0 && currentMemberCount >= maxMemberCount) {
       return false;
     }
 
@@ -109,14 +76,11 @@ class StudyDetailPage extends StatelessWidget {
 
   /// 현재 로그인한 사용자가 방장인지 확인
   bool _isOwner(Map<String, dynamic> data) {
-    final currentUserUid =
-        FirebaseAuth.instance.currentUser?.uid;
+    final currentUserUid = FirebaseAuth.instance.currentUser?.uid;
 
-    final ownerUid =
-    data['ownerUid']?.toString();
+    final ownerUid = data['ownerUid']?.toString();
 
-    return currentUserUid != null &&
-        currentUserUid == ownerUid;
+    return currentUserUid != null && currentUserUid == ownerUid;
   }
 
   /// 공부시간 표시
@@ -156,11 +120,9 @@ class StudyDetailPage extends StatelessWidget {
   String _formatExamDate(DateTime examDate) {
     String year = examDate.year.toString();
 
-    String month =
-    examDate.month.toString().padLeft(2, '0');
+    String month = examDate.month.toString().padLeft(2, '0');
 
-    String day =
-    examDate.day.toString().padLeft(2, '0');
+    String day = examDate.day.toString().padLeft(2, '0');
 
     return '$year.$month.$day';
   }
@@ -169,20 +131,11 @@ class StudyDetailPage extends StatelessWidget {
   String _getDdayText(DateTime examDate) {
     DateTime now = DateTime.now();
 
-    DateTime today = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    );
+    DateTime today = DateTime(now.year, now.month, now.day);
 
-    DateTime examDay = DateTime(
-      examDate.year,
-      examDate.month,
-      examDate.day,
-    );
+    DateTime examDay = DateTime(examDate.year, examDate.month, examDate.day);
 
-    int difference =
-        examDay.difference(today).inDays;
+    int difference = examDay.difference(today).inDays;
 
     if (difference > 0) {
       return 'D-$difference';
@@ -216,11 +169,8 @@ class StudyDetailPage extends StatelessWidget {
   }
 
   /// 공부 기록에서 초 단위 공부시간 가져오기
-  int _getRecordStudySeconds(
-      Map<String, dynamic> data,
-      ) {
-    dynamic studySecondsValue =
-    data['studySeconds'];
+  int _getRecordStudySeconds(Map<String, dynamic> data) {
+    dynamic studySecondsValue = data['studySeconds'];
 
     if (studySecondsValue is int) {
       return studySecondsValue;
@@ -230,8 +180,7 @@ class StudyDetailPage extends StatelessWidget {
       return studySecondsValue.toInt();
     }
 
-    dynamic elapsedSecondsValue =
-    data['elapsedSeconds'];
+    dynamic elapsedSecondsValue = data['elapsedSeconds'];
 
     if (elapsedSecondsValue is int) {
       return elapsedSecondsValue;
@@ -241,8 +190,7 @@ class StudyDetailPage extends StatelessWidget {
       return elapsedSecondsValue.toInt();
     }
 
-    dynamic studyMinutesValue =
-    data['studyMinutes'];
+    dynamic studyMinutesValue = data['studyMinutes'];
 
     if (studyMinutesValue is int) {
       return studyMinutesValue * 60;
@@ -256,42 +204,29 @@ class StudyDetailPage extends StatelessWidget {
   }
 
   /// 안내 메시지 표시
-  void _showMessage(
-      BuildContext context,
-      String message,
-      ) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
+  void _showMessage(BuildContext context, String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   /// users 컬렉션에서 실제 회원 닉네임과 프로필 이미지 조회
-  Future<Map<String, String>> _getUserProfile(
-      String uid,
-      ) async {
+  Future<Map<String, String>> _getUserProfile(String uid) async {
     String nickname = '';
     String profileImageUrl = '';
 
     DocumentSnapshot<Map<String, dynamic>> directUserSnapshot =
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .get();
+        await FirebaseFirestore.instance.collection('users').doc(uid).get();
 
     Map<String, dynamic> userData = {};
 
     if (directUserSnapshot.exists) {
       userData = directUserSnapshot.data() ?? {};
     } else {
-      QuerySnapshot<Map<String, dynamic>> userSnapshot =
-      await FirebaseFirestore.instance
+      QuerySnapshot<Map<String, dynamic>> userSnapshot = await FirebaseFirestore
+          .instance
           .collection('users')
-          .where(
-        'uid',
-        isEqualTo: uid,
-      )
+          .where('uid', isEqualTo: uid)
           .limit(1)
           .get();
 
@@ -300,48 +235,34 @@ class StudyDetailPage extends StatelessWidget {
       }
     }
 
-    nickname =
-        userData['nickname']?.toString().trim() ?? '';
+    nickname = userData['nickname']?.toString().trim() ?? '';
 
-    profileImageUrl =
-        userData['profileImageUrl']?.toString().trim() ?? '';
+    profileImageUrl = userData['profileImageUrl']?.toString().trim() ?? '';
 
     if (profileImageUrl.isEmpty) {
-      profileImageUrl =
-          userData['photoUrl']?.toString().trim() ?? '';
+      profileImageUrl = userData['photoUrl']?.toString().trim() ?? '';
     }
 
-    User? currentUser =
-        FirebaseAuth.instance.currentUser;
+    User? currentUser = FirebaseAuth.instance.currentUser;
 
-    if (currentUser != null &&
-        currentUser.uid == uid) {
+    if (currentUser != null && currentUser.uid == uid) {
       if (nickname.isEmpty) {
-        nickname =
-            currentUser.displayName?.trim() ?? '';
+        nickname = currentUser.displayName?.trim() ?? '';
       }
 
       if (profileImageUrl.isEmpty) {
-        profileImageUrl =
-            currentUser.photoURL?.trim() ?? '';
+        profileImageUrl = currentUser.photoURL?.trim() ?? '';
       }
     }
 
-    return {
-      'nickname': nickname,
-      'profileImageUrl': profileImageUrl,
-    };
+    return {'nickname': nickname, 'profileImageUrl': profileImageUrl};
   }
 
   /// 방장이 상세 화면에 들어오면 실제 회원 닉네임으로 동기화
-  void _scheduleOwnerProfileSync(
-      Map<String, dynamic> currentStudyData,
-      ) {
-    User? currentUser =
-        FirebaseAuth.instance.currentUser;
+  void _scheduleOwnerProfileSync(Map<String, dynamic> currentStudyData) {
+    User? currentUser = FirebaseAuth.instance.currentUser;
 
-    String ownerUid =
-        currentStudyData['ownerUid']?.toString() ?? '';
+    String ownerUid = currentStudyData['ownerUid']?.toString() ?? '';
 
     if (currentUser == null ||
         ownerUid.isEmpty ||
@@ -357,99 +278,70 @@ class StudyDetailPage extends StatelessWidget {
 
     _ownerProfileSyncKeySet.add(syncKey);
 
-    WidgetsBinding.instance.addPostFrameCallback(
-          (timeStamp) async {
-        try {
-          Map<String, String> profile =
-          await _getUserProfile(ownerUid);
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
+      try {
+        Map<String, String> profile = await _getUserProfile(ownerUid);
 
-          String nickname =
-              profile['nickname'] ?? '';
+        String nickname = profile['nickname'] ?? '';
 
-          String profileImageUrl =
-              profile['profileImageUrl'] ?? '';
+        String profileImageUrl = profile['profileImageUrl'] ?? '';
 
-          if (nickname.isEmpty &&
-              profileImageUrl.isEmpty) {
-            return;
-          }
-
-          DocumentReference<Map<String, dynamic>>
-          groupDocument =
-          FirebaseFirestore.instance
-              .collection('studyGroups')
-              .doc(studyId);
-
-          DocumentReference<Map<String, dynamic>>
-          memberDocument =
-          groupDocument
-              .collection('members')
-              .doc(ownerUid);
-
-          Map<String, dynamic> memberUpdateData = {
-            'uid': ownerUid,
-            'role': 'OWNER',
-            'status': 'ACTIVE',
-            'updatedAt': FieldValue.serverTimestamp(),
-          };
-
-          if (nickname.isNotEmpty) {
-            memberUpdateData['nickname'] = nickname;
-          }
-
-          if (profileImageUrl.isNotEmpty) {
-            memberUpdateData['profileImageUrl'] =
-                profileImageUrl;
-          }
-
-          await memberDocument.set(
-            memberUpdateData,
-            SetOptions(merge: true),
-          );
-
-          if (nickname.isNotEmpty) {
-            await groupDocument.set(
-              {
-                'ownerNickname': nickname,
-                'updatedAt': FieldValue.serverTimestamp(),
-              },
-              SetOptions(merge: true),
-            );
-          }
-        } catch (error) {
-          _ownerProfileSyncKeySet.remove(syncKey);
-
-          debugPrint(
-            '방장 닉네임 동기화 오류: $error',
-          );
+        if (nickname.isEmpty && profileImageUrl.isEmpty) {
+          return;
         }
-      },
-    );
+
+        DocumentReference<Map<String, dynamic>> groupDocument =
+            FirebaseFirestore.instance.collection('studyGroups').doc(studyId);
+
+        DocumentReference<Map<String, dynamic>> memberDocument = groupDocument
+            .collection('members')
+            .doc(ownerUid);
+
+        Map<String, dynamic> memberUpdateData = {
+          'uid': ownerUid,
+          'role': 'OWNER',
+          'status': 'ACTIVE',
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+
+        if (nickname.isNotEmpty) {
+          memberUpdateData['nickname'] = nickname;
+        }
+
+        if (profileImageUrl.isNotEmpty) {
+          memberUpdateData['profileImageUrl'] = profileImageUrl;
+        }
+
+        await memberDocument.set(memberUpdateData, SetOptions(merge: true));
+
+        if (nickname.isNotEmpty) {
+          await groupDocument.set({
+            'ownerNickname': nickname,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+      } catch (error) {
+        _ownerProfileSyncKeySet.remove(syncKey);
+
+        debugPrint('방장 닉네임 동기화 오류: $error');
+      }
+    });
   }
 
   /// 방장이 모집 상태 변경
   Future<void> _updateRecruitmentStatus(
-      BuildContext context,
-      Map<String, dynamic> currentStudyData,
-      bool openRecruitment,
-      ) async {
-    int currentMemberCount = _getInt(
-      currentStudyData,
-      'currentMemberCount',
-    );
+    BuildContext context,
+    Map<String, dynamic> currentStudyData,
+    bool openRecruitment,
+  ) async {
+    int currentMemberCount = _getInt(currentStudyData, 'currentMemberCount');
 
-    int maxMemberCount = _getInt(
-      currentStudyData,
-      'maxMemberCount',
-    );
+    int maxMemberCount = _getInt(currentStudyData, 'maxMemberCount');
 
     if (openRecruitment &&
         maxMemberCount > 0 &&
         currentMemberCount >= maxMemberCount) {
-      _showMessage(
-        context,
-        '정원이 가득 차서 모집을 다시 열 수 없습니다.',
-      );
+      _showMessage(context, '정원이 가득 차서 모집을 다시 열 수 없습니다.');
       return;
     }
 
@@ -466,25 +358,19 @@ class StudyDetailPage extends StatelessWidget {
           .collection('studyGroups')
           .doc(studyId)
           .update({
-        'recruitmentStatus': nextRecruitmentStatus,
-        'status': nextGroupStatus,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+            'recruitmentStatus': nextRecruitmentStatus,
+            'status': nextGroupStatus,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
 
       if (!context.mounted) {
         return;
       }
 
       if (openRecruitment) {
-        _showMessage(
-          context,
-          '스터디 모집을 다시 시작했습니다.',
-        );
+        _showMessage(context, '스터디 모집을 다시 시작했습니다.');
       } else {
-        _showMessage(
-          context,
-          '스터디 모집을 마감했습니다.',
-        );
+        _showMessage(context, '스터디 모집을 마감했습니다.');
       }
     } catch (error) {
       debugPrint('모집 상태 변경 오류: $error');
@@ -493,24 +379,15 @@ class StudyDetailPage extends StatelessWidget {
         return;
       }
 
-      _showMessage(
-        context,
-        '모집 상태를 변경하지 못했습니다.',
-      );
+      _showMessage(context, '모집 상태를 변경하지 못했습니다.');
     }
   }
 
   /// 중복되지 않는 초대 문서 ID 생성
-  String _createInviteDocumentId(
-      String target,
-      ) {
+  String _createInviteDocumentId(String target) {
     final value = '$studyId|$target';
 
-    return base64Url
-        .encode(
-      utf8.encode(value),
-    )
-        .replaceAll('=', '');
+    return base64Url.encode(utf8.encode(value)).replaceAll('=', '');
   }
 
   /// 초대 정보 저장
@@ -518,159 +395,114 @@ class StudyDetailPage extends StatelessWidget {
     required String groupName,
     required String target,
   }) async {
-    final currentUser =
-        FirebaseAuth.instance.currentUser;
+    final currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
       throw Exception('로그인 정보가 없습니다.');
     }
 
-    Map<String, String> inviterProfile =
-    await _getUserProfile(currentUser.uid);
+    Map<String, String> inviterProfile = await _getUserProfile(currentUser.uid);
 
-    String inviterNickname =
-        inviterProfile['nickname'] ?? '';
+    String inviterNickname = inviterProfile['nickname'] ?? '';
 
     if (inviterNickname.isEmpty) {
       inviterNickname = '사용자';
     }
 
-    String inviterProfileImageUrl =
-        inviterProfile['profileImageUrl'] ?? '';
+    String inviterProfileImageUrl = inviterProfile['profileImageUrl'] ?? '';
 
-    final normalizedTarget =
-    target.trim().toLowerCase();
+    final normalizedTarget = target.trim().toLowerCase();
 
-    final bool isEmail =
-    normalizedTarget.contains('@');
+    final bool isEmail = normalizedTarget.contains('@');
 
-    final inviteDocumentId =
-    _createInviteDocumentId(
-      normalizedTarget,
-    );
+    final inviteDocumentId = _createInviteDocumentId(normalizedTarget);
 
-    final inviteDocument =
-    FirebaseFirestore.instance
+    final inviteDocument = FirebaseFirestore.instance
         .collection('studyGroupInvites')
         .doc(inviteDocumentId);
 
-    await inviteDocument.set(
-      {
-        'groupId': studyId,
-        'groupName': groupName,
+    await inviteDocument.set({
+      'groupId': studyId,
+      'groupName': groupName,
 
-        'inviterUid': currentUser.uid,
-        'inviterNickname': inviterNickname,
-        'inviterProfileImageUrl':
-        inviterProfileImageUrl,
+      'inviterUid': currentUser.uid,
+      'inviterNickname': inviterNickname,
+      'inviterProfileImageUrl': inviterProfileImageUrl,
 
-        'inviteeUid': '',
+      'inviteeUid': '',
 
-        'targetEmail':
-        isEmail ? normalizedTarget : '',
+      'targetEmail': isEmail ? normalizedTarget : '',
 
-        'targetId':
-        isEmail ? '' : normalizedTarget,
+      'targetId': isEmail ? '' : normalizedTarget,
 
-        'inviteType':
-        isEmail ? 'EMAIL' : 'ID',
+      'inviteType': isEmail ? 'EMAIL' : 'ID',
 
-        'status': 'PENDING',
+      'status': 'PENDING',
 
-        'createdAt':
-        FieldValue.serverTimestamp(),
+      'createdAt': FieldValue.serverTimestamp(),
 
-        'updatedAt':
-        FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
 
-        // 초대 유효기간 7일
-        'expiredAt': Timestamp.fromDate(
-          DateTime.now().add(
-            Duration(days: 7),
-          ),
-        ),
-      },
-      SetOptions(
-        merge: true,
-      ),
-    );
+      // 초대 유효기간 7일
+      'expiredAt': Timestamp.fromDate(DateTime.now().add(Duration(days: 7))),
+    }, SetOptions(merge: true));
   }
 
   /// 기존 스터디에 방장 멤버 정보가 없으면 생성
-  Future<void> _ensureOwnerMember(
-      Map<String, dynamic> currentStudyData,
-      ) async {
-    final ownerUid =
-        currentStudyData['ownerUid']
-            ?.toString() ??
-            '';
+  Future<void> _ensureOwnerMember(Map<String, dynamic> currentStudyData) async {
+    final ownerUid = currentStudyData['ownerUid']?.toString() ?? '';
 
     if (ownerUid.isEmpty) {
       return;
     }
 
     String ownerNickname =
-        currentStudyData['ownerNickname']
-            ?.toString() ??
-            '방장';
+        currentStudyData['ownerNickname']?.toString() ?? '방장';
 
     String ownerProfileImageUrl = '';
 
-    User? currentUser =
-        FirebaseAuth.instance.currentUser;
+    User? currentUser = FirebaseAuth.instance.currentUser;
 
-    if (currentUser != null &&
-        currentUser.uid == ownerUid) {
-      Map<String, String> ownerProfile =
-      await _getUserProfile(ownerUid);
+    if (currentUser != null && currentUser.uid == ownerUid) {
+      Map<String, String> ownerProfile = await _getUserProfile(ownerUid);
 
-      String actualOwnerNickname =
-          ownerProfile['nickname'] ?? '';
+      String actualOwnerNickname = ownerProfile['nickname'] ?? '';
 
       if (actualOwnerNickname.isNotEmpty) {
         ownerNickname = actualOwnerNickname;
       }
 
-      ownerProfileImageUrl =
-          ownerProfile['profileImageUrl'] ?? '';
+      ownerProfileImageUrl = ownerProfile['profileImageUrl'] ?? '';
     }
 
-    final ownerMemberDocument =
-    FirebaseFirestore.instance
+    final ownerMemberDocument = FirebaseFirestore.instance
         .collection('studyGroups')
         .doc(studyId)
         .collection('members')
         .doc(ownerUid);
 
-    final ownerMemberSnapshot =
-    await ownerMemberDocument.get();
+    final ownerMemberSnapshot = await ownerMemberDocument.get();
 
     Map<String, dynamic> ownerMemberData = {
       'uid': ownerUid,
       'nickname': ownerNickname,
       'role': 'OWNER',
       'status': 'ACTIVE',
-      'updatedAt':
-      FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     };
 
     if (ownerProfileImageUrl.isNotEmpty) {
-      ownerMemberData['profileImageUrl'] =
-          ownerProfileImageUrl;
+      ownerMemberData['profileImageUrl'] = ownerProfileImageUrl;
     }
 
     if (ownerMemberSnapshot.exists == false) {
       ownerMemberData['totalStudyMinutes'] = 0;
       ownerMemberData['totalStudySeconds'] = 0;
       ownerMemberData['joinedAt'] =
-          currentStudyData['createdAt'] ??
-              FieldValue.serverTimestamp();
+          currentStudyData['createdAt'] ?? FieldValue.serverTimestamp();
     }
 
-    await ownerMemberDocument.set(
-      ownerMemberData,
-      SetOptions(merge: true),
-    );
+    await ownerMemberDocument.set(ownerMemberData, SetOptions(merge: true));
 
     if (currentUser != null &&
         currentUser.uid == ownerUid &&
@@ -678,65 +510,46 @@ class StudyDetailPage extends StatelessWidget {
       await FirebaseFirestore.instance
           .collection('studyGroups')
           .doc(studyId)
-          .set(
-        {
-          'ownerNickname': ownerNickname,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+          .set({
+            'ownerNickname': ownerNickname,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
     }
   }
 
   /// 스터디 수정 화면으로 이동
   Future<void> _openEditPage(
-      BuildContext context,
-      Map<String, dynamic> currentStudyData,
-      ) async {
+    BuildContext context,
+    Map<String, dynamic> currentStudyData,
+  ) async {
     await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (context) => StudyEditPage(
-          studyId: studyId,
-          studyData: currentStudyData,
-        ),
+        builder: (context) =>
+            StudyEditPage(studyId: studyId, studyData: currentStudyData),
       ),
     );
   }
 
   /// 시험일과 주간 목표 설정 창
   Future<void> _showStudyGoalDialog(
-      BuildContext context,
-      Map<String, dynamic> currentStudyData,
-      ) async {
-    DateTime? selectedExamDate =
-    _getDateTime(
-      currentStudyData['examDate'],
+    BuildContext context,
+    Map<String, dynamic> currentStudyData,
+  ) async {
+    DateTime? selectedExamDate = _getDateTime(currentStudyData['examDate']);
+
+    int weeklyGoalMinutes = _getInt(currentStudyData, 'weeklyGoalMinutes');
+
+    int initialGoalHours = weeklyGoalMinutes ~/ 60;
+
+    int initialGoalMinutes = weeklyGoalMinutes % 60;
+
+    TextEditingController hourController = TextEditingController(
+      text: initialGoalHours > 0 ? initialGoalHours.toString() : '',
     );
 
-    int weeklyGoalMinutes = _getInt(
-      currentStudyData,
-      'weeklyGoalMinutes',
-    );
-
-    int initialGoalHours =
-        weeklyGoalMinutes ~/ 60;
-
-    int initialGoalMinutes =
-        weeklyGoalMinutes % 60;
-
-    TextEditingController hourController =
-    TextEditingController(
-      text: initialGoalHours > 0
-          ? initialGoalHours.toString()
-          : '',
-    );
-
-    TextEditingController minuteController =
-    TextEditingController(
-      text: initialGoalMinutes > 0
-          ? initialGoalMinutes.toString()
-          : '',
+    TextEditingController minuteController = TextEditingController(
+      text: initialGoalMinutes > 0 ? initialGoalMinutes.toString() : '',
     );
 
     bool isSaving = false;
@@ -747,28 +560,17 @@ class StudyDetailPage extends StatelessWidget {
       barrierDismissible: false,
       builder: (dialogContext) {
         return StatefulBuilder(
-          builder: (
-              context,
-              setDialogState,
-              ) {
+          builder: (context, setDialogState) {
             Future<void> selectExamDate() async {
               DateTime now = DateTime.now();
 
-              DateTime initialDate =
-                  selectedExamDate ?? now;
+              DateTime initialDate = selectedExamDate ?? now;
 
-              DateTime? pickedDate =
-              await showDatePicker(
+              DateTime? pickedDate = await showDatePicker(
                 context: dialogContext,
                 initialDate: initialDate,
-                firstDate: DateTime(
-                  now.year - 5,
-                ),
-                lastDate: DateTime(
-                  now.year + 10,
-                  12,
-                  31,
-                ),
+                firstDate: DateTime(now.year - 5),
+                lastDate: DateTime(now.year + 10, 12, 31),
                 helpText: '시험일 선택',
                 cancelText: '취소',
                 confirmText: '선택',
@@ -788,23 +590,13 @@ class StudyDetailPage extends StatelessWidget {
             }
 
             Future<void> saveGoal() async {
-              int goalHours =
-                  int.tryParse(
-                    hourController.text.trim(),
-                  ) ??
-                      0;
+              int goalHours = int.tryParse(hourController.text.trim()) ?? 0;
 
-              int goalMinutes =
-                  int.tryParse(
-                    minuteController.text.trim(),
-                  ) ??
-                      0;
+              int goalMinutes = int.tryParse(minuteController.text.trim()) ?? 0;
 
-              if (goalHours < 0 ||
-                  goalMinutes < 0) {
+              if (goalHours < 0 || goalMinutes < 0) {
                 setDialogState(() {
-                  inputError =
-                  '목표시간은 0 이상으로 입력해 주세요.';
+                  inputError = '목표시간은 0 이상으로 입력해 주세요.';
                 });
 
                 return;
@@ -812,22 +604,17 @@ class StudyDetailPage extends StatelessWidget {
 
               if (goalMinutes >= 60) {
                 setDialogState(() {
-                  inputError =
-                  '분은 0분부터 59분까지 입력해 주세요.';
+                  inputError = '분은 0분부터 59분까지 입력해 주세요.';
                 });
 
                 return;
               }
 
-              int totalGoalMinutes =
-                  goalHours * 60 +
-                      goalMinutes;
+              int totalGoalMinutes = goalHours * 60 + goalMinutes;
 
-              if (totalGoalMinutes >
-                  7 * 24 * 60) {
+              if (totalGoalMinutes > 7 * 24 * 60) {
                 setDialogState(() {
-                  inputError =
-                  '주간 목표는 최대 168시간까지 설정할 수 있습니다.';
+                  inputError = '주간 목표는 최대 168시간까지 설정할 수 있습니다.';
                 });
 
                 return;
@@ -843,38 +630,26 @@ class StudyDetailPage extends StatelessWidget {
                     .collection('studyGroups')
                     .doc(studyId)
                     .update({
-                  'examDate':
-                  selectedExamDate == null
-                      ? null
-                      : Timestamp.fromDate(
-                    selectedExamDate!,
-                  ),
-                  'weeklyGoalMinutes':
-                  totalGoalMinutes,
-                  'updatedAt':
-                  FieldValue.serverTimestamp(),
-                });
+                      'examDate': selectedExamDate == null
+                          ? null
+                          : Timestamp.fromDate(selectedExamDate!),
+                      'weeklyGoalMinutes': totalGoalMinutes,
+                      'updatedAt': FieldValue.serverTimestamp(),
+                    });
 
                 if (!dialogContext.mounted) {
                   return;
                 }
 
-                Navigator.pop(
-                  dialogContext,
-                );
+                Navigator.pop(dialogContext);
 
                 if (!context.mounted) {
                   return;
                 }
 
-                _showMessage(
-                  context,
-                  '시험일과 주간 목표를 저장했습니다.',
-                );
+                _showMessage(context, '시험일과 주간 목표를 저장했습니다.');
               } catch (error) {
-                debugPrint(
-                  '시험일·주간 목표 저장 오류: $error',
-                );
+                debugPrint('시험일·주간 목표 저장 오류: $error');
 
                 if (!dialogContext.mounted) {
                   return;
@@ -882,142 +657,98 @@ class StudyDetailPage extends StatelessWidget {
 
                 setDialogState(() {
                   isSaving = false;
-                  inputError =
-                  '시험일과 주간 목표를 저장하지 못했습니다.';
+                  inputError = '시험일과 주간 목표를 저장하지 못했습니다.';
                 });
               }
             }
 
             return AlertDialog(
               shape: RoundedRectangleBorder(
-                borderRadius:
-                BorderRadius.circular(22),
+                borderRadius: BorderRadius.circular(22),
               ),
               title: Row(
                 children: [
                   Icon(
-                    Icons
-                        .event_available_rounded,
-                    color:
-                    _studyColors.pinkStart,
+                    Icons.event_available_rounded,
+                    color: context.colors.pinkStart,
                   ),
                   SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      '시험일·주간 목표 설정',
-                    ),
-                  ),
+                  Expanded(child: Text('시험일·주간 목표 설정')),
                 ],
               ),
-              content:
-              SingleChildScrollView(
+              content: SingleChildScrollView(
                 child: Column(
-                  mainAxisSize:
-                  MainAxisSize.min,
-                  crossAxisAlignment:
-                  CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       '시험일',
                       style: TextStyle(
                         fontSize: 14,
-                        fontWeight:
-                        FontWeight.bold,
-                        color: _studyColors
-                            .textPrimary,
+                        fontWeight: FontWeight.bold,
+                        color: context.colors.textPrimary,
                       ),
                     ),
                     SizedBox(height: 8),
                     InkWell(
-                      borderRadius:
-                      BorderRadius.circular(
-                        14,
-                      ),
-                      onTap: isSaving
-                          ? null
-                          : selectExamDate,
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: isSaving ? null : selectExamDate,
                       child: Container(
                         width: double.infinity,
-                        padding:
-                        EdgeInsets.symmetric(
+                        padding: EdgeInsets.symmetric(
                           horizontal: 14,
                           vertical: 14,
                         ),
-                        decoration:
-                        BoxDecoration(
-                          color:
-                          _studyColorScheme
-                              .surface,
-                          borderRadius:
-                          BorderRadius.circular(
-                            14,
-                          ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color:
-                            _studyColorScheme
-                                .outlineVariant,
+                            color: Theme.of(context).colorScheme.outlineVariant,
                           ),
                         ),
                         child: Row(
                           children: [
                             Icon(
-                              Icons
-                                  .calendar_month_outlined,
-                              color: _studyColors
-                                  .pinkStart,
+                              Icons.calendar_month_outlined,
+                              color: context.colors.pinkStart,
                             ),
                             SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                selectedExamDate ==
-                                    null
+                                selectedExamDate == null
                                     ? '시험일을 선택해 주세요.'
-                                    : _formatExamDate(
-                                  selectedExamDate!,
-                                ),
+                                    : _formatExamDate(selectedExamDate!),
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: selectedExamDate ==
-                                      null
-                                      ? _studyColors
-                                      .textSecondary
-                                      : _studyColors
-                                      .textPrimary,
+                                  color: selectedExamDate == null
+                                      ? context.colors.textSecondary
+                                      : context.colors.textPrimary,
                                 ),
                               ),
                             ),
                             Icon(
-                              Icons
-                                  .chevron_right_rounded,
-                              color: _studyColors
-                                  .textSecondary,
+                              Icons.chevron_right_rounded,
+                              color: context.colors.textSecondary,
                             ),
                           ],
                         ),
                       ),
                     ),
-                    if (selectedExamDate !=
-                        null)
+                    if (selectedExamDate != null)
                       Align(
-                        alignment:
-                        Alignment.centerRight,
+                        alignment: Alignment.centerRight,
                         child: TextButton(
                           onPressed: isSaving
                               ? null
                               : () {
-                            setDialogState(
-                                  () {
-                                selectedExamDate =
-                                null;
-                              },
-                            );
-                          },
+                                  setDialogState(() {
+                                    selectedExamDate = null;
+                                  });
+                                },
                           child: Text(
                             '시험일 삭제',
                             style: TextStyle(
-                              color:
-                              _studyColorScheme
-                                  .error,
+                              color: Theme.of(context).colorScheme.error,
                             ),
                           ),
                         ),
@@ -1027,10 +758,8 @@ class StudyDetailPage extends StatelessWidget {
                       '이번 주 그룹 목표',
                       style: TextStyle(
                         fontSize: 14,
-                        fontWeight:
-                        FontWeight.bold,
-                        color: _studyColors
-                            .textPrimary,
+                        fontWeight: FontWeight.bold,
+                        color: context.colors.textPrimary,
                       ),
                     ),
                     SizedBox(height: 5),
@@ -1039,8 +768,7 @@ class StudyDetailPage extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 11,
                         height: 1.4,
-                        color: _studyColors
-                            .textSecondary,
+                        color: context.colors.textSecondary,
                       ),
                     ),
                     SizedBox(height: 10),
@@ -1048,24 +776,15 @@ class StudyDetailPage extends StatelessWidget {
                       children: [
                         Expanded(
                           child: TextField(
-                            controller:
-                            hourController,
+                            controller: hourController,
                             enabled: !isSaving,
-                            keyboardType:
-                            TextInputType
-                                .number,
-                            decoration:
-                            InputDecoration(
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
                               labelText: '시간',
                               hintText: '예: 20',
                               suffixText: '시간',
-                              border:
-                              OutlineInputBorder(
-                                borderRadius:
-                                BorderRadius
-                                    .circular(
-                                  14,
-                                ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
                               ),
                             ),
                           ),
@@ -1073,24 +792,15 @@ class StudyDetailPage extends StatelessWidget {
                         SizedBox(width: 10),
                         Expanded(
                           child: TextField(
-                            controller:
-                            minuteController,
+                            controller: minuteController,
                             enabled: !isSaving,
-                            keyboardType:
-                            TextInputType
-                                .number,
-                            decoration:
-                            InputDecoration(
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
                               labelText: '분',
                               hintText: '예: 30',
                               suffixText: '분',
-                              border:
-                              OutlineInputBorder(
-                                borderRadius:
-                                BorderRadius
-                                    .circular(
-                                  14,
-                                ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
                               ),
                             ),
                           ),
@@ -1103,8 +813,7 @@ class StudyDetailPage extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 10,
                         height: 1.4,
-                        color: _studyColors
-                            .textSecondary,
+                        color: context.colors.textSecondary,
                       ),
                     ),
                     if (inputError.isNotEmpty) ...[
@@ -1113,9 +822,7 @@ class StudyDetailPage extends StatelessWidget {
                         inputError,
                         style: TextStyle(
                           fontSize: 11,
-                          color:
-                          _studyColorScheme
-                              .error,
+                          color: Theme.of(context).colorScheme.error,
                         ),
                       ),
                     ],
@@ -1127,35 +834,25 @@ class StudyDetailPage extends StatelessWidget {
                   onPressed: isSaving
                       ? null
                       : () {
-                    Navigator.pop(
-                      dialogContext,
-                    );
-                  },
+                          Navigator.pop(dialogContext);
+                        },
                   child: Text('취소'),
                 ),
                 ElevatedButton(
-                  onPressed:
-                  isSaving ? null : saveGoal,
-                  style:
-                  ElevatedButton.styleFrom(
-                    backgroundColor:
-                    _studyColors.pinkStart,
-                    foregroundColor:
-                    _studyColorScheme
-                        .onPrimary,
+                  onPressed: isSaving ? null : saveGoal,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: context.colors.pinkStart,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   ),
                   child: isSaving
                       ? SizedBox(
-                    width: 18,
-                    height: 18,
-                    child:
-                    CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color:
-                      _studyColorScheme
-                          .onPrimary,
-                    ),
-                  )
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          ),
+                        )
                       : Text('저장'),
                 ),
               ],
@@ -1171,210 +868,129 @@ class StudyDetailPage extends StatelessWidget {
 
   /// 시험일과 주간 목표 카드
   Widget _buildStudyGoalCard(
-      BuildContext context,
-      Map<String, dynamic> currentStudyData,
-      bool isOwner,
-      ) {
-    DateTime? examDate =
-    _getDateTime(
-      currentStudyData['examDate'],
-    );
+    BuildContext context,
+    Map<String, dynamic> currentStudyData,
+    bool isOwner,
+  ) {
+    DateTime? examDate = _getDateTime(currentStudyData['examDate']);
 
-    int weeklyGoalMinutes = _getInt(
-      currentStudyData,
-      'weeklyGoalMinutes',
-    );
+    int weeklyGoalMinutes = _getInt(currentStudyData, 'weeklyGoalMinutes');
 
     DateTime now = DateTime.now();
 
-    DateTime today = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    );
+    DateTime today = DateTime(now.year, now.month, now.day);
 
-    DateTime weekStart =
-    today.subtract(
-      Duration(
-        days: today.weekday - 1,
-      ),
-    );
+    DateTime weekStart = today.subtract(Duration(days: today.weekday - 1));
 
-    DateTime nextWeekStart =
-    weekStart.add(
-      Duration(days: 7),
-    );
+    DateTime nextWeekStart = weekStart.add(Duration(days: 7));
 
-    Stream<
-        QuerySnapshot<
-            Map<String, dynamic>>>
-    recordStream =
-    FirebaseFirestore.instance
+    Stream<QuerySnapshot<Map<String, dynamic>>> recordStream = FirebaseFirestore
+        .instance
         .collection('studyGroups')
         .doc(studyId)
         .collection('studyRecords')
-        .where(
-      'endedAt',
-      isGreaterThanOrEqualTo:
-      Timestamp.fromDate(
-        weekStart,
-      ),
-    )
-        .where(
-      'endedAt',
-      isLessThan:
-      Timestamp.fromDate(
-        nextWeekStart,
-      ),
-    )
+        .where('endedAt', isGreaterThanOrEqualTo: Timestamp.fromDate(weekStart))
+        .where('endedAt', isLessThan: Timestamp.fromDate(nextWeekStart))
         .snapshots();
 
-    return StreamBuilder<
-        QuerySnapshot<
-            Map<String, dynamic>>>(
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: recordStream,
       builder: (context, snapshot) {
-        if (snapshot.connectionState ==
-            ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return SizedBox(
             height: 190,
-            child: AppLoadingView(
-              message:
-              '시험일과 주간 목표를 불러오는 중입니다.',
-            ),
+            child: AppLoadingView(message: '시험일과 주간 목표를 불러오는 중입니다.'),
           );
         }
 
         if (snapshot.hasError) {
           return SizedBox(
             height: 220,
-            child: _isNetworkError(
-              snapshot.error,
-            )
+            child: _isNetworkError(snapshot.error)
                 ? AppNetworkErrorView(
-              message:
-              '인터넷 연결을 확인해 주세요.',
-              description:
-              '네트워크 연결 후 목표 정보를 다시 불러와 주세요.',
-              onRetryPressed: () {
-                _retryDetailPage(
-                  context,
-                );
-              },
-            )
+                    message: '인터넷 연결을 확인해 주세요.',
+                    description: '네트워크 연결 후 목표 정보를 다시 불러와 주세요.',
+                    onRetryPressed: () {
+                      _retryDetailPage(context);
+                    },
+                  )
                 : AppErrorView(
-              message:
-              '목표 정보를 불러오지 못했습니다.',
-              description:
-              '잠시 후 다시 시도해 주세요.',
-              onRetryPressed: () {
-                _retryDetailPage(
-                  context,
-                );
-              },
-            ),
+                    message: '목표 정보를 불러오지 못했습니다.',
+                    description: '잠시 후 다시 시도해 주세요.',
+                    onRetryPressed: () {
+                      _retryDetailPage(context);
+                    },
+                  ),
           );
         }
 
         int weeklyStudySeconds = 0;
 
         if (snapshot.data != null) {
-          for (int i = 0;
-          i <
-              snapshot
-                  .data!.docs.length;
-          i++) {
-            weeklyStudySeconds +=
-                _getRecordStudySeconds(
-                  snapshot.data!.docs[i]
-                      .data(),
-                );
+          for (int i = 0; i < snapshot.data!.docs.length; i++) {
+            weeklyStudySeconds += _getRecordStudySeconds(
+              snapshot.data!.docs[i].data(),
+            );
           }
         }
 
-        int weeklyGoalSeconds =
-            weeklyGoalMinutes * 60;
+        int weeklyGoalSeconds = weeklyGoalMinutes * 60;
 
         double progress = 0;
 
         if (weeklyGoalSeconds > 0) {
-          progress =
-              weeklyStudySeconds /
-                  weeklyGoalSeconds;
+          progress = weeklyStudySeconds / weeklyGoalSeconds;
 
           if (progress > 1) {
             progress = 1;
           }
         }
 
-        int progressPercent =
-        (progress * 100).round();
+        int progressPercent = (progress * 100).round();
 
-        String ddayText =
-        examDate == null
-            ? '시험일 미설정'
-            : _getDdayText(
-          examDate,
-        );
+        String ddayText = examDate == null ? '시험일 미설정' : _getDdayText(examDate);
 
-        String examDateText =
-        examDate == null
+        String examDateText = examDate == null
             ? '방장이 시험일을 설정할 수 있습니다.'
             : '${_formatExamDate(examDate)} 시험';
 
-        String goalText =
-        weeklyGoalMinutes > 0
+        String goalText = weeklyGoalMinutes > 0
             ? '${_formatGoalTime(weeklyStudySeconds)} / '
-            '${_formatGoalTime(weeklyGoalSeconds)}'
+                  '${_formatGoalTime(weeklyGoalSeconds)}'
             : '주간 목표 미설정';
 
-        bool hasGoalSetting =
-            examDate != null ||
-                weeklyGoalMinutes > 0;
+        bool hasGoalSetting = examDate != null || weeklyGoalMinutes > 0;
 
         return AppCard(
-          backgroundColor:
-          _studyColorScheme.surface,
+          backgroundColor: Theme.of(context).colorScheme.surface,
           child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   Container(
                     width: 48,
                     height: 48,
-                    decoration:
-                    BoxDecoration(
-                      color:
-                      _studyColors.pinkSoft,
-                      borderRadius:
-                      BorderRadius.circular(
-                        16,
-                      ),
+                    decoration: BoxDecoration(
+                      color: context.colors.pinkSoft,
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     child: Icon(
-                      Icons
-                          .event_available_rounded,
-                      color:
-                      _studyColors.pinkStart,
+                      Icons.event_available_rounded,
+                      color: context.colors.pinkStart,
                     ),
                   ),
                   SizedBox(width: 13),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment:
-                      CrossAxisAlignment
-                          .start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           ddayText,
                           style: TextStyle(
                             fontSize: 18,
-                            fontWeight:
-                            FontWeight.bold,
-                            color: _studyColors
-                                .pinkStart,
+                            fontWeight: FontWeight.bold,
+                            color: context.colors.pinkStart,
                           ),
                         ),
                         SizedBox(height: 4),
@@ -1382,8 +998,7 @@ class StudyDetailPage extends StatelessWidget {
                           examDateText,
                           style: TextStyle(
                             fontSize: 11,
-                            color: _studyColors
-                                .textSecondary,
+                            color: context.colors.textSecondary,
                           ),
                         ),
                       ],
@@ -1392,20 +1007,13 @@ class StudyDetailPage extends StatelessWidget {
                   if (isOwner)
                     TextButton(
                       onPressed: () {
-                        _showStudyGoalDialog(
-                          context,
-                          currentStudyData,
-                        );
+                        _showStudyGoalDialog(context, currentStudyData);
                       },
                       child: Text(
-                        hasGoalSetting
-                            ? '수정'
-                            : '설정',
+                        hasGoalSetting ? '수정' : '설정',
                         style: TextStyle(
-                          color: _studyColors
-                              .pinkStart,
-                          fontWeight:
-                          FontWeight.bold,
+                          color: context.colors.pinkStart,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
@@ -1419,10 +1027,8 @@ class StudyDetailPage extends StatelessWidget {
                       '이번 주 그룹 목표',
                       style: TextStyle(
                         fontSize: 13,
-                        fontWeight:
-                        FontWeight.bold,
-                        color: _studyColors
-                            .textPrimary,
+                        fontWeight: FontWeight.bold,
+                        color: context.colors.textPrimary,
                       ),
                     ),
                   ),
@@ -1430,30 +1036,21 @@ class StudyDetailPage extends StatelessWidget {
                     goalText,
                     style: TextStyle(
                       fontSize: 12,
-                      fontWeight:
-                      FontWeight.w600,
-                      color: _studyColors
-                          .pinkStart,
+                      fontWeight: FontWeight.w600,
+                      color: context.colors.pinkStart,
                     ),
                   ),
                 ],
               ),
               SizedBox(height: 10),
               ClipRRect(
-                borderRadius:
-                BorderRadius.circular(
-                  10,
-                ),
-                child:
-                LinearProgressIndicator(
+                borderRadius: BorderRadius.circular(10),
+                child: LinearProgressIndicator(
                   minHeight: 9,
                   value: progress,
-                  backgroundColor:
-                  _studyColors.pinkSoft,
-                  valueColor:
-                  AlwaysStoppedAnimation<
-                      Color>(
-                    _studyColors.pinkStart,
+                  backgroundColor: context.colors.pinkSoft,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    context.colors.pinkStart,
                   ),
                 ),
               ),
@@ -1468,21 +1065,17 @@ class StudyDetailPage extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 10,
                         height: 1.4,
-                        color: _studyColors
-                            .textSecondary,
+                        color: context.colors.textSecondary,
                       ),
                     ),
                   ),
-                  if (weeklyGoalMinutes >
-                      0)
+                  if (weeklyGoalMinutes > 0)
                     Text(
                       '$progressPercent%',
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight:
-                        FontWeight.bold,
-                        color: _studyColors
-                            .pinkStart,
+                        fontWeight: FontWeight.bold,
+                        color: context.colors.pinkStart,
                       ),
                     ),
                 ],
@@ -1495,127 +1088,73 @@ class StudyDetailPage extends StatelessWidget {
   }
 
   /// 그룹원 추방
-  Future<void> _kickMember({
-    required String memberUid,
-  }) async {
+  Future<void> _kickMember({required String memberUid}) async {
     final currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
       throw Exception('로그인 정보가 없습니다.');
     }
 
-    final groupDocument =
-    FirebaseFirestore.instance
+    final groupDocument = FirebaseFirestore.instance
         .collection('studyGroups')
         .doc(studyId);
 
-    final memberDocument =
-    groupDocument
-        .collection('members')
-        .doc(memberUid);
+    final memberDocument = groupDocument.collection('members').doc(memberUid);
 
-    await FirebaseFirestore.instance
-        .runTransaction(
-          (transaction) async {
-        final groupSnapshot =
-        await transaction.get(
-          groupDocument,
-        );
+    await FirebaseFirestore.instance.runTransaction((transaction) async {
+      final groupSnapshot = await transaction.get(groupDocument);
 
-        final memberSnapshot =
-        await transaction.get(
-          memberDocument,
-        );
+      final memberSnapshot = await transaction.get(memberDocument);
 
-        if (!groupSnapshot.exists ||
-            !memberSnapshot.exists) {
-          throw Exception(
-            '그룹원 정보를 찾을 수 없습니다.',
-          );
-        }
+      if (!groupSnapshot.exists || !memberSnapshot.exists) {
+        throw Exception('그룹원 정보를 찾을 수 없습니다.');
+      }
 
-        final groupData =
-            groupSnapshot.data() ?? {};
+      final groupData = groupSnapshot.data() ?? {};
 
-        final memberData =
-            memberSnapshot.data() ?? {};
+      final memberData = memberSnapshot.data() ?? {};
 
-        if (groupData['ownerUid']?.toString() !=
-            currentUser.uid) {
-          throw Exception(
-            '방장만 그룹원을 추방할 수 있습니다.',
-          );
-        }
+      if (groupData['ownerUid']?.toString() != currentUser.uid) {
+        throw Exception('방장만 그룹원을 추방할 수 있습니다.');
+      }
 
-        final role =
-            memberData['role']?.toString() ??
-                'MEMBER';
+      final role = memberData['role']?.toString() ?? 'MEMBER';
 
-        final status =
-            memberData['status']?.toString() ??
-                'ACTIVE';
+      final status = memberData['status']?.toString() ?? 'ACTIVE';
 
-        if (role == 'OWNER') {
-          throw Exception(
-            '방장은 추방할 수 없습니다.',
-          );
-        }
+      if (role == 'OWNER') {
+        throw Exception('방장은 추방할 수 없습니다.');
+      }
 
-        if (status != 'ACTIVE') {
-          throw Exception(
-            '이미 활동 중인 그룹원이 아닙니다.',
-          );
-        }
+      if (status != 'ACTIVE') {
+        throw Exception('이미 활동 중인 그룹원이 아닙니다.');
+      }
 
-        final currentMemberCount =
-        _getInt(
-          groupData,
-          'currentMemberCount',
-        );
+      final currentMemberCount = _getInt(groupData, 'currentMemberCount');
 
-        final newMemberCount =
-        currentMemberCount > 1
-            ? currentMemberCount - 1
-            : 1;
+      final newMemberCount = currentMemberCount > 1
+          ? currentMemberCount - 1
+          : 1;
 
-        final currentStatus =
-            groupData['status']?.toString() ??
-                'RECRUITING';
+      final currentStatus = groupData['status']?.toString() ?? 'RECRUITING';
 
-        transaction.update(
-          memberDocument,
-          {
-            'status': 'BANNED',
-            'bannedAt':
-            FieldValue.serverTimestamp(),
-            'updatedAt':
-            FieldValue.serverTimestamp(),
-          },
-        );
+      transaction.update(memberDocument, {
+        'status': 'BANNED',
+        'bannedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
-        transaction.update(
-          groupDocument,
-          {
-            'currentMemberCount':
-            newMemberCount,
+      transaction.update(groupDocument, {
+        'currentMemberCount': newMemberCount,
 
-            // 완료된 스터디가 아니면 다시 모집 중으로 변경
-            'status':
-            currentStatus == 'COMPLETED'
-                ? 'COMPLETED'
-                : 'RECRUITING',
+        // 완료된 스터디가 아니면 다시 모집 중으로 변경
+        'status': currentStatus == 'COMPLETED' ? 'COMPLETED' : 'RECRUITING',
 
-            'recruitmentStatus':
-            currentStatus == 'COMPLETED'
-                ? 'CLOSED'
-                : 'OPEN',
+        'recruitmentStatus': currentStatus == 'COMPLETED' ? 'CLOSED' : 'OPEN',
 
-            'updatedAt':
-            FieldValue.serverTimestamp(),
-          },
-        );
-      },
-    );
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
   }
 
   /// 그룹원 추방 확인창
@@ -1631,36 +1170,24 @@ class StudyDetailPage extends StatelessWidget {
       barrierDismissible: false,
       builder: (dialogContext) {
         return StatefulBuilder(
-          builder: (
-              context,
-              setDialogState,
-              ) {
+          builder: (context, setDialogState) {
             Future<void> kickMember() async {
               setDialogState(() {
                 isProcessing = true;
               });
 
               try {
-                await _kickMember(
-                  memberUid: memberUid,
-                );
+                await _kickMember(memberUid: memberUid);
 
                 if (!dialogContext.mounted) {
                   return;
                 }
 
-                Navigator.pop(
-                  dialogContext,
-                );
+                Navigator.pop(dialogContext);
 
-                _showMessage(
-                  context,
-                  '$nickname 님을 스터디에서 추방했습니다.',
-                );
+                _showMessage(context, '$nickname 님을 스터디에서 추방했습니다.');
               } catch (error) {
-                debugPrint(
-                  '그룹원 추방 오류: $error',
-                );
+                debugPrint('그룹원 추방 오류: $error');
 
                 if (!dialogContext.mounted) {
                   return;
@@ -1670,24 +1197,19 @@ class StudyDetailPage extends StatelessWidget {
                   isProcessing = false;
                 });
 
-                _showMessage(
-                  context,
-                  '그룹원을 추방하지 못했습니다.',
-                );
+                _showMessage(context, '그룹원을 추방하지 못했습니다.');
               }
             }
 
             return AlertDialog(
               shape: RoundedRectangleBorder(
-                borderRadius:
-                BorderRadius.circular(22),
+                borderRadius: BorderRadius.circular(22),
               ),
               title: Row(
                 children: [
                   Icon(
-                    Icons
-                        .person_remove_outlined,
-                    color: _studyColorScheme.error,
+                    Icons.person_remove_outlined,
+                    color: Theme.of(context).colorScheme.error,
                   ),
                   SizedBox(width: 10),
                   Text('그룹원 추방'),
@@ -1695,41 +1217,33 @@ class StudyDetailPage extends StatelessWidget {
               ),
               content: Text(
                 '$nickname 님을 스터디에서 추방하시겠습니까?\n\n'
-                    '추방된 사용자는 이 스터디에 참여할 수 없습니다.',
-                style: TextStyle(
-                  height: 1.5,
-                ),
+                '추방된 사용자는 이 스터디에 참여할 수 없습니다.',
+                style: TextStyle(height: 1.5),
               ),
               actions: [
                 TextButton(
                   onPressed: isProcessing
                       ? null
                       : () {
-                    Navigator.pop(
-                      dialogContext,
-                    );
-                  },
+                          Navigator.pop(dialogContext);
+                        },
                   child: Text('취소'),
                 ),
                 ElevatedButton(
-                  onPressed: isProcessing
-                      ? null
-                      : kickMember,
-                  style:
-                  ElevatedButton.styleFrom(
-                    backgroundColor: _studyColorScheme.error,
-                    foregroundColor: _studyColorScheme.onPrimary,
+                  onPressed: isProcessing ? null : kickMember,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.error,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   ),
                   child: isProcessing
                       ? SizedBox(
-                    width: 18,
-                    height: 18,
-                    child:
-                    CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: _studyColorScheme.onPrimary,
-                    ),
-                  )
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          ),
+                        )
                       : Text('추방'),
                 ),
               ],
@@ -1742,62 +1256,44 @@ class StudyDetailPage extends StatelessWidget {
 
   /// 참여 신청 승인
   Future<void> _approveJoinRequest(
-      BuildContext context,
-      String memberUid,
-      ) async {
+    BuildContext context,
+    String memberUid,
+  ) async {
     try {
       await StudyJoinRequestService.approve(
         studyId: studyId,
         memberUid: memberUid,
       );
 
-      _showMessage(
-        context,
-        '참여 신청을 승인했습니다.',
-      );
+      _showMessage(context, '참여 신청을 승인했습니다.');
     } catch (error) {
-      debugPrint(
-        '참여 신청 승인 오류: $error',
-      );
+      debugPrint('참여 신청 승인 오류: $error');
 
-      _showMessage(
-        context,
-        error.toString().replaceFirst('Exception: ', ''),
-      );
+      _showMessage(context, error.toString().replaceFirst('Exception: ', ''));
     }
   }
 
   /// 참여 신청 거절
   Future<void> _rejectJoinRequest(
-      BuildContext context,
-      String memberUid,
-      ) async {
+    BuildContext context,
+    String memberUid,
+  ) async {
     try {
       await StudyJoinRequestService.reject(
         studyId: studyId,
         memberUid: memberUid,
       );
 
-      _showMessage(
-        context,
-        '참여 신청을 거절했습니다.',
-      );
+      _showMessage(context, '참여 신청을 거절했습니다.');
     } catch (error) {
-      debugPrint(
-        '참여 신청 거절 오류: $error',
-      );
+      debugPrint('참여 신청 거절 오류: $error');
 
-      _showMessage(
-        context,
-        error.toString().replaceFirst('Exception: ', ''),
-      );
+      _showMessage(context, error.toString().replaceFirst('Exception: ', ''));
     }
   }
 
   /// 참여 신청 관리 창
-  void _openJoinRequestManagement(
-      BuildContext context,
-      ) {
+  void _openJoinRequestManagement(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -1806,10 +1302,8 @@ class StudyDetailPage extends StatelessWidget {
         return Container(
           height: MediaQuery.of(context).size.height * 0.75,
           decoration: BoxDecoration(
-            color: _studyColorScheme.surface,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(26),
-            ),
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
           ),
           child: Column(
             children: [
@@ -1819,30 +1313,25 @@ class StudyDetailPage extends StatelessWidget {
                 width: 42,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: _studyColorScheme.outlineVariant,
+                  color: Theme.of(context).colorScheme.outlineVariant,
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
 
               Padding(
-                padding: EdgeInsets.fromLTRB(
-                  20,
-                  18,
-                  12,
-                  14,
-                ),
+                padding: EdgeInsets.fromLTRB(20, 18, 12, 14),
                 child: Row(
                   children: [
                     Container(
                       width: 46,
                       height: 46,
                       decoration: BoxDecoration(
-                        color: _studyColors.lavender,
+                        color: context.colors.lavender,
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Icon(
                         Icons.how_to_reg_outlined,
-                        color: _studyColors.pinkStart,
+                        color: context.colors.pinkStart,
                       ),
                     ),
 
@@ -1864,7 +1353,7 @@ class StudyDetailPage extends StatelessWidget {
                             '참여 신청을 승인하거나 거절합니다.',
                             style: TextStyle(
                               fontSize: 12,
-                              color: _studyColors.textSecondary,
+                              color: context.colors.textSecondary,
                             ),
                           ),
                         ],
@@ -1884,19 +1373,15 @@ class StudyDetailPage extends StatelessWidget {
               Divider(height: 1),
 
               Expanded(
-                child: StreamBuilder<
-                    QuerySnapshot<Map<String, dynamic>>>(
+                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                   stream: FirebaseFirestore.instance
                       .collection('studyGroups')
                       .doc(studyId)
                       .collection('members')
                       .snapshots(),
                   builder: (context, snapshot) {
-                    if (snapshot.connectionState ==
-                        ConnectionState.waiting) {
-                      return AppLoadingView(
-                        message: '참여 신청 목록을 불러오는 중입니다.',
-                      );
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return AppLoadingView(message: '참여 신청 목록을 불러오는 중입니다.');
                     }
 
                     if (snapshot.hasError) {
@@ -1906,24 +1391,16 @@ class StudyDetailPage extends StatelessWidget {
                       );
                     }
 
-                    List<
-                        QueryDocumentSnapshot<
-                            Map<String, dynamic>>>
+                    List<QueryDocumentSnapshot<Map<String, dynamic>>>
                     requestList = [];
 
                     if (snapshot.data != null) {
-                      for (int i = 0;
-                      i < snapshot.data!.docs.length;
-                      i++) {
-                        QueryDocumentSnapshot<
-                            Map<String, dynamic>>
-                        memberDocument =
-                        snapshot.data!.docs[i];
+                      for (int i = 0; i < snapshot.data!.docs.length; i++) {
+                        QueryDocumentSnapshot<Map<String, dynamic>>
+                        memberDocument = snapshot.data!.docs[i];
 
-                        String status = memberDocument
-                            .data()['status']
-                            ?.toString() ??
-                            '';
+                        String status =
+                            memberDocument.data()['status']?.toString() ?? '';
 
                         if (status == 'PENDING') {
                           requestList.add(memberDocument);
@@ -1939,43 +1416,36 @@ class StudyDetailPage extends StatelessWidget {
                     }
 
                     return ListView.builder(
-                      padding: EdgeInsets.fromLTRB(
-                        18,
-                        16,
-                        18,
-                        30,
-                      ),
+                      padding: EdgeInsets.fromLTRB(18, 16, 18, 30),
                       itemCount: requestList.length,
                       itemBuilder: (context, index) {
-                        QueryDocumentSnapshot<
-                            Map<String, dynamic>>
-                        memberDocument =
-                        requestList[index];
+                        QueryDocumentSnapshot<Map<String, dynamic>>
+                        memberDocument = requestList[index];
 
-                        Map<String, dynamic> memberData =
-                        memberDocument.data();
+                        Map<String, dynamic> memberData = memberDocument.data();
 
                         String nickname =
-                            memberData['nickname']?.toString() ??
-                                '신청자';
+                            memberData['nickname']?.toString() ?? '신청자';
 
                         return Container(
                           margin: EdgeInsets.only(bottom: 12),
                           padding: EdgeInsets.all(15),
                           decoration: BoxDecoration(
-                            color: _studyColorScheme.surface,
+                            color: Theme.of(context).colorScheme.surface,
                             borderRadius: BorderRadius.circular(18),
                             border: Border.all(
-                              color: _studyColorScheme.outlineVariant,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.outlineVariant,
                             ),
                           ),
                           child: Row(
                             children: [
                               CircleAvatar(
-                                backgroundColor: _studyColors.lavender,
+                                backgroundColor: context.colors.lavender,
                                 child: Icon(
                                   Icons.person_outline,
-                                  color: _studyColors.pinkStart,
+                                  color: context.colors.pinkStart,
                                 ),
                               ),
 
@@ -1983,8 +1453,7 @@ class StudyDetailPage extends StatelessWidget {
 
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                  CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       nickname,
@@ -1998,7 +1467,7 @@ class StudyDetailPage extends StatelessWidget {
                                       '참여 승인 대기 중',
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: _studyColors.textSecondary,
+                                        color: context.colors.textSecondary,
                                       ),
                                     ),
                                   ],
@@ -2025,8 +1494,10 @@ class StudyDetailPage extends StatelessWidget {
                                   );
                                 },
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: _studyColors.pinkStart,
-                                  foregroundColor: _studyColorScheme.onPrimary,
+                                  backgroundColor: context.colors.pinkStart,
+                                  foregroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.onPrimary,
                                 ),
                                 child: Text('승인'),
                               ),
@@ -2047,15 +1518,14 @@ class StudyDetailPage extends StatelessWidget {
 
   /// 방장에게 참여 신청 수 표시
   Widget _buildJoinRequestArea(
-      BuildContext context,
-      Map<String, dynamic> currentStudyData,
-      ) {
+    BuildContext context,
+    Map<String, dynamic> currentStudyData,
+  ) {
     if (_isOwner(currentStudyData) == false) {
       return SizedBox();
     }
 
-    return StreamBuilder<
-        QuerySnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('studyGroups')
           .doc(studyId)
@@ -2065,14 +1535,10 @@ class StudyDetailPage extends StatelessWidget {
         int pendingCount = 0;
 
         if (snapshot.data != null) {
-          for (int i = 0;
-          i < snapshot.data!.docs.length;
-          i++) {
-            Map<String, dynamic> memberData =
-            snapshot.data!.docs[i].data();
+          for (int i = 0; i < snapshot.data!.docs.length; i++) {
+            Map<String, dynamic> memberData = snapshot.data!.docs[i].data();
 
-            String status =
-                memberData['status']?.toString() ?? '';
+            String status = memberData['status']?.toString() ?? '';
 
             if (status == 'PENDING') {
               pendingCount++;
@@ -2080,15 +1546,14 @@ class StudyDetailPage extends StatelessWidget {
           }
         }
 
-        String description =
-            '대기 중인 참여 신청이 없습니다.';
+        String description = '대기 중인 참여 신청이 없습니다.';
 
         if (pendingCount > 0) {
-          description =
-          '승인 또는 거절할 신청이 있습니다.';
+          description = '승인 또는 거절할 신청이 있습니다.';
         }
 
         return _buildMenuButton(
+          context,
           icon: Icons.how_to_reg_outlined,
           title: '참여 신청 관리 ($pendingCount명)',
           description: description,
@@ -2100,12 +1565,11 @@ class StudyDetailPage extends StatelessWidget {
     );
   }
 
-
   /// 그룹원 목록 화면
   Future<void> _openMemberList(
-      BuildContext context,
-      Map<String, dynamic> currentStudyData,
-      ) async {
+    BuildContext context,
+    Map<String, dynamic> currentStudyData,
+  ) async {
     try {
       await _ensureOwnerMember(currentStudyData);
     } catch (error) {
@@ -2124,10 +1588,8 @@ class StudyDetailPage extends StatelessWidget {
         return Container(
           height: MediaQuery.of(context).size.height * 0.72,
           decoration: BoxDecoration(
-            color: _studyColorScheme.surface,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(26),
-            ),
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
           ),
           child: Column(
             children: [
@@ -2137,7 +1599,7 @@ class StudyDetailPage extends StatelessWidget {
                 width: 42,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: _studyColorScheme.outlineVariant,
+                  color: Theme.of(context).colorScheme.outlineVariant,
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -2150,12 +1612,12 @@ class StudyDetailPage extends StatelessWidget {
                       width: 46,
                       height: 46,
                       decoration: BoxDecoration(
-                        color: _studyColors.lavender,
+                        color: context.colors.lavender,
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Icon(
                         Icons.groups_outlined,
-                        color: _studyColors.pinkStart,
+                        color: context.colors.pinkStart,
                       ),
                     ),
 
@@ -2177,7 +1639,7 @@ class StudyDetailPage extends StatelessWidget {
                             '현재 활동 중인 그룹원을 확인합니다.',
                             style: TextStyle(
                               fontSize: 12,
-                              color: _studyColors.textSecondary,
+                              color: context.colors.textSecondary,
                             ),
                           ),
                         ],
@@ -2197,25 +1659,19 @@ class StudyDetailPage extends StatelessWidget {
               Divider(height: 1),
 
               Expanded(
-                child: StreamBuilder<
-                    QuerySnapshot<Map<String, dynamic>>>(
+                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                   stream: FirebaseFirestore.instance
                       .collection('studyGroups')
                       .doc(studyId)
                       .collection('members')
                       .snapshots(),
                   builder: (context, snapshot) {
-                    if (snapshot.connectionState ==
-                        ConnectionState.waiting) {
-                      return AppLoadingView(
-                        message: '그룹원 목록을 불러오는 중입니다.',
-                      );
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return AppLoadingView(message: '그룹원 목록을 불러오는 중입니다.');
                     }
 
                     if (snapshot.hasError) {
-                      debugPrint(
-                        '그룹원 목록 조회 오류: ${snapshot.error}',
-                      );
+                      debugPrint('그룹원 목록 조회 오류: ${snapshot.error}');
 
                       return AppErrorView(
                         message: '그룹원 목록을 불러오지 못했습니다.',
@@ -2223,30 +1679,20 @@ class StudyDetailPage extends StatelessWidget {
                       );
                     }
 
-                    List<
-                        QueryDocumentSnapshot<
-                            Map<String, dynamic>>>
+                    List<QueryDocumentSnapshot<Map<String, dynamic>>>
                     ownerList = [];
 
-                    List<
-                        QueryDocumentSnapshot<
-                            Map<String, dynamic>>>
+                    List<QueryDocumentSnapshot<Map<String, dynamic>>>
                     normalMemberList = [];
 
                     if (snapshot.data != null) {
-                      for (int i = 0;
-                      i < snapshot.data!.docs.length;
-                      i++) {
-                        QueryDocumentSnapshot<
-                            Map<String, dynamic>>
-                        memberDocument =
-                        snapshot.data!.docs[i];
+                      for (int i = 0; i < snapshot.data!.docs.length; i++) {
+                        QueryDocumentSnapshot<Map<String, dynamic>>
+                        memberDocument = snapshot.data!.docs[i];
 
-                        Map<String, dynamic> memberData =
-                        memberDocument.data();
+                        Map<String, dynamic> memberData = memberDocument.data();
 
-                        String status =
-                            memberData['status']?.toString() ?? '';
+                        String status = memberData['status']?.toString() ?? '';
 
                         String role =
                             memberData['role']?.toString() ?? 'MEMBER';
@@ -2261,9 +1707,7 @@ class StudyDetailPage extends StatelessWidget {
                       }
                     }
 
-                    List<
-                        QueryDocumentSnapshot<
-                            Map<String, dynamic>>>
+                    List<QueryDocumentSnapshot<Map<String, dynamic>>>
                     memberList = [];
 
                     memberList.addAll(ownerList);
@@ -2280,16 +1724,13 @@ class StudyDetailPage extends StatelessWidget {
                       padding: EdgeInsets.fromLTRB(18, 16, 18, 30),
                       itemCount: memberList.length,
                       itemBuilder: (context, index) {
-                        QueryDocumentSnapshot<
-                            Map<String, dynamic>>
+                        QueryDocumentSnapshot<Map<String, dynamic>>
                         memberDocument = memberList[index];
 
-                        Map<String, dynamic> memberData =
-                        memberDocument.data();
+                        Map<String, dynamic> memberData = memberDocument.data();
 
                         String nickname =
-                            memberData['nickname']?.toString() ??
-                                '스터디원';
+                            memberData['nickname']?.toString() ?? '스터디원';
 
                         String role =
                             memberData['role']?.toString() ?? 'MEMBER';
@@ -2311,10 +1752,12 @@ class StudyDetailPage extends StatelessWidget {
                           margin: EdgeInsets.only(bottom: 11),
                           padding: EdgeInsets.all(15),
                           decoration: BoxDecoration(
-                            color: _studyColorScheme.surface,
+                            color: Theme.of(context).colorScheme.surface,
                             borderRadius: BorderRadius.circular(18),
                             border: Border.all(
-                              color: _studyColorScheme.outlineVariant,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.outlineVariant,
                             ),
                           ),
                           child: Row(
@@ -2324,7 +1767,7 @@ class StudyDetailPage extends StatelessWidget {
                                 height: 46,
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
-                                  color: _studyColors.lavender,
+                                  color: context.colors.lavender,
                                   shape: BoxShape.circle,
                                 ),
                                 child: Text(
@@ -2332,7 +1775,7 @@ class StudyDetailPage extends StatelessWidget {
                                   style: TextStyle(
                                     fontSize: 17,
                                     fontWeight: FontWeight.bold,
-                                    color: _studyColors.pinkStart,
+                                    color: context.colors.pinkStart,
                                   ),
                                 ),
                               ),
@@ -2341,8 +1784,7 @@ class StudyDetailPage extends StatelessWidget {
 
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                  CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
                                       children: [
@@ -2366,15 +1808,15 @@ class StudyDetailPage extends StatelessWidget {
                                               vertical: 3,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: _studyColors.pinkSoft,
+                                              color: context.colors.pinkSoft,
                                               borderRadius:
-                                              BorderRadius.circular(11),
+                                                  BorderRadius.circular(11),
                                             ),
                                             child: Text(
                                               '방장',
                                               style: TextStyle(
                                                 fontSize: 10,
-                                                color: _studyColors.pinkStart,
+                                                color: context.colors.pinkStart,
                                                 fontWeight: FontWeight.w600,
                                               ),
                                             ),
@@ -2387,10 +1829,10 @@ class StudyDetailPage extends StatelessWidget {
 
                                     Text(
                                       '누적 공부시간 '
-                                          '${_formatStudyTime(totalStudyMinutes)}',
+                                      '${_formatStudyTime(totalStudyMinutes)}',
                                       style: TextStyle(
                                         fontSize: 11,
-                                        color: _studyColors.textSecondary,
+                                        color: context.colors.textSecondary,
                                       ),
                                     ),
                                   ],
@@ -2413,17 +1855,13 @@ class StudyDetailPage extends StatelessWidget {
 
   /// 그룹원 관리 화면
   Future<void> _openMemberManagement(
-      BuildContext context,
-      Map<String, dynamic> currentStudyData,
-      ) async {
+    BuildContext context,
+    Map<String, dynamic> currentStudyData,
+  ) async {
     try {
-      await _ensureOwnerMember(
-        currentStudyData,
-      );
+      await _ensureOwnerMember(currentStudyData);
     } catch (error) {
-      debugPrint(
-        '방장 멤버 정보 생성 오류: $error',
-      );
+      debugPrint('방장 멤버 정보 생성 오류: $error');
     }
 
     if (!context.mounted) {
@@ -2440,17 +1878,11 @@ class StudyDetailPage extends StatelessWidget {
           minChildSize: 0.50,
           maxChildSize: 0.93,
           expand: false,
-          builder: (
-              context,
-              scrollController,
-              ) {
+          builder: (context, scrollController) {
             return Container(
               decoration: BoxDecoration(
-                color: _studyColorScheme.surface,
-                borderRadius:
-                BorderRadius.vertical(
-                  top: Radius.circular(26),
-                ),
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
               ),
               child: Column(
                 children: [
@@ -2460,36 +1892,25 @@ class StudyDetailPage extends StatelessWidget {
                     width: 42,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: _studyColorScheme.outlineVariant,
-                      borderRadius:
-                      BorderRadius.circular(10),
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
 
                   Padding(
-                    padding:
-                    EdgeInsets.fromLTRB(
-                      20,
-                      18,
-                      12,
-                      14,
-                    ),
+                    padding: EdgeInsets.fromLTRB(20, 18, 12, 14),
                     child: Row(
                       children: [
                         Container(
                           width: 46,
                           height: 46,
                           decoration: BoxDecoration(
-                            color: _studyColors.lavender,
-                            borderRadius:
-                            BorderRadius.circular(
-                              14,
-                            ),
+                            color: context.colors.lavender,
+                            borderRadius: BorderRadius.circular(14),
                           ),
                           child: Icon(
-                            Icons
-                                .manage_accounts_outlined,
-                            color: _studyColors.pinkStart,
+                            Icons.manage_accounts_outlined,
+                            color: context.colors.pinkStart,
                           ),
                         ),
 
@@ -2497,16 +1918,13 @@ class StudyDetailPage extends StatelessWidget {
 
                         Expanded(
                           child: Column(
-                            crossAxisAlignment:
-                            CrossAxisAlignment
-                                .start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 '그룹원 관리',
                                 style: TextStyle(
                                   fontSize: 19,
-                                  fontWeight:
-                                  FontWeight.bold,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                               SizedBox(height: 3),
@@ -2514,7 +1932,7 @@ class StudyDetailPage extends StatelessWidget {
                                 '활동 중인 그룹원을 확인하고 관리합니다.',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: _studyColors.textSecondary,
+                                  color: context.colors.textSecondary,
                                 ),
                               ),
                             ],
@@ -2523,13 +1941,9 @@ class StudyDetailPage extends StatelessWidget {
 
                         IconButton(
                           onPressed: () {
-                            Navigator.pop(
-                              bottomSheetContext,
-                            );
+                            Navigator.pop(bottomSheetContext);
                           },
-                          icon: Icon(
-                            Icons.close_rounded,
-                          ),
+                          icon: Icon(Icons.close_rounded),
                         ),
                       ],
                     ),
@@ -2538,163 +1952,98 @@ class StudyDetailPage extends StatelessWidget {
                   Divider(height: 1),
 
                   Expanded(
-                    child: StreamBuilder<
-                        QuerySnapshot<
-                            Map<String, dynamic>>>(
-                      stream:
-                      FirebaseFirestore.instance
-                          .collection(
-                        'studyGroups',
-                      )
+                    child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: FirebaseFirestore.instance
+                          .collection('studyGroups')
                           .doc(studyId)
                           .collection('members')
                           .snapshots(),
-                      builder:
-                          (context, snapshot) {
-                        if (snapshot
-                            .connectionState ==
-                            ConnectionState
-                                .waiting) {
-                          return Center(
-                            child:
-                            CircularProgressIndicator(),
-                          );
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return Center(child: CircularProgressIndicator());
                         }
 
                         if (snapshot.hasError) {
                           debugPrint(
                             '그룹원 조회 오류: '
-                                '${snapshot.error}',
+                            '${snapshot.error}',
                           );
 
-                          return Center(
-                            child: Text(
-                              '그룹원 목록을 불러오지 못했습니다.',
-                            ),
-                          );
+                          return Center(child: Text('그룹원 목록을 불러오지 못했습니다.'));
                         }
 
                         final memberList =
-                            snapshot.data?.docs
-                                .where(
-                                  (document) {
-                                final status =
-                                document
-                                    .data()[
-                                'status']
-                                    ?.toString();
+                            snapshot.data?.docs.where((document) {
+                              final status = document
+                                  .data()['status']
+                                  ?.toString();
 
-                                return status ==
-                                    'ACTIVE';
-                              },
-                            )
-                                .toList() ??
-                                [];
+                              return status == 'ACTIVE';
+                            }).toList() ??
+                            [];
 
                         // 방장이 가장 위에 표시되도록 정렬
-                        memberList.sort(
-                              (a, b) {
-                            final aRole =
-                                a.data()['role']
-                                    ?.toString() ??
-                                    'MEMBER';
+                        memberList.sort((a, b) {
+                          final aRole =
+                              a.data()['role']?.toString() ?? 'MEMBER';
 
-                            final bRole =
-                                b.data()['role']
-                                    ?.toString() ??
-                                    'MEMBER';
+                          final bRole =
+                              b.data()['role']?.toString() ?? 'MEMBER';
 
-                            if (aRole == 'OWNER' &&
-                                bRole != 'OWNER') {
-                              return -1;
-                            }
+                          if (aRole == 'OWNER' && bRole != 'OWNER') {
+                            return -1;
+                          }
 
-                            if (aRole != 'OWNER' &&
-                                bRole == 'OWNER') {
-                              return 1;
-                            }
+                          if (aRole != 'OWNER' && bRole == 'OWNER') {
+                            return 1;
+                          }
 
-                            final aNickname =
-                                a.data()['nickname']
-                                    ?.toString() ??
-                                    '';
+                          final aNickname =
+                              a.data()['nickname']?.toString() ?? '';
 
-                            final bNickname =
-                                b.data()['nickname']
-                                    ?.toString() ??
-                                    '';
+                          final bNickname =
+                              b.data()['nickname']?.toString() ?? '';
 
-                            return aNickname
-                                .compareTo(
-                              bNickname,
-                            );
-                          },
-                        );
+                          return aNickname.compareTo(bNickname);
+                        });
 
                         if (memberList.isEmpty) {
-                          return Center(
-                            child: Text(
-                              '등록된 그룹원이 없습니다.',
-                            ),
-                          );
+                          return Center(child: Text('등록된 그룹원이 없습니다.'));
                         }
 
                         return ListView.builder(
-                          controller:
-                          scrollController,
-                          padding:
-                          EdgeInsets.fromLTRB(
-                            18,
-                            16,
-                            18,
-                            30,
-                          ),
-                          itemCount:
-                          memberList.length,
-                          itemBuilder:
-                              (context, index) {
-                            final memberDocument =
-                            memberList[index];
+                          controller: scrollController,
+                          padding: EdgeInsets.fromLTRB(18, 16, 18, 30),
+                          itemCount: memberList.length,
+                          itemBuilder: (context, index) {
+                            final memberDocument = memberList[index];
 
-                            final memberData =
-                            memberDocument.data();
+                            final memberData = memberDocument.data();
 
                             final nickname =
-                                memberData['nickname']
-                                    ?.toString() ??
-                                    '스터디원';
+                                memberData['nickname']?.toString() ?? '스터디원';
 
                             final role =
-                                memberData['role']
-                                    ?.toString() ??
-                                    'MEMBER';
+                                memberData['role']?.toString() ?? 'MEMBER';
 
-                            final totalStudyMinutes =
-                            _getInt(
+                            final totalStudyMinutes = _getInt(
                               memberData,
                               'totalStudyMinutes',
                             );
 
-                            final isOwner =
-                                role == 'OWNER';
+                            final isOwner = role == 'OWNER';
 
                             return Container(
-                              margin:
-                              EdgeInsets.only(
-                                bottom: 11,
-                              ),
-                              padding:
-                              EdgeInsets.all(
-                                15,
-                              ),
+                              margin: EdgeInsets.only(bottom: 11),
+                              padding: EdgeInsets.all(15),
                               decoration: BoxDecoration(
-                                color: _studyColorScheme.surface,
-                                borderRadius:
-                                BorderRadius.circular(
-                                  18,
-                                ),
+                                color: Theme.of(context).colorScheme.surface,
+                                borderRadius: BorderRadius.circular(18),
                                 border: Border.all(
-                                  color: _studyColorScheme.outlineVariant,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.outlineVariant,
                                 ),
                               ),
                               child: Row(
@@ -2702,94 +2051,64 @@ class StudyDetailPage extends StatelessWidget {
                                   Container(
                                     width: 46,
                                     height: 46,
-                                    alignment:
-                                    Alignment.center,
-                                    decoration:
-                                    BoxDecoration(
-                                      color: _studyColors.lavender,
-                                      shape:
-                                      BoxShape.circle,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: context.colors.lavender,
+                                      shape: BoxShape.circle,
                                     ),
                                     child: Text(
                                       nickname.isNotEmpty
-                                          ? nickname[0]
-                                          .toUpperCase()
+                                          ? nickname[0].toUpperCase()
                                           : '?',
-                                      style:
-                                      TextStyle(
+                                      style: TextStyle(
                                         fontSize: 17,
-                                        fontWeight:
-                                        FontWeight
-                                            .bold,
-                                        color: _studyColors.pinkStart,
+                                        fontWeight: FontWeight.bold,
+                                        color: context.colors.pinkStart,
                                       ),
                                     ),
                                   ),
 
-                                  SizedBox(
-                                    width: 13,
-                                  ),
+                                  SizedBox(width: 13),
 
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment:
-                                      CrossAxisAlignment
-                                          .start,
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Row(
                                           children: [
                                             Flexible(
                                               child: Text(
                                                 nickname,
-                                                overflow:
-                                                TextOverflow
-                                                    .ellipsis,
-                                                style:
-                                                TextStyle(
-                                                  fontSize:
-                                                  15,
-                                                  fontWeight:
-                                                  FontWeight
-                                                      .bold,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.bold,
                                                 ),
                                               ),
                                             ),
 
                                             if (isOwner) ...[
-                                              SizedBox(
-                                                width: 7,
-                                              ),
+                                              SizedBox(width: 7),
                                               Container(
-                                                padding:
-                                                EdgeInsets
-                                                    .symmetric(
-                                                  horizontal:
-                                                  8,
-                                                  vertical:
-                                                  3,
+                                                padding: EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 3,
                                                 ),
-                                                decoration:
-                                                BoxDecoration(
+                                                decoration: BoxDecoration(
                                                   color:
-                                                  _studyColors.pinkSoft,
+                                                      context.colors.pinkSoft,
                                                   borderRadius:
-                                                  BorderRadius
-                                                      .circular(
-                                                    11,
-                                                  ),
+                                                      BorderRadius.circular(11),
                                                 ),
-                                                child:
-                                                Text(
+                                                child: Text(
                                                   '방장',
-                                                  style:
-                                                  TextStyle(
-                                                    fontSize:
-                                                    10,
-                                                    color:
-                                                    _studyColors.pinkStart,
-                                                    fontWeight:
-                                                    FontWeight
-                                                        .w600,
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    color: context
+                                                        .colors
+                                                        .pinkStart,
+                                                    fontWeight: FontWeight.w600,
                                                   ),
                                                 ),
                                               ),
@@ -2797,17 +2116,14 @@ class StudyDetailPage extends StatelessWidget {
                                           ],
                                         ),
 
-                                        SizedBox(
-                                          height: 5,
-                                        ),
+                                        SizedBox(height: 5),
 
                                         Text(
                                           '누적 공부시간 '
-                                              '${_formatStudyTime(totalStudyMinutes)}',
-                                          style:
-                                          TextStyle(
+                                          '${_formatStudyTime(totalStudyMinutes)}',
+                                          style: TextStyle(
                                             fontSize: 11,
-                                            color: _studyColors.textSecondary,
+                                            color: context.colors.textSecondary,
                                           ),
                                         ),
                                       ],
@@ -2818,34 +2134,23 @@ class StudyDetailPage extends StatelessWidget {
                                     OutlinedButton(
                                       onPressed: () {
                                         _showKickMemberDialog(
-                                          context:
-                                          context,
-                                          memberUid:
-                                          memberDocument
-                                              .id,
-                                          nickname:
-                                          nickname,
+                                          context: context,
+                                          memberUid: memberDocument.id,
+                                          nickname: nickname,
                                         );
                                       },
-                                      style:
-                                      OutlinedButton
-                                          .styleFrom(
-                                        foregroundColor:
-                                        _studyColorScheme.error,
-                                        side:
-                                        BorderSide(
-                                          color: _studyColorScheme.secondaryContainer,
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Theme.of(
+                                          context,
+                                        ).colorScheme.error,
+                                        side: BorderSide(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.secondaryContainer,
                                         ),
-                                        minimumSize:
-                                        Size(
-                                          64,
-                                          38,
-                                        ),
+                                        minimumSize: Size(64, 38),
                                       ),
-                                      child:
-                                      Text(
-                                        '추방',
-                                      ),
+                                      child: Text('추방'),
                                     ),
                                 ],
                               ),
@@ -2866,17 +2171,13 @@ class StudyDetailPage extends StatelessWidget {
 
   /// 공부시간 순위 표시
   Future<void> _openStudyRanking(
-      BuildContext context,
-      Map<String, dynamic> currentStudyData,
-      ) async {
+    BuildContext context,
+    Map<String, dynamic> currentStudyData,
+  ) async {
     try {
-      await _ensureOwnerMember(
-        currentStudyData,
-      );
+      await _ensureOwnerMember(currentStudyData);
     } catch (error) {
-      debugPrint(
-        '방장 멤버 정보 생성 오류: $error',
-      );
+      debugPrint('방장 멤버 정보 생성 오류: $error');
     }
 
     if (!context.mounted) {
@@ -2893,17 +2194,11 @@ class StudyDetailPage extends StatelessWidget {
           minChildSize: 0.45,
           maxChildSize: 0.92,
           expand: false,
-          builder: (
-              context,
-              scrollController,
-              ) {
+          builder: (context, scrollController) {
             return Container(
               decoration: BoxDecoration(
-                color: _studyColorScheme.surface,
-                borderRadius:
-                BorderRadius.vertical(
-                  top: Radius.circular(26),
-                ),
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
               ),
               child: Column(
                 children: [
@@ -2913,36 +2208,25 @@ class StudyDetailPage extends StatelessWidget {
                     width: 42,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: _studyColorScheme.outlineVariant,
-                      borderRadius:
-                      BorderRadius.circular(10),
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
 
                   Padding(
-                    padding:
-                    EdgeInsets.fromLTRB(
-                      20,
-                      18,
-                      12,
-                      14,
-                    ),
+                    padding: EdgeInsets.fromLTRB(20, 18, 12, 14),
                     child: Row(
                       children: [
                         Container(
                           width: 46,
                           height: 46,
                           decoration: BoxDecoration(
-                            color: _studyColors.lavender,
-                            borderRadius:
-                            BorderRadius.circular(
-                              14,
-                            ),
+                            color: context.colors.lavender,
+                            borderRadius: BorderRadius.circular(14),
                           ),
                           child: Icon(
-                            Icons
-                                .emoji_events_outlined,
-                            color: _studyColors.pinkStart,
+                            Icons.emoji_events_outlined,
+                            color: context.colors.pinkStart,
                           ),
                         ),
 
@@ -2950,16 +2234,13 @@ class StudyDetailPage extends StatelessWidget {
 
                         Expanded(
                           child: Column(
-                            crossAxisAlignment:
-                            CrossAxisAlignment
-                                .start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 '공부시간 순위',
                                 style: TextStyle(
                                   fontSize: 19,
-                                  fontWeight:
-                                  FontWeight.bold,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                               SizedBox(height: 3),
@@ -2967,7 +2248,7 @@ class StudyDetailPage extends StatelessWidget {
                                 '전체 누적 공부시간 기준',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: _studyColors.textSecondary,
+                                  color: context.colors.textSecondary,
                                 ),
                               ),
                             ],
@@ -2976,13 +2257,9 @@ class StudyDetailPage extends StatelessWidget {
 
                         IconButton(
                           onPressed: () {
-                            Navigator.pop(
-                              bottomSheetContext,
-                            );
+                            Navigator.pop(bottomSheetContext);
                           },
-                          icon: Icon(
-                            Icons.close_rounded,
-                          ),
+                          icon: Icon(Icons.close_rounded),
                         ),
                       ],
                     ),
@@ -2991,107 +2268,62 @@ class StudyDetailPage extends StatelessWidget {
                   Divider(height: 1),
 
                   Expanded(
-                    child: StreamBuilder<
-                        QuerySnapshot<
-                            Map<String, dynamic>>>(
-                      stream:
-                      FirebaseFirestore.instance
-                          .collection(
-                        'studyGroups',
-                      )
+                    child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: FirebaseFirestore.instance
+                          .collection('studyGroups')
                           .doc(studyId)
                           .collection('members')
                           .snapshots(),
-                      builder:
-                          (context, snapshot) {
-                        if (snapshot
-                            .connectionState ==
-                            ConnectionState
-                                .waiting) {
-                          return Center(
-                            child:
-                            CircularProgressIndicator(),
-                          );
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return Center(child: CircularProgressIndicator());
                         }
 
                         if (snapshot.hasError) {
-                          return Center(
-                            child: Text(
-                              '공부시간 순위를 불러오지 못했습니다.',
-                            ),
-                          );
+                          return Center(child: Text('공부시간 순위를 불러오지 못했습니다.'));
                         }
 
                         final memberList =
-                            snapshot.data?.docs
-                                .where(
-                                  (document) {
-                                final status =
-                                document
-                                    .data()[
-                                'status']
-                                    ?.toString();
+                            snapshot.data?.docs.where((document) {
+                              final status = document
+                                  .data()['status']
+                                  ?.toString();
 
-                                return status ==
-                                    'ACTIVE';
-                              },
-                            )
-                                .toList() ??
-                                [];
+                              return status == 'ACTIVE';
+                            }).toList() ??
+                            [];
 
-                        memberList.sort(
-                              (a, b) {
-                            final aMinutes =
-                            _getInt(
-                              a.data(),
-                              'totalStudyMinutes',
-                            );
+                        memberList.sort((a, b) {
+                          final aMinutes = _getInt(
+                            a.data(),
+                            'totalStudyMinutes',
+                          );
 
-                            final bMinutes =
-                            _getInt(
-                              b.data(),
-                              'totalStudyMinutes',
-                            );
+                          final bMinutes = _getInt(
+                            b.data(),
+                            'totalStudyMinutes',
+                          );
 
-                            return bMinutes
-                                .compareTo(
-                              aMinutes,
-                            );
-                          },
-                        );
+                          return bMinutes.compareTo(aMinutes);
+                        });
 
                         if (memberList.isEmpty) {
-                          return Center(
-                            child: Text(
-                              '표시할 공부시간이 없습니다.',
-                            ),
-                          );
+                          return Center(child: Text('표시할 공부시간이 없습니다.'));
                         }
 
                         return ListView.builder(
-                          controller:
-                          scrollController,
-                          padding:
-                          EdgeInsets.fromLTRB(
-                            18,
-                            16,
-                            18,
-                            30,
-                          ),
-                          itemCount:
-                          memberList.length,
-                          itemBuilder:
-                              (context, index) {
-                            final memberDocument =
-                            memberList[index];
+                          controller: scrollController,
+                          padding: EdgeInsets.fromLTRB(18, 16, 18, 30),
+                          itemCount: memberList.length,
+                          itemBuilder: (context, index) {
+                            final memberDocument = memberList[index];
 
                             return _buildRankingItem(
+                              context,
                               rank: index + 1,
-                              memberUid:
-                              memberDocument.id,
-                              memberData:
-                              memberDocument
-                                  .data(),
+                              memberUid: memberDocument.id,
+                              memberData: memberDocument.data(),
                             );
                           },
                         );
@@ -3108,70 +2340,51 @@ class StudyDetailPage extends StatelessWidget {
   }
 
   /// 공부시간 순위 한 줄
-  Widget _buildRankingItem({
+  Widget _buildRankingItem(
+    BuildContext context, {
     required int rank,
     required String memberUid,
     required Map<String, dynamic> memberData,
   }) {
-    final currentUserUid =
-        FirebaseAuth.instance.currentUser?.uid;
+    final currentUserUid = FirebaseAuth.instance.currentUser?.uid;
 
-    final isCurrentUser =
-        currentUserUid == memberUid;
+    final isCurrentUser = currentUserUid == memberUid;
 
-    final nickname =
-        memberData['nickname']?.toString() ??
-            '스터디원';
+    final nickname = memberData['nickname']?.toString() ?? '스터디원';
 
-    final role =
-        memberData['role']?.toString() ??
-            'MEMBER';
+    final role = memberData['role']?.toString() ?? 'MEMBER';
 
-    final totalStudyMinutes =
-    _getInt(
-      memberData,
-      'totalStudyMinutes',
-    );
+    final totalStudyMinutes = _getInt(memberData, 'totalStudyMinutes');
 
     Color rankBackgroundColor;
     Color rankTextColor;
 
     if (rank == 1) {
-      rankBackgroundColor =
-          _studyColorScheme.secondary;
-      rankTextColor =
-          _studyColorScheme.secondary;
+      rankBackgroundColor = Theme.of(context).colorScheme.secondary;
+      rankTextColor = Theme.of(context).colorScheme.secondary;
     } else if (rank == 2) {
-      rankBackgroundColor =
-          _studyColorScheme.surface;
-      rankTextColor =
-          _studyColors.textSecondary;
+      rankBackgroundColor = Theme.of(context).colorScheme.surface;
+      rankTextColor = context.colors.textSecondary;
     } else if (rank == 3) {
-      rankBackgroundColor =
-          _studyColorScheme.secondary;
-      rankTextColor =
-          _studyColorScheme.secondary;
+      rankBackgroundColor = Theme.of(context).colorScheme.secondary;
+      rankTextColor = Theme.of(context).colorScheme.secondary;
     } else {
-      rankBackgroundColor =
-          _studyColors.lavender;
-      rankTextColor =
-          _studyColors.pinkStart;
+      rankBackgroundColor = context.colors.lavender;
+      rankTextColor = context.colors.pinkStart;
     }
 
     return Container(
-      margin:
-      EdgeInsets.only(bottom: 11),
+      margin: EdgeInsets.only(bottom: 11),
       padding: EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: isCurrentUser
-            ? _studyColors.lavender
-            : _studyColorScheme.surface,
-        borderRadius:
-        BorderRadius.circular(18),
+            ? context.colors.lavender
+            : Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isCurrentUser
-              ? _studyColors.pinkStart
-              : _studyColorScheme.outlineVariant,
+              ? context.colors.pinkStart
+              : Theme.of(context).colorScheme.outlineVariant,
         ),
       ),
       child: Row(
@@ -3186,40 +2399,34 @@ class StudyDetailPage extends StatelessWidget {
             ),
             child: rank <= 3
                 ? Icon(
-              Icons
-                  .emoji_events_rounded,
-              size: 21,
-              color: rankTextColor,
-            )
+                    Icons.emoji_events_rounded,
+                    size: 21,
+                    color: rankTextColor,
+                  )
                 : Text(
-              '$rank',
-              style: TextStyle(
-                color: rankTextColor,
-                fontWeight:
-                FontWeight.bold,
-              ),
-            ),
+                    '$rank',
+                    style: TextStyle(
+                      color: rankTextColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
           ),
 
           SizedBox(width: 13),
 
           Expanded(
             child: Column(
-              crossAxisAlignment:
-              CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
                     Flexible(
                       child: Text(
                         nickname,
-                        overflow:
-                        TextOverflow.ellipsis,
-                        style:
-                        TextStyle(
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
                           fontSize: 15,
-                          fontWeight:
-                          FontWeight.bold,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
@@ -3228,10 +2435,8 @@ class StudyDetailPage extends StatelessWidget {
                       SizedBox(width: 7),
                       _buildMiniBadge(
                         text: '방장',
-                        backgroundColor:
-                        _studyColors.pinkSoft,
-                        textColor:
-                        _studyColors.pinkStart,
+                        backgroundColor: context.colors.pinkSoft,
+                        textColor: context.colors.pinkStart,
                       ),
                     ],
 
@@ -3239,10 +2444,8 @@ class StudyDetailPage extends StatelessWidget {
                       SizedBox(width: 7),
                       _buildMiniBadge(
                         text: '나',
-                        backgroundColor:
-                        _studyColors.lavender,
-                        textColor:
-                        _studyColors.pinkStart,
+                        backgroundColor: context.colors.lavender,
+                        textColor: context.colors.pinkStart,
                       ),
                     ],
                   ],
@@ -3254,7 +2457,7 @@ class StudyDetailPage extends StatelessWidget {
                   '누적 공부시간',
                   style: TextStyle(
                     fontSize: 11,
-                    color: _studyColors.textSecondary,
+                    color: context.colors.textSecondary,
                   ),
                 ),
               ],
@@ -3264,13 +2467,11 @@ class StudyDetailPage extends StatelessWidget {
           SizedBox(width: 10),
 
           Text(
-            _formatStudyTime(
-              totalStudyMinutes,
-            ),
+            _formatStudyTime(totalStudyMinutes),
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: _studyColors.pinkStart,
+              color: context.colors.pinkStart,
             ),
           ),
         ],
@@ -3285,14 +2486,10 @@ class StudyDetailPage extends StatelessWidget {
     required Color textColor,
   }) {
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 3,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius:
-        BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(11),
       ),
       child: Text(
         text,
@@ -3307,126 +2504,85 @@ class StudyDetailPage extends StatelessWidget {
 
   /// 스터디 참여 처리
   Future<void> _joinStudy(
-      BuildContext context,
-      Map<String, dynamic> currentStudyData,
-      ) async {
+    BuildContext context,
+    Map<String, dynamic> currentStudyData,
+  ) async {
     FirebaseAuth auth = FirebaseAuth.instance;
     User? currentUser = auth.currentUser;
 
     if (currentUser == null) {
-      _showMessage(
-        context,
-        '로그인 정보가 없습니다.',
-      );
+      _showMessage(context, '로그인 정보가 없습니다.');
       return;
     }
 
     if (_isOwner(currentStudyData)) {
-      _showMessage(
-        context,
-        '방장은 이미 스터디에 참여 중입니다.',
-      );
+      _showMessage(context, '방장은 이미 스터디에 참여 중입니다.');
       return;
     }
 
-    DocumentReference<Map<String, dynamic>> groupDocument =
-    FirebaseFirestore.instance
+    DocumentReference<Map<String, dynamic>> groupDocument = FirebaseFirestore
+        .instance
         .collection('studyGroups')
         .doc(studyId);
 
-    DocumentReference<Map<String, dynamic>> memberDocument =
-    groupDocument
+    DocumentReference<Map<String, dynamic>> memberDocument = groupDocument
         .collection('members')
         .doc(currentUser.uid);
 
     try {
-      DocumentSnapshot<Map<String, dynamic>> groupSnapshot =
-      await groupDocument.get();
+      DocumentSnapshot<Map<String, dynamic>> groupSnapshot = await groupDocument
+          .get();
 
       if (groupSnapshot.exists == false) {
-        _showMessage(
-          context,
-          '스터디 정보를 찾을 수 없습니다.',
-        );
+        _showMessage(context, '스터디 정보를 찾을 수 없습니다.');
         return;
       }
 
-      Map<String, dynamic> groupData =
-          groupSnapshot.data() ?? {};
+      Map<String, dynamic> groupData = groupSnapshot.data() ?? {};
 
-      String groupStatus =
-          groupData['status']?.toString() ?? '';
+      String groupStatus = groupData['status']?.toString() ?? '';
 
-      int currentMemberCount = _getInt(
-        groupData,
-        'currentMemberCount',
-      );
+      int currentMemberCount = _getInt(groupData, 'currentMemberCount');
 
-      int maxMemberCount = _getInt(
-        groupData,
-        'maxMemberCount',
-      );
+      int maxMemberCount = _getInt(groupData, 'maxMemberCount');
 
       if (groupStatus == 'COMPLETED') {
-        _showMessage(
-          context,
-          '종료된 스터디에는 참여할 수 없습니다.',
-        );
+        _showMessage(context, '종료된 스터디에는 참여할 수 없습니다.');
         return;
       }
 
       if (_isRecruiting(groupData) == false) {
-        _showMessage(
-          context,
-          '모집이 마감된 스터디입니다.',
-        );
+        _showMessage(context, '모집이 마감된 스터디입니다.');
         return;
       }
 
       DocumentSnapshot<Map<String, dynamic>> memberSnapshot =
-      await memberDocument.get();
+          await memberDocument.get();
 
       int totalStudyMinutes = 0;
       int totalStudySeconds = 0;
 
       if (memberSnapshot.exists) {
-        Map<String, dynamic> oldMemberData =
-            memberSnapshot.data() ?? {};
+        Map<String, dynamic> oldMemberData = memberSnapshot.data() ?? {};
 
-        String oldStatus =
-            oldMemberData['status']?.toString() ?? '';
+        String oldStatus = oldMemberData['status']?.toString() ?? '';
 
-        totalStudyMinutes = _getInt(
-          oldMemberData,
-          'totalStudyMinutes',
-        );
+        totalStudyMinutes = _getInt(oldMemberData, 'totalStudyMinutes');
 
-        totalStudySeconds = _getInt(
-          oldMemberData,
-          'totalStudySeconds',
-        );
+        totalStudySeconds = _getInt(oldMemberData, 'totalStudySeconds');
 
         if (oldStatus == 'ACTIVE') {
-          _showMessage(
-            context,
-            '이미 참여 중인 스터디입니다.',
-          );
+          _showMessage(context, '이미 참여 중인 스터디입니다.');
           return;
         }
 
         if (oldStatus == 'PENDING') {
-          _showMessage(
-            context,
-            '이미 참여 승인을 기다리고 있습니다.',
-          );
+          _showMessage(context, '이미 참여 승인을 기다리고 있습니다.');
           return;
         }
 
         if (oldStatus == 'BANNED') {
-          _showMessage(
-            context,
-            '이 스터디에는 참여할 수 없습니다.',
-          );
+          _showMessage(context, '이 스터디에는 참여할 수 없습니다.');
           return;
         }
       }
@@ -3434,35 +2590,30 @@ class StudyDetailPage extends StatelessWidget {
       bool joinApprovalRequired = true;
 
       if (groupData['joinApprovalRequired'] is bool) {
-        joinApprovalRequired =
-        groupData['joinApprovalRequired'];
+        joinApprovalRequired = groupData['joinApprovalRequired'];
       }
 
-      Map<String, String> userProfile =
-      await _getUserProfile(currentUser.uid);
+      Map<String, String> userProfile = await _getUserProfile(currentUser.uid);
 
-      String nickname =
-          userProfile['nickname'] ?? '';
+      String nickname = userProfile['nickname'] ?? '';
 
       if (nickname.isEmpty) {
         nickname = '사용자';
       }
 
-      String profileImageUrl =
-          userProfile['profileImageUrl'] ?? '';
+      String profileImageUrl = userProfile['profileImageUrl'] ?? '';
 
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         DocumentSnapshot<Map<String, dynamic>> latestGroupSnapshot =
-        await transaction.get(groupDocument);
+            await transaction.get(groupDocument);
         DocumentSnapshot<Map<String, dynamic>> latestMemberSnapshot =
-        await transaction.get(memberDocument);
+            await transaction.get(memberDocument);
 
         if (!latestGroupSnapshot.exists) {
           throw Exception('스터디 정보를 찾을 수 없습니다.');
         }
 
-        Map<String, dynamic> latestGroupData =
-            latestGroupSnapshot.data() ?? {};
+        Map<String, dynamic> latestGroupData = latestGroupSnapshot.data() ?? {};
         Map<String, dynamic> latestMemberData =
             latestMemberSnapshot.data() ?? {};
         String latestMemberStatus =
@@ -3482,28 +2633,16 @@ class StudyDetailPage extends StatelessWidget {
           throw Exception('모집이 마감된 스터디입니다.');
         }
 
-        int latestMemberCount = _getInt(
-          latestGroupData,
-          'currentMemberCount',
-        );
-        int latestMaxMemberCount = _getInt(
-          latestGroupData,
-          'maxMemberCount',
-        );
+        int latestMemberCount = _getInt(latestGroupData, 'currentMemberCount');
+        int latestMaxMemberCount = _getInt(latestGroupData, 'maxMemberCount');
 
         if (latestMaxMemberCount > 0 &&
             latestMemberCount >= latestMaxMemberCount) {
           throw Exception('모집 인원이 모두 찼습니다.');
         }
 
-        int savedStudyMinutes = _getInt(
-          latestMemberData,
-          'totalStudyMinutes',
-        );
-        int savedStudySeconds = _getInt(
-          latestMemberData,
-          'totalStudySeconds',
-        );
+        int savedStudyMinutes = _getInt(latestMemberData, 'totalStudyMinutes');
+        int savedStudySeconds = _getInt(latestMemberData, 'totalStudySeconds');
 
         if (savedStudyMinutes == 0) {
           savedStudyMinutes = totalStudyMinutes;
@@ -3513,43 +2652,35 @@ class StudyDetailPage extends StatelessWidget {
         }
 
         if (joinApprovalRequired) {
-          transaction.set(
-            memberDocument,
-            {
-              'uid': currentUser.uid,
-              'nickname': nickname,
-              'profileImageUrl': profileImageUrl,
-              'role': 'MEMBER',
-              'status': 'PENDING',
-              'totalStudyMinutes': savedStudyMinutes,
-              'totalStudySeconds': savedStudySeconds,
-              'requestedAt': FieldValue.serverTimestamp(),
-              'updatedAt': FieldValue.serverTimestamp(),
-            },
-            SetOptions(merge: true),
-          );
-          return;
-        }
-
-        int newMemberCount = latestMemberCount + 1;
-        bool isFull = latestMaxMemberCount > 0 &&
-            newMemberCount >= latestMaxMemberCount;
-
-        transaction.set(
-          memberDocument,
-          {
+          transaction.set(memberDocument, {
             'uid': currentUser.uid,
             'nickname': nickname,
             'profileImageUrl': profileImageUrl,
             'role': 'MEMBER',
-            'status': 'ACTIVE',
+            'status': 'PENDING',
             'totalStudyMinutes': savedStudyMinutes,
             'totalStudySeconds': savedStudySeconds,
-            'joinedAt': FieldValue.serverTimestamp(),
+            'requestedAt': FieldValue.serverTimestamp(),
             'updatedAt': FieldValue.serverTimestamp(),
-          },
-          SetOptions(merge: true),
-        );
+          }, SetOptions(merge: true));
+          return;
+        }
+
+        int newMemberCount = latestMemberCount + 1;
+        bool isFull =
+            latestMaxMemberCount > 0 && newMemberCount >= latestMaxMemberCount;
+
+        transaction.set(memberDocument, {
+          'uid': currentUser.uid,
+          'nickname': nickname,
+          'profileImageUrl': profileImageUrl,
+          'role': 'MEMBER',
+          'status': 'ACTIVE',
+          'totalStudyMinutes': savedStudyMinutes,
+          'totalStudySeconds': savedStudySeconds,
+          'joinedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
         transaction.update(groupDocument, {
           'currentMemberCount': newMemberCount,
           'status': isFull ? 'CLOSED' : 'RECRUITING',
@@ -3564,40 +2695,30 @@ class StudyDetailPage extends StatelessWidget {
 
       _showMessage(
         context,
-        joinApprovalRequired
-            ? '참여 신청을 보냈습니다.'
-            : '스터디에 참여했습니다.',
+        joinApprovalRequired ? '참여 신청을 보냈습니다.' : '스터디에 참여했습니다.',
       );
     } catch (error) {
-      debugPrint(
-        '스터디 참여 오류: $error',
-      );
+      debugPrint('스터디 참여 오류: $error');
 
       if (!context.mounted) {
         return;
       }
 
-      _showMessage(
-        context,
-        error.toString().replaceFirst('Exception: ', ''),
-      );
+      _showMessage(context, error.toString().replaceFirst('Exception: ', ''));
     }
   }
 
   /// 참여 상태와 참여 버튼
   Widget _buildJoinArea(
-      BuildContext context,
-      Map<String, dynamic> currentStudyData,
-      ) {
-    User? currentUser =
-        FirebaseAuth.instance.currentUser;
+    BuildContext context,
+    Map<String, dynamic> currentStudyData,
+  ) {
+    User? currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
       return AppCard(
-        backgroundColor: _studyColorScheme.surface,
-        child: Text(
-          '로그인 후 스터디에 참여할 수 있습니다.',
-        ),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        child: Text('로그인 후 스터디에 참여할 수 있습니다.'),
       );
     }
 
@@ -3606,24 +2727,20 @@ class StudyDetailPage extends StatelessWidget {
     }
 
     Stream<DocumentSnapshot<Map<String, dynamic>>> memberStream =
-    FirebaseFirestore.instance
-        .collection('studyGroups')
-        .doc(studyId)
-        .collection('members')
-        .doc(currentUser.uid)
-        .snapshots();
+        FirebaseFirestore.instance
+            .collection('studyGroups')
+            .doc(studyId)
+            .collection('members')
+            .doc(currentUser.uid)
+            .snapshots();
 
-    return StreamBuilder<
-        DocumentSnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: memberStream,
       builder: (context, snapshot) {
-        if (snapshot.connectionState ==
-            ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return SizedBox(
             height: 180,
-            child: AppLoadingView(
-              message: '참여 상태를 확인하는 중입니다.',
-            ),
+            child: AppLoadingView(message: '참여 상태를 확인하는 중입니다.'),
           );
         }
 
@@ -3633,8 +2750,7 @@ class StudyDetailPage extends StatelessWidget {
               height: 220,
               child: AppNetworkErrorView(
                 message: '인터넷 연결을 확인해 주세요.',
-                description:
-                '네트워크 연결 후 참여 상태를 다시 확인해 주세요.',
+                description: '네트워크 연결 후 참여 상태를 다시 확인해 주세요.',
                 onRetryPressed: () {
                   _retryDetailPage(context);
                 },
@@ -3656,30 +2772,25 @@ class StudyDetailPage extends StatelessWidget {
 
         String memberStatus = '';
 
-        if (snapshot.data != null &&
-            snapshot.data!.exists) {
-          Map<String, dynamic> memberData =
-              snapshot.data!.data() ?? {};
+        if (snapshot.data != null && snapshot.data!.exists) {
+          Map<String, dynamic> memberData = snapshot.data!.data() ?? {};
 
-          memberStatus =
-              memberData['status']?.toString() ?? '';
+          memberStatus = memberData['status']?.toString() ?? '';
         }
 
         if (memberStatus == 'ACTIVE') {
           return AppCard(
-            backgroundColor: _studyColorScheme.surface,
+            backgroundColor: Theme.of(context).colorScheme.surface,
             child: Row(
               children: [
                 Icon(
                   Icons.check_circle_outline,
-                  color: _studyColorScheme.tertiary,
+                  color: Theme.of(context).colorScheme.tertiary,
                 ),
                 SizedBox(width: 10),
                 Text(
                   '참여 중인 스터디입니다.',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -3688,19 +2799,17 @@ class StudyDetailPage extends StatelessWidget {
 
         if (memberStatus == 'PENDING') {
           return AppCard(
-            backgroundColor: _studyColorScheme.surface,
+            backgroundColor: Theme.of(context).colorScheme.surface,
             child: Row(
               children: [
                 Icon(
                   Icons.schedule_outlined,
-                  color: _studyColorScheme.secondary,
+                  color: Theme.of(context).colorScheme.secondary,
                 ),
                 SizedBox(width: 10),
                 Text(
                   '방장의 참여 승인을 기다리고 있습니다.',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -3709,19 +2818,14 @@ class StudyDetailPage extends StatelessWidget {
 
         if (memberStatus == 'BANNED') {
           return AppCard(
-            backgroundColor: _studyColorScheme.surface,
+            backgroundColor: Theme.of(context).colorScheme.surface,
             child: Row(
               children: [
-                Icon(
-                  Icons.block,
-                  color: _studyColorScheme.error,
-                ),
+                Icon(Icons.block, color: Theme.of(context).colorScheme.error),
                 SizedBox(width: 10),
                 Text(
                   '이 스터디에는 참여할 수 없습니다.',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -3730,13 +2834,13 @@ class StudyDetailPage extends StatelessWidget {
 
         if (_isRecruiting(currentStudyData) == false) {
           return AppCard(
-            backgroundColor: _studyColorScheme.surface,
+            backgroundColor: Theme.of(context).colorScheme.surface,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(
                   Icons.lock_outline_rounded,
-                  color: _studyColors.textSecondary,
+                  color: context.colors.textSecondary,
                 ),
                 SizedBox(width: 10),
                 Expanded(
@@ -3745,9 +2849,7 @@ class StudyDetailPage extends StatelessWidget {
                     children: [
                       Text(
                         '모집이 마감된 스터디입니다.',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       SizedBox(height: 4),
                       Text(
@@ -3755,7 +2857,7 @@ class StudyDetailPage extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12,
                           height: 1.4,
-                          color: _studyColors.textSecondary,
+                          color: context.colors.textSecondary,
                         ),
                       ),
                     ],
@@ -3768,10 +2870,8 @@ class StudyDetailPage extends StatelessWidget {
 
         bool joinApprovalRequired = true;
 
-        if (currentStudyData['joinApprovalRequired']
-        is bool) {
-          joinApprovalRequired =
-          currentStudyData['joinApprovalRequired'];
+        if (currentStudyData['joinApprovalRequired'] is bool) {
+          joinApprovalRequired = currentStudyData['joinApprovalRequired'];
         }
 
         String buttonText = '바로 참여하기';
@@ -3785,30 +2885,25 @@ class StudyDetailPage extends StatelessWidget {
           type: AppButtonType.primaryPink,
           height: 50,
           onPressed: () {
-            _joinStudy(
-              context,
-              currentStudyData,
-            );
+            _joinStudy(context, currentStudyData);
           },
         );
       },
     );
   }
 
-
   /// 참여 중인 그룹원에게 스터디방 입장 버튼 표시
   Widget _buildStudyRoomArea(
-      BuildContext context,
-      Map<String, dynamic> currentStudyData,
-      ) {
+    BuildContext context,
+    Map<String, dynamic> currentStudyData,
+  ) {
     User? currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
       return SizedBox();
     }
 
-    String groupName =
-        currentStudyData['groupName']?.toString() ?? '스터디';
+    String groupName = currentStudyData['groupName']?.toString() ?? '스터디';
 
     Widget roomButton = AppButton(
       text: '스터디방 들어가기',
@@ -3819,10 +2914,7 @@ class StudyDetailPage extends StatelessWidget {
           context,
           MaterialPageRoute(
             builder: (context) {
-              return StudyRoomPage(
-                studyId: studyId,
-                groupName: groupName,
-              );
+              return StudyRoomPage(studyId: studyId, groupName: groupName);
             },
           ),
         );
@@ -3833,8 +2925,7 @@ class StudyDetailPage extends StatelessWidget {
       return roomButton;
     }
 
-    return StreamBuilder<
-        DocumentSnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('studyGroups')
           .doc(studyId)
@@ -3844,13 +2935,10 @@ class StudyDetailPage extends StatelessWidget {
       builder: (context, snapshot) {
         String memberStatus = '';
 
-        if (snapshot.data != null &&
-            snapshot.data!.exists) {
-          Map<String, dynamic> memberData =
-              snapshot.data!.data() ?? {};
+        if (snapshot.data != null && snapshot.data!.exists) {
+          Map<String, dynamic> memberData = snapshot.data!.data() ?? {};
 
-          memberStatus =
-              memberData['status']?.toString() ?? '';
+          memberStatus = memberData['status']?.toString() ?? '';
         }
 
         if (memberStatus == 'ACTIVE') {
@@ -3864,10 +2952,10 @@ class StudyDetailPage extends StatelessWidget {
 
   /// 방장 또는 참여 중인 그룹원에게 관리 메뉴 표시
   Widget _buildStudyManageArea(
-      BuildContext context,
-      Map<String, dynamic> currentStudyData,
-      String groupName,
-      ) {
+    BuildContext context,
+    Map<String, dynamic> currentStudyData,
+    String groupName,
+  ) {
     User? currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
@@ -3880,45 +2968,37 @@ class StudyDetailPage extends StatelessWidget {
         children: [
           Text(
             '스터디 관리',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
 
           SizedBox(height: 12),
 
           _buildMenuButton(
+            context,
             icon: Icons.person_add_alt_outlined,
             title: '그룹원 초대',
             description: '아이디 또는 이메일로 그룹원을 초대해요.',
             onTap: () {
-              _showInviteDialog(
-                context,
-                groupName,
-              );
+              _showInviteDialog(context, groupName);
             },
           ),
 
           SizedBox(height: 12),
 
           _buildMenuButton(
+            context,
             icon: Icons.report_outlined,
             title: '그룹원 신고',
             description: '문제가 있는 그룹원을 신고해요.',
             onTap: () {
-              _showReportDialog(
-                context,
-                groupName,
-              );
+              _showReportDialog(context, groupName);
             },
           ),
         ],
       );
     }
 
-    return StreamBuilder<
-        DocumentSnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('studyGroups')
           .doc(studyId)
@@ -3928,13 +3008,10 @@ class StudyDetailPage extends StatelessWidget {
       builder: (context, snapshot) {
         String memberStatus = '';
 
-        if (snapshot.data != null &&
-            snapshot.data!.exists) {
-          Map<String, dynamic> memberData =
-              snapshot.data!.data() ?? {};
+        if (snapshot.data != null && snapshot.data!.exists) {
+          Map<String, dynamic> memberData = snapshot.data!.data() ?? {};
 
-          memberStatus =
-              memberData['status']?.toString() ?? '';
+          memberStatus = memberData['status']?.toString() ?? '';
         }
 
         if (memberStatus != 'ACTIVE') {
@@ -3946,29 +3023,25 @@ class StudyDetailPage extends StatelessWidget {
           children: [
             Text(
               '스터디 관리',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
 
             SizedBox(height: 12),
 
             _buildMenuButton(
+              context,
               icon: Icons.report_outlined,
               title: '그룹원 신고',
               description: '문제가 있는 그룹원을 신고해요.',
               onTap: () {
-                _showReportDialog(
-                  context,
-                  groupName,
-                );
+                _showReportDialog(context, groupName);
               },
             ),
 
             SizedBox(height: 12),
 
             _buildMenuButton(
+              context,
               icon: Icons.logout,
               title: '스터디방 나가기',
               description: '현재 스터디에서 나가요.',
@@ -3984,11 +3057,10 @@ class StudyDetailPage extends StatelessWidget {
 
   /// 참여 중인 사용자에게만 스터디 나가기 표시
   Widget _buildLeaveArea(
-      BuildContext context,
-      Map<String, dynamic> currentStudyData,
-      ) {
-    User? currentUser =
-        FirebaseAuth.instance.currentUser;
+    BuildContext context,
+    Map<String, dynamic> currentStudyData,
+  ) {
+    User? currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
       return SizedBox();
@@ -3998,8 +3070,7 @@ class StudyDetailPage extends StatelessWidget {
       return SizedBox();
     }
 
-    return StreamBuilder<
-        DocumentSnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('studyGroups')
           .doc(studyId)
@@ -4007,20 +3078,16 @@ class StudyDetailPage extends StatelessWidget {
           .doc(currentUser.uid)
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState ==
-            ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return SizedBox();
         }
 
         String memberStatus = '';
 
-        if (snapshot.data != null &&
-            snapshot.data!.exists) {
-          Map<String, dynamic> memberData =
-              snapshot.data!.data() ?? {};
+        if (snapshot.data != null && snapshot.data!.exists) {
+          Map<String, dynamic> memberData = snapshot.data!.data() ?? {};
 
-          memberStatus =
-              memberData['status']?.toString() ?? '';
+          memberStatus = memberData['status']?.toString() ?? '';
         }
 
         if (memberStatus != 'ACTIVE') {
@@ -4031,6 +3098,7 @@ class StudyDetailPage extends StatelessWidget {
           children: [
             SizedBox(height: 12),
             _buildMenuButton(
+              context,
               icon: Icons.logout,
               title: '스터디방 나가기',
               description: '현재 스터디에서 나가요.',
@@ -4045,13 +3113,8 @@ class StudyDetailPage extends StatelessWidget {
   }
 
   /// 그룹원 초대 창
-  void _showInviteDialog(
-      BuildContext context,
-      String groupName,
-      ) {
-    final TextEditingController
-    inviteController =
-    TextEditingController();
+  void _showInviteDialog(BuildContext context, String groupName) {
+    final TextEditingController inviteController = TextEditingController();
 
     bool isSending = false;
     String? inputError;
@@ -4061,18 +3124,13 @@ class StudyDetailPage extends StatelessWidget {
       barrierDismissible: false,
       builder: (dialogContext) {
         return StatefulBuilder(
-          builder: (
-              context,
-              setDialogState,
-              ) {
+          builder: (context, setDialogState) {
             Future<void> sendInvite() async {
-              final target =
-              inviteController.text.trim();
+              final target = inviteController.text.trim();
 
               if (target.isEmpty) {
                 setDialogState(() {
-                  inputError =
-                  '아이디 또는 이메일을 입력해주세요.';
+                  inputError = '아이디 또는 이메일을 입력해주세요.';
                 });
 
                 return;
@@ -4080,8 +3138,7 @@ class StudyDetailPage extends StatelessWidget {
 
               if (target.length < 2) {
                 setDialogState(() {
-                  inputError =
-                  '2글자 이상 입력해주세요.';
+                  inputError = '2글자 이상 입력해주세요.';
                 });
 
                 return;
@@ -4093,27 +3150,17 @@ class StudyDetailPage extends StatelessWidget {
               });
 
               try {
-                await _saveInvite(
-                  groupName: groupName,
-                  target: target,
-                );
+                await _saveInvite(groupName: groupName, target: target);
 
                 if (!dialogContext.mounted) {
                   return;
                 }
 
-                Navigator.pop(
-                  dialogContext,
-                );
+                Navigator.pop(dialogContext);
 
-                _showMessage(
-                  context,
-                  '그룹 초대를 보냈습니다.',
-                );
+                _showMessage(context, '그룹 초대를 보냈습니다.');
               } catch (error) {
-                debugPrint(
-                  '그룹 초대 저장 오류: $error',
-                );
+                debugPrint('그룹 초대 저장 오류: $error');
 
                 if (!dialogContext.mounted) {
                   return;
@@ -4121,75 +3168,57 @@ class StudyDetailPage extends StatelessWidget {
 
                 setDialogState(() {
                   isSending = false;
-                  inputError =
-                  '초대를 보내지 못했습니다.';
+                  inputError = '초대를 보내지 못했습니다.';
                 });
               }
             }
 
             return AlertDialog(
               shape: RoundedRectangleBorder(
-                borderRadius:
-                BorderRadius.circular(22),
+                borderRadius: BorderRadius.circular(22),
               ),
               title: Row(
                 children: [
                   Icon(
-                    Icons
-                        .person_add_alt_outlined,
-                    color: _studyColors.pinkStart,
+                    Icons.person_add_alt_outlined,
+                    color: context.colors.pinkStart,
                   ),
                   SizedBox(width: 10),
                   Text('그룹원 초대'),
                 ],
               ),
               content: Column(
-                mainAxisSize:
-                MainAxisSize.min,
-                crossAxisAlignment:
-                CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     '초대할 사용자의 아이디 또는 이메일을 입력해주세요.',
                     style: TextStyle(
                       fontSize: 13,
                       height: 1.5,
-                      color: _studyColors.textSecondary,
+                      color: context.colors.textSecondary,
                     ),
                   ),
 
                   SizedBox(height: 16),
 
                   TextField(
-                    controller:
-                    inviteController,
+                    controller: inviteController,
                     enabled: !isSending,
                     autofocus: true,
-                    textInputAction:
-                    TextInputAction.done,
+                    textInputAction: TextInputAction.done,
                     onSubmitted: (_) {
                       if (!isSending) {
                         sendInvite();
                       }
                     },
-                    decoration:
-                    InputDecoration(
-                      labelText:
-                      '아이디 또는 이메일',
-                      hintText:
-                      '예: user01 또는 user@email.com',
+                    decoration: InputDecoration(
+                      labelText: '아이디 또는 이메일',
+                      hintText: '예: user01 또는 user@email.com',
                       errorText: inputError,
-                      prefixIcon:
-                      Icon(
-                        Icons
-                            .alternate_email_rounded,
-                      ),
-                      border:
-                      OutlineInputBorder(
-                        borderRadius:
-                        BorderRadius.circular(
-                          14,
-                        ),
+                      prefixIcon: Icon(Icons.alternate_email_rounded),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
                       ),
                     ),
                   ),
@@ -4200,33 +3229,25 @@ class StudyDetailPage extends StatelessWidget {
                   onPressed: isSending
                       ? null
                       : () {
-                    Navigator.pop(
-                      dialogContext,
-                    );
-                  },
+                          Navigator.pop(dialogContext);
+                        },
                   child: Text('취소'),
                 ),
                 ElevatedButton(
-                  onPressed: isSending
-                      ? null
-                      : sendInvite,
-                  style:
-                  ElevatedButton.styleFrom(
-                    backgroundColor:
-                    _studyColors.pinkStart,
-                    foregroundColor:
-                    _studyColorScheme.surface,
+                  onPressed: isSending ? null : sendInvite,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: context.colors.pinkStart,
+                    foregroundColor: Theme.of(context).colorScheme.surface,
                   ),
                   child: isSending
                       ? SizedBox(
-                    width: 18,
-                    height: 18,
-                    child:
-                    CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: _studyColorScheme.onPrimary,
-                    ),
-                  )
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          ),
+                        )
                       : Text('초대 보내기'),
                 ),
               ],
@@ -4238,24 +3259,18 @@ class StudyDetailPage extends StatelessWidget {
   }
 
   /// 컬렉션 안의 문서들을 나누어 삭제
-  Future<void> _deleteCollection(
-      Query<Map<String, dynamic>> query,
-      ) async {
+  Future<void> _deleteCollection(Query<Map<String, dynamic>> query) async {
     while (true) {
-      final snapshot =
-      await query.limit(200).get();
+      final snapshot = await query.limit(200).get();
 
       if (snapshot.docs.isEmpty) {
         break;
       }
 
-      final batch =
-      FirebaseFirestore.instance.batch();
+      final batch = FirebaseFirestore.instance.batch();
 
       for (final document in snapshot.docs) {
-        batch.delete(
-          document.reference,
-        );
+        batch.delete(document.reference);
       }
 
       await batch.commit();
@@ -4268,50 +3283,29 @@ class StudyDetailPage extends StatelessWidget {
 
   /// 스터디와 관련된 데이터 삭제
   Future<void> _deleteStudyData() async {
-    final firestore =
-        FirebaseFirestore.instance;
+    final firestore = FirebaseFirestore.instance;
 
-    final groupDocument =
-    firestore
-        .collection('studyGroups')
-        .doc(studyId);
+    final groupDocument = firestore.collection('studyGroups').doc(studyId);
 
     // 문제별 답안 삭제
-    final quizSnapshot =
-    await groupDocument
-        .collection('quizzes')
-        .get();
+    final quizSnapshot = await groupDocument.collection('quizzes').get();
 
-    for (final quizDocument
-    in quizSnapshot.docs) {
-      await _deleteCollection(
-        quizDocument.reference
-            .collection('answers'),
-      );
+    for (final quizDocument in quizSnapshot.docs) {
+      await _deleteCollection(quizDocument.reference.collection('answers'));
     }
 
     // 문제 삭제
-    await _deleteCollection(
-      groupDocument.collection('quizzes'),
-    );
+    await _deleteCollection(groupDocument.collection('quizzes'));
 
     // 그룹원 삭제
-    await _deleteCollection(
-      groupDocument.collection('members'),
-    );
+    await _deleteCollection(groupDocument.collection('members'));
 
     // 채팅 메시지 삭제
-    final chatDocument =
-    firestore
-        .collection('chats')
-        .doc(studyId);
+    final chatDocument = firestore.collection('chats').doc(studyId);
 
-    await _deleteCollection(
-      chatDocument.collection('messages'),
-    );
+    await _deleteCollection(chatDocument.collection('messages'));
 
-    final chatSnapshot =
-    await chatDocument.get();
+    final chatSnapshot = await chatDocument.get();
 
     if (chatSnapshot.exists) {
       await chatDocument.delete();
@@ -4321,10 +3315,7 @@ class StudyDetailPage extends StatelessWidget {
     await _deleteCollection(
       firestore
           .collection('studyGroupInvites')
-          .where(
-        'groupId',
-        isEqualTo: studyId,
-      ),
+          .where('groupId', isEqualTo: studyId),
     );
 
     // 마지막으로 스터디 문서 삭제
@@ -4332,10 +3323,7 @@ class StudyDetailPage extends StatelessWidget {
   }
 
   /// 스터디 삭제 확인창
-  void _showDeleteStudyDialog(
-      BuildContext context,
-      String groupName,
-      ) {
+  void _showDeleteStudyDialog(BuildContext context, String groupName) {
     bool isDeleting = false;
 
     showDialog<void>(
@@ -4343,10 +3331,7 @@ class StudyDetailPage extends StatelessWidget {
       barrierDismissible: false,
       builder: (dialogContext) {
         return StatefulBuilder(
-          builder: (
-              context,
-              setDialogState,
-              ) {
+          builder: (context, setDialogState) {
             Future<void> deleteStudy() async {
               setDialogState(() {
                 isDeleting = true;
@@ -4359,21 +3344,15 @@ class StudyDetailPage extends StatelessWidget {
                   return;
                 }
 
-                Navigator.pop(
-                  dialogContext,
-                );
+                Navigator.pop(dialogContext);
 
                 if (!context.mounted) {
                   return;
                 }
 
-                Navigator.pop(
-                  context,
-                );
+                Navigator.pop(context);
               } catch (error) {
-                debugPrint(
-                  '스터디 삭제 오류: $error',
-                );
+                debugPrint('스터디 삭제 오류: $error');
 
                 if (!dialogContext.mounted) {
                   return;
@@ -4383,23 +3362,19 @@ class StudyDetailPage extends StatelessWidget {
                   isDeleting = false;
                 });
 
-                _showMessage(
-                  context,
-                  '스터디를 삭제하지 못했습니다.',
-                );
+                _showMessage(context, '스터디를 삭제하지 못했습니다.');
               }
             }
 
             return AlertDialog(
               shape: RoundedRectangleBorder(
-                borderRadius:
-                BorderRadius.circular(22),
+                borderRadius: BorderRadius.circular(22),
               ),
               title: Row(
                 children: [
                   Icon(
                     Icons.delete_outline,
-                    color: _studyColorScheme.error,
+                    color: Theme.of(context).colorScheme.error,
                   ),
                   SizedBox(width: 10),
                   Text('스터디 삭제'),
@@ -4407,42 +3382,34 @@ class StudyDetailPage extends StatelessWidget {
               ),
               content: Text(
                 '"$groupName" 스터디를 정말 삭제하시겠습니까?\n\n'
-                    '그룹원, 채팅, 문제, 초대 정보도 함께 삭제되며 '
-                    '삭제한 후에는 복구할 수 없습니다.',
-                style: TextStyle(
-                  height: 1.5,
-                ),
+                '그룹원, 채팅, 문제, 초대 정보도 함께 삭제되며 '
+                '삭제한 후에는 복구할 수 없습니다.',
+                style: TextStyle(height: 1.5),
               ),
               actions: [
                 TextButton(
                   onPressed: isDeleting
                       ? null
                       : () {
-                    Navigator.pop(
-                      dialogContext,
-                    );
-                  },
+                          Navigator.pop(dialogContext);
+                        },
                   child: Text('취소'),
                 ),
                 ElevatedButton(
-                  onPressed: isDeleting
-                      ? null
-                      : deleteStudy,
-                  style:
-                  ElevatedButton.styleFrom(
-                    backgroundColor: _studyColorScheme.error,
-                    foregroundColor: _studyColorScheme.onPrimary,
+                  onPressed: isDeleting ? null : deleteStudy,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.error,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   ),
                   child: isDeleting
                       ? SizedBox(
-                    width: 18,
-                    height: 18,
-                    child:
-                    CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: _studyColorScheme.onPrimary,
-                    ),
-                  )
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          ),
+                        )
                       : Text('삭제'),
                 ),
               ],
@@ -4470,24 +3437,25 @@ class StudyDetailPage extends StatelessWidget {
       throw Exception('본인은 신고할 수 없습니다.');
     }
 
-    Map<String, String> reporterProfile =
-    await _getUserProfile(currentUser.uid);
+    Map<String, String> reporterProfile = await _getUserProfile(
+      currentUser.uid,
+    );
 
-    String reporterNickname =
-        reporterProfile['nickname'] ?? '';
+    String reporterNickname = reporterProfile['nickname'] ?? '';
 
     if (reporterNickname.isEmpty) {
       reporterNickname = '사용자';
     }
 
-    String reportId =
-        'STUDY_MEMBER_${studyId}_${currentUser.uid}_$reportedUid';
-    DocumentReference<Map<String, dynamic>> reportReference =
-        FirebaseFirestore.instance.collection('reports').doc(reportId);
+    String reportId = 'STUDY_MEMBER_${studyId}_${currentUser.uid}_$reportedUid';
+    DocumentReference<Map<String, dynamic>> reportReference = FirebaseFirestore
+        .instance
+        .collection('reports')
+        .doc(reportId);
 
     await FirebaseFirestore.instance.runTransaction((transaction) async {
-      DocumentSnapshot<Map<String, dynamic>> reportSnapshot =
-          await transaction.get(reportReference);
+      DocumentSnapshot<Map<String, dynamic>> reportSnapshot = await transaction
+          .get(reportReference);
 
       if (reportSnapshot.exists) {
         throw Exception('이미 신고한 스터디원입니다.');
@@ -4513,10 +3481,7 @@ class StudyDetailPage extends StatelessWidget {
   }
 
   /// 그룹원 신고 창
-  Future<void> _showReportDialog(
-      BuildContext context,
-      String groupName,
-      ) async {
+  Future<void> _showReportDialog(BuildContext context, String groupName) async {
     const Map<String, String> reasons = {
       'SPAM': '스팸',
       'ABUSE': '욕설 또는 괴롭힘',
@@ -4527,10 +3492,7 @@ class StudyDetailPage extends StatelessWidget {
     final currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
-      _showMessage(
-        context,
-        '로그인 정보가 없습니다.',
-      );
+      _showMessage(context, '로그인 정보가 없습니다.');
       return;
     }
 
@@ -4546,38 +3508,29 @@ class StudyDetailPage extends StatelessWidget {
       debugPrint('신고할 그룹원 조회 오류: $error');
 
       if (context.mounted) {
-        _showMessage(
-          context,
-          '그룹원 목록을 불러오지 못했습니다.',
-        );
+        _showMessage(context, '그룹원 목록을 불러오지 못했습니다.');
       }
       return;
     }
 
-    List<QueryDocumentSnapshot<Map<String, dynamic>>>
-    memberList = [];
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> memberList = [];
 
     for (int i = 0; i < memberSnapshot.docs.length; i++) {
       QueryDocumentSnapshot<Map<String, dynamic>> memberDocument =
-      memberSnapshot.docs[i];
+          memberSnapshot.docs[i];
 
       Map<String, dynamic> memberData = memberDocument.data();
 
-      String status =
-          memberData['status']?.toString() ?? '';
+      String status = memberData['status']?.toString() ?? '';
 
-      if (status == 'ACTIVE' &&
-          memberDocument.id != currentUser.uid) {
+      if (status == 'ACTIVE' && memberDocument.id != currentUser.uid) {
         memberList.add(memberDocument);
       }
     }
 
     if (memberList.isEmpty) {
       if (context.mounted) {
-        _showMessage(
-          context,
-          '신고할 수 있는 그룹원이 없습니다.',
-        );
+        _showMessage(context, '신고할 수 있는 그룹원이 없습니다.');
       }
       return;
     }
@@ -4585,8 +3538,7 @@ class StudyDetailPage extends StatelessWidget {
     String selectedMemberUid = memberList[0].id;
     String selectedReason = 'SPAM';
 
-    TextEditingController detailController =
-    TextEditingController();
+    TextEditingController detailController = TextEditingController();
 
     bool isSaving = false;
 
@@ -4595,19 +3547,17 @@ class StudyDetailPage extends StatelessWidget {
       return;
     }
 
-    await showModalBottomSheet<void>(
+    await showDialog<void>(
       context: context,
-      isScrollControlled: true,
-      isDismissible: true,
-      enableDrag: true,
-      backgroundColor: Colors.transparent,
+      barrierDismissible: true,
+      barrierColor: Colors.black54,
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
               alignment: Alignment.bottomCenter,
               insetPadding: EdgeInsets.zero,
-              backgroundColor: AppColors.light.surface,
+              backgroundColor: context.colors.surface,
               surfaceTintColor: Colors.transparent,
               shadowColor: Colors.transparent,
               elevation: 0,
@@ -4615,9 +3565,7 @@ class StudyDetailPage extends StatelessWidget {
               contentPadding: EdgeInsets.fromLTRB(22, 20, 22, 0),
               actionsPadding: EdgeInsets.fromLTRB(22, 12, 22, 24),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(26),
-                ),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
               ),
               title: Column(
                 children: [
@@ -4625,7 +3573,7 @@ class StudyDetailPage extends StatelessWidget {
                     width: 42,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: AppColors.light.textSecondary.withOpacity(0.25),
+                      color: context.colors.textSecondary.withOpacity(0.25),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -4636,12 +3584,12 @@ class StudyDetailPage extends StatelessWidget {
                         width: 44,
                         height: 44,
                         decoration: BoxDecoration(
-                          color: AppColors.light.incorrectSoft,
+                          color: context.colors.incorrectSoft,
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Icon(
                           Icons.report_outlined,
-                          color: AppColors.light.incorrect,
+                          color: context.colors.incorrect,
                         ),
                       ),
                       SizedBox(width: 12),
@@ -4651,7 +3599,7 @@ class StudyDetailPage extends StatelessWidget {
                           Text(
                             '그룹원 신고',
                             style: TextStyle(
-                              color: AppColors.light.textPrimary,
+                              color: context.colors.textPrimary,
                               fontSize: 20,
                               fontWeight: FontWeight.w800,
                             ),
@@ -4660,7 +3608,7 @@ class StudyDetailPage extends StatelessWidget {
                           Text(
                             '신고 사유를 선택해 주세요.',
                             style: TextStyle(
-                              color: AppColors.light.textSecondary,
+                              color: context.colors.textSecondary,
                               fontSize: 13,
                               fontWeight: FontWeight.w400,
                             ),
@@ -4677,28 +3625,24 @@ class StudyDetailPage extends StatelessWidget {
                   children: [
                     DropdownButtonFormField<String>(
                       value: selectedMemberUid,
-                      style: TextStyle(
-                        color: AppColors.light.textPrimary,
-                      ),
+                      style: TextStyle(color: context.colors.textPrimary),
                       decoration: InputDecoration(
                         labelText: '신고할 그룹원',
                         labelStyle: TextStyle(
-                          color: AppColors.light.textSecondary,
+                          color: context.colors.textSecondary,
                         ),
                         filled: true,
-                        fillColor: AppColors.light.pinkSoft.withOpacity(0.3),
+                        fillColor: context.colors.pinkSoft.withOpacity(0.3),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                           borderSide: BorderSide.none,
                         ),
                       ),
                       items: memberList.map((memberDocument) {
-                        Map<String, dynamic> memberData =
-                        memberDocument.data();
+                        Map<String, dynamic> memberData = memberDocument.data();
 
                         String nickname =
-                            memberData['nickname']?.toString() ??
-                                '스터디원';
+                            memberData['nickname']?.toString() ?? '스터디원';
 
                         return DropdownMenuItem<String>(
                           value: memberDocument.id,
@@ -4708,21 +3652,20 @@ class StudyDetailPage extends StatelessWidget {
                       onChanged: isSaving
                           ? null
                           : (value) {
-                        if (value == null) {
-                          return;
-                        }
+                              if (value == null) {
+                                return;
+                              }
 
-                        setDialogState(() {
-                          selectedMemberUid = value;
-                        });
-                      },
+                              setDialogState(() {
+                                selectedMemberUid = value;
+                              });
+                            },
                     ),
 
                     SizedBox(height: 16),
 
                     ...reasons.entries.map((entry) {
-                      bool isSelected =
-                          selectedReason == entry.key;
+                      bool isSelected = selectedReason == entry.key;
 
                       return Padding(
                         padding: EdgeInsets.only(bottom: 8),
@@ -4731,10 +3674,10 @@ class StudyDetailPage extends StatelessWidget {
                           onTap: isSaving
                               ? null
                               : () {
-                            setDialogState(() {
-                              selectedReason = entry.key;
-                            });
-                          },
+                                  setDialogState(() {
+                                    selectedReason = entry.key;
+                                  });
+                                },
                           child: AnimatedContainer(
                             duration: Duration(milliseconds: 160),
                             padding: EdgeInsets.symmetric(
@@ -4743,13 +3686,12 @@ class StudyDetailPage extends StatelessWidget {
                             ),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? AppColors.light.incorrectSoft
-                                  : AppColors.light.pinkSoft
-                                  .withOpacity(0.35),
+                                  ? context.colors.incorrectSoft
+                                  : context.colors.pinkSoft.withOpacity(0.35),
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
                                 color: isSelected
-                                    ? AppColors.light.incorrect
+                                    ? context.colors.incorrect
                                     : Colors.transparent,
                               ),
                             ),
@@ -4760,15 +3702,15 @@ class StudyDetailPage extends StatelessWidget {
                                       ? Icons.radio_button_checked
                                       : Icons.radio_button_off,
                                   color: isSelected
-                                      ? AppColors.light.incorrect
-                                      : AppColors.light.textSecondary,
+                                      ? context.colors.incorrect
+                                      : context.colors.textSecondary,
                                   size: 20,
                                 ),
                                 SizedBox(width: 10),
                                 Text(
                                   entry.value,
                                   style: TextStyle(
-                                    color: AppColors.light.textPrimary,
+                                    color: context.colors.textPrimary,
                                     fontSize: 14,
                                     fontWeight: isSelected
                                         ? FontWeight.w700
@@ -4784,41 +3726,38 @@ class StudyDetailPage extends StatelessWidget {
 
                     SizedBox(height: 16),
 
-                        TextField(
-                          controller: detailController,
-                          enabled: !isSaving,
-                          maxLines: 4,
-                          maxLength: 500,
-                          style: TextStyle(
-                            color: AppColors.light.textPrimary,
+                    TextField(
+                      controller: detailController,
+                      enabled: !isSaving,
+                      maxLines: 4,
+                      maxLength: 500,
+                      style: TextStyle(color: context.colors.textPrimary),
+                      decoration: InputDecoration(
+                        labelText: '상세 내용',
+                        hintText: '신고 내용을 입력해주세요. (선택)',
+                        labelStyle: TextStyle(
+                          color: context.colors.textSecondary,
+                        ),
+                        hintStyle: TextStyle(
+                          color: context.colors.textSecondary,
+                        ),
+                        counterStyle: TextStyle(
+                          color: context.colors.textSecondary,
+                        ),
+                        alignLabelWithHint: true,
+                        filled: true,
+                        fillColor: context.colors.pinkSoft.withOpacity(0.3),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                            color: context.colors.incorrect,
                           ),
-                          decoration: InputDecoration(
-                            labelText: '상세 내용',
-                            hintText: '신고 내용을 입력해주세요. (선택)',
-                            labelStyle: TextStyle(
-                              color: AppColors.light.textSecondary,
-                            ),
-                            hintStyle: TextStyle(
-                              color: AppColors.light.textSecondary,
-                            ),
-                            counterStyle: TextStyle(
-                              color: AppColors.light.textSecondary,
-                            ),
-                            alignLabelWithHint: true,
-                            filled: true,
-                            fillColor: AppColors.light.pinkSoft
-                                .withOpacity(0.3),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide.none,
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide(
-                                color: AppColors.light.incorrect,
-                              ),
-                            ),
-                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -4831,88 +3770,79 @@ class StudyDetailPage extends StatelessWidget {
                     onPressed: isSaving
                         ? null
                         : () async {
-                    String detail =
-                        detailController.text.trim();
+                            String detail = detailController.text.trim();
 
-                    String reportedNickname = '스터디원';
+                            String reportedNickname = '스터디원';
 
-                    for (int i = 0;
-                    i < memberList.length;
-                    i++) {
-                      if (memberList[i].id ==
-                          selectedMemberUid) {
-                        Map<String, dynamic> memberData =
-                        memberList[i].data();
+                            for (int i = 0; i < memberList.length; i++) {
+                              if (memberList[i].id == selectedMemberUid) {
+                                Map<String, dynamic> memberData = memberList[i]
+                                    .data();
 
-                        reportedNickname =
-                            memberData['nickname']
-                                ?.toString() ??
-                                '스터디원';
-                        break;
-                      }
-                    }
+                                reportedNickname =
+                                    memberData['nickname']?.toString() ??
+                                    '스터디원';
+                                break;
+                              }
+                            }
 
-                    setDialogState(() {
-                      isSaving = true;
-                    });
+                            setDialogState(() {
+                              isSaving = true;
+                            });
 
-                    try {
-                      await _saveMemberReport(
-                        reportedUid: selectedMemberUid,
-                        reportedNickname:
-                        reportedNickname,
-                        reasonType: selectedReason,
-                        detail: detail,
-                      );
+                            try {
+                              await _saveMemberReport(
+                                reportedUid: selectedMemberUid,
+                                reportedNickname: reportedNickname,
+                                reasonType: selectedReason,
+                                detail: detail,
+                              );
 
-                      if (!dialogContext.mounted) {
-                        return;
-                      }
+                              if (!dialogContext.mounted) {
+                                return;
+                              }
 
-                      Navigator.pop(dialogContext);
+                              Navigator.pop(dialogContext);
 
-                      if (context.mounted) {
-                        _showMessage(
-                          context,
-                          '신고가 접수되었습니다.',
-                        );
-                      }
-                    } catch (error) {
-                      debugPrint('그룹원 신고 오류: $error');
+                              if (context.mounted) {
+                                _showMessage(context, '신고가 접수되었습니다.');
+                              }
+                            } catch (error) {
+                              debugPrint('그룹원 신고 오류: $error');
 
-                      if (!dialogContext.mounted) {
-                        return;
-                      }
+                              if (!dialogContext.mounted) {
+                                return;
+                              }
 
-                      setDialogState(() {
-                        isSaving = false;
-                      });
+                              setDialogState(() {
+                                isSaving = false;
+                              });
 
-                      _showMessage(
-                        context,
-                        error.toString().replaceFirst(
-                          'Exception: ',
-                          '',
-                        ),
-                      );
-                    }
-                    },
+                              _showMessage(
+                                context,
+                                error.toString().replaceFirst(
+                                  'Exception: ',
+                                  '',
+                                ),
+                              );
+                            }
+                          },
                     style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.light.incorrect,
-                      foregroundColor: AppColors.light.surface,
+                      backgroundColor: context.colors.incorrect,
+                      foregroundColor: context.colors.surface,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
                     icon: isSaving
                         ? SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.light.surface,
-                      ),
-                    )
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: context.colors.surface,
+                            ),
+                          )
                         : Icon(Icons.report_outlined),
                     label: Text(
                       '신고 접수하기',
@@ -4926,7 +3856,6 @@ class StudyDetailPage extends StatelessWidget {
         );
       },
     );
-
   }
 
   /// 스터디 나가기 처리
@@ -4945,90 +3874,67 @@ class StudyDetailPage extends StatelessWidget {
         .collection('members')
         .doc(currentUser.uid);
 
-    await FirebaseFirestore.instance.runTransaction(
-          (transaction) async {
-        final groupSnapshot = await transaction.get(
-          groupDocument,
-        );
+    await FirebaseFirestore.instance.runTransaction((transaction) async {
+      final groupSnapshot = await transaction.get(groupDocument);
 
-        final memberSnapshot = await transaction.get(
-          memberDocument,
-        );
+      final memberSnapshot = await transaction.get(memberDocument);
 
-        if (!groupSnapshot.exists) {
-          throw Exception('스터디 정보를 찾을 수 없습니다.');
-        }
+      if (!groupSnapshot.exists) {
+        throw Exception('스터디 정보를 찾을 수 없습니다.');
+      }
 
-        if (!memberSnapshot.exists) {
-          throw Exception('참여 중인 스터디가 아닙니다.');
-        }
+      if (!memberSnapshot.exists) {
+        throw Exception('참여 중인 스터디가 아닙니다.');
+      }
 
-        final groupData = groupSnapshot.data() ?? {};
-        final memberData = memberSnapshot.data() ?? {};
+      final groupData = groupSnapshot.data() ?? {};
+      final memberData = memberSnapshot.data() ?? {};
 
-        final ownerUid =
-            groupData['ownerUid']?.toString() ?? '';
+      final ownerUid = groupData['ownerUid']?.toString() ?? '';
 
-        final memberStatus =
-            memberData['status']?.toString() ?? '';
+      final memberStatus = memberData['status']?.toString() ?? '';
 
-        if (currentUser.uid == ownerUid) {
-          throw Exception('방장은 스터디에서 나갈 수 없습니다.');
-        }
+      if (currentUser.uid == ownerUid) {
+        throw Exception('방장은 스터디에서 나갈 수 없습니다.');
+      }
 
-        if (memberStatus != 'ACTIVE') {
-          throw Exception('이미 참여 중인 스터디가 아닙니다.');
-        }
+      if (memberStatus != 'ACTIVE') {
+        throw Exception('이미 참여 중인 스터디가 아닙니다.');
+      }
 
-        final currentMemberCount = _getInt(
-          groupData,
-          'currentMemberCount',
-        );
+      final currentMemberCount = _getInt(groupData, 'currentMemberCount');
 
-        int newMemberCount = currentMemberCount - 1;
+      int newMemberCount = currentMemberCount - 1;
 
-        if (newMemberCount < 1) {
-          newMemberCount = 1;
-        }
+      if (newMemberCount < 1) {
+        newMemberCount = 1;
+      }
 
-        final currentStatus =
-            groupData['status']?.toString() ?? 'RECRUITING';
+      final currentStatus = groupData['status']?.toString() ?? 'RECRUITING';
 
-        String nextStatus = 'RECRUITING';
+      String nextStatus = 'RECRUITING';
 
-        if (currentStatus == 'COMPLETED') {
-          nextStatus = 'COMPLETED';
-        }
+      if (currentStatus == 'COMPLETED') {
+        nextStatus = 'COMPLETED';
+      }
 
-        transaction.update(
-          memberDocument,
-          {
-            'status': 'LEFT',
-            'leftAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          },
-        );
+      transaction.update(memberDocument, {
+        'status': 'LEFT',
+        'leftAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
-        transaction.update(
-          groupDocument,
-          {
-            'currentMemberCount': newMemberCount,
-            'status': nextStatus,
-            'recruitmentStatus':
-            nextStatus == 'COMPLETED'
-                ? 'CLOSED'
-                : 'OPEN',
-            'updatedAt': FieldValue.serverTimestamp(),
-          },
-        );
-      },
-    );
+      transaction.update(groupDocument, {
+        'currentMemberCount': newMemberCount,
+        'status': nextStatus,
+        'recruitmentStatus': nextStatus == 'COMPLETED' ? 'CLOSED' : 'OPEN',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
   }
 
   /// 스터디 나가기 확인창
-  void _showLeaveDialog(
-      BuildContext context,
-      ) {
+  void _showLeaveDialog(BuildContext context) {
     bool isLeaving = false;
 
     showDialog<void>(
@@ -5036,95 +3942,80 @@ class StudyDetailPage extends StatelessWidget {
       barrierDismissible: false,
       builder: (dialogContext) {
         return StatefulBuilder(
-          builder: (
-              context,
-              setDialogState,
-              ) {
+          builder: (context, setDialogState) {
             return AlertDialog(
-              title: Text('스터디방 나가기'),
+              backgroundColor: context.colors.surface,
+              surfaceTintColor: Colors.transparent,
+              shape: appDialogShape,
+              title: AppDialogTitle(
+                icon: Icons.logout_rounded,
+                title: '스터디방 나가기',
+                isDestructive: true,
+              ),
               content: Text(
                 '이 스터디에서 나가시겠습니까?\n\n'
-                    '나간 뒤에는 다시 참여해야 스터디 활동을 이용할 수 있습니다.',
-                style: TextStyle(
-                  height: 1.5,
-                ),
+                '나간 뒤에는 다시 참여해야 스터디 활동을 이용할 수 있습니다.',
+                style: TextStyle(height: 1.5),
               ),
               actions: [
                 TextButton(
                   onPressed: isLeaving
                       ? null
                       : () {
-                    Navigator.pop(
-                      dialogContext,
-                    );
-                  },
+                          Navigator.pop(dialogContext);
+                        },
                   child: Text('취소'),
                 ),
                 TextButton(
                   onPressed: isLeaving
                       ? null
                       : () async {
-                    setDialogState(() {
-                      isLeaving = true;
-                    });
+                          setDialogState(() {
+                            isLeaving = true;
+                          });
 
-                    try {
-                      await _leaveStudy();
+                          try {
+                            await _leaveStudy();
 
-                      if (!dialogContext.mounted) {
-                        return;
-                      }
+                            if (!dialogContext.mounted) {
+                              return;
+                            }
 
-                      Navigator.pop(
-                        dialogContext,
-                      );
+                            Navigator.pop(dialogContext);
 
-                      if (!context.mounted) {
-                        return;
-                      }
+                            if (!context.mounted) {
+                              return;
+                            }
 
-                      _showMessage(
-                        context,
-                        '스터디에서 나갔습니다.',
-                      );
+                            _showMessage(context, '스터디에서 나갔습니다.');
 
-                      Navigator.pop(
-                        context,
-                        true,
-                      );
-                    } catch (error) {
-                      debugPrint(
-                        '스터디 나가기 오류: $error',
-                      );
+                            Navigator.pop(context, true);
+                          } catch (error) {
+                            debugPrint('스터디 나가기 오류: $error');
 
-                      if (!dialogContext.mounted) {
-                        return;
-                      }
+                            if (!dialogContext.mounted) {
+                              return;
+                            }
 
-                      setDialogState(() {
-                        isLeaving = false;
-                      });
+                            setDialogState(() {
+                              isLeaving = false;
+                            });
 
-                      _showMessage(
-                        context,
-                        error.toString().replaceFirst(
-                          'Exception: ',
-                          '',
-                        ),
-                      );
-                    }
-                  },
+                            _showMessage(
+                              context,
+                              error.toString().replaceFirst('Exception: ', ''),
+                            );
+                          }
+                        },
                   style: TextButton.styleFrom(
-                    foregroundColor: _studyColorScheme.error,
+                    foregroundColor: Theme.of(context).colorScheme.error,
                   ),
                   child: isLeaving
                       ? SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
-                  )
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : Text('나가기'),
                 ),
               ],
@@ -5136,21 +4027,12 @@ class StudyDetailPage extends StatelessWidget {
   }
 
   /// 작은 표시
-  Widget _buildBadge(
-      String text,
-      Color backgroundColor,
-      Color textColor,
-      ) {
+  Widget _buildBadge(String text, Color backgroundColor, Color textColor) {
     return Container(
-      padding:
-      EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius:
-        BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(15),
       ),
       child: Text(
         text,
@@ -5165,23 +4047,20 @@ class StudyDetailPage extends StatelessWidget {
 
   /// 상세 정보 한 줄
   Widget _buildInfoRow(
-      IconData icon,
-      String title,
-      String value,
-      ) {
+    BuildContext context,
+    IconData icon,
+    String title,
+    String value,
+  ) {
     return Padding(
-      padding:
-      EdgeInsets.only(
-        bottom: 14,
-      ),
+      padding: EdgeInsets.only(bottom: 14),
       child: Row(
-        crossAxisAlignment:
-        CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
             icon,
             size: 20,
-            color: _studyColorScheme.secondaryContainer,
+            color: Theme.of(context).colorScheme.secondaryContainer,
           ),
 
           SizedBox(width: 10),
@@ -5190,20 +4069,12 @@ class StudyDetailPage extends StatelessWidget {
             width: 78,
             child: Text(
               title,
-              style: TextStyle(
-                color: _studyColors.textSecondary,
-              ),
+              style: TextStyle(color: context.colors.textSecondary),
             ),
           ),
 
           Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontWeight:
-                FontWeight.w600,
-              ),
-            ),
+            child: Text(value, style: TextStyle(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -5211,7 +4082,8 @@ class StudyDetailPage extends StatelessWidget {
   }
 
   /// 메뉴 카드
-  Widget _buildMenuButton({
+  Widget _buildMenuButton(
+    BuildContext context, {
     required IconData icon,
     required String title,
     required String description,
@@ -5221,61 +4093,44 @@ class StudyDetailPage extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: AppCard(
-        backgroundColor: _studyColorScheme.surface,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         child: Row(
           children: [
             Container(
               width: 48,
               height: 48,
-              decoration:
-              BoxDecoration(
-                color: _studyColors.lavender,
-                borderRadius:
-                BorderRadius.circular(
-                  14,
-                ),
+              decoration: BoxDecoration(
+                color: context.colors.lavender,
+                borderRadius: BorderRadius.circular(14),
               ),
-              child: Icon(
-                icon,
-                color: _studyColors.pinkStart,
-              ),
+              child: Icon(icon, color: context.colors.pinkStart),
             ),
 
             SizedBox(width: 14),
 
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
-                    style:
-                    TextStyle(
-                      fontSize: 15,
-                      fontWeight:
-                      FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                   ),
 
                   SizedBox(height: 4),
 
                   Text(
                     description,
-                    style:
-                    TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: _studyColors.textSecondary,
+                      color: context.colors.textSecondary,
                     ),
                   ),
                 ],
               ),
             ),
 
-            Icon(
-              Icons.chevron_right,
-              color: _studyColors.textSecondary,
-            ),
+            Icon(Icons.chevron_right, color: context.colors.textSecondary),
           ],
         ),
       ),
@@ -5301,10 +4156,7 @@ class StudyDetailPage extends StatelessWidget {
       context,
       MaterialPageRoute(
         builder: (context) {
-          return StudyDetailPage(
-            studyId: studyId,
-            studyData: studyData,
-          );
+          return StudyDetailPage(studyId: studyId, studyData: studyData);
         },
       ),
     );
@@ -5321,29 +4173,20 @@ class StudyDetailPage extends StatelessWidget {
         if (snapshot.connectionState == ConnectionState.waiting &&
             snapshot.hasData == false) {
           return Scaffold(
-            appBar: AppTopBar(
-              title: '스터디 상세',
-            ),
-            body: AppLoadingView(
-              message: '스터디 정보를 불러오는 중입니다.',
-            ),
+            appBar: AppTopBar(title: '스터디 상세'),
+            body: AppLoadingView(message: '스터디 정보를 불러오는 중입니다.'),
           );
         }
 
         if (snapshot.hasError) {
-          debugPrint(
-            '스터디 상세 조회 오류: ${snapshot.error}',
-          );
+          debugPrint('스터디 상세 조회 오류: ${snapshot.error}');
 
           if (_isNetworkError(snapshot.error)) {
             return Scaffold(
-              appBar: AppTopBar(
-                title: '스터디 상세',
-              ),
+              appBar: AppTopBar(title: '스터디 상세'),
               body: AppNetworkErrorView(
                 message: '인터넷 연결을 확인해 주세요.',
-                description:
-                'Wi-Fi 또는 모바일 데이터를 확인한 뒤 다시 시도해 주세요.',
+                description: 'Wi-Fi 또는 모바일 데이터를 확인한 뒤 다시 시도해 주세요.',
                 retryButtonText: '다시 시도',
                 onRetryPressed: () {
                   _retryDetailPage(context);
@@ -5353,9 +4196,7 @@ class StudyDetailPage extends StatelessWidget {
           }
 
           return Scaffold(
-            appBar: AppTopBar(
-              title: '스터디 상세',
-            ),
+            appBar: AppTopBar(title: '스터디 상세'),
             body: AppErrorView(
               message: '스터디 정보를 불러오지 못했습니다.',
               description: '잠시 후 다시 시도해 주세요.',
@@ -5367,12 +4208,9 @@ class StudyDetailPage extends StatelessWidget {
           );
         }
 
-        if (snapshot.data == null ||
-            snapshot.data!.exists == false) {
+        if (snapshot.data == null || snapshot.data!.exists == false) {
           return Scaffold(
-            appBar: AppTopBar(
-              title: '스터디 상세',
-            ),
+            appBar: AppTopBar(title: '스터디 상세'),
             body: AppErrorView(
               message: '존재하지 않는 스터디입니다.',
               description: '삭제되었거나 더 이상 이용할 수 없는 스터디입니다.',
@@ -5386,8 +4224,7 @@ class StudyDetailPage extends StatelessWidget {
         String groupName =
             currentStudyData['groupName']?.toString() ?? '그룹명 없음';
 
-        String description =
-            currentStudyData['description']?.toString() ?? '';
+        String description = currentStudyData['description']?.toString() ?? '';
 
         String certificateName =
             currentStudyData['certificateName']?.toString() ?? '공통 스터디';
@@ -5400,10 +4237,7 @@ class StudyDetailPage extends StatelessWidget {
           'currentMemberCount',
         );
 
-        int maxMemberCount = _getInt(
-          currentStudyData,
-          'maxMemberCount',
-        );
+        int maxMemberCount = _getInt(currentStudyData, 'maxMemberCount');
 
         bool isPublic = true;
 
@@ -5414,8 +4248,7 @@ class StudyDetailPage extends StatelessWidget {
         bool joinApprovalRequired = true;
 
         if (currentStudyData['joinApprovalRequired'] is bool) {
-          joinApprovalRequired =
-          currentStudyData['joinApprovalRequired'];
+          joinApprovalRequired = currentStudyData['joinApprovalRequired'];
         }
 
         bool isOwner = _isOwner(currentStudyData);
@@ -5423,9 +4256,7 @@ class StudyDetailPage extends StatelessWidget {
         User? currentUser = FirebaseAuth.instance.currentUser;
 
         if (isOwner) {
-          _scheduleOwnerProfileSync(
-            currentStudyData,
-          );
+          _scheduleOwnerProfileSync(currentStudyData);
         }
 
         return Scaffold(
@@ -5444,38 +4275,23 @@ class StudyDetailPage extends StatelessWidget {
                     }
 
                     if (value == 'invite') {
-                      _showInviteDialog(
-                        context,
-                        groupName,
-                      );
+                      _showInviteDialog(context, groupName);
                     }
 
                     if (value == 'member') {
-                      _openMemberManagement(
-                        context,
-                        currentStudyData,
-                      );
+                      _openMemberManagement(context, currentStudyData);
                     }
 
                     if (value == 'goal') {
-                      _showStudyGoalDialog(
-                        context,
-                        currentStudyData,
-                      );
+                      _showStudyGoalDialog(context, currentStudyData);
                     }
 
                     if (value == 'edit') {
-                      _openEditPage(
-                        context,
-                        currentStudyData,
-                      );
+                      _openEditPage(context, currentStudyData);
                     }
 
                     if (value == 'delete') {
-                      _showDeleteStudyDialog(
-                        context,
-                        groupName,
-                      );
+                      _showDeleteStudyDialog(context, groupName);
                     }
                   },
                   itemBuilder: (context) {
@@ -5491,11 +4307,7 @@ class StudyDetailPage extends StatelessWidget {
                               size: 20,
                             ),
                             SizedBox(width: 10),
-                            Text(
-                              isRecruiting
-                                  ? '모집 마감'
-                                  : '모집 재개',
-                            ),
+                            Text(isRecruiting ? '모집 마감' : '모집 재개'),
                           ],
                         ),
                       ),
@@ -5503,10 +4315,7 @@ class StudyDetailPage extends StatelessWidget {
                         value: 'invite',
                         child: Row(
                           children: [
-                            Icon(
-                              Icons.person_add_alt_outlined,
-                              size: 20,
-                            ),
+                            Icon(Icons.person_add_alt_outlined, size: 20),
                             SizedBox(width: 10),
                             Text('그룹원 초대'),
                           ],
@@ -5516,10 +4325,7 @@ class StudyDetailPage extends StatelessWidget {
                         value: 'member',
                         child: Row(
                           children: [
-                            Icon(
-                              Icons.manage_accounts_outlined,
-                              size: 20,
-                            ),
+                            Icon(Icons.manage_accounts_outlined, size: 20),
                             SizedBox(width: 10),
                             Text('그룹원 관리'),
                           ],
@@ -5529,10 +4335,7 @@ class StudyDetailPage extends StatelessWidget {
                         value: 'goal',
                         child: Row(
                           children: [
-                            Icon(
-                              Icons.event_available_outlined,
-                              size: 20,
-                            ),
+                            Icon(Icons.event_available_outlined, size: 20),
                             SizedBox(width: 10),
                             Text('시험일·주간 목표 설정'),
                           ],
@@ -5542,10 +4345,7 @@ class StudyDetailPage extends StatelessWidget {
                         value: 'edit',
                         child: Row(
                           children: [
-                            Icon(
-                              Icons.edit_outlined,
-                              size: 20,
-                            ),
+                            Icon(Icons.edit_outlined, size: 20),
                             SizedBox(width: 10),
                             Text('스터디 수정'),
                           ],
@@ -5558,13 +4358,13 @@ class StudyDetailPage extends StatelessWidget {
                             Icon(
                               Icons.delete_outline,
                               size: 20,
-                              color: _studyColorScheme.error,
+                              color: Theme.of(context).colorScheme.error,
                             ),
                             SizedBox(width: 10),
                             Text(
                               '스터디 삭제',
                               style: TextStyle(
-                                color: _studyColorScheme.error,
+                                color: Theme.of(context).colorScheme.error,
                               ),
                             ),
                           ],
@@ -5589,8 +4389,7 @@ class StudyDetailPage extends StatelessWidget {
                       Map<String, dynamic> memberData =
                           memberSnapshot.data!.data() ?? {};
 
-                      memberStatus =
-                          memberData['status']?.toString() ?? '';
+                      memberStatus = memberData['status']?.toString() ?? '';
                     }
 
                     if (memberStatus != 'ACTIVE') {
@@ -5600,10 +4399,7 @@ class StudyDetailPage extends StatelessWidget {
                     return PopupMenuButton<String>(
                       onSelected: (value) {
                         if (value == 'report') {
-                          _showReportDialog(
-                            context,
-                            groupName,
-                          );
+                          _showReportDialog(context, groupName);
                         }
 
                         if (value == 'leave') {
@@ -5616,10 +4412,7 @@ class StudyDetailPage extends StatelessWidget {
                             value: 'report',
                             child: Row(
                               children: [
-                                Icon(
-                                  Icons.report_outlined,
-                                  size: 20,
-                                ),
+                                Icon(Icons.report_outlined, size: 20),
                                 SizedBox(width: 10),
                                 Text('그룹원 신고'),
                               ],
@@ -5632,13 +4425,13 @@ class StudyDetailPage extends StatelessWidget {
                                 Icon(
                                   Icons.logout,
                                   size: 20,
-                                  color: _studyColorScheme.error,
+                                  color: Theme.of(context).colorScheme.error,
                                 ),
                                 SizedBox(width: 10),
                                 Text(
                                   '스터디방 나가기',
                                   style: TextStyle(
-                                    color: _studyColorScheme.error,
+                                    color: Theme.of(context).colorScheme.error,
                                   ),
                                 ),
                               ],
@@ -5664,7 +4457,7 @@ class StudyDetailPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   AppCard(
-                    backgroundColor: _studyColorScheme.surface,
+                    backgroundColor: Theme.of(context).colorScheme.surface,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -5674,28 +4467,30 @@ class StudyDetailPage extends StatelessWidget {
                           children: [
                             _buildBadge(
                               certificateName,
-                              _studyColors.lavender,
-                              _studyColors.pinkStart,
+                              context.colors.lavender,
+                              context.colors.pinkStart,
                             ),
                             _buildBadge(
                               isPublic ? '공개' : '비공개',
-                              _studyColorScheme.outlineVariant,
-                              _studyColors.textSecondary,
+                              Theme.of(context).colorScheme.outlineVariant,
+                              context.colors.textSecondary,
                             ),
                             _buildBadge(
                               isRecruiting ? '모집 중' : '모집 마감',
                               isRecruiting
-                                  ? _studyColors.mint
-                                  : _studyColorScheme.outlineVariant,
+                                  ? context.colors.mint
+                                  : Theme.of(
+                                      context,
+                                    ).colorScheme.outlineVariant,
                               isRecruiting
-                                  ? _studyColorScheme.tertiary
-                                  : _studyColors.textSecondary,
+                                  ? Theme.of(context).colorScheme.tertiary
+                                  : context.colors.textSecondary,
                             ),
                             if (isOwner)
                               _buildBadge(
                                 '방장',
-                                _studyColors.pinkSoft,
-                                _studyColors.pinkStart,
+                                context.colors.pinkSoft,
+                                context.colors.pinkStart,
                               ),
                           ],
                         ),
@@ -5715,52 +4510,39 @@ class StudyDetailPage extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 14,
                             height: 1.5,
-                            color: _studyColors.textSecondary,
+                            color: context.colors.textSecondary,
                           ),
                         ),
                         SizedBox(height: 20),
                         _buildInfoRow(
+                          context,
                           Icons.person_outline,
                           '방장',
                           ownerNickname,
                         ),
                         _buildInfoRow(
+                          context,
                           Icons.groups_outlined,
                           '참여 인원',
                           '$currentMemberCount / $maxMemberCount명',
                         ),
                         _buildInfoRow(
+                          context,
                           Icons.fact_check_outlined,
                           '참여 방식',
-                          joinApprovalRequired
-                              ? '방장 승인 후 참여'
-                              : '바로 참여 가능',
+                          joinApprovalRequired ? '방장 승인 후 참여' : '바로 참여 가능',
                         ),
                       ],
                     ),
                   ),
                   SizedBox(height: 12),
-                  _buildStudyGoalCard(
-                    context,
-                    currentStudyData,
-                    isOwner,
-                  ),
+                  _buildStudyGoalCard(context, currentStudyData, isOwner),
                   SizedBox(height: 12),
-                  _buildJoinArea(
-                    context,
-                    currentStudyData,
-                  ),
+                  _buildJoinArea(context, currentStudyData),
                   SizedBox(height: 12),
-                  _buildStudyRoomArea(
-                    context,
-                    currentStudyData,
-                  ),
+                  _buildStudyRoomArea(context, currentStudyData),
                   if (isOwner) SizedBox(height: 12),
-                  if (isOwner)
-                    _buildJoinRequestArea(
-                      context,
-                      currentStudyData,
-                    ),
+                  if (isOwner) _buildJoinRequestArea(context, currentStudyData),
                 ],
               ),
             ),

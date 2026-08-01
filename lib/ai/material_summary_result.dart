@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../widgets/app_main_background.dart';
@@ -29,7 +30,7 @@ class MaterialSummaryResultPage extends StatefulWidget {
   /// null이면 기존처럼 이 페이지가 직접 요약을 요청한다.
   final Map<String, dynamic>? initialResult;
 
-  const MaterialSummaryResultPage({
+  MaterialSummaryResultPage({
     super.key,
     required this.selectedCertificate,
     required this.isSplitSummary,
@@ -39,12 +40,13 @@ class MaterialSummaryResultPage extends StatefulWidget {
   });
 
   @override
-  State<MaterialSummaryResultPage> createState() => _MaterialSummaryResultPageState();
+  State<MaterialSummaryResultPage> createState() =>
+      _MaterialSummaryResultPageState();
 }
 
 class _MaterialSummaryResultPageState extends State<MaterialSummaryResultPage> {
   final GlobalKey _summaryCaptureKey = GlobalKey();
-  static const List<String> _analysisMessages = [
+  static List<String> _analysisMessages = [
     '구름iT이 자료를 분석하고 있어요',
     '업로드한 자료를 읽고 있어요',
     '핵심 내용을 정리하고 있어요',
@@ -52,7 +54,7 @@ class _MaterialSummaryResultPageState extends State<MaterialSummaryResultPage> {
     '거의 다 됐어요',
     '이제 보여드릴게요',
   ];
-  static const List<int> _analysisDurations = [2800, 3200, 3200, 3600, 2200, 900];
+  static List<int> _analysisDurations = [2800, 3200, 3200, 3600, 2200, 900];
 
   bool _isLoading = true;
   // 뒤로가기/다른 자료 요약하기를 중복으로 여러 번 누르는 것만 막기 위한 플래그.
@@ -140,19 +142,23 @@ class _MaterialSummaryResultPageState extends State<MaterialSummaryResultPage> {
   /// 응답 안에서 함께 만들어 보내주므로, 불일치 확인 후 "계속 요약"을
   /// 선택해도 API를 다시 호출하지 않고 이미 받은 값을 그대로 쓴다.
   Future<void> _handleDecodedData(
-      Map<String, dynamic> decodedData, {
-        required bool forceSummary,
-      }) async {
+    Map<String, dynamic> decodedData, {
+    required bool forceSummary,
+  }) async {
     final selectedCertificate = widget.selectedCertificate?.trim() ?? '';
     final certificateMatch = decodedData['certificate_match'] != false;
     final summary = decodedData['summary']?.toString().trim() ?? '';
     final originalLength = _toInt(decodedData['original_length']);
-    final fileCount = _toInt(decodedData['file_count'], fallback: widget.uploadedFileUrls.length);
+    final fileCount = _toInt(
+      decodedData['file_count'],
+      fallback: widget.uploadedFileUrls.length,
+    );
 
     if (!certificateMatch && !forceSummary) {
       final detectedCertificate =
           decodedData['detected_certificate']?.toString().trim() ?? '다른 자격증';
-      final mismatchReason = decodedData['mismatch_reason']?.toString().trim() ?? '';
+      final mismatchReason =
+          decodedData['mismatch_reason']?.toString().trim() ?? '';
 
       if (!mounted) return;
 
@@ -255,9 +261,9 @@ class _MaterialSummaryResultPageState extends State<MaterialSummaryResultPage> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('로그인이 필요한 기능이에요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('로그인이 필요한 기능이에요.')));
       return;
     }
 
@@ -269,26 +275,26 @@ class _MaterialSummaryResultPageState extends State<MaterialSummaryResultPage> {
           .doc(uid)
           .collection('saved_summaries')
           .add({
-        'certificateName': widget.selectedCertificate ?? '',
-        'summary': _summary,
-        'originalLength': _originalLength,
-        'summaryLength': _summaryLength,
-        'fileCount': _fileCount,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+            'certificateName': widget.selectedCertificate ?? '',
+            'summary': _summary,
+            'originalLength': _originalLength,
+            'summaryLength': _summaryLength,
+            'fileCount': _fileCount,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('요약본을 저장했어요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('요약본을 저장했어요.')));
     } catch (error, stackTrace) {
       debugPrint('요약본 저장 실패: $error');
       debugPrint('$stackTrace');
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('요약본 저장에 실패했어요. 다시 시도해주세요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('요약본 저장에 실패했어요. 다시 시도해주세요.')));
     } finally {
       if (mounted) {
         setState(() => _isSavingSummary = false);
@@ -306,8 +312,9 @@ class _MaterialSummaryResultPageState extends State<MaterialSummaryResultPage> {
         : '따IT 요약본';
 
     try {
-      final boundary = _summaryCaptureKey.currentContext?.findRenderObject()
-      as RenderRepaintBoundary?;
+      final boundary =
+          _summaryCaptureKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
 
       if (boundary == null) {
         throw Exception('캡처할 화면을 찾지 못했습니다.');
@@ -332,9 +339,9 @@ class _MaterialSummaryResultPageState extends State<MaterialSummaryResultPage> {
       debugPrint('$stackTrace');
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('요약본을 공유하지 못했어요. 다시 시도해주세요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('요약본을 공유하지 못했어요. 다시 시도해주세요.')));
     }
   }
 
@@ -352,7 +359,10 @@ class _MaterialSummaryResultPageState extends State<MaterialSummaryResultPage> {
     if (widget.uploadedFileUrls.isEmpty) return;
 
     for (final fileUrl in widget.uploadedFileUrls) {
-      FirebaseStorage.instance.refFromURL(fileUrl).delete().catchError((error, stackTrace) {
+      FirebaseStorage.instance.refFromURL(fileUrl).delete().catchError((
+        error,
+        stackTrace,
+      ) {
         debugPrint('요약 자료 삭제 실패: $error');
         debugPrint('$stackTrace');
       });
@@ -361,22 +371,22 @@ class _MaterialSummaryResultPageState extends State<MaterialSummaryResultPage> {
 
   Widget _buildSummaryContent() {
     if (_isLoading) {
-      return const SizedBox.shrink();
+      return SizedBox.shrink();
     }
 
     if (_errorMessage != null) {
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(22, 28, 22, 24),
+        padding: EdgeInsets.fromLTRB(22, 28, 22, 24),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.94),
+          color: context.colors.surfaceTransparent.withValues(alpha: 0.94),
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFF0E4E8)),
+          border: Border.all(color: context.colors.border),
         ),
         child: Column(
           children: [
-            const Icon(Icons.error_outline_rounded, color: AppColors.pink, size: 46),
-            const SizedBox(height: 16),
+            Icon(Icons.error_outline_rounded, color: AppColors.pink, size: 46),
+            SizedBox(height: 16),
             Text(
               '요약을 생성하지 못했어요.',
               style: TextStyle(
@@ -385,13 +395,17 @@ class _MaterialSummaryResultPageState extends State<MaterialSummaryResultPage> {
                 fontWeight: FontWeight.w800,
               ),
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: 10),
             Text(
               _errorMessage!,
               textAlign: TextAlign.center,
-              style: TextStyle(color: context.colors.textSecondary, fontSize: 14, height: 1.5),
+              style: TextStyle(
+                color: context.colors.textSecondary,
+                fontSize: 14,
+                height: 1.5,
+              ),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               height: 48,
@@ -399,12 +413,17 @@ class _MaterialSummaryResultPageState extends State<MaterialSummaryResultPage> {
                 onPressed: () => _requestSummary(),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.pink,
-                  foregroundColor: Colors.white,
+                  foregroundColor: context.colors.onPrimary,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('다시 시도', style: TextStyle(fontWeight: FontWeight.w800)),
+                icon: Icon(Icons.refresh_rounded),
+                label: Text(
+                  '다시 시도',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
               ),
             ),
           ],
@@ -424,7 +443,9 @@ class _MaterialSummaryResultPageState extends State<MaterialSummaryResultPage> {
 
   @override
   Widget build(BuildContext context) {
-    final displayedFileCount = _fileCount == 0 ? widget.uploadedFileNames.length : _fileCount;
+    final displayedFileCount = _fileCount == 0
+        ? widget.uploadedFileNames.length
+        : _fileCount;
 
     return PopScope(
       canPop: false,
@@ -442,7 +463,10 @@ class _MaterialSummaryResultPageState extends State<MaterialSummaryResultPage> {
           leading: IconButton(
             onPressed: _isLoading ? null : _summarizeAnotherMaterial,
             tooltip: '뒤로가기',
-            icon: Icon(Icons.arrow_back_rounded, color: context.colors.textPrimary),
+            icon: Icon(
+              Icons.arrow_back_rounded,
+              color: context.colors.textPrimary,
+            ),
           ),
         ),
         body: AppMainBackground(
@@ -450,7 +474,7 @@ class _MaterialSummaryResultPageState extends State<MaterialSummaryResultPage> {
             children: [
               SafeArea(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 22, 24, 40),
+                  padding: EdgeInsets.fromLTRB(24, 22, 24, 40),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -461,7 +485,7 @@ class _MaterialSummaryResultPageState extends State<MaterialSummaryResultPage> {
                         isLoading: _isLoading,
                         hasError: _errorMessage != null,
                       ),
-                      const SizedBox(height: 30),
+                      SizedBox(height: 30),
                       Text(
                         '구름iT 요약 노트',
                         style: TextStyle(
@@ -471,43 +495,58 @@ class _MaterialSummaryResultPageState extends State<MaterialSummaryResultPage> {
                           letterSpacing: -0.5,
                         ),
                       ),
-                      const SizedBox(height: 7),
+                      SizedBox(height: 7),
                       Text(
                         _isLoading
                             ? '업로드한 자료에서 핵심 내용을 찾고 있어요.'
                             : _errorMessage != null
                             ? '오류 내용을 확인한 뒤 다시 시도해주세요.'
                             : '업로드한 자료의 핵심 내용을 정리했어요.',
-                        style: TextStyle(color: context.colors.textSecondary, fontSize: 14),
+                        style: TextStyle(
+                          color: context.colors.textSecondary,
+                          fontSize: 14,
+                        ),
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16),
                       _buildSummaryContent(),
                       if (!_isLoading && _errorMessage == null) ...[
-                        const SizedBox(height: 12),
-                        _SummaryMetadata(originalLength: _originalLength, summaryLength: _summaryLength),
-                        const SizedBox(height: 22),
+                        SizedBox(height: 12),
+                        _SummaryMetadata(
+                          originalLength: _originalLength,
+                          summaryLength: _summaryLength,
+                        ),
+                        SizedBox(height: 22),
                         _SummaryActionButtons(
                           onSavePressed: _isSavingSummary ? null : _saveSummary,
                           onDownloadPressed: _downloadSummary,
                           isSaving: _isSavingSummary,
                         ),
                       ],
-                      const SizedBox(height: 14),
+                      SizedBox(height: 14),
                       SizedBox(
                         width: double.infinity,
                         height: 56,
                         child: OutlinedButton.icon(
-                          onPressed: _isLoading ? null : _summarizeAnotherMaterial,
+                          onPressed: _isLoading
+                              ? null
+                              : _summarizeAnotherMaterial,
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.pink,
-                            backgroundColor: Colors.white.withValues(alpha: 0.84),
-                            side: const BorderSide(color: AppColors.pink, width: 1.5),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            backgroundColor: context.colors.surface.withValues(
+                              alpha: 0.84,
+                            ),
+                            side: BorderSide(color: AppColors.pink, width: 1.5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
                           ),
-                          icon: const Icon(Icons.refresh_rounded, size: 21),
-                          label: const Text(
+                          icon: Icon(Icons.refresh_rounded, size: 21),
+                          label: Text(
                             '다른 자료 요약하기',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
                       ),
@@ -518,11 +557,13 @@ class _MaterialSummaryResultPageState extends State<MaterialSummaryResultPage> {
               if (_isLoading)
                 Positioned.fill(
                   child: Container(
-                    color: Colors.white.withValues(alpha: 0.92),
+                    color: context.colors.surfaceTransparent.withValues(
+                      alpha: 0.92,
+                    ),
                     child: Align(
-                      alignment: const Alignment(0, -0.15),
+                      alignment: Alignment(0, -0.15),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        padding: EdgeInsets.symmetric(horizontal: 24),
                         child: _RotatingLoadingContent(
                           messages: _analysisMessages,
                           durations: _analysisDurations,
@@ -543,7 +584,7 @@ class _CertificateComparisonBox extends StatelessWidget {
   final String selectedCertificate;
   final String detectedCertificate;
 
-  const _CertificateComparisonBox({
+  _CertificateComparisonBox({
     required this.selectedCertificate,
     required this.detectedCertificate,
   });
@@ -552,18 +593,24 @@ class _CertificateComparisonBox extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(15),
+      padding: EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: context.colors.pinkSoftAlt,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         children: [
-          _CertificateComparisonRow(label: '선택한 자격증', value: selectedCertificate),
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: Color(0xFFF0DDE2)),
-          const SizedBox(height: 12),
-          _CertificateComparisonRow(label: 'AI가 판단한 자격증', value: detectedCertificate),
+          _CertificateComparisonRow(
+            label: '선택한 자격증',
+            value: selectedCertificate,
+          ),
+          SizedBox(height: 12),
+          Divider(height: 1, color: context.colors.divider),
+          SizedBox(height: 12),
+          _CertificateComparisonRow(
+            label: 'AI가 판단한 자격증',
+            value: detectedCertificate,
+          ),
         ],
       ),
     );
@@ -574,7 +621,7 @@ class _CertificateComparisonRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _CertificateComparisonRow({required this.label, required this.value});
+  _CertificateComparisonRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -592,7 +639,7 @@ class _CertificateComparisonRow extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 8),
+        SizedBox(width: 8),
         Expanded(
           child: Text(
             value,
@@ -616,7 +663,7 @@ class _SummaryResultHeader extends StatelessWidget {
   final bool isLoading;
   final bool hasError;
 
-  const _SummaryResultHeader({
+  _SummaryResultHeader({
     required this.selectedCertificate,
     required this.isSplitSummary,
     required this.fileCount,
@@ -625,12 +672,11 @@ class _SummaryResultHeader extends StatelessWidget {
   });
 
   // 그라데이션 배경 위에서는 테마 색상 대신 고정 색을 써서 대비를 보장한다.
-  static const Color _titleColor = Color(0xFF302C2E);
-  static const Color _descColor = Color(0xFF6B6265);
-  static const Color _accentColor = Color(0xFFE85D82);
-
   @override
   Widget build(BuildContext context) {
+    final titleColor = context.colors.textPrimary;
+    final descColor = context.colors.textSecondary;
+    final accentColor = context.colors.pinkDeep;
     final String title;
     final String description;
     final IconData icon;
@@ -655,20 +701,20 @@ class _SummaryResultHeader extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 24, 20, 22),
+      padding: EdgeInsets.fromLTRB(22, 24, 20, 22),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFFFE4ED), Color(0xFFF6D7FF)],
+          colors: [context.colors.pinkSoft, context.colors.lavender],
         ),
         borderRadius: BorderRadius.circular(25),
-        border: Border.all(color: Colors.white, width: 2),
+        border: Border.all(color: context.colors.surface, width: 2),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 14,
-            offset: const Offset(0, 6),
+            offset: Offset(0, 6),
           ),
         ],
       ),
@@ -680,23 +726,27 @@ class _SummaryResultHeader extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    color: _titleColor,
+                  style: TextStyle(
+                    color: titleColor,
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.6,
                   ),
                 ),
-                const SizedBox(height: 9),
+                SizedBox(height: 9),
                 Text(
                   description,
-                  style: const TextStyle(color: _descColor, fontSize: 13.5, height: 1.5),
+                  style: TextStyle(
+                    color: descColor,
+                    fontSize: 13.5,
+                    height: 1.5,
+                  ),
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 Text(
                   '업로드 자료 $fileCount개',
-                  style: const TextStyle(
-                    color: _accentColor,
+                  style: TextStyle(
+                    color: accentColor,
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
                   ),
@@ -707,9 +757,12 @@ class _SummaryResultHeader extends StatelessWidget {
           Container(
             width: 64,
             height: 64,
-            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: context.colors.surface,
+              shape: BoxShape.circle,
+            ),
             alignment: Alignment.center,
-            child: Icon(icon, color: _accentColor, size: 30),
+            child: Icon(icon, color: accentColor, size: 30),
           ),
         ],
       ),
@@ -722,7 +775,7 @@ class _CertificateSummarySection extends StatelessWidget {
   final int summaryNumber;
   final String summary;
 
-  const _CertificateSummarySection({
+  _CertificateSummarySection({
     required this.certificateName,
     required this.summaryNumber,
     required this.summary,
@@ -732,11 +785,11 @@ class _CertificateSummarySection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 22),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.94),
+        color: context.colors.surfaceTransparent.withValues(alpha: 0.94),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFF0E4E8)),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -747,17 +800,20 @@ class _CertificateSummarySection extends StatelessWidget {
                 width: 34,
                 height: 34,
                 alignment: Alignment.center,
-                decoration: BoxDecoration(color: context.colors.pinkSoft, shape: BoxShape.circle),
+                decoration: BoxDecoration(
+                  color: context.colors.pinkSoft,
+                  shape: BoxShape.circle,
+                ),
                 child: Text(
                   '$summaryNumber',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.pink,
                     fontSize: 14,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
-              const SizedBox(width: 11),
+              SizedBox(width: 11),
               Expanded(
                 child: Text(
                   certificateName,
@@ -770,12 +826,16 @@ class _CertificateSummarySection extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 22),
-          const _SummaryResultTitle(title: '요약 내용'),
-          const SizedBox(height: 14),
+          SizedBox(height: 22),
+          _SummaryResultTitle(title: '요약 내용'),
+          SizedBox(height: 14),
           SelectableText(
             summary,
-            style: const TextStyle(color: Color(0xFF595254), fontSize: 14, height: 1.7),
+            style: TextStyle(
+              color: context.colors.textPrimary,
+              fontSize: 14,
+              height: 1.7,
+            ),
           ),
         ],
       ),
@@ -787,7 +847,7 @@ class _SummaryMetadata extends StatelessWidget {
   final int originalLength;
   final int summaryLength;
 
-  const _SummaryMetadata({required this.originalLength, required this.summaryLength});
+  _SummaryMetadata({required this.originalLength, required this.summaryLength});
 
   @override
   Widget build(BuildContext context) {
@@ -795,7 +855,11 @@ class _SummaryMetadata extends StatelessWidget {
       alignment: Alignment.centerRight,
       child: Text(
         '원문 $originalLength자 · 요약 $summaryLength자',
-        style: TextStyle(color: context.colors.textMuted, fontSize: 12, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          color: context.colors.textMuted,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -804,7 +868,7 @@ class _SummaryMetadata extends StatelessWidget {
 class _SummaryResultTitle extends StatelessWidget {
   final String title;
 
-  const _SummaryResultTitle({required this.title});
+  _SummaryResultTitle({required this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -824,7 +888,7 @@ class _SummaryActionButtons extends StatelessWidget {
   final VoidCallback onDownloadPressed;
   final bool isSaving;
 
-  const _SummaryActionButtons({
+  _SummaryActionButtons({
     required this.onSavePressed,
     required this.onDownloadPressed,
     this.isSaving = false,
@@ -841,19 +905,24 @@ class _SummaryActionButtons extends StatelessWidget {
               onPressed: onSavePressed,
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.pink,
-                backgroundColor: Colors.white.withValues(alpha: 0.84),
-                side: const BorderSide(color: AppColors.pink, width: 1.5),
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                backgroundColor: context.colors.surface.withValues(alpha: 0.84),
+                side: BorderSide(color: AppColors.pink, width: 1.5),
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
               ),
               icon: isSaving
-                  ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.pink),
-              )
-                  : const Icon(Icons.bookmark_add_outlined, size: 20),
-              label: const Text(
+                  ? SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.pink,
+                      ),
+                    )
+                  : Icon(Icons.bookmark_add_outlined, size: 20),
+              label: Text(
                 '요약본 저장',
                 maxLines: 1,
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
@@ -861,7 +930,7 @@ class _SummaryActionButtons extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 10),
+        SizedBox(width: 10),
         Expanded(
           child: SizedBox(
             height: 54,
@@ -869,13 +938,15 @@ class _SummaryActionButtons extends StatelessWidget {
               onPressed: onDownloadPressed,
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.pink,
-                foregroundColor: Colors.white,
+                foregroundColor: context.colors.onPrimary,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
               ),
-              icon: const Icon(Icons.ios_share_rounded, size: 20),
-              label: const Text(
+              icon: Icon(Icons.ios_share_rounded, size: 20),
+              label: Text(
                 '요약본 다운',
                 maxLines: 1,
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
@@ -892,13 +963,11 @@ class _RotatingLoadingContent extends StatefulWidget {
   final List<String> messages;
   final List<int> durations;
 
-  const _RotatingLoadingContent({
-    required this.messages,
-    required this.durations,
-  });
+  _RotatingLoadingContent({required this.messages, required this.durations});
 
   @override
-  State<_RotatingLoadingContent> createState() => _RotatingLoadingContentState();
+  State<_RotatingLoadingContent> createState() =>
+      _RotatingLoadingContentState();
 }
 
 class _RotatingLoadingContentState extends State<_RotatingLoadingContent>
@@ -910,15 +979,16 @@ class _RotatingLoadingContentState extends State<_RotatingLoadingContent>
   @override
   void initState() {
     super.initState();
-    _rotationController =
-    AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))
-      ..repeat();
+    _rotationController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 1400),
+    )..repeat();
     _scheduleNextMessage();
   }
 
   void _scheduleNextMessage() {
     final duration =
-    widget.durations[_messageIndex.clamp(0, widget.durations.length - 1)];
+        widget.durations[_messageIndex.clamp(0, widget.durations.length - 1)];
     _messageTimer = Timer(Duration(milliseconds: duration), () {
       if (!mounted) return;
       if (_messageIndex < widget.messages.length - 1) {
@@ -943,19 +1013,22 @@ class _RotatingLoadingContentState extends State<_RotatingLoadingContent>
         WaveLoadingIndicator(
           size: 72,
           progress: _messageIndex / (widget.messages.length - 1),
-          backgroundColor: const Color(0xFFFFF3F5),
-          waveColorStart: const Color(0xFFF4869D),
-          waveColorEnd: const Color(0xFFFF8FA3),
+          backgroundColor: context.colors.pinkSoft,
+          waveColorStart: Color(0xFFF4869D),
+          waveColorEnd: Color(0xFFFF8FA3),
         ),
-        const SizedBox(height: 26),
+        SizedBox(height: 26),
         AnimatedSwitcher(
-          duration: const Duration(milliseconds: 350),
+          duration: Duration(milliseconds: 350),
           switchInCurve: Curves.easeOut,
           switchOutCurve: Curves.easeIn,
           transitionBuilder: (child, anim) => FadeTransition(
             opacity: anim,
             child: SlideTransition(
-              position: Tween(begin: const Offset(0, 0.15), end: Offset.zero).animate(anim),
+              position: Tween(
+                begin: Offset(0, 0.15),
+                end: Offset.zero,
+              ).animate(anim),
               child: child,
             ),
           ),
@@ -964,7 +1037,7 @@ class _RotatingLoadingContentState extends State<_RotatingLoadingContent>
             key: ValueKey(_messageIndex),
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Colors.grey.shade900,
+              color: context.colors.textPrimary,
               fontSize: 15.5,
               fontWeight: FontWeight.w800,
             ),

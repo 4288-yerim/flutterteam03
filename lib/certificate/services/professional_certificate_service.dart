@@ -45,11 +45,13 @@ class ProfessionalCertificateService {
           .orderBy('sortdate')
           .get();
 
-      return snapshot.docs
+      final schedules = snapshot.docs
           .map(
         ProfessionalCertificateSchedule.fromFirestore,
       )
           .toList();
+      schedules.sort(ProfessionalCertificateSchedule.compareForDisplay);
+      return schedules;
     } on FirebaseException catch (error) {
       throw CertificateDetailException(
         error.message ?? '시험 일정을 불러오지 못했습니다.',
@@ -95,6 +97,33 @@ class ProfessionalCertificateSchedule {
     required this.passEndAt,
     required this.sortDate,
   });
+
+  static int compareForDisplay(
+    ProfessionalCertificateSchedule first,
+    ProfessionalCertificateSchedule second,
+  ) {
+    final today = _dateOnly(DateTime.now());
+    final firstFinished = first._isFinished(today);
+    final secondFinished = second._isFinished(today);
+    if (firstFinished != secondFinished) return firstFinished ? 1 : -1;
+    return _sortDate(first).compareTo(_sortDate(second));
+  }
+
+  bool _isFinished(DateTime today) {
+    final lastDate = passEndAt ?? passStartAt;
+    return lastDate != null && _dateOnly(lastDate).isBefore(today);
+  }
+
+  static DateTime _sortDate(ProfessionalCertificateSchedule schedule) =>
+      schedule.sortDate ??
+      schedule.examStartAt ??
+      schedule.examEndAt ??
+      DateTime(9999);
+
+  static DateTime _dateOnly(DateTime date) {
+    final local = date.toLocal();
+    return DateTime(local.year, local.month, local.day);
+  }
 
   factory ProfessionalCertificateSchedule.fromFirestore(
       QueryDocumentSnapshot<Map<String, dynamic>> document,

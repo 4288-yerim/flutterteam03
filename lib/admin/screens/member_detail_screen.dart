@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
+
 import '../../widgets/app_confirm_dialog.dart';
 import '../../widgets/app_main_background.dart';
 import '../services/admin_member_service.dart';
@@ -81,20 +83,23 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
       return InputDecoration(
         labelText: label,
         hintText: hint,
-        prefixIcon: Icon(icon, color: const Color(0xFF6C63FF)),
+        prefixIcon: Icon(icon, color: context.colors.lavenderAccent),
         filled: true,
-        fillColor: const Color(0xFFF7F5FA),
+        fillColor: context.colors.surfaceMuted,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFFE2DFE6)),
+          borderSide: BorderSide(color: context.colors.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFFE2DFE6)),
+          borderSide: BorderSide(color: context.colors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFF6C63FF), width: 1.5),
+          borderSide: BorderSide(
+            color: context.colors.lavenderAccent,
+            width: 1.5,
+          ),
         ),
       );
     }
@@ -110,8 +115,8 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
           22,
           MediaQuery.of(modalContext).viewInsets.bottom + 24,
         ),
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: context.colors.surfaceElevated,
           borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
         ),
         child: SafeArea(
@@ -128,7 +133,9 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
                       width: 42,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF77747E).withValues(alpha: 0.25),
+                        color: context.colors.textSecondary.withValues(
+                          alpha: 0.25,
+                        ),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -140,23 +147,23 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
                         width: 46,
                         height: 46,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF0EDFF),
+                          color: context.colors.lavender,
                           borderRadius: BorderRadius.circular(15),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.manage_accounts_rounded,
-                          color: Color(0xFF6C63FF),
+                          color: context.colors.lavenderAccent,
                         ),
                       ),
                       const SizedBox(width: 12),
-                      const Expanded(
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               '회원 정보 수정',
                               style: TextStyle(
-                                color: Color(0xFF242126),
+                                color: context.colors.textPrimary,
                                 fontSize: 20,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -165,7 +172,7 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
                             Text(
                               '닉네임과 소개글을 변경할 수 있어요.',
                               style: TextStyle(
-                                color: Color(0xFF77747E),
+                                color: context.colors.textSecondary,
                                 fontSize: 13,
                               ),
                             ),
@@ -223,8 +230,8 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
                         }
                       },
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF6C63FF),
-                        foregroundColor: Colors.white,
+                        backgroundColor: context.colors.lavenderAccent,
+                        foregroundColor: context.colors.onPrimary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(15),
                         ),
@@ -292,8 +299,10 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
               return const Center(child: Text('회원 상세 정보를 불러오지 못했습니다.'));
             }
             if (!snapshot.hasData) {
-              return const Center(
-                child: CircularProgressIndicator(color: Color(0xFF6C63FF)),
+              return Center(
+                child: CircularProgressIndicator(
+                  color: context.colors.lavenderAccent,
+                ),
               );
             }
             return _DetailBody(
@@ -442,11 +451,14 @@ class _DetailBody extends StatelessWidget {
                       .toList(),
                 ),
         ),
-        const Padding(
+        Padding(
           padding: EdgeInsets.fromLTRB(4, 24, 4, 2),
           child: Row(
             children: [
-              Icon(Icons.smart_toy_rounded, color: Color(0xFF6C63FF)),
+              Icon(
+                Icons.smart_toy_rounded,
+                color: context.colors.lavenderAccent,
+              ),
               SizedBox(width: 9),
               Text(
                 'AI 메뉴 사용 기록',
@@ -524,9 +536,12 @@ class MemberReportSummaryScreen extends StatelessWidget {
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               '회원에게 누적된 신고 건수를 확인할 수 있어요.',
-              style: TextStyle(color: Color(0xFF77747E), fontSize: 13),
+              style: TextStyle(
+                color: context.colors.textSecondary,
+                fontSize: 13,
+              ),
             ),
             const SizedBox(height: 18),
             _ReportCountCard(
@@ -554,9 +569,12 @@ class MemberReportSummaryScreen extends StatelessWidget {
               count: member.studyMemberReportCount,
             ),
             const SizedBox(height: 26),
-            const Row(
+            Row(
               children: [
-                Icon(Icons.receipt_long_outlined, color: Color(0xFF6C63FF)),
+                Icon(
+                  Icons.receipt_long_outlined,
+                  color: context.colors.lavenderAccent,
+                ),
                 SizedBox(width: 9),
                 Text(
                   '신고 내역',
@@ -565,20 +583,20 @@ class MemberReportSummaryScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            const AdminMemberDetailSurface(
+            AdminMemberDetailSurface(
               padding: EdgeInsets.symmetric(horizontal: 20, vertical: 38),
               child: Column(
                 children: [
                   Icon(
                     Icons.inbox_outlined,
-                    color: Color(0xFF99949E),
+                    color: context.colors.textMuted,
                     size: 34,
                   ),
                   SizedBox(height: 10),
                   Text(
                     '표시할 신고 내역이 없습니다.',
                     style: TextStyle(
-                      color: Color(0xFF77747E),
+                      color: context.colors.textSecondary,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
@@ -586,7 +604,10 @@ class MemberReportSummaryScreen extends StatelessWidget {
                   SizedBox(height: 4),
                   Text(
                     '신고 내역 데이터는 추후 연결될 예정입니다.',
-                    style: TextStyle(color: Color(0xFF99949E), fontSize: 12),
+                    style: TextStyle(
+                      color: context.colors.textMuted,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -614,8 +635,8 @@ class _ReportCountCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = isPrimary
-        ? const Color(0xFFE85D68)
-        : const Color(0xFF6C63FF);
+        ? context.colors.incorrect
+        : context.colors.lavenderAccent;
     return AdminMemberDetailSurface(
       padding: const EdgeInsets.all(18),
       child: Row(
@@ -633,8 +654,8 @@ class _ReportCountCard extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
-                color: Color(0xFF5D5962),
+              style: TextStyle(
+                color: context.colors.textSecondary,
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
               ),
@@ -662,7 +683,7 @@ class _ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: _decoration(),
+      decoration: _decoration(context),
       child: Row(
         children: [
           _ProfileImage(url: member.profileImageUrl),
@@ -673,16 +694,13 @@ class _ProfileHeader extends StatelessWidget {
               children: [
                 Text(
                   member.nickname,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                  ),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   member.identifier.isEmpty ? '아이디 정보 없음' : member.identifier,
-                  style: const TextStyle(
-                    color: Color(0xFF77747E),
+                  style: TextStyle(
+                    color: context.colors.textSecondary,
                     fontSize: 13,
                   ),
                 ),
@@ -701,10 +719,14 @@ class _ProfileImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const fallback = CircleAvatar(
+    final fallback = CircleAvatar(
       radius: 36,
-      backgroundColor: Color(0xFFF0EDFF),
-      child: Icon(Icons.person_rounded, color: Color(0xFF6C63FF), size: 38),
+      backgroundColor: context.colors.lavender,
+      child: Icon(
+        Icons.person_rounded,
+        color: context.colors.lavenderAccent,
+        size: 38,
+      ),
     );
     if (url.isEmpty) return fallback;
     return ClipOval(
@@ -740,8 +762,8 @@ class _InfoCard extends StatelessWidget {
                       width: 105,
                       child: Text(
                         row.$1,
-                        style: const TextStyle(
-                          color: Color(0xFF77747E),
+                        style: TextStyle(
+                          color: context.colors.textSecondary,
                           fontSize: 13,
                         ),
                       ),
@@ -789,20 +811,20 @@ class _StatusButton extends StatelessWidget {
         onPressed: withdrawalPending || isLoading ? null : onPressed,
         style: FilledButton.styleFrom(
           backgroundColor: suspended
-              ? const Color(0xFF6C63FF)
-              : const Color(0xFFE85D68),
-          disabledBackgroundColor: const Color(0xFFE2DFE6),
+              ? context.colors.lavenderAccent
+              : context.colors.incorrect,
+          disabledBackgroundColor: context.colors.border,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
         ),
         icon: isLoading
-            ? const SizedBox(
+            ? SizedBox(
                 width: 18,
                 height: 18,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: Colors.white,
+                  color: context.colors.onPrimary,
                 ),
               )
             : Icon(
@@ -842,7 +864,7 @@ class _ActivityCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withValues(alpha: 0.95),
+      color: context.colors.surfaceTransparent,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -851,7 +873,7 @@ class _ActivityCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              Icon(icon, color: const Color(0xFF6C63FF)),
+              Icon(icon, color: context.colors.lavenderAccent),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -859,8 +881,8 @@ class _ActivityCard extends StatelessWidget {
                   children: [
                     Text(
                       label,
-                      style: const TextStyle(
-                        color: Color(0xFF77747E),
+                      style: TextStyle(
+                        color: context.colors.textSecondary,
                         fontSize: 12,
                       ),
                     ),
@@ -902,7 +924,7 @@ class _Section extends StatelessWidget {
       child: AdminMemberDetailSurface(
         clipBehavior: Clip.antiAlias,
         child: ExpansionTile(
-          leading: Icon(icon, color: const Color(0xFF6C63FF)),
+          leading: Icon(icon, color: context.colors.lavenderAccent),
           title: Text(
             title,
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
@@ -973,7 +995,7 @@ class _ExpandTrailing extends StatelessWidget {
         if (count != null)
           Text(
             count!,
-            style: const TextStyle(color: Color(0xFF77747E), fontSize: 12),
+            style: TextStyle(color: context.colors.textSecondary, fontSize: 12),
           ),
         const SizedBox(width: 5),
         const Icon(Icons.expand_more_rounded),
@@ -995,12 +1017,12 @@ class _RecordTile extends StatelessWidget {
       margin: const EdgeInsets.only(top: 7),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F5FA),
+        color: context.colors.surfaceMuted,
         borderRadius: BorderRadius.circular(13),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 19, color: const Color(0xFF756CE0)),
+          Icon(icon, size: 19, color: context.colors.lavenderAccent),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -1017,8 +1039,8 @@ class _RecordTile extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     subtitle!,
-                    style: const TextStyle(
-                      color: Color(0xFF99949E),
+                    style: TextStyle(
+                      color: context.colors.textMuted,
                       fontSize: 11,
                     ),
                   ),
@@ -1045,8 +1067,8 @@ class _EmptyOrText extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               value,
-              style: const TextStyle(
-                color: Color(0xFF5D5962),
+              style: TextStyle(
+                color: context.colors.textSecondary,
                 fontSize: 13,
                 height: 1.55,
               ),
@@ -1065,7 +1087,7 @@ class _EmptyText extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Text(
         value,
-        style: const TextStyle(color: Color(0xFF99949E), fontSize: 12),
+        style: TextStyle(color: context.colors.textMuted, fontSize: 12),
       ),
     );
   }
@@ -1077,10 +1099,10 @@ bool _showsStatusButton(String status) {
       status == 'WITHDRAWAL_PENDING';
 }
 
-BoxDecoration _decoration() => BoxDecoration(
-  color: Colors.white.withValues(alpha: 0.95),
+BoxDecoration _decoration(BuildContext context) => BoxDecoration(
+  color: context.colors.surfaceTransparent,
   borderRadius: BorderRadius.circular(20),
-  border: Border.all(color: const Color(0xFFECE9F0)),
+  border: Border.all(color: context.colors.border),
 );
 
 String _studyPlanLabel(AdminAiRecord record) {

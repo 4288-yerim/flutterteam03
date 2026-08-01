@@ -6,34 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:flutterteam03/widgets/app_state_views.dart';
 
 import '../theme.dart';
+import '../widgets/app_dialog.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
 import '../widgets/loading_overlay.dart';
 import 'study_quiz_add.dart';
-
-
-Brightness get _studyBrightness {
-  return WidgetsBinding.instance.platformDispatcher.platformBrightness;
-}
-
-AppColors get _studyColors {
-  if (_studyBrightness == Brightness.dark) {
-    return AppColors.dark;
-  }
-
-  return AppColors.light;
-}
-
-ColorScheme get _studyColorScheme {
-  if (_studyBrightness == Brightness.dark) {
-    return darkTheme.colorScheme;
-  }
-
-  return lightTheme.colorScheme;
-}
-
 
 class StudyQuizPage extends StatefulWidget {
   final String studyId;
@@ -51,10 +30,8 @@ class StudyQuizPage extends StatefulWidget {
   }
 }
 
-
 class _StudyQuizPageState extends State<StudyQuizPage> {
-  Stream<QuerySnapshot<Map<String, dynamic>>>?
-  _quizStream;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _quizStream;
 
   bool _isOwner = false;
   bool _isOwnerLoading = true;
@@ -67,8 +44,7 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
     _loadOwnerStatus();
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>>
-  _createQuizStream() {
+  Stream<QuerySnapshot<Map<String, dynamic>>> _createQuizStream() {
     return FirebaseFirestore.instance
         .collection('studyGroups')
         .doc(widget.studyId)
@@ -79,10 +55,8 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
   bool _isNetworkError(Object? error) {
     if (error is FirebaseException) {
       if (error.code == 'unavailable' ||
-          error.code ==
-              'network-request-failed' ||
-          error.code ==
-              'deadline-exceeded') {
+          error.code == 'network-request-failed' ||
+          error.code == 'deadline-exceeded') {
         return true;
       }
     }
@@ -90,10 +64,7 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
     return false;
   }
 
-  int _getInt(
-      Map<String, dynamic> data,
-      String fieldName,
-      ) {
+  int _getInt(Map<String, dynamic> data, String fieldName) {
     dynamic value = data[fieldName];
 
     if (value is int) {
@@ -120,24 +91,19 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
   }
 
   String _formatDateTime(dynamic value) {
-    DateTime? dateTime =
-    _getDateTime(value);
+    DateTime? dateTime = _getDateTime(value);
 
     if (dateTime == null) {
       return '';
     }
 
-    String month =
-    dateTime.month.toString().padLeft(2, '0');
+    String month = dateTime.month.toString().padLeft(2, '0');
 
-    String day =
-    dateTime.day.toString().padLeft(2, '0');
+    String day = dateTime.day.toString().padLeft(2, '0');
 
-    String hour =
-    dateTime.hour.toString().padLeft(2, '0');
+    String hour = dateTime.hour.toString().padLeft(2, '0');
 
-    String minute =
-    dateTime.minute.toString().padLeft(2, '0');
+    String minute = dateTime.minute.toString().padLeft(2, '0');
 
     return '${dateTime.year}.$month.$day $hour:$minute';
   }
@@ -152,12 +118,8 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
     return '$minutes분';
   }
 
-  String _getQuizTypeText(
-      Map<String, dynamic> data,
-      ) {
-    String quizType =
-        data['quizType']?.toString() ??
-            'MULTIPLE_CHOICE';
+  String _getQuizTypeText(Map<String, dynamic> data) {
+    String quizType = data['quizType']?.toString() ?? 'MULTIPLE_CHOICE';
 
     if (quizType == 'OX') {
       return 'OX';
@@ -166,24 +128,18 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
     return '객관식';
   }
 
-  bool _isDeadlinePassed(
-      Map<String, dynamic> data,
-      ) {
-    DateTime? deadlineAt =
-    _getDateTime(data['deadlineAt']);
+  bool _isDeadlinePassed(Map<String, dynamic> data) {
+    DateTime? deadlineAt = _getDateTime(data['deadlineAt']);
 
     if (deadlineAt == null) {
       return false;
     }
 
-    return DateTime.now().isAfter(
-      deadlineAt,
-    );
+    return DateTime.now().isAfter(deadlineAt);
   }
 
   Future<void> _loadOwnerStatus() async {
-    User? currentUser =
-        FirebaseAuth.instance.currentUser;
+    User? currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
       if (mounted) {
@@ -197,39 +153,30 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
     }
 
     try {
-      DocumentSnapshot<Map<String, dynamic>>
-      groupSnapshot =
-      await FirebaseFirestore.instance
-          .collection('studyGroups')
-          .doc(widget.studyId)
-          .get();
+      DocumentSnapshot<Map<String, dynamic>> groupSnapshot =
+          await FirebaseFirestore.instance
+              .collection('studyGroups')
+              .doc(widget.studyId)
+              .get();
 
       bool isOwner = false;
 
       if (groupSnapshot.exists) {
-        String ownerUid =
-            groupSnapshot.data()?['ownerUid']
-                ?.toString() ??
-                '';
+        String ownerUid = groupSnapshot.data()?['ownerUid']?.toString() ?? '';
 
-        isOwner =
-            ownerUid == currentUser.uid;
+        isOwner = ownerUid == currentUser.uid;
       }
 
       if (!isOwner) {
-        DocumentSnapshot<Map<String, dynamic>>
-        memberSnapshot =
-        await FirebaseFirestore.instance
-            .collection('studyGroups')
-            .doc(widget.studyId)
-            .collection('members')
-            .doc(currentUser.uid)
-            .get();
+        DocumentSnapshot<Map<String, dynamic>> memberSnapshot =
+            await FirebaseFirestore.instance
+                .collection('studyGroups')
+                .doc(widget.studyId)
+                .collection('members')
+                .doc(currentUser.uid)
+                .get();
 
-        String role =
-            memberSnapshot.data()?['role']
-                ?.toString() ??
-                '';
+        String role = memberSnapshot.data()?['role']?.toString() ?? '';
 
         isOwner = role == 'OWNER';
       }
@@ -241,9 +188,7 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
         });
       }
     } catch (error) {
-      debugPrint(
-        '문제 발송 권한 확인 오류: $error',
-      );
+      debugPrint('문제 발송 권한 확인 오류: $error');
 
       if (mounted) {
         setState(() {
@@ -256,16 +201,14 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
 
   void _reloadQuizList() {
     setState(() {
-      _quizStream =
-          _createQuizStream();
+      _quizStream = _createQuizStream();
     });
 
     _loadOwnerStatus();
   }
 
   Future<void> _openQuizAddPage() async {
-    bool? result =
-    await Navigator.push<bool>(
+    bool? result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (context) {
@@ -282,10 +225,7 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
     }
   }
 
-  void _openQuiz(
-      String quizId,
-      Map<String, dynamic> quizData,
-      ) {
+  void _openQuiz(String quizId, Map<String, dynamic> quizData) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -301,9 +241,7 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
     );
   }
 
-  Future<void> _closeQuiz(
-      String quizId,
-      ) async {
+  Future<void> _closeQuiz(String quizId) async {
     try {
       await FirebaseFirestore.instance
           .collection('studyGroups')
@@ -311,66 +249,45 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
           .collection('quizzes')
           .doc(quizId)
           .update({
-        'status': 'CLOSED',
-        'closedAt':
-        FieldValue.serverTimestamp(),
-        'updatedAt':
-        FieldValue.serverTimestamp(),
-      });
+            'status': 'CLOSED',
+            'closedAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
 
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        SnackBar(
-          content: Text(
-            '문제 제출을 마감했습니다.',
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('문제 제출을 마감했습니다.')));
     } catch (error) {
-      debugPrint(
-        '문제 마감 오류: $error',
-      );
+      debugPrint('문제 마감 오류: $error');
 
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        SnackBar(
-          content: Text(
-            '문제를 마감하지 못했습니다.',
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('문제를 마감하지 못했습니다.')));
     }
   }
 
-  Future<void> _deleteCollection(
-      Query<Map<String, dynamic>> query,
-      ) async {
+  Future<void> _deleteCollection(Query<Map<String, dynamic>> query) async {
     while (true) {
-      QuerySnapshot<Map<String, dynamic>>
-      snapshot =
-      await query.limit(200).get();
+      QuerySnapshot<Map<String, dynamic>> snapshot = await query
+          .limit(200)
+          .get();
 
       if (snapshot.docs.isEmpty) {
         break;
       }
 
-      WriteBatch batch =
-      FirebaseFirestore.instance.batch();
+      WriteBatch batch = FirebaseFirestore.instance.batch();
 
-      for (int i = 0;
-      i < snapshot.docs.length;
-      i++) {
-        batch.delete(
-          snapshot.docs[i].reference,
-        );
+      for (int i = 0; i < snapshot.docs.length; i++) {
+        batch.delete(snapshot.docs[i].reference);
       }
 
       await batch.commit();
@@ -381,37 +298,38 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
     }
   }
 
-  Future<void> _deleteQuiz(
-      String quizId,
-      String title,
-      ) async {
-    bool? shouldDelete =
-    await showDialog<bool>(
+  Future<void> _deleteQuiz(String quizId, String title) async {
+    bool? shouldDelete = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: Text('문제 삭제'),
+          backgroundColor: context.colors.surface,
+          surfaceTintColor: Colors.transparent,
+          shape: appDialogShape,
+          title: AppDialogTitle(
+            icon: Icons.delete_outline,
+            title: '문제 삭제',
+            isDestructive: true,
+          ),
           content: Text(
             '"$title" 문제를 삭제할까요?\n'
-                '제출된 답안과 결과도 함께 삭제됩니다.',
+            '제출된 답안과 결과도 함께 삭제됩니다.',
           ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                  false,
-                );
+                Navigator.pop(dialogContext, false);
               },
               child: Text('취소'),
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                  true,
-                );
+                Navigator.pop(dialogContext, true);
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: context.colors.incorrect,
+                foregroundColor: context.colors.onPrimary,
+              ),
               child: Text('삭제'),
             ),
           ],
@@ -424,49 +342,34 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
     }
 
     try {
-      DocumentReference<Map<String, dynamic>>
-      quizDocument =
-      FirebaseFirestore.instance
+      DocumentReference<Map<String, dynamic>> quizDocument = FirebaseFirestore
+          .instance
           .collection('studyGroups')
           .doc(widget.studyId)
           .collection('quizzes')
           .doc(quizId);
 
-      await _deleteCollection(
-        quizDocument.collection('answers'),
-      );
+      await _deleteCollection(quizDocument.collection('answers'));
 
       await quizDocument.delete();
 
-      QuerySnapshot<Map<String, dynamic>>
-      messageSnapshot =
-      await FirebaseFirestore.instance
-          .collection('chats')
-          .doc(widget.studyId)
-          .collection('messages')
-          .where(
-        'quizId',
-        isEqualTo: quizId,
-      )
-          .get();
+      QuerySnapshot<Map<String, dynamic>> messageSnapshot =
+          await FirebaseFirestore.instance
+              .collection('chats')
+              .doc(widget.studyId)
+              .collection('messages')
+              .where('quizId', isEqualTo: quizId)
+              .get();
 
-      WriteBatch batch =
-      FirebaseFirestore.instance.batch();
+      WriteBatch batch = FirebaseFirestore.instance.batch();
 
-      for (int i = 0;
-      i < messageSnapshot.docs.length;
-      i++) {
-        batch.update(
-          messageSnapshot.docs[i].reference,
-          {
-            'message':
-            '삭제된 문제입니다.',
-            'messageType': 'DELETED',
-            'isDeleted': true,
-            'updatedAt':
-            FieldValue.serverTimestamp(),
-          },
-        );
+      for (int i = 0; i < messageSnapshot.docs.length; i++) {
+        batch.update(messageSnapshot.docs[i].reference, {
+          'message': '삭제된 문제입니다.',
+          'messageType': 'DELETED',
+          'isDeleted': true,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
       }
 
       if (messageSnapshot.docs.isNotEmpty) {
@@ -477,44 +380,27 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
         return;
       }
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        SnackBar(
-          content: Text(
-            '문제를 삭제했습니다.',
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('문제를 삭제했습니다.')));
     } catch (error) {
-      debugPrint(
-        '문제 삭제 오류: $error',
-      );
+      debugPrint('문제 삭제 오류: $error');
 
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        SnackBar(
-          content: Text(
-            '문제를 삭제하지 못했습니다.',
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('문제를 삭제하지 못했습니다.')));
     }
   }
 
-  void _openQuizResult(
-      String quizId,
-      Map<String, dynamic> quizData,
-      ) {
+  void _openQuizResult(String quizId, Map<String, dynamic> quizData) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor:
-      _studyColorScheme.surface
-          .withOpacity(0),
+      backgroundColor: Theme.of(context).colorScheme.surface.withOpacity(0),
       builder: (bottomSheetContext) {
         return _QuizResultSheet(
           studyId: widget.studyId,
@@ -525,20 +411,12 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
     );
   }
 
-  Widget _buildBadge(
-      String text,
-      Color backgroundColor,
-      Color textColor,
-      ) {
+  Widget _buildBadge(String text, Color backgroundColor, Color textColor) {
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 5,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius:
-        BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
         text,
@@ -552,150 +430,87 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
   }
 
   Widget _buildQuizCard(
-      QueryDocumentSnapshot<
-          Map<String, dynamic>>
-      quizDocument,
-      ) {
-    Map<String, dynamic> quizData =
-    quizDocument.data();
+    QueryDocumentSnapshot<Map<String, dynamic>> quizDocument,
+  ) {
+    Map<String, dynamic> quizData = quizDocument.data();
 
-    String title =
-        quizData['title']?.toString() ??
-            '제목 없는 문제';
+    String title = quizData['title']?.toString() ?? '제목 없는 문제';
 
-    String question =
-        quizData['question']?.toString() ??
-            '';
+    String question = quizData['question']?.toString() ?? '';
 
-    String subject =
-        quizData['subject']?.toString() ??
-            '과목 미지정';
+    String subject = quizData['subject']?.toString() ?? '과목 미지정';
 
-    String senderNickname =
-        quizData['senderNickname']
-            ?.toString() ??
-            '방장';
+    String senderNickname = quizData['senderNickname']?.toString() ?? '방장';
 
-    int point =
-    _getInt(quizData, 'point');
+    int point = _getInt(quizData, 'point');
 
-    int timeLimitSeconds =
-    _getInt(
-      quizData,
-      'timeLimitSeconds',
-    );
+    int timeLimitSeconds = _getInt(quizData, 'timeLimitSeconds');
 
-    int answerCount =
-    _getInt(
-      quizData,
-      'answerCount',
-    );
+    int answerCount = _getInt(quizData, 'answerCount');
 
-    int correctCount =
-    _getInt(
-      quizData,
-      'correctAnswerCount',
-    );
+    int correctCount = _getInt(quizData, 'correctAnswerCount');
 
     bool isClosed =
-        quizData['status']?.toString() ==
-            'CLOSED' ||
-            _isDeadlinePassed(quizData);
+        quizData['status']?.toString() == 'CLOSED' ||
+        _isDeadlinePassed(quizData);
 
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: 14,
-      ),
+      padding: EdgeInsets.only(bottom: 14),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
-          _openQuiz(
-            quizDocument.id,
-            quizData,
-          );
+          _openQuiz(quizDocument.id, quizData);
         },
         child: AppCard(
-          backgroundColor:
-          _studyColorScheme.surface,
+          backgroundColor: Theme.of(context).colorScheme.surface,
           child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   _buildBadge(
                     subject,
-                    _studyColors.lavender,
-                    _studyColors.pinkStart,
+                    context.colors.lavender,
+                    context.colors.pinkStart,
                   ),
                   SizedBox(width: 7),
                   _buildBadge(
-                    _getQuizTypeText(
-                      quizData,
-                    ),
-                    _studyColors.pinkSoft,
-                    _studyColors.pinkStart,
+                    _getQuizTypeText(quizData),
+                    context.colors.pinkSoft,
+                    context.colors.pinkStart,
                   ),
                   SizedBox(width: 7),
                   _buildBadge(
+                    isClosed ? '마감' : '진행 중',
                     isClosed
-                        ? '마감'
-                        : '진행 중',
+                        ? Theme.of(context).colorScheme.outlineVariant
+                        : context.colors.mint,
                     isClosed
-                        ? _studyColorScheme
-                        .outlineVariant
-                        : _studyColors.mint,
-                    isClosed
-                        ? _studyColors
-                        .textSecondary
-                        : _studyColorScheme
-                        .tertiary,
+                        ? context.colors.textSecondary
+                        : Theme.of(context).colorScheme.tertiary,
                   ),
                   Spacer(),
                   if (_isOwner)
                     PopupMenuButton<String>(
                       onSelected: (value) {
-                        if (value ==
-                            'result') {
-                          _openQuizResult(
-                            quizDocument.id,
-                            quizData,
-                          );
+                        if (value == 'result') {
+                          _openQuizResult(quizDocument.id, quizData);
                         }
 
-                        if (value ==
-                            'close') {
-                          _closeQuiz(
-                            quizDocument.id,
-                          );
+                        if (value == 'close') {
+                          _closeQuiz(quizDocument.id);
                         }
 
-                        if (value ==
-                            'delete') {
-                          _deleteQuiz(
-                            quizDocument.id,
-                            title,
-                          );
+                        if (value == 'delete') {
+                          _deleteQuiz(quizDocument.id, title);
                         }
                       },
                       itemBuilder: (context) {
                         return [
-                          PopupMenuItem(
-                            value: 'result',
-                            child:
-                            Text('결과 보기'),
-                          ),
+                          PopupMenuItem(value: 'result', child: Text('결과 보기')),
                           if (!isClosed)
-                            PopupMenuItem(
-                              value: 'close',
-                              child:
-                              Text('제출 마감'),
-                            ),
-                          PopupMenuItem(
-                            value: 'delete',
-                            child:
-                            Text('문제 삭제'),
-                          ),
+                            PopupMenuItem(value: 'close', child: Text('제출 마감')),
+                          PopupMenuItem(value: 'delete', child: Text('문제 삭제')),
                         ];
                       },
                     ),
@@ -707,23 +522,18 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
                 style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.bold,
-                  color:
-                  _studyColors.textPrimary,
+                  color: context.colors.textPrimary,
                 ),
               ),
               SizedBox(height: 8),
               Text(
-                question.isEmpty
-                    ? '문제를 눌러 내용을 확인하세요.'
-                    : question,
+                question.isEmpty ? '문제를 눌러 내용을 확인하세요.' : question,
                 maxLines: 2,
-                overflow:
-                TextOverflow.ellipsis,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 13,
                   height: 1.45,
-                  color: _studyColors
-                      .textSecondary,
+                  color: context.colors.textSecondary,
                 ),
               ),
               SizedBox(height: 15),
@@ -732,68 +542,57 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
                 runSpacing: 7,
                 children: [
                   Row(
-                    mainAxisSize:
-                    MainAxisSize.min,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.timer_outlined,
                         size: 16,
-                        color: _studyColors
-                            .textSecondary,
+                        color: context.colors.textSecondary,
                       ),
                       SizedBox(width: 4),
                       Text(
-                        _formatLimitTime(
-                          timeLimitSeconds,
-                        ),
+                        _formatLimitTime(timeLimitSeconds),
                         style: TextStyle(
                           fontSize: 11,
-                          color: _studyColors
-                              .textSecondary,
+                          color: context.colors.textSecondary,
                         ),
                       ),
                     ],
                   ),
                   Row(
-                    mainAxisSize:
-                    MainAxisSize.min,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.event_outlined,
                         size: 16,
-                        color: _studyColors
-                            .textSecondary,
+                        color: context.colors.textSecondary,
                       ),
                       SizedBox(width: 4),
                       Text(
                         '마감 '
-                            '${_formatDateTime(quizData['deadlineAt'])}',
+                        '${_formatDateTime(quizData['deadlineAt'])}',
                         style: TextStyle(
                           fontSize: 11,
-                          color: _studyColors
-                              .textSecondary,
+                          color: context.colors.textSecondary,
                         ),
                       ),
                     ],
                   ),
                   if (point > 0)
                     Row(
-                      mainAxisSize:
-                      MainAxisSize.min,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           Icons.stars_outlined,
                           size: 16,
-                          color: _studyColors
-                              .textSecondary,
+                          color: context.colors.textSecondary,
                         ),
                         SizedBox(width: 4),
                         Text(
                           '$point점',
                           style: TextStyle(
                             fontSize: 11,
-                            color: _studyColors
-                                .textSecondary,
+                            color: context.colors.textSecondary,
                           ),
                         ),
                       ],
@@ -806,8 +605,7 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
                   Icon(
                     Icons.person_outline,
                     size: 17,
-                    color: _studyColors
-                        .textSecondary,
+                    color: context.colors.textSecondary,
                   ),
                   SizedBox(width: 5),
                   Expanded(
@@ -815,42 +613,31 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
                       '$senderNickname 님이 발송',
                       style: TextStyle(
                         fontSize: 12,
-                        color: _studyColors
-                            .textSecondary,
+                        color: context.colors.textSecondary,
                       ),
                     ),
                   ),
                   if (_isOwner)
                     Text(
                       '참여 $answerCount · '
-                          '정답 $correctCount',
+                      '정답 $correctCount',
                       style: TextStyle(
                         fontSize: 11,
-                        color: _studyColors
-                            .pinkStart,
-                        fontWeight:
-                        FontWeight.w600,
+                        color: context.colors.pinkStart,
+                        fontWeight: FontWeight.w600,
                       ),
                     )
                   else
                     Text(
-                      isClosed
-                          ? '결과 확인'
-                          : '문제 풀기',
+                      isClosed ? '결과 확인' : '문제 풀기',
                       style: TextStyle(
                         fontSize: 13,
-                        color: _studyColors
-                            .pinkStart,
-                        fontWeight:
-                        FontWeight.bold,
+                        color: context.colors.pinkStart,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   SizedBox(width: 3),
-                  Icon(
-                    Icons.chevron_right,
-                    color:
-                    _studyColors.pinkStart,
-                  ),
+                  Icon(Icons.chevron_right, color: context.colors.pinkStart),
                 ],
               ),
             ],
@@ -864,16 +651,14 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
   Widget build(BuildContext context) {
     List<Widget> appBarActions = [];
 
-    if (!_isOwnerLoading &&
-        _isOwner) {
+    if (!_isOwnerLoading && _isOwner) {
       appBarActions.add(
         IconButton(
           tooltip: '문제 발송',
           onPressed: _openQuizAddPage,
           icon: Icon(
             Icons.add_rounded,
-            color:
-            _studyColors.textPrimary,
+            color: context.colors.textPrimary,
             size: 29,
           ),
         ),
@@ -881,73 +666,46 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
     }
 
     return Scaffold(
-      appBar: AppTopBar(
-        title: '발송된 문제',
-        actions: appBarActions,
-      ),
+      appBar: AppTopBar(title: '발송된 문제', actions: appBarActions),
       body: AppMainBackground(
         applySafeArea: false,
-        child: StreamBuilder<
-            QuerySnapshot<
-                Map<String, dynamic>>>(
+        child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: _quizStream,
           builder: (context, snapshot) {
-            if (snapshot.connectionState ==
-                ConnectionState.waiting) {
-              return AppLoadingView(
-                message:
-                '발송된 문제를 불러오는 중입니다.',
-              );
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return AppLoadingView(message: '발송된 문제를 불러오는 중입니다.');
             }
 
             if (snapshot.hasError) {
-              if (_isNetworkError(
-                snapshot.error,
-              )) {
+              if (_isNetworkError(snapshot.error)) {
                 return AppNetworkErrorView(
-                  message:
-                  '인터넷 연결을 확인해 주세요.',
-                  description:
-                  '네트워크 연결 후 발송된 문제를 다시 불러와 주세요.',
-                  onRetryPressed:
-                  _reloadQuizList,
+                  message: '인터넷 연결을 확인해 주세요.',
+                  description: '네트워크 연결 후 발송된 문제를 다시 불러와 주세요.',
+                  onRetryPressed: _reloadQuizList,
                 );
               }
 
               return AppErrorView(
-                message:
-                '발송된 문제를 불러오지 못했습니다.',
-                description:
-                '잠시 후 다시 시도해 주세요.',
-                onRetryPressed:
-                _reloadQuizList,
+                message: '발송된 문제를 불러오지 못했습니다.',
+                description: '잠시 후 다시 시도해 주세요.',
+                onRetryPressed: _reloadQuizList,
               );
             }
 
-            List<
-                QueryDocumentSnapshot<
-                    Map<String, dynamic>>>
-            quizList =
-                snapshot.data?.docs.toList() ??
-                    [];
+            List<QueryDocumentSnapshot<Map<String, dynamic>>> quizList =
+                snapshot.data?.docs.toList() ?? [];
 
             quizList.sort((a, b) {
-              dynamic aCreatedAt =
-              a.data()['createdAt'];
+              dynamic aCreatedAt = a.data()['createdAt'];
 
-              dynamic bCreatedAt =
-              b.data()['createdAt'];
+              dynamic bCreatedAt = b.data()['createdAt'];
 
-              int aTime =
-              aCreatedAt is Timestamp
-                  ? aCreatedAt
-                  .millisecondsSinceEpoch
+              int aTime = aCreatedAt is Timestamp
+                  ? aCreatedAt.millisecondsSinceEpoch
                   : 0;
 
-              int bTime =
-              bCreatedAt is Timestamp
-                  ? bCreatedAt
-                  .millisecondsSinceEpoch
+              int bTime = bCreatedAt is Timestamp
+                  ? bCreatedAt.millisecondsSinceEpoch
                   : 0;
 
               return bTime.compareTo(aTime);
@@ -955,36 +713,24 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
 
             if (quizList.isEmpty) {
               return AppEmptyView(
-                message:
-                '발송된 문제가 없습니다.',
+                message: '발송된 문제가 없습니다.',
                 description: _isOwner
                     ? '우측 상단의 + 버튼을 눌러 첫 문제를 발송해 보세요.'
                     : '새로운 문제가 발송되면 이곳에 표시됩니다.',
-                buttonText: _isOwner
-                    ? '문제 발송하기'
-                    : null,
-                onButtonPressed: _isOwner
-                    ? _openQuizAddPage
-                    : null,
+                buttonText: _isOwner ? '문제 발송하기' : null,
+                onButtonPressed: _isOwner ? _openQuizAddPage : null,
               );
             }
 
             return ListView(
-              padding: EdgeInsets.fromLTRB(
-                20,
-                22,
-                20,
-                40,
-              ),
+              padding: EdgeInsets.fromLTRB(20, 22, 20, 40),
               children: [
                 Container(
                   width: double.infinity,
                   padding: EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    color:
-                    _studyColors.lavender,
-                    borderRadius:
-                    BorderRadius.circular(20),
+                    color: context.colors.lavender,
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
                     children: [
@@ -992,36 +738,26 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
                         width: 48,
                         height: 48,
                         decoration: BoxDecoration(
-                          color:
-                          _studyColorScheme
-                              .surface,
-                          borderRadius:
-                          BorderRadius.circular(
-                            15,
-                          ),
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(15),
                         ),
                         child: Icon(
                           Icons.edit_note_rounded,
-                          color: _studyColors
-                              .pinkStart,
+                          color: context.colors.pinkStart,
                           size: 29,
                         ),
                       ),
                       SizedBox(width: 14),
                       Expanded(
                         child: Column(
-                          crossAxisAlignment:
-                          CrossAxisAlignment
-                              .start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               widget.groupName,
                               style: TextStyle(
                                 fontSize: 15,
-                                fontWeight:
-                                FontWeight.bold,
-                                color: _studyColors
-                                    .textPrimary,
+                                fontWeight: FontWeight.bold,
+                                color: context.colors.textPrimary,
                               ),
                             ),
                             SizedBox(height: 4),
@@ -1029,8 +765,7 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
                               '총 ${quizList.length}개의 문제가 발송되었습니다.',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: _studyColors
-                                    .textSecondary,
+                                color: context.colors.textSecondary,
                               ),
                             ),
                           ],
@@ -1045,17 +780,12 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color:
-                    _studyColors.textPrimary,
+                    color: context.colors.textPrimary,
                   ),
                 ),
                 SizedBox(height: 12),
-                for (int i = 0;
-                i < quizList.length;
-                i++)
-                  _buildQuizCard(
-                    quizList[i],
-                  ),
+                for (int i = 0; i < quizList.length; i++)
+                  _buildQuizCard(quizList[i]),
               ],
             );
           },
@@ -1064,7 +794,6 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
     );
   }
 }
-
 
 class _QuizSolvePage extends StatefulWidget {
   final String studyId;
@@ -1085,9 +814,7 @@ class _QuizSolvePage extends StatefulWidget {
   }
 }
 
-
-class _QuizSolvePageState
-    extends State<_QuizSolvePage> {
+class _QuizSolvePageState extends State<_QuizSolvePage> {
   Timer? _timer;
 
   int? _selectedAnswerIndex;
@@ -1117,25 +844,17 @@ class _QuizSolvePageState
   }
 
   List<String> _getChoices() {
-    dynamic choices =
-    widget.quizData['choices'];
+    dynamic choices = widget.quizData['choices'];
 
     if (choices is List) {
-      return choices
-          .map(
-            (choice) =>
-            choice.toString(),
-      )
-          .toList();
+      return choices.map((choice) => choice.toString()).toList();
     }
 
     return [];
   }
 
   int _getCorrectAnswerIndex() {
-    dynamic value =
-    widget.quizData[
-    'correctAnswerIndex'];
+    dynamic value = widget.quizData['correctAnswerIndex'];
 
     if (value is int) {
       return value;
@@ -1148,10 +867,7 @@ class _QuizSolvePageState
     return -1;
   }
 
-  int _getInt(
-      Map<String, dynamic> data,
-      String fieldName,
-      ) {
+  int _getInt(Map<String, dynamic> data, String fieldName) {
     dynamic value = data[fieldName];
 
     if (value is int) {
@@ -1178,28 +894,19 @@ class _QuizSolvePageState
   }
 
   bool _isDeadlinePassed() {
-    DateTime? deadlineAt =
-    _getDateTime(
-      widget.quizData['deadlineAt'],
-    );
+    DateTime? deadlineAt = _getDateTime(widget.quizData['deadlineAt']);
 
     if (deadlineAt == null) {
       return false;
     }
 
-    return DateTime.now().isAfter(
-      deadlineAt,
-    );
+    return DateTime.now().isAfter(deadlineAt);
   }
 
   bool _isQuizClosed() {
-    String status =
-        widget.quizData['status']
-            ?.toString() ??
-            'ACTIVE';
+    String status = widget.quizData['status']?.toString() ?? 'ACTIVE';
 
-    return status == 'CLOSED' ||
-        _isDeadlinePassed();
+    return status == 'CLOSED' || _isDeadlinePassed();
   }
 
   bool _canRevealAnswer() {
@@ -1208,13 +915,9 @@ class _QuizSolvePageState
     }
 
     String revealType =
-        widget.quizData[
-        'answerRevealType']
-            ?.toString() ??
-            'AFTER_SUBMIT';
+        widget.quizData['answerRevealType']?.toString() ?? 'AFTER_SUBMIT';
 
-    if (revealType ==
-        'AFTER_DEADLINE') {
+    if (revealType == 'AFTER_DEADLINE') {
       return _isDeadlinePassed();
     }
 
@@ -1227,128 +930,85 @@ class _QuizSolvePageState
     }
 
     int minutes = seconds ~/ 60;
-    int remainSeconds =
-        seconds % 60;
+    int remainSeconds = seconds % 60;
 
     return '${minutes.toString().padLeft(2, '0')}:'
         '${remainSeconds.toString().padLeft(2, '0')}';
   }
 
-  Future<Map<String, String>>
-  _getCurrentUserProfile(
-      User currentUser,
-      ) async {
+  Future<Map<String, String>> _getCurrentUserProfile(User currentUser) async {
     String nickname = '';
     String profileImageUrl = '';
 
-    DocumentSnapshot<Map<String, dynamic>>
-    memberSnapshot =
-    await FirebaseFirestore.instance
-        .collection('studyGroups')
-        .doc(widget.studyId)
-        .collection('members')
-        .doc(currentUser.uid)
-        .get();
+    DocumentSnapshot<Map<String, dynamic>> memberSnapshot =
+        await FirebaseFirestore.instance
+            .collection('studyGroups')
+            .doc(widget.studyId)
+            .collection('members')
+            .doc(currentUser.uid)
+            .get();
 
     if (memberSnapshot.exists) {
-      nickname =
-          memberSnapshot.data()?['nickname']
-              ?.toString()
-              .trim() ??
-              '';
+      nickname = memberSnapshot.data()?['nickname']?.toString().trim() ?? '';
 
       profileImageUrl =
-          memberSnapshot
-              .data()?['profileImageUrl']
-              ?.toString()
-              .trim() ??
-              '';
+          memberSnapshot.data()?['profileImageUrl']?.toString().trim() ?? '';
     }
 
-    if (nickname.isEmpty ||
-        profileImageUrl.isEmpty) {
-      DocumentSnapshot<Map<String, dynamic>>
-      directUserSnapshot =
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .get();
+    if (nickname.isEmpty || profileImageUrl.isEmpty) {
+      DocumentSnapshot<Map<String, dynamic>> directUserSnapshot =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUser.uid)
+              .get();
 
       Map<String, dynamic> userData = {};
 
       if (directUserSnapshot.exists) {
-        userData =
-            directUserSnapshot.data() ?? {};
+        userData = directUserSnapshot.data() ?? {};
       } else {
-        QuerySnapshot<Map<String, dynamic>>
-        userSnapshot =
-        await FirebaseFirestore.instance
-            .collection('users')
-            .where(
-          'uid',
-          isEqualTo:
-          currentUser.uid,
-        )
-            .limit(1)
-            .get();
+        QuerySnapshot<Map<String, dynamic>> userSnapshot =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .where('uid', isEqualTo: currentUser.uid)
+                .limit(1)
+                .get();
 
         if (userSnapshot.docs.isNotEmpty) {
-          userData =
-              userSnapshot.docs.first.data();
+          userData = userSnapshot.docs.first.data();
         }
       }
 
       if (nickname.isEmpty) {
-        nickname =
-            userData['nickname']
-                ?.toString()
-                .trim() ??
-                '';
+        nickname = userData['nickname']?.toString().trim() ?? '';
       }
 
       if (profileImageUrl.isEmpty) {
-        profileImageUrl =
-            userData['profileImageUrl']
-                ?.toString()
-                .trim() ??
-                '';
+        profileImageUrl = userData['profileImageUrl']?.toString().trim() ?? '';
 
         if (profileImageUrl.isEmpty) {
-          profileImageUrl =
-              userData['photoUrl']
-                  ?.toString()
-                  .trim() ??
-                  '';
+          profileImageUrl = userData['photoUrl']?.toString().trim() ?? '';
         }
       }
     }
 
     if (nickname.isEmpty) {
-      nickname =
-          currentUser.displayName?.trim() ??
-              '';
+      nickname = currentUser.displayName?.trim() ?? '';
     }
 
     if (profileImageUrl.isEmpty) {
-      profileImageUrl =
-          currentUser.photoURL?.trim() ??
-              '';
+      profileImageUrl = currentUser.photoURL?.trim() ?? '';
     }
 
     if (nickname.isEmpty) {
       nickname = '사용자';
     }
 
-    return {
-      'nickname': nickname,
-      'profileImageUrl':
-      profileImageUrl,
-    };
+    return {'nickname': nickname, 'profileImageUrl': profileImageUrl};
   }
 
   Future<void> _prepareAnswer() async {
-    User? currentUser =
-        FirebaseAuth.instance.currentUser;
+    User? currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
       if (mounted) {
@@ -1361,9 +1021,8 @@ class _QuizSolvePageState
     }
 
     try {
-      DocumentReference<Map<String, dynamic>>
-      answerDocument =
-      FirebaseFirestore.instance
+      DocumentReference<Map<String, dynamic>> answerDocument = FirebaseFirestore
+          .instance
           .collection('studyGroups')
           .doc(widget.studyId)
           .collection('quizzes')
@@ -1371,42 +1030,28 @@ class _QuizSolvePageState
           .collection('answers')
           .doc(currentUser.uid);
 
-      DocumentSnapshot<Map<String, dynamic>>
-      answerSnapshot =
-      await answerDocument.get();
+      DocumentSnapshot<Map<String, dynamic>> answerSnapshot =
+          await answerDocument.get();
 
-      Map<String, dynamic> answerData =
-          answerSnapshot.data() ?? {};
+      Map<String, dynamic> answerData = answerSnapshot.data() ?? {};
 
-      String answerStatus =
-          answerData['status']?.toString() ??
-              '';
+      String answerStatus = answerData['status']?.toString() ?? '';
 
-      dynamic selectedAnswerIndex =
-      answerData['selectedAnswerIndex'];
+      dynamic selectedAnswerIndex = answerData['selectedAnswerIndex'];
 
       if (selectedAnswerIndex is int) {
-        _selectedAnswerIndex =
-            selectedAnswerIndex;
-      } else if (selectedAnswerIndex
-      is num) {
-        _selectedAnswerIndex =
-            selectedAnswerIndex.toInt();
+        _selectedAnswerIndex = selectedAnswerIndex;
+      } else if (selectedAnswerIndex is num) {
+        _selectedAnswerIndex = selectedAnswerIndex.toInt();
       }
 
-      if (answerStatus ==
-          'SUBMITTED' ||
-          answerData['submittedAt'] != null) {
+      if (answerStatus == 'SUBMITTED' || answerData['submittedAt'] != null) {
         if (mounted) {
           setState(() {
             _isSubmitted = true;
-            _isCorrect =
-                answerData['isCorrect'] ==
-                    true;
+            _isCorrect = answerData['isCorrect'] == true;
 
-            _isTimedOut =
-                answerData['isTimedOut'] ==
-                    true;
+            _isTimedOut = answerData['isTimedOut'] == true;
 
             _isLoadingAnswer = false;
           });
@@ -1426,53 +1071,32 @@ class _QuizSolvePageState
         return;
       }
 
-      _timeLimitSeconds =
-          _getInt(
-            widget.quizData,
-            'timeLimitSeconds',
-          );
+      _timeLimitSeconds = _getInt(widget.quizData, 'timeLimitSeconds');
 
       if (_timeLimitSeconds <= 0) {
         _timeLimitSeconds = 60;
       }
 
-      DateTime startedAt =
-      DateTime.now();
+      DateTime startedAt = DateTime.now();
 
-      DateTime? savedStartedAt =
-      _getDateTime(
-        answerData['attemptStartedAt'],
-      );
+      DateTime? savedStartedAt = _getDateTime(answerData['attemptStartedAt']);
 
       if (savedStartedAt != null) {
         startedAt = savedStartedAt;
       } else {
-        await answerDocument.set(
-          {
-            'userUid':
-            currentUser.uid,
-            'status': 'STARTED',
-            'attemptStartedAt':
-            Timestamp.fromDate(
-              startedAt,
-            ),
-            'updatedAt':
-            FieldValue.serverTimestamp(),
-          },
-          SetOptions(merge: true),
-        );
+        await answerDocument.set({
+          'userUid': currentUser.uid,
+          'status': 'STARTED',
+          'attemptStartedAt': Timestamp.fromDate(startedAt),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
       }
 
       _attemptStartedAt = startedAt;
 
-      int elapsedSeconds =
-          DateTime.now()
-              .difference(startedAt)
-              .inSeconds;
+      int elapsedSeconds = DateTime.now().difference(startedAt).inSeconds;
 
-      int remainingSeconds =
-          _timeLimitSeconds -
-              elapsedSeconds;
+      int remainingSeconds = _timeLimitSeconds - elapsedSeconds;
 
       if (_isQuizClosed()) {
         remainingSeconds = 0;
@@ -1484,26 +1108,21 @@ class _QuizSolvePageState
 
       if (mounted) {
         setState(() {
-          _remainingSeconds =
-              remainingSeconds;
+          _remainingSeconds = remainingSeconds;
 
           _isLoadingAnswer = false;
         });
       }
 
       if (remainingSeconds == 0) {
-        await _submitAnswer(
-          timedOut: true,
-        );
+        await _submitAnswer(timedOut: true);
 
         return;
       }
 
       _startTimer();
     } catch (error) {
-      debugPrint(
-        '문제 답안 준비 오류: $error',
-      );
+      debugPrint('문제 답안 준비 오류: $error');
 
       if (mounted) {
         setState(() {
@@ -1516,34 +1135,28 @@ class _QuizSolvePageState
   void _startTimer() {
     _timer?.cancel();
 
-    _timer = Timer.periodic(
-      Duration(seconds: 1),
-          (timer) {
-        if (!mounted ||
-            _isSubmitted) {
-          timer.cancel();
-          return;
-        }
+    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+      if (!mounted || _isSubmitted) {
+        timer.cancel();
+        return;
+      }
 
-        if (_remainingSeconds <= 1) {
-          setState(() {
-            _remainingSeconds = 0;
-          });
-
-          timer.cancel();
-
-          _submitAnswer(
-            timedOut: true,
-          );
-
-          return;
-        }
-
+      if (_remainingSeconds <= 1) {
         setState(() {
-          _remainingSeconds--;
+          _remainingSeconds = 0;
         });
-      },
-    );
+
+        timer.cancel();
+
+        _submitAnswer(timedOut: true);
+
+        return;
+      }
+
+      setState(() {
+        _remainingSeconds--;
+      });
+    });
   }
 
   Future<void> _saveWrongAnswer({
@@ -1551,20 +1164,18 @@ class _QuizSolvePageState
     required bool isCorrect,
     required int selectedIndex,
   }) async {
-    DocumentReference<Map<String, dynamic>>
-    wrongAnswerDocument =
-    FirebaseFirestore.instance
-        .collection('studyGroups')
-        .doc(widget.studyId)
-        .collection('members')
-        .doc(currentUser.uid)
-        .collection('wrongAnswers')
-        .doc(widget.quizId);
+    DocumentReference<Map<String, dynamic>> wrongAnswerDocument =
+        FirebaseFirestore.instance
+            .collection('studyGroups')
+            .doc(widget.studyId)
+            .collection('members')
+            .doc(currentUser.uid)
+            .collection('wrongAnswers')
+            .doc(widget.quizId);
 
     if (isCorrect) {
-      DocumentSnapshot<Map<String, dynamic>>
-      wrongSnapshot =
-      await wrongAnswerDocument.get();
+      DocumentSnapshot<Map<String, dynamic>> wrongSnapshot =
+          await wrongAnswerDocument.get();
 
       if (wrongSnapshot.exists) {
         await wrongAnswerDocument.delete();
@@ -1573,74 +1184,40 @@ class _QuizSolvePageState
       return;
     }
 
-    await wrongAnswerDocument.set(
-      {
-        'quizId': widget.quizId,
-        'studyId': widget.studyId,
-        'title':
-        widget.quizData['title']
-            ?.toString() ??
-            '',
-        'subject':
-        widget.quizData['subject']
-            ?.toString() ??
-            '',
-        'question':
-        widget.quizData['question']
-            ?.toString() ??
-            '',
-        'choices': _getChoices(),
-        'selectedAnswerIndex':
-        selectedIndex,
-        'correctAnswerIndex':
-        _getCorrectAnswerIndex(),
-        'explanation':
-        widget.quizData['explanation']
-            ?.toString() ??
-            '',
-        'createdAt':
-        FieldValue.serverTimestamp(),
-        'updatedAt':
-        FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+    await wrongAnswerDocument.set({
+      'quizId': widget.quizId,
+      'studyId': widget.studyId,
+      'title': widget.quizData['title']?.toString() ?? '',
+      'subject': widget.quizData['subject']?.toString() ?? '',
+      'question': widget.quizData['question']?.toString() ?? '',
+      'choices': _getChoices(),
+      'selectedAnswerIndex': selectedIndex,
+      'correctAnswerIndex': _getCorrectAnswerIndex(),
+      'explanation': widget.quizData['explanation']?.toString() ?? '',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
-  Future<void> _submitAnswer({
-    bool timedOut = false,
-  }) async {
-    if (_isSaving ||
-        _isSubmitted) {
+  Future<void> _submitAnswer({bool timedOut = false}) async {
+    if (_isSaving || _isSubmitted) {
       return;
     }
 
-    if (!timedOut &&
-        _selectedAnswerIndex == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        SnackBar(
-          content: Text(
-            '정답을 먼저 선택해 주세요.',
-          ),
-        ),
-      );
+    if (!timedOut && _selectedAnswerIndex == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('정답을 먼저 선택해 주세요.')));
 
       return;
     }
 
-    User? currentUser =
-        FirebaseAuth.instance.currentUser;
+    User? currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        SnackBar(
-          content: Text(
-            '로그인 정보가 없습니다.',
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('로그인 정보가 없습니다.')));
 
       return;
     }
@@ -1651,143 +1228,81 @@ class _QuizSolvePageState
 
     _timer?.cancel();
 
-    int selectedIndex =
-        _selectedAnswerIndex ?? -1;
+    int selectedIndex = _selectedAnswerIndex ?? -1;
 
-    int correctAnswerIndex =
-    _getCorrectAnswerIndex();
+    int correctAnswerIndex = _getCorrectAnswerIndex();
 
-    bool isCorrect =
-        selectedIndex ==
-            correctAnswerIndex;
+    bool isCorrect = selectedIndex == correctAnswerIndex;
 
     try {
-      Map<String, String> profile =
-      await _getCurrentUserProfile(
-        currentUser,
-      );
+      Map<String, String> profile = await _getCurrentUserProfile(currentUser);
 
-      DocumentReference<Map<String, dynamic>>
-      quizDocument =
-      FirebaseFirestore.instance
+      DocumentReference<Map<String, dynamic>> quizDocument = FirebaseFirestore
+          .instance
           .collection('studyGroups')
           .doc(widget.studyId)
           .collection('quizzes')
           .doc(widget.quizId);
 
-      DocumentReference<Map<String, dynamic>>
-      answerDocument =
-      quizDocument
+      DocumentReference<Map<String, dynamic>> answerDocument = quizDocument
           .collection('answers')
           .doc(currentUser.uid);
 
-      await FirebaseFirestore.instance
-          .runTransaction(
-            (transaction) async {
-          DocumentSnapshot<Map<String, dynamic>>
-          quizSnapshot =
-          await transaction.get(
-            quizDocument,
-          );
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        DocumentSnapshot<Map<String, dynamic>> quizSnapshot = await transaction
+            .get(quizDocument);
 
-          DocumentSnapshot<Map<String, dynamic>>
-          answerSnapshot =
-          await transaction.get(
-            answerDocument,
-          );
+        DocumentSnapshot<Map<String, dynamic>> answerSnapshot =
+            await transaction.get(answerDocument);
 
-          if (!quizSnapshot.exists) {
-            throw Exception(
-              '문제를 찾을 수 없습니다.',
-            );
-          }
+        if (!quizSnapshot.exists) {
+          throw Exception('문제를 찾을 수 없습니다.');
+        }
 
-          Map<String, dynamic> answerData =
-              answerSnapshot.data() ?? {};
+        Map<String, dynamic> answerData = answerSnapshot.data() ?? {};
 
-          if (answerData['status']
-              ?.toString() ==
-              'SUBMITTED') {
-            throw Exception(
-              '이미 제출한 문제입니다.',
-            );
-          }
+        if (answerData['status']?.toString() == 'SUBMITTED') {
+          throw Exception('이미 제출한 문제입니다.');
+        }
 
-          int answerCount =
-          _getInt(
-            quizSnapshot.data() ?? {},
-            'answerCount',
-          );
+        int answerCount = _getInt(quizSnapshot.data() ?? {}, 'answerCount');
 
-          int correctCount =
-          _getInt(
-            quizSnapshot.data() ?? {},
-            'correctAnswerCount',
-          );
+        int correctCount = _getInt(
+          quizSnapshot.data() ?? {},
+          'correctAnswerCount',
+        );
 
-          int wrongCount =
-          _getInt(
-            quizSnapshot.data() ?? {},
-            'wrongAnswerCount',
-          );
+        int wrongCount = _getInt(quizSnapshot.data() ?? {}, 'wrongAnswerCount');
 
-          int elapsedSeconds =
-              _timeLimitSeconds -
-                  _remainingSeconds;
+        int elapsedSeconds = _timeLimitSeconds - _remainingSeconds;
 
-          if (elapsedSeconds < 0) {
-            elapsedSeconds = 0;
-          }
+        if (elapsedSeconds < 0) {
+          elapsedSeconds = 0;
+        }
 
-          transaction.set(
-            answerDocument,
-            {
-              'userUid':
-              currentUser.uid,
-              'userNickname':
-              profile['nickname'],
-              'userProfileImageUrl':
-              profile[
-              'profileImageUrl'],
-              'selectedAnswerIndex':
-              selectedIndex,
-              'isCorrect': isCorrect,
-              'isTimedOut': timedOut,
-              'elapsedSeconds':
-              elapsedSeconds,
-              'status': 'SUBMITTED',
-              'attemptStartedAt':
-              Timestamp.fromDate(
-                _attemptStartedAt ??
-                    DateTime.now(),
-              ),
-              'submittedAt':
-              FieldValue.serverTimestamp(),
-              'updatedAt':
-              FieldValue.serverTimestamp(),
-            },
-            SetOptions(merge: true),
-          );
+        transaction.set(answerDocument, {
+          'userUid': currentUser.uid,
+          'userNickname': profile['nickname'],
+          'userProfileImageUrl': profile['profileImageUrl'],
+          'selectedAnswerIndex': selectedIndex,
+          'isCorrect': isCorrect,
+          'isTimedOut': timedOut,
+          'elapsedSeconds': elapsedSeconds,
+          'status': 'SUBMITTED',
+          'attemptStartedAt': Timestamp.fromDate(
+            _attemptStartedAt ?? DateTime.now(),
+          ),
+          'submittedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
 
-          transaction.update(
-            quizDocument,
-            {
-              'answerCount':
-              answerCount + 1,
-              'correctAnswerCount':
-              isCorrect
-                  ? correctCount + 1
-                  : correctCount,
-              'wrongAnswerCount':
-              isCorrect
-                  ? wrongCount
-                  : wrongCount + 1,
-              'updatedAt':
-              FieldValue.serverTimestamp(),
-            },
-          );
-        },
-      );
+        transaction.update(quizDocument, {
+          'answerCount': answerCount + 1,
+          'correctAnswerCount': isCorrect ? correctCount + 1 : correctCount,
+          'wrongAnswerCount': isCorrect ? wrongCount : wrongCount + 1,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      });
 
       await _saveWrongAnswer(
         currentUser: currentUser,
@@ -1806,9 +1321,7 @@ class _QuizSolvePageState
         _isSaving = false;
       });
     } catch (error) {
-      debugPrint(
-        '문제 답안 저장 오류: $error',
-      );
+      debugPrint('문제 답안 저장 오류: $error');
 
       if (!mounted) {
         return;
@@ -1818,13 +1331,10 @@ class _QuizSolvePageState
         _isSaving = false;
       });
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            error.toString().contains(
-              '이미 제출',
-            )
+            error.toString().contains('이미 제출')
                 ? '이미 제출한 문제입니다.'
                 : '답안을 저장하지 못했습니다.',
           ),
@@ -1833,94 +1343,64 @@ class _QuizSolvePageState
     }
   }
 
-  Widget _buildChoice(
-      int index,
-      String choice,
-      ) {
-    bool isSelected =
-        _selectedAnswerIndex == index;
+  Widget _buildChoice(int index, String choice) {
+    bool isSelected = _selectedAnswerIndex == index;
 
-    bool revealAnswer =
-    _canRevealAnswer();
+    bool revealAnswer = _canRevealAnswer();
 
-    int correctAnswerIndex =
-    _getCorrectAnswerIndex();
+    int correctAnswerIndex = _getCorrectAnswerIndex();
 
-    Color backgroundColor =
-        _studyColorScheme.surface;
+    Color backgroundColor = Theme.of(context).colorScheme.surface;
 
-    Color borderColor =
-        _studyColorScheme.outlineVariant;
+    Color borderColor = Theme.of(context).colorScheme.outlineVariant;
 
-    Color numberColor =
-        _studyColors.textSecondary;
+    Color numberColor = context.colors.textSecondary;
 
-    if (!_isSubmitted &&
-        isSelected) {
-      backgroundColor =
-          _studyColors.lavender;
+    if (!_isSubmitted && isSelected) {
+      backgroundColor = context.colors.lavender;
 
-      borderColor =
-          _studyColors.pinkStart;
+      borderColor = context.colors.pinkStart;
 
-      numberColor =
-          _studyColors.pinkStart;
+      numberColor = context.colors.pinkStart;
     }
 
-    if (revealAnswer &&
-        index == correctAnswerIndex) {
-      backgroundColor =
-          _studyColors.mint;
+    if (revealAnswer && index == correctAnswerIndex) {
+      backgroundColor = context.colors.mint;
 
-      borderColor =
-          _studyColorScheme.tertiary;
+      borderColor = Theme.of(context).colorScheme.tertiary;
 
-      numberColor =
-          _studyColorScheme.tertiary;
+      numberColor = Theme.of(context).colorScheme.tertiary;
     }
 
     if (_isSubmitted &&
         revealAnswer &&
         isSelected &&
         index != correctAnswerIndex) {
-      backgroundColor =
-          _studyColors.pinkSoft;
+      backgroundColor = context.colors.pinkSoft;
 
-      borderColor =
-          _studyColorScheme.error;
+      borderColor = Theme.of(context).colorScheme.error;
 
-      numberColor =
-          _studyColorScheme.error;
+      numberColor = Theme.of(context).colorScheme.error;
     }
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: _isSubmitted ||
-          _remainingSeconds <= 0
+      onTap: _isSubmitted || _remainingSeconds <= 0
           ? null
           : () {
-        setState(() {
-          _selectedAnswerIndex =
-              index;
-        });
-      },
+              setState(() {
+                _selectedAnswerIndex = index;
+              });
+            },
       child: AnimatedContainer(
-        duration: Duration(
-          milliseconds: 180,
-        ),
+        duration: Duration(milliseconds: 180),
         width: double.infinity,
-        margin: EdgeInsets.only(
-          bottom: 12,
-        ),
+        margin: EdgeInsets.only(bottom: 12),
         padding: EdgeInsets.all(15),
         decoration: BoxDecoration(
           color: backgroundColor,
-          borderRadius:
-          BorderRadius.circular(16),
-          border: Border.all(
-            color: borderColor,
-            width: 1.3,
-          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor, width: 1.3),
         ),
         child: Row(
           children: [
@@ -1929,20 +1409,16 @@ class _QuizSolvePageState
               height: 32,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: numberColor
-                    .withOpacity(0.12),
+                color: numberColor.withOpacity(0.12),
                 shape: BoxShape.circle,
               ),
               child: Text(
-                widget.quizData['quizType']
-                    ?.toString() ==
-                    'OX'
+                widget.quizData['quizType']?.toString() == 'OX'
                     ? choice
                     : '${index + 1}',
                 style: TextStyle(
                   color: numberColor,
-                  fontWeight:
-                  FontWeight.bold,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
@@ -1953,24 +1429,18 @@ class _QuizSolvePageState
                 style: TextStyle(
                   fontSize: 14,
                   height: 1.4,
-                  color:
-                  _studyColors.textPrimary,
+                  color: context.colors.textPrimary,
                 ),
               ),
             ),
             if (isSelected)
               Icon(
-                revealAnswer &&
-                    index !=
-                        correctAnswerIndex
+                revealAnswer && index != correctAnswerIndex
                     ? Icons.close_rounded
                     : Icons.check_rounded,
-                color: revealAnswer &&
-                    index !=
-                        correctAnswerIndex
-                    ? _studyColorScheme.error
-                    : _studyColors
-                    .pinkStart,
+                color: revealAnswer && index != correctAnswerIndex
+                    ? Theme.of(context).colorScheme.error
+                    : context.colors.pinkStart,
               ),
           ],
         ),
@@ -1980,13 +1450,9 @@ class _QuizSolvePageState
 
   Widget _buildResultCard() {
     String revealType =
-        widget.quizData[
-        'answerRevealType']
-            ?.toString() ??
-            'AFTER_SUBMIT';
+        widget.quizData['answerRevealType']?.toString() ?? 'AFTER_SUBMIT';
 
-    bool revealAnswer =
-    _canRevealAnswer();
+    bool revealAnswer = _canRevealAnswer();
 
     if (!_isSubmitted) {
       return SizedBox();
@@ -1994,26 +1460,19 @@ class _QuizSolvePageState
 
     if (!revealAnswer) {
       return AppCard(
-        backgroundColor:
-        _studyColors.lavender,
+        backgroundColor: context.colors.lavender,
         child: Row(
           children: [
-            Icon(
-              Icons.lock_clock_outlined,
-              color:
-              _studyColors.pinkStart,
-            ),
+            Icon(Icons.lock_clock_outlined, color: context.colors.pinkStart),
             SizedBox(width: 10),
             Expanded(
               child: Text(
-                revealType ==
-                    'AFTER_DEADLINE'
+                revealType == 'AFTER_DEADLINE'
                     ? '정답과 해설은 제출 마감 후 공개됩니다.'
                     : '정답 공개를 기다리고 있습니다.',
                 style: TextStyle(
                   fontSize: 12,
-                  color: _studyColors
-                      .textSecondary,
+                  color: context.colors.textSecondary,
                 ),
               ),
             ),
@@ -2022,31 +1481,22 @@ class _QuizSolvePageState
       );
     }
 
-    String explanation =
-        widget.quizData['explanation']
-            ?.toString() ??
-            '';
+    String explanation = widget.quizData['explanation']?.toString() ?? '';
 
     return AppCard(
       backgroundColor: _isCorrect
-          ? _studyColors.mint
-          : _studyColors.pinkSoft,
+          ? context.colors.mint
+          : context.colors.pinkSoft,
       child: Column(
-        crossAxisAlignment:
-        CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Icon(
-                _isCorrect
-                    ? Icons
-                    .check_circle_rounded
-                    : Icons.cancel_rounded,
+                _isCorrect ? Icons.check_circle_rounded : Icons.cancel_rounded,
                 color: _isCorrect
-                    ? _studyColorScheme
-                    .tertiary
-                    : _studyColorScheme
-                    .error,
+                    ? Theme.of(context).colorScheme.tertiary
+                    : Theme.of(context).colorScheme.error,
               ),
               SizedBox(width: 9),
               Expanded(
@@ -2058,10 +1508,8 @@ class _QuizSolvePageState
                       : '오답입니다. 오답노트에 저장했어요.',
                   style: TextStyle(
                     fontSize: 15,
-                    fontWeight:
-                    FontWeight.bold,
-                    color: _studyColors
-                        .textPrimary,
+                    fontWeight: FontWeight.bold,
+                    color: context.colors.textPrimary,
                   ),
                 ),
               ),
@@ -2074,8 +1522,7 @@ class _QuizSolvePageState
               style: TextStyle(
                 fontSize: 12,
                 height: 1.5,
-                color: _studyColors
-                    .textSecondary,
+                color: context.colors.textSecondary,
               ),
             ),
           ],
@@ -2086,137 +1533,84 @@ class _QuizSolvePageState
 
   @override
   Widget build(BuildContext context) {
-    String title =
-        widget.quizData['title']
-            ?.toString() ??
-            '발송된 문제';
+    String title = widget.quizData['title']?.toString() ?? '발송된 문제';
 
-    String subject =
-        widget.quizData['subject']
-            ?.toString() ??
-            '과목 미지정';
+    String subject = widget.quizData['subject']?.toString() ?? '과목 미지정';
 
     String question =
-        widget.quizData['question']
-            ?.toString() ??
-            '등록된 문제 내용이 없습니다.';
+        widget.quizData['question']?.toString() ?? '등록된 문제 내용이 없습니다.';
 
-    List<String> choices =
-    _getChoices();
+    List<String> choices = _getChoices();
 
     if (_isLoadingAnswer) {
       return Scaffold(
-        appBar: AppTopBar(
-          title: '문제 풀기',
-        ),
-        body: AppLoadingView(
-          message:
-          '문제 응답 상태를 확인하는 중입니다.',
-        ),
+        appBar: AppTopBar(title: '문제 풀기'),
+        body: AppLoadingView(message: '문제 응답 상태를 확인하는 중입니다.'),
       );
     }
 
     return Scaffold(
-      appBar: AppTopBar(
-        title: '문제 풀기',
-      ),
+      appBar: AppTopBar(title: '문제 풀기'),
       body: Stack(
         children: [
           AppMainBackground(
             applySafeArea: false,
-            child:
-            SingleChildScrollView(
-              padding:
-              EdgeInsets.fromLTRB(
-                20,
-                20,
-                20,
-                40,
-              ),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, 40),
               child: Column(
-                crossAxisAlignment:
-                CrossAxisAlignment
-                    .start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
                       Container(
-                        padding:
-                        EdgeInsets.symmetric(
+                        padding: EdgeInsets.symmetric(
                           horizontal: 10,
                           vertical: 5,
                         ),
-                        decoration:
-                        BoxDecoration(
-                          color: _studyColors
-                              .lavender,
-                          borderRadius:
-                          BorderRadius.circular(
-                            13,
-                          ),
+                        decoration: BoxDecoration(
+                          color: context.colors.lavender,
+                          borderRadius: BorderRadius.circular(13),
                         ),
                         child: Text(
                           subject,
                           style: TextStyle(
                             fontSize: 11,
-                            color: _studyColors
-                                .pinkStart,
-                            fontWeight:
-                            FontWeight.w600,
+                            color: context.colors.pinkStart,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                       Spacer(),
                       if (!_isSubmitted)
                         Container(
-                          padding:
-                          EdgeInsets.symmetric(
+                          padding: EdgeInsets.symmetric(
                             horizontal: 11,
                             vertical: 7,
                           ),
-                          decoration:
-                          BoxDecoration(
-                            color:
-                            _remainingSeconds <=
-                                10
-                                ? _studyColors
-                                .pinkSoft
-                                : _studyColors
-                                .lavender,
-                            borderRadius:
-                            BorderRadius.circular(
-                              14,
-                            ),
+                          decoration: BoxDecoration(
+                            color: _remainingSeconds <= 10
+                                ? context.colors.pinkSoft
+                                : context.colors.lavender,
+                            borderRadius: BorderRadius.circular(14),
                           ),
                           child: Row(
                             children: [
                               Icon(
                                 Icons.timer_outlined,
                                 size: 17,
-                                color:
-                                _remainingSeconds <=
-                                    10
-                                    ? _studyColorScheme
-                                    .error
-                                    : _studyColors
-                                    .pinkStart,
+                                color: _remainingSeconds <= 10
+                                    ? Theme.of(context).colorScheme.error
+                                    : context.colors.pinkStart,
                               ),
                               SizedBox(width: 5),
                               Text(
-                                _formatTimer(
-                                  _remainingSeconds,
-                                ),
+                                _formatTimer(_remainingSeconds),
                                 style: TextStyle(
                                   fontSize: 12,
-                                  fontWeight:
-                                  FontWeight.bold,
-                                  color:
-                                  _remainingSeconds <=
-                                      10
-                                      ? _studyColorScheme
-                                      .error
-                                      : _studyColors
-                                      .pinkStart,
+                                  fontWeight: FontWeight.bold,
+                                  color: _remainingSeconds <= 10
+                                      ? Theme.of(context).colorScheme.error
+                                      : context.colors.pinkStart,
                                 ),
                               ),
                             ],
@@ -2229,82 +1623,59 @@ class _QuizSolvePageState
                     title,
                     style: TextStyle(
                       fontSize: 21,
-                      fontWeight:
-                      FontWeight.bold,
-                      color: _studyColors
-                          .textPrimary,
+                      fontWeight: FontWeight.bold,
+                      color: context.colors.textPrimary,
                     ),
                   ),
                   SizedBox(height: 16),
                   AppCard(
-                    backgroundColor:
-                    _studyColorScheme
-                        .surface,
+                    backgroundColor: Theme.of(context).colorScheme.surface,
                     child: Text(
                       question,
                       style: TextStyle(
                         fontSize: 16,
                         height: 1.6,
-                        color: _studyColors
-                            .textPrimary,
+                        color: context.colors.textPrimary,
                       ),
                     ),
                   ),
                   SizedBox(height: 20),
-                  for (int i = 0;
-                  i < choices.length;
-                  i++)
-                    _buildChoice(
-                      i,
-                      choices[i],
-                    ),
+                  for (int i = 0; i < choices.length; i++)
+                    _buildChoice(i, choices[i]),
                   SizedBox(height: 6),
                   _buildResultCard(),
                   SizedBox(height: 16),
                   if (!_isSubmitted)
                     AppButton(
-                      text:
-                      _remainingSeconds <=
-                          0
+                      text: _remainingSeconds <= 0
                           ? '제출 시간이 종료되었습니다.'
                           : '답안 제출하기',
-                      type: AppButtonType
-                          .primaryPink,
+                      type: AppButtonType.primaryPink,
                       height: 52,
-                      onPressed:
-                      _remainingSeconds <=
-                          0
+                      onPressed: _remainingSeconds <= 0
                           ? null
                           : () {
-                        _submitAnswer();
-                      },
+                              _submitAnswer();
+                            },
                     ),
                   if (widget.isOwner) ...[
                     SizedBox(height: 11),
                     AppButton(
                       text: '전체 결과 보기',
-                      type: AppButtonType
-                          .outlinePink,
+                      type: AppButtonType.outlinePink,
                       height: 48,
                       onPressed: () {
-                        showModalBottomSheet<
-                            void>(
+                        showModalBottomSheet<void>(
                           context: context,
-                          isScrollControlled:
-                          true,
-                          backgroundColor:
-                          _studyColorScheme
-                              .surface
-                              .withOpacity(0),
-                          builder:
-                              (bottomSheetContext) {
+                          isScrollControlled: true,
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.surface.withOpacity(0),
+                          builder: (bottomSheetContext) {
                             return _QuizResultSheet(
-                              studyId:
-                              widget.studyId,
-                              quizId:
-                              widget.quizId,
-                              quizData:
-                              widget.quizData,
+                              studyId: widget.studyId,
+                              quizId: widget.quizId,
+                              quizData: widget.quizData,
                             );
                           },
                         );
@@ -2315,19 +1686,14 @@ class _QuizSolvePageState
               ),
             ),
           ),
-          if (_isSaving)
-            Positioned.fill(
-              child: LoadingOverlay(),
-            ),
+          if (_isSaving) Positioned.fill(child: LoadingOverlay()),
         ],
       ),
     );
   }
 }
 
-
-class _QuizResultSheet
-    extends StatelessWidget {
+class _QuizResultSheet extends StatelessWidget {
   final String studyId;
   final String quizId;
   final Map<String, dynamic> quizData;
@@ -2339,16 +1705,10 @@ class _QuizResultSheet
   });
 
   List<String> _getChoices() {
-    dynamic choices =
-    quizData['choices'];
+    dynamic choices = quizData['choices'];
 
     if (choices is List) {
-      return choices
-          .map(
-            (choice) =>
-            choice.toString(),
-      )
-          .toList();
+      return choices.map((choice) => choice.toString()).toList();
     }
 
     return [];
@@ -2357,14 +1717,10 @@ class _QuizResultSheet
   @override
   Widget build(BuildContext context) {
     return Container(
-      height:
-      MediaQuery.of(context).size.height *
-          0.82,
+      height: MediaQuery.of(context).size.height * 0.82,
       decoration: BoxDecoration(
-        color: _studyColorScheme.surface,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(26),
-        ),
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
       child: Column(
         children: [
@@ -2373,36 +1729,23 @@ class _QuizResultSheet
             width: 42,
             height: 5,
             decoration: BoxDecoration(
-              color: _studyColorScheme
-                  .outlineVariant,
-              borderRadius:
-              BorderRadius.circular(10),
+              color: Theme.of(context).colorScheme.outlineVariant,
+              borderRadius: BorderRadius.circular(10),
             ),
           ),
           Padding(
-            padding: EdgeInsets.fromLTRB(
-              20,
-              18,
-              12,
-              14,
-            ),
+            padding: EdgeInsets.fromLTRB(20, 18, 12, 14),
             child: Row(
               children: [
-                Icon(
-                  Icons.analytics_outlined,
-                  color:
-                  _studyColors.pinkStart,
-                ),
+                Icon(Icons.analytics_outlined, color: context.colors.pinkStart),
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     '문제 결과',
                     style: TextStyle(
                       fontSize: 19,
-                      fontWeight:
-                      FontWeight.bold,
-                      color: _studyColors
-                          .textPrimary,
+                      fontWeight: FontWeight.bold,
+                      color: context.colors.textPrimary,
                     ),
                   ),
                 ),
@@ -2410,201 +1753,121 @@ class _QuizResultSheet
                   onPressed: () {
                     Navigator.pop(context);
                   },
-                  icon: Icon(
-                    Icons.close_rounded,
-                  ),
+                  icon: Icon(Icons.close_rounded),
                 ),
               ],
             ),
           ),
           Divider(height: 1),
           Expanded(
-            child: StreamBuilder<
-                QuerySnapshot<
-                    Map<String, dynamic>>>(
-              stream: FirebaseFirestore
-                  .instance
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
                   .collection('studyGroups')
                   .doc(studyId)
                   .collection('members')
                   .snapshots(),
-              builder: (
-                  context,
-                  memberSnapshot,
-                  ) {
-                if (memberSnapshot
-                    .connectionState ==
-                    ConnectionState.waiting) {
-                  return AppLoadingView(
-                    message:
-                    '그룹원 정보를 불러오는 중입니다.',
-                  );
+              builder: (context, memberSnapshot) {
+                if (memberSnapshot.connectionState == ConnectionState.waiting) {
+                  return AppLoadingView(message: '그룹원 정보를 불러오는 중입니다.');
                 }
 
                 if (memberSnapshot.hasError) {
                   return AppErrorView(
-                    message:
-                    '그룹원 정보를 불러오지 못했습니다.',
-                    description:
-                    '잠시 후 다시 시도해 주세요.',
+                    message: '그룹원 정보를 불러오지 못했습니다.',
+                    description: '잠시 후 다시 시도해 주세요.',
                   );
                 }
 
                 int activeMemberCount = 0;
 
-                if (memberSnapshot.data !=
-                    null) {
-                  for (int i = 0;
-                  i <
-                      memberSnapshot
-                          .data!.docs.length;
-                  i++) {
-                    Map<String, dynamic>
-                    memberData =
-                    memberSnapshot
-                        .data!.docs[i]
+                if (memberSnapshot.data != null) {
+                  for (int i = 0; i < memberSnapshot.data!.docs.length; i++) {
+                    Map<String, dynamic> memberData = memberSnapshot
+                        .data!
+                        .docs[i]
                         .data();
 
-                    String status =
-                        memberData['status']
-                            ?.toString() ??
-                            '';
+                    String status = memberData['status']?.toString() ?? '';
 
-                    String role =
-                        memberData['role']
-                            ?.toString() ??
-                            'MEMBER';
+                    String role = memberData['role']?.toString() ?? 'MEMBER';
 
-                    if (status ==
-                        'ACTIVE' ||
-                        role == 'OWNER') {
+                    if (status == 'ACTIVE' || role == 'OWNER') {
                       activeMemberCount++;
                     }
                   }
                 }
 
-                return StreamBuilder<
-                    QuerySnapshot<
-                        Map<String, dynamic>>>(
-                  stream: FirebaseFirestore
-                      .instance
-                      .collection(
-                    'studyGroups',
-                  )
+                return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance
+                      .collection('studyGroups')
                       .doc(studyId)
                       .collection('quizzes')
                       .doc(quizId)
                       .collection('answers')
                       .snapshots(),
-                  builder: (
-                      context,
-                      answerSnapshot,
-                      ) {
-                    if (answerSnapshot
-                        .connectionState ==
-                        ConnectionState
-                            .waiting) {
-                      return AppLoadingView(
-                        message:
-                        '문제 결과를 불러오는 중입니다.',
-                      );
+                  builder: (context, answerSnapshot) {
+                    if (answerSnapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      return AppLoadingView(message: '문제 결과를 불러오는 중입니다.');
                     }
 
-                    if (answerSnapshot
-                        .hasError) {
+                    if (answerSnapshot.hasError) {
                       return AppErrorView(
-                        message:
-                        '문제 결과를 불러오지 못했습니다.',
-                        description:
-                        '잠시 후 다시 시도해 주세요.',
+                        message: '문제 결과를 불러오지 못했습니다.',
+                        description: '잠시 후 다시 시도해 주세요.',
                       );
                     }
 
-                    List<
-                        QueryDocumentSnapshot<
-                            Map<String,
-                                dynamic>>>
+                    List<QueryDocumentSnapshot<Map<String, dynamic>>>
                     answerList =
-                        answerSnapshot
-                            .data?.docs
-                            .where(
-                              (document) {
-                            return document
-                                .data()[
-                            'status']
-                                ?.toString() ==
-                                'SUBMITTED';
-                          },
-                        )
-                            .toList() ??
-                            [];
+                        answerSnapshot.data?.docs.where((document) {
+                          return document.data()['status']?.toString() ==
+                              'SUBMITTED';
+                        }).toList() ??
+                        [];
 
                     int correctCount = 0;
                     int timedOutCount = 0;
 
-                    List<String> choices =
-                    _getChoices();
+                    List<String> choices = _getChoices();
 
-                    List<int> choiceCountList =
-                    List<int>.filled(
+                    List<int> choiceCountList = List<int>.filled(
                       choices.length,
                       0,
                     );
 
-                    for (int i = 0;
-                    i < answerList.length;
-                    i++) {
-                      Map<String, dynamic>
-                      answerData =
-                      answerList[i].data();
+                    for (int i = 0; i < answerList.length; i++) {
+                      Map<String, dynamic> answerData = answerList[i].data();
 
-                      if (answerData[
-                      'isCorrect'] ==
-                          true) {
+                      if (answerData['isCorrect'] == true) {
                         correctCount++;
                       }
 
-                      if (answerData[
-                      'isTimedOut'] ==
-                          true) {
+                      if (answerData['isTimedOut'] == true) {
                         timedOutCount++;
                       }
 
-                      dynamic selectedIndex =
-                      answerData[
-                      'selectedAnswerIndex'];
+                      dynamic selectedIndex = answerData['selectedAnswerIndex'];
 
                       int answerIndex = -1;
 
                       if (selectedIndex is int) {
-                        answerIndex =
-                            selectedIndex;
-                      } else if (selectedIndex
-                      is num) {
-                        answerIndex =
-                            selectedIndex
-                                .toInt();
+                        answerIndex = selectedIndex;
+                      } else if (selectedIndex is num) {
+                        answerIndex = selectedIndex.toInt();
                       }
 
                       if (answerIndex >= 0 &&
-                          answerIndex <
-                              choiceCountList
-                                  .length) {
-                        choiceCountList[
-                        answerIndex]++;
+                          answerIndex < choiceCountList.length) {
+                        choiceCountList[answerIndex]++;
                       }
                     }
 
-                    int answerCount =
-                        answerList.length;
+                    int answerCount = answerList.length;
 
-                    int wrongCount =
-                        answerCount -
-                            correctCount;
+                    int wrongCount = answerCount - correctCount;
 
-                    int noAnswerCount =
-                        activeMemberCount -
-                            answerCount;
+                    int noAnswerCount = activeMemberCount - answerCount;
 
                     if (noAnswerCount < 0) {
                       noAnswerCount = 0;
@@ -2613,71 +1876,52 @@ class _QuizResultSheet
                     int correctRate = 0;
 
                     if (answerCount > 0) {
-                      correctRate =
-                          ((correctCount /
-                              answerCount) *
-                              100)
-                              .round();
+                      correctRate = ((correctCount / answerCount) * 100)
+                          .round();
                     }
 
                     return ListView(
-                      padding:
-                      EdgeInsets.fromLTRB(
-                        18,
-                        16,
-                        18,
-                        30,
-                      ),
+                      padding: EdgeInsets.fromLTRB(18, 16, 18, 30),
                       children: [
                         Text(
-                          quizData['title']
-                              ?.toString() ??
-                              '발송 문제',
+                          quizData['title']?.toString() ?? '발송 문제',
                           style: TextStyle(
                             fontSize: 18,
-                            fontWeight:
-                            FontWeight.bold,
-                            color: _studyColors
-                                .textPrimary,
+                            fontWeight: FontWeight.bold,
+                            color: context.colors.textPrimary,
                           ),
                         ),
                         SizedBox(height: 14),
                         Row(
                           children: [
                             _buildResultMetric(
+                              context,
                               '참여',
                               '$answerCount / '
                                   '$activeMemberCount명',
                             ),
                             SizedBox(width: 8),
-                            _buildResultMetric(
-                              '정답',
-                              '$correctCount명',
-                            ),
+                            _buildResultMetric(context, '정답', '$correctCount명'),
                             SizedBox(width: 8),
-                            _buildResultMetric(
-                              '오답',
-                              '$wrongCount명',
-                            ),
+                            _buildResultMetric(context, '오답', '$wrongCount명'),
                           ],
                         ),
                         SizedBox(height: 8),
                         Row(
                           children: [
                             _buildResultMetric(
+                              context,
                               '미참여',
                               '$noAnswerCount명',
                             ),
                             SizedBox(width: 8),
                             _buildResultMetric(
+                              context,
                               '시간 초과',
                               '$timedOutCount명',
                             ),
                             SizedBox(width: 8),
-                            _buildResultMetric(
-                              '정답률',
-                              '$correctRate%',
-                            ),
+                            _buildResultMetric(context, '정답률', '$correctRate%'),
                           ],
                         ),
                         SizedBox(height: 24),
@@ -2685,35 +1929,22 @@ class _QuizResultSheet
                           '보기별 선택 현황',
                           style: TextStyle(
                             fontSize: 16,
-                            fontWeight:
-                            FontWeight.bold,
-                            color: _studyColors
-                                .textPrimary,
+                            fontWeight: FontWeight.bold,
+                            color: context.colors.textPrimary,
                           ),
                         ),
                         SizedBox(height: 11),
-                        for (int i = 0;
-                        i < choices.length;
-                        i++)
+                        for (int i = 0; i < choices.length; i++)
                           Container(
-                            margin:
-                            EdgeInsets.only(
-                              bottom: 9,
-                            ),
-                            padding:
-                            EdgeInsets.all(14),
-                            decoration:
-                            BoxDecoration(
-                              color:
-                              _studyColorScheme
-                                  .surface,
-                              borderRadius:
-                              BorderRadius
-                                  .circular(16),
+                            margin: EdgeInsets.only(bottom: 9),
+                            padding: EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surface,
+                              borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                color:
-                                _studyColorScheme
-                                    .outlineVariant,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.outlineVariant,
                               ),
                             ),
                             child: Row(
@@ -2721,28 +1952,18 @@ class _QuizResultSheet
                                 Container(
                                   width: 32,
                                   height: 32,
-                                  alignment:
-                                  Alignment.center,
-                                  decoration:
-                                  BoxDecoration(
-                                    color:
-                                    _studyColors
-                                        .lavender,
-                                    shape:
-                                    BoxShape.circle,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: context.colors.lavender,
+                                    shape: BoxShape.circle,
                                   ),
                                   child: Text(
-                                    quizData['quizType']
-                                        ?.toString() ==
-                                        'OX'
+                                    quizData['quizType']?.toString() == 'OX'
                                         ? choices[i]
                                         : '${i + 1}',
                                     style: TextStyle(
-                                      fontWeight:
-                                      FontWeight
-                                          .bold,
-                                      color: _studyColors
-                                          .pinkStart,
+                                      fontWeight: FontWeight.bold,
+                                      color: context.colors.pinkStart,
                                     ),
                                   ),
                                 ),
@@ -2752,8 +1973,7 @@ class _QuizResultSheet
                                     choices[i],
                                     style: TextStyle(
                                       fontSize: 13,
-                                      color: _studyColors
-                                          .textPrimary,
+                                      color: context.colors.textPrimary,
                                     ),
                                   ),
                                 ),
@@ -2761,10 +1981,8 @@ class _QuizResultSheet
                                   '${choiceCountList[i]}명',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    fontWeight:
-                                    FontWeight.bold,
-                                    color: _studyColors
-                                        .pinkStart,
+                                    fontWeight: FontWeight.bold,
+                                    color: context.colors.pinkStart,
                                   ),
                                 ),
                               ],
@@ -2775,10 +1993,8 @@ class _QuizResultSheet
                           '제출자',
                           style: TextStyle(
                             fontSize: 16,
-                            fontWeight:
-                            FontWeight.bold,
-                            color: _studyColors
-                                .textPrimary,
+                            fontWeight: FontWeight.bold,
+                            color: context.colors.textPrimary,
                           ),
                         ),
                         SizedBox(height: 11),
@@ -2786,19 +2002,13 @@ class _QuizResultSheet
                           SizedBox(
                             height: 210,
                             child: AppEmptyView(
-                              message:
-                              '제출된 답안이 없습니다.',
-                              description:
-                              '그룹원이 문제를 풀면 결과가 표시됩니다.',
+                              message: '제출된 답안이 없습니다.',
+                              description: '그룹원이 문제를 풀면 결과가 표시됩니다.',
                             ),
                           )
                         else
-                          for (int i = 0;
-                          i < answerList.length;
-                          i++)
-                            _buildAnswerItem(
-                              answerList[i].data(),
-                            ),
+                          for (int i = 0; i < answerList.length; i++)
+                            _buildAnswerItem(context, answerList[i].data()),
                       ],
                     );
                   },
@@ -2812,19 +2022,16 @@ class _QuizResultSheet
   }
 
   static Widget _buildResultMetric(
-      String label,
-      String value,
-      ) {
+    BuildContext context,
+    String label,
+    String value,
+  ) {
     return Expanded(
       child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: 8,
-          vertical: 13,
-        ),
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 13),
         decoration: BoxDecoration(
-          color: _studyColors.lavender,
-          borderRadius:
-          BorderRadius.circular(15),
+          color: context.colors.lavender,
+          borderRadius: BorderRadius.circular(15),
         ),
         child: Column(
           children: [
@@ -2833,8 +2040,7 @@ class _QuizResultSheet
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
-                color:
-                _studyColors.pinkStart,
+                color: context.colors.pinkStart,
               ),
             ),
             SizedBox(height: 3),
@@ -2842,8 +2048,7 @@ class _QuizResultSheet
               label,
               style: TextStyle(
                 fontSize: 10,
-                color: _studyColors
-                    .textSecondary,
+                color: context.colors.textSecondary,
               ),
             ),
           ],
@@ -2853,54 +2058,40 @@ class _QuizResultSheet
   }
 
   static Widget _buildAnswerItem(
-      Map<String, dynamic> answerData,
-      ) {
-    String nickname =
-        answerData['userNickname']
-            ?.toString() ??
-            '사용자';
+    BuildContext context,
+    Map<String, dynamic> answerData,
+  ) {
+    String nickname = answerData['userNickname']?.toString() ?? '사용자';
 
-    bool isCorrect =
-        answerData['isCorrect'] == true;
+    bool isCorrect = answerData['isCorrect'] == true;
 
-    bool isTimedOut =
-        answerData['isTimedOut'] == true;
+    bool isTimedOut = answerData['isTimedOut'] == true;
 
     int elapsedSeconds = 0;
 
-    dynamic elapsedValue =
-    answerData['elapsedSeconds'];
+    dynamic elapsedValue = answerData['elapsedSeconds'];
 
     if (elapsedValue is int) {
       elapsedSeconds = elapsedValue;
     } else if (elapsedValue is num) {
-      elapsedSeconds =
-          elapsedValue.toInt();
+      elapsedSeconds = elapsedValue.toInt();
     }
 
     return Container(
-      margin: EdgeInsets.only(
-        bottom: 9,
-      ),
+      margin: EdgeInsets.only(bottom: 9),
       padding: EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: _studyColorScheme.surface,
-        borderRadius:
-        BorderRadius.circular(16),
-        border: Border.all(
-          color:
-          _studyColorScheme.outlineVariant,
-        ),
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       ),
       child: Row(
         children: [
           Icon(
-            isCorrect
-                ? Icons.check_circle_rounded
-                : Icons.cancel_rounded,
+            isCorrect ? Icons.check_circle_rounded : Icons.cancel_rounded,
             color: isCorrect
-                ? _studyColorScheme.tertiary
-                : _studyColorScheme.error,
+                ? Theme.of(context).colorScheme.tertiary
+                : Theme.of(context).colorScheme.error,
           ),
           SizedBox(width: 10),
           Expanded(
@@ -2909,20 +2100,13 @@ class _QuizResultSheet
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color:
-                _studyColors.textPrimary,
+                color: context.colors.textPrimary,
               ),
             ),
           ),
           Text(
-            isTimedOut
-                ? '시간 초과'
-                : '$elapsedSeconds초',
-            style: TextStyle(
-              fontSize: 11,
-              color:
-              _studyColors.textSecondary,
-            ),
+            isTimedOut ? '시간 초과' : '$elapsedSeconds초',
+            style: TextStyle(fontSize: 11, color: context.colors.textSecondary),
           ),
         ],
       ),

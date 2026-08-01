@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
+
 import '../../community/community_post_detail.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
@@ -12,8 +14,7 @@ class LikedContentScreen extends StatefulWidget {
   const LikedContentScreen({super.key});
 
   @override
-  State<LikedContentScreen> createState() =>
-      _LikedContentScreenState();
+  State<LikedContentScreen> createState() => _LikedContentScreenState();
 }
 
 class _LikedContentScreenState extends State<LikedContentScreen> {
@@ -51,10 +52,9 @@ class _LikedContentScreenState extends State<LikedContentScreen> {
     for (final QueryDocumentSnapshot<Map<String, dynamic>> likeDocument
         in likeSnapshot.docs) {
       final String postId =
-          likeDocument.data()['postId']?.toString().trim().isNotEmpty ==
-                  true
-              ? likeDocument.data()['postId'].toString()
-              : likeDocument.id;
+          likeDocument.data()['postId']?.toString().trim().isNotEmpty == true
+          ? likeDocument.data()['postId'].toString()
+          : likeDocument.id;
 
       final DocumentSnapshot<Map<String, dynamic>> postDocument =
           await FirebaseFirestore.instance
@@ -78,14 +78,10 @@ class _LikedContentScreenState extends State<LikedContentScreen> {
           postId: postId,
           title: postData['title']?.toString() ?? '제목 없는 게시글',
           content: postData['content']?.toString() ?? '',
-          boardName: _boardLabel(
-            postData['boardType']?.toString() ?? 'FREE',
-          ),
-          writerNickname:
-              postData['writerNickname']?.toString() ?? '사용자',
+          boardName: _boardLabel(postData['boardType']?.toString() ?? 'FREE'),
+          writerNickname: postData['writerNickname']?.toString() ?? '사용자',
           likeCount: (postData['likeCount'] as num?)?.toInt() ?? 0,
-          commentCount:
-              (postData['commentCount'] as num?)?.toInt() ?? 0,
+          commentCount: (postData['commentCount'] as num?)?.toInt() ?? 0,
           likedAt: likeDocument.data()['createdAt'],
         ),
       );
@@ -119,8 +115,7 @@ class _LikedContentScreenState extends State<LikedContentScreen> {
     for (final QueryDocumentSnapshot<Map<String, dynamic>> likeDocument
         in likeSnapshot.docs) {
       final String commentId = likeDocument.id;
-      final String postId =
-          likeDocument.data()['postId']?.toString() ?? '';
+      final String postId = likeDocument.data()['postId']?.toString() ?? '';
 
       if (postId.isEmpty) {
         continue;
@@ -152,8 +147,7 @@ class _LikedContentScreenState extends State<LikedContentScreen> {
 
       if (!commentDocument.exists ||
           commentData == null ||
-          (commentData['commentStatus']?.toString() ?? 'NORMAL') !=
-              'NORMAL' ||
+          (commentData['commentStatus']?.toString() ?? 'NORMAL') != 'NORMAL' ||
           commentData['deletedAt'] != null) {
         continue;
       }
@@ -164,10 +158,8 @@ class _LikedContentScreenState extends State<LikedContentScreen> {
           postId: postId,
           postTitle: postData['title']?.toString() ?? '제목 없는 게시글',
           content: commentData['content']?.toString() ?? '',
-          writerNickname:
-              commentData['writerNickname']?.toString() ?? '사용자',
-          parentCommentId:
-              commentData['parentCommentId']?.toString() ?? '',
+          writerNickname: commentData['writerNickname']?.toString() ?? '사용자',
+          parentCommentId: commentData['parentCommentId']?.toString() ?? '',
           likeCount: (commentData['likeCount'] as num?)?.toInt() ?? 0,
           likedAt: likeDocument.data()['createdAt'],
         ),
@@ -243,15 +235,15 @@ class _LikedContentScreenState extends State<LikedContentScreen> {
         },
         style: OutlinedButton.styleFrom(
           backgroundColor: isSelected
-              ? const Color(0xFFFFE8EE)
-              : Colors.white,
+              ? context.colors.pinkSoft
+              : context.colors.surface,
           foregroundColor: isSelected
-              ? const Color(0xFFF0788F)
-              : const Color(0xFF777B84),
+              ? context.colors.pinkStart
+              : context.colors.textSecondary,
           side: BorderSide(
             color: isSelected
-                ? const Color(0xFFF0788F)
-                : const Color(0xFFE6E7EA),
+                ? context.colors.pinkStart
+                : context.colors.border,
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
@@ -267,9 +259,7 @@ class _LikedContentScreenState extends State<LikedContentScreen> {
       future: _postFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const AppLoadingView(
-            message: '좋아요한 게시글을 불러오는 중입니다.',
-          );
+          return const AppLoadingView(message: '좋아요한 게시글을 불러오는 중입니다.');
         }
 
         if (snapshot.hasError) {
@@ -309,9 +299,7 @@ class _LikedContentScreenState extends State<LikedContentScreen> {
       future: _commentFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const AppLoadingView(
-            message: '좋아요한 댓글을 불러오는 중입니다.',
-          );
+          return const AppLoadingView(message: '좋아요한 댓글을 불러오는 중입니다.');
         }
 
         if (snapshot.hasError) {
@@ -356,10 +344,10 @@ class _LikedContentScreenState extends State<LikedContentScreen> {
           children: [
             Text(
               item.boardName,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFFF0788F),
+                color: context.colors.pinkStart,
               ),
             ),
             const SizedBox(height: 9),
@@ -367,11 +355,11 @@ class _LikedContentScreenState extends State<LikedContentScreen> {
               item.title,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 height: 1.4,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF303238),
+                color: context.colors.textPrimary,
               ),
             ),
             if (item.content.trim().isNotEmpty) ...[
@@ -380,10 +368,10 @@ class _LikedContentScreenState extends State<LikedContentScreen> {
                 item.content,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   height: 1.4,
-                  color: Color(0xFF777B84),
+                  color: context.colors.textSecondary,
                 ),
               ),
             ],
@@ -392,24 +380,20 @@ class _LikedContentScreenState extends State<LikedContentScreen> {
               children: [
                 Text(
                   item.writerNickname,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF777B84),
+                    color: context.colors.textSecondary,
                   ),
                 ),
                 const Spacer(),
-                const Icon(
-                  Icons.favorite,
-                  size: 17,
-                  color: Color(0xFFF0788F),
-                ),
+                Icon(Icons.favorite, size: 17, color: context.colors.pinkStart),
                 const SizedBox(width: 4),
                 Text('${item.likeCount}'),
                 const SizedBox(width: 12),
-                const Icon(
+                Icon(
                   Icons.chat_bubble_outline,
                   size: 16,
-                  color: Color(0xFF8B8F98),
+                  color: context.colors.textMuted,
                 ),
                 const SizedBox(width: 4),
                 Text('${item.commentCount}'),
@@ -438,8 +422,8 @@ class _LikedContentScreenState extends State<LikedContentScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: item.isReply
-                        ? const Color(0xFFEAF4FF)
-                        : const Color(0xFFFFE8EE),
+                        ? context.colors.infoSoft
+                        : context.colors.pinkSoft,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -448,17 +432,17 @@ class _LikedContentScreenState extends State<LikedContentScreen> {
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       color: item.isReply
-                          ? const Color(0xFF4F86C6)
-                          : const Color(0xFFF0788F),
+                          ? context.colors.info
+                          : context.colors.pinkStart,
                     ),
                   ),
                 ),
                 const Spacer(),
                 Text(
                   item.writerNickname,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF777B84),
+                    color: context.colors.textSecondary,
                   ),
                 ),
               ],
@@ -468,11 +452,11 @@ class _LikedContentScreenState extends State<LikedContentScreen> {
               item.content,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
                 height: 1.45,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF303238),
+                color: context.colors.textPrimary,
               ),
             ),
             const SizedBox(height: 11),
@@ -480,26 +464,19 @@ class _LikedContentScreenState extends State<LikedContentScreen> {
               '원문 · ${item.postTitle}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: Color(0xFF777B84),
+                color: context.colors.textSecondary,
               ),
             ),
             const SizedBox(height: 10),
             Row(
               children: [
-                const Icon(
-                  Icons.favorite,
-                  size: 17,
-                  color: Color(0xFFF0788F),
-                ),
+                Icon(Icons.favorite, size: 17, color: context.colors.pinkStart),
                 const SizedBox(width: 4),
                 Text('${item.likeCount}'),
                 const Spacer(),
-                const Icon(
-                  Icons.chevron_right,
-                  color: Color(0xFFB0B3BA),
-                ),
+                Icon(Icons.chevron_right, color: context.colors.textMuted),
               ],
             ),
           ],
@@ -579,7 +556,6 @@ class _LikedCommentItem {
   }
 }
 
-
 String _formatCommunityDate(dynamic value) {
   DateTime? dateTime;
 
@@ -620,4 +596,3 @@ String _boardLabel(String code) {
       return '자유';
   }
 }
-

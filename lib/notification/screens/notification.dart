@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -7,20 +9,45 @@ import '../../mypage/screens/study_plan_screen.dart';
 import '../../study/study_chat.dart';
 import '../../study/study_join_requests.dart';
 import '../../study/study_room.dart';
+import '../../theme.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
 import '../services/notification_service.dart';
 import '../widgets/notification_widgets.dart';
 
-class NotificationPage extends StatelessWidget {
+class NotificationPage extends StatefulWidget {
   const NotificationPage({super.key, this.notificationService});
 
   final NotificationService? notificationService;
 
   @override
+  State<NotificationPage> createState() => _NotificationPageState();
+}
+
+class _NotificationPageState extends State<NotificationPage> {
+  late final NotificationService _service;
+
+  @override
+  void initState() {
+    super.initState();
+    _service = widget.notificationService ?? NotificationService();
+    unawaited(_markNotificationsViewed());
+  }
+
+  Future<void> _markNotificationsViewed() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return;
+    }
+
+    try {
+      await _service.markNotificationsViewed(user.uid);
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    final service = notificationService ?? NotificationService();
 
     return DefaultTabController(
       length: NotificationSection.values.length,
@@ -42,10 +69,10 @@ class NotificationPage extends StatelessWidget {
                       child: TabBar(
                         isScrollable: true,
                         tabAlignment: TabAlignment.start,
-                        labelColor: const Color(0xFFF0788F),
-                        unselectedLabelColor: const Color(0xFF817B7D),
-                        indicatorColor: const Color(0xFFF0788F),
-                        dividerColor: const Color(0xFFF3E7EA),
+                        labelColor: context.colors.pinkDeep,
+                        unselectedLabelColor: context.colors.textSecondary,
+                        indicatorColor: context.colors.pinkDeep,
+                        dividerColor: context.colors.divider,
                         tabs: NotificationSection.values
                             .map((section) => Tab(text: section.label))
                             .toList(growable: false),
@@ -53,7 +80,7 @@ class NotificationPage extends StatelessWidget {
                     ),
                     Expanded(
                       child: StreamBuilder<List<AppNotification>>(
-                        stream: service.watchNotifications(user.uid),
+                        stream: _service.watchNotifications(user.uid),
                         builder: (context, snapshot) {
                           if (snapshot.hasError) {
                             return const NotificationMessageView(
@@ -65,9 +92,9 @@ class NotificationPage extends StatelessWidget {
 
                           if (snapshot.connectionState ==
                               ConnectionState.waiting) {
-                            return const Center(
+                            return Center(
                               child: CircularProgressIndicator(
-                                color: Color(0xFFF0788F),
+                                color: context.colors.pinkDeep,
                               ),
                             );
                           }

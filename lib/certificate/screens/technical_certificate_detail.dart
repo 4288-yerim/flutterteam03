@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../appwidgets/goal_schedule_app_widget.dart';
@@ -12,7 +14,6 @@ import '../services/certificate_search_service.dart';
 import '../widgets/certificate_common_widgets.dart';
 import '../widgets/certificate_detail_widgets.dart';
 import '../widgets/technical_certificate_widgets.dart';
-
 
 class TechnicalCertificateDetailPage extends StatefulWidget {
   final String certificationId;
@@ -32,40 +33,40 @@ class _TechnicalCertificateDetailPageState
     with SingleTickerProviderStateMixin {
   static final Uri _examStandardUri = Uri.parse(
     'https://www.q-net.or.kr/cst006.do'
-        '?id=cst00601'
-        '&code=1202'
-        '&gSite=Q'
-        '&gId=',
+    '?id=cst00601'
+    '&code=1202'
+    '&gSite=Q'
+    '&gId=',
   );
 
   static final Uri _otherInformationUri = Uri.parse(
     'https://www.q-net.or.kr/crf005.do'
-        '?id=crf00501'
-        '&gSite=Q'
-        '&gId=',
+    '?id=crf00501'
+    '&gSite=Q'
+    '&gId=',
   );
 
   static final Uri _scheduleNoticeUri = Uri.parse(
     'https://www.q-net.or.kr/man004.do'
-        '?id=man00401'
-        '&notiType=10'
-        '&gSite='
-        '&gId=',
+    '?id=man00401'
+    '&notiType=10'
+    '&gSite='
+    '&gId=',
   );
 
   static final Uri _noScheduleUri = Uri.parse(
     'https://www.q-net.or.kr/crf021.do'
-        '?id=crf02103'
-        '&gSite='
-        '&gId='
-        '&CST_ID=CRF_Stns_06',
+    '?id=crf02103'
+    '&gSite='
+    '&gId='
+    '&CST_ID=CRF_Stns_06',
   );
 
   final CertificateDetailService _certificateDetailService =
-  CertificateDetailService();
+      CertificateDetailService();
 
   final TechnicalCertificateService _technicalCertificateService =
-  TechnicalCertificateService();
+      TechnicalCertificateService();
 
   late final TabController _tabController;
 
@@ -92,9 +93,8 @@ class _TechnicalCertificateDetailPageState
   bool _hasStoredPracticalMaterials = false;
   int? _storedPracticalMaterialsYear;
 
-  PracticalMaterialPrecautions
-  _practicalMaterialPrecautions =
-  const PracticalMaterialPrecautions.empty();
+  PracticalMaterialPrecautions _practicalMaterialPrecautions =
+      PracticalMaterialPrecautions.empty();
   bool _isRegisteringGoal = false;
 
   bool _hasRequestedStatistics = false;
@@ -111,10 +111,7 @@ class _TechnicalCertificateDetailPageState
   void initState() {
     super.initState();
 
-    _tabController = TabController(
-      length: 4,
-      vsync: this,
-    );
+    _tabController = TabController(length: 4, vsync: this);
 
     _tabController.addListener(_handleTabChanged);
 
@@ -154,20 +151,15 @@ class _TechnicalCertificateDetailPageState
     });
 
     try {
-      final certificateFuture =
-      _certificateDetailService.getCertificationById(
+      final certificateFuture = _certificateDetailService.getCertificationById(
         widget.certificationId,
       );
 
-      final schedulesFuture =
-      _technicalCertificateService.getTechnicalSchedules(
-        widget.certificationId,
-      );
+      final schedulesFuture = _technicalCertificateService
+          .getTechnicalSchedules(widget.certificationId);
 
-      final examDetailsFuture =
-      _technicalCertificateService.getTechnicalExamDetails(
-        widget.certificationId,
-      );
+      final examDetailsFuture = _technicalCertificateService
+          .getTechnicalExamDetails(widget.certificationId);
 
       final certificate = await certificateFuture;
 
@@ -184,10 +176,8 @@ class _TechnicalCertificateDetailPageState
         return;
       }
 
-      final storedPracticalMaterialsFuture =
-      _technicalCertificateService.getStoredPracticalMaterials(
-        jmCd: certificate.jmcd,
-      );
+      final storedPracticalMaterialsFuture = _technicalCertificateService
+          .getStoredPracticalMaterials(jmCd: certificate.jmcd);
 
       final schedules = await schedulesFuture;
       final examDetails = await examDetailsFuture;
@@ -204,15 +194,13 @@ class _TechnicalCertificateDetailPageState
         _hasStoredPracticalMaterials = storedPracticalMaterials != null;
         _storedPracticalMaterialsYear =
             storedPracticalMaterials?.implementationYear;
-        _practicalMaterials =
-            storedPracticalMaterials?.items ?? [];
+        _practicalMaterials = storedPracticalMaterials?.items ?? [];
 
         _practicalMaterialPrecautions =
             storedPracticalMaterials?.precautions ??
-                const PracticalMaterialPrecautions.empty();
+            PracticalMaterialPrecautions.empty();
 
-        _hasRequestedPracticalMaterials =
-            storedPracticalMaterials != null;
+        _hasRequestedPracticalMaterials = storedPracticalMaterials != null;
         _isLoading = false;
       });
     } on CertificateDetailException catch (error) {
@@ -236,7 +224,6 @@ class _TechnicalCertificateDetailPageState
     }
   }
 
-
   Future<void> _loadExamSubjects() async {
     final certificate = _certificate;
 
@@ -250,8 +237,7 @@ class _TechnicalCertificateDetailPageState
     });
 
     try {
-      final subjects =
-      await _technicalCertificateService.getExamSubjects(
+      final subjects = await _technicalCertificateService.getExamSubjects(
         jmCd: certificate.jmcd,
       );
 
@@ -289,7 +275,6 @@ class _TechnicalCertificateDetailPageState
     }
   }
 
-
   Future<void> _loadPracticalMaterials({
     required String implementationYear,
     required String implementationSequence,
@@ -306,12 +291,12 @@ class _TechnicalCertificateDetailPageState
     });
 
     try {
-      final materials =
-      await _technicalCertificateService.getPracticalExamMaterials(
-        jmCd: certificate.jmcd,
-        implementationYear: implementationYear,
-        implementationSequence: implementationSequence,
-      );
+      final materials = await _technicalCertificateService
+          .getPracticalExamMaterials(
+            jmCd: certificate.jmcd,
+            implementationYear: implementationYear,
+            implementationSequence: implementationSequence,
+          );
 
       if (!mounted) {
         return;
@@ -342,8 +327,7 @@ class _TechnicalCertificateDetailPageState
         _practicalMaterials = [];
         _hasRequestedPracticalMaterials = true;
         _isLoadingPracticalMaterials = false;
-        _practicalMaterialError =
-        '실기시험 지참 준비물을 불러오지 못했습니다.';
+        _practicalMaterialError = '실기시험 지참 준비물을 불러오지 못했습니다.';
       });
     }
   }
@@ -365,10 +349,8 @@ class _TechnicalCertificateDetailPageState
     });
 
     try {
-      final statistics =
-      await _technicalCertificateService.getWrittenStatistics(
-        jmCd: certificate.jmcd,
-      );
+      final statistics = await _technicalCertificateService
+          .getWrittenStatistics(jmCd: certificate.jmcd);
 
       if (!mounted) return;
       setState(() {
@@ -404,10 +386,8 @@ class _TechnicalCertificateDetailPageState
     });
 
     try {
-      final statistics =
-      await _technicalCertificateService.getPracticalStatistics(
-        jmCd: certificate.jmcd,
-      );
+      final statistics = await _technicalCertificateService
+          .getPracticalStatistics(jmCd: certificate.jmcd);
 
       if (!mounted) return;
       setState(() {
@@ -441,16 +421,27 @@ class _TechnicalCertificateDetailPageState
     final options = _buildGoalExamOptions();
 
     if (options.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            '목표로 등록할 수 있는 예정 시험이 없습니다.',
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('목표로 등록할 수 있는 예정 시험이 없습니다.')));
 
       return;
     }
+
+    Set<String> registeredGoalKeys;
+    try {
+      registeredGoalKeys =
+          await _certificateDetailService.getActiveGoalScheduleKeys(
+        certificateId: widget.certificationId,
+      );
+    } on CertificateGoalException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+      return;
+    }
+    if (!mounted) return;
 
     CertificateGoalOption? selectedOption;
 
@@ -465,8 +456,7 @@ class _TechnicalCertificateDetailPageState
               top: false,
               child: Container(
                 constraints: BoxConstraints(
-                  maxHeight:
-                  MediaQuery.of(context).size.height * 0.82,
+                  maxHeight: MediaQuery.of(context).size.height * 0.82,
                 ),
                 padding: EdgeInsets.fromLTRB(
                   24,
@@ -474,11 +464,9 @@ class _TechnicalCertificateDetailPageState
                   24,
                   24 + MediaQuery.of(context).viewInsets.bottom,
                 ),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(26),
-                  ),
+                decoration: BoxDecoration(
+                  color: context.colors.surfaceElevated,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -489,177 +477,190 @@ class _TechnicalCertificateDetailPageState
                         width: 42,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: certificateBorderColor,
+                          color: context.colors.border,
                           borderRadius: BorderRadius.circular(20),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 22),
-                    const Text(
+                    SizedBox(height: 22),
+                    Text(
                       '목표 시험 선택',
                       style: TextStyle(
-                        color: certificateDarkText,
+                        color: context.colors.textPrimary,
                         fontSize: 21,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.4,
                       ),
                     ),
-                    const SizedBox(height: 7),
-                    const Text(
+                    SizedBox(height: 7),
+                    Text(
                       '목표로 준비할 회차와 시험 유형을 선택해주세요.',
                       style: TextStyle(
-                        color: certificateGrayText,
+                        color: context.colors.textSecondary,
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                         height: 1.5,
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
                     Flexible(
                       child: ListView.separated(
                         shrinkWrap: true,
                         itemCount: options.length,
-                        separatorBuilder: (_, __) {
-                          return const SizedBox(height: 10);
+                        separatorBuilder: (_, _) {
+                          return SizedBox(height: 10);
                         },
                         itemBuilder: (context, index) {
                           final option = options[index];
-                          final isSelected =
-                              selectedOption == option;
+                          final isAlreadyRegistered = registeredGoalKeys.contains(
+                            CertificateDetailService.goalScheduleKey(
+                              scheduleId: option.scheduleId,
+                              examType: option.examType,
+                            ),
+                          );
+                          final isSelected = selectedOption == option;
 
                           return InkWell(
-                            onTap: () {
+                            onTap: isAlreadyRegistered ? null : () {
                               setBottomSheetState(() {
                                 selectedOption = option;
                               });
                             },
                             borderRadius: BorderRadius.circular(16),
-                            child: AnimatedContainer(
-                              duration:
-                              const Duration(milliseconds: 160),
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? certificatePinkSoft
-                                    : const Color(0xFFFAFAFC),
-                                borderRadius:
-                                BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? certificatePrimaryPink
-                                      : certificateBorderColor,
-                                  width: isSelected ? 1.4 : 1,
+                            child: Opacity(
+                              opacity: isAlreadyRegistered ? 0.48 : 1,
+                              child: AnimatedContainer(
+                                duration: Duration(milliseconds: 160),
+                                width: double.infinity,
+                                padding: EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: isAlreadyRegistered
+                                      ? context.colors.surfaceMuted
+                                      : isSelected
+                                          ? context.colors.pinkSoft
+                                          : context.colors.surfaceMuted,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: isAlreadyRegistered
+                                        ? context.colors.textDisabled
+                                        : isSelected
+                                            ? context.colors.pinkDeep
+                                            : context.colors.border,
+                                    width: isSelected ? 1.4 : 1,
+                                  ),
                                 ),
-                              ),
-                              child: Row(
-                                crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                                child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Container(
                                     width: 22,
                                     height: 22,
-                                    margin:
-                                    const EdgeInsets.only(top: 1),
+                                    margin: EdgeInsets.only(top: 1),
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       color: isSelected
-                                          ? certificatePrimaryPink
-                                          : Colors.white,
+                                          ? context.colors.pinkDeep
+                                          : context.colors.surface,
                                       border: Border.all(
                                         color: isSelected
-                                            ? certificatePrimaryPink
-                                            : certificateGrayText,
+                                            ? context.colors.pinkDeep
+                                            : context.colors.textSecondary,
                                       ),
                                     ),
                                     child: isSelected
-                                        ? const Icon(
-                                      Icons.check_rounded,
-                                      size: 15,
-                                      color: Colors.white,
-                                    )
+                                        ? Icon(
+                                            Icons.check_rounded,
+                                            size: 15,
+                                            color: context.colors.onPrimary,
+                                          )
                                         : null,
                                   ),
-                                  const SizedBox(width: 13),
+                                  SizedBox(width: 13),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          option.targetRound,
-                                          style: const TextStyle(
-                                            color: certificateDarkText,
+                                          isAlreadyRegistered
+                                              ? '${option.targetRound} (등록됨)'
+                                              : option.targetRound,
+                                          style: TextStyle(
+                                            color: isAlreadyRegistered
+                                                ? context.colors.textDisabled
+                                                : context.colors.textPrimary,
                                             fontSize: 15,
                                             fontWeight: FontWeight.w800,
                                             height: 1.35,
                                           ),
                                         ),
-                                        const SizedBox(height: 9),
+                                        SizedBox(height: 9),
 
                                         Wrap(
                                           spacing: 8,
                                           runSpacing: 8,
                                           crossAxisAlignment:
-                                          WrapCrossAlignment.center,
+                                              WrapCrossAlignment.center,
                                           children: [
                                             Container(
-                                              padding: const EdgeInsets.symmetric(
+                                              padding: EdgeInsets.symmetric(
                                                 horizontal: 9,
                                                 vertical: 5,
                                               ),
                                               decoration: BoxDecoration(
-                                                color: Colors.white,
+                                                color: context.colors.surface,
                                                 borderRadius:
-                                                BorderRadius.circular(20),
+                                                    BorderRadius.circular(20),
                                               ),
                                               child: Text(
                                                 option.examTypeName,
-                                                style: const TextStyle(
+                                                style: TextStyle(
                                                   color:
-                                                  certificatePrimaryPink,
+                                                      context.colors.pinkDeep,
                                                   fontSize: 12,
-                                                  fontWeight:
-                                                  FontWeight.w700,
+                                                  fontWeight: FontWeight.w700,
                                                 ),
                                               ),
                                             ),
 
                                             if (getCertificateRegistrationStatus(
-                                              registrationStartDate:
-                                              option.registrationStartDate,
-                                              registrationEndDate:
-                                              option.registrationEndDate,
-                                            )
-                                            case final registrationStatus?)
+                                                  registrationStartDate: option
+                                                      .registrationStartDate,
+                                                  registrationEndDate: option
+                                                      .registrationEndDate,
+                                                )
+                                                case final registrationStatus?)
                                               CertificateScheduleStatusBadge(
                                                 label: registrationStatus.label,
                                                 isActive:
-                                                registrationStatus.isActive,
+                                                    registrationStatus.isActive,
                                               ),
                                           ],
                                         ),
 
-                                        const SizedBox(height: 9),
+                                        SizedBox(height: 9),
 
                                         Row(
                                           crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                              CrossAxisAlignment.start,
                                           children: [
-                                            const Icon(
+                                            Icon(
                                               Icons.event_outlined,
                                               size: 16,
-                                              color: certificateGrayText,
+                                              color:
+                                                  context.colors.textSecondary,
                                             ),
-                                            const SizedBox(width: 6),
+                                            SizedBox(width: 6),
                                             Expanded(
                                               child: Text(
                                                 formatCertificateGoalDateRange(
                                                   option.examDate,
                                                   option.examEndDate,
                                                 ),
-                                                style: const TextStyle(
-                                                  color: certificateBodyText,
+                                                style: TextStyle(
+                                                  color: context
+                                                      .colors
+                                                      .textSecondary,
                                                   fontSize: 13,
                                                   fontWeight: FontWeight.w600,
                                                   height: 1.4,
@@ -672,13 +673,14 @@ class _TechnicalCertificateDetailPageState
                                     ),
                                   ),
                                 ],
+                                ),
                               ),
                             ),
                           );
                         },
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
                     Row(
                       children: [
                         Expanded(
@@ -691,7 +693,7 @@ class _TechnicalCertificateDetailPageState
                             },
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        SizedBox(width: 12),
                         Expanded(
                           child: AppButton(
                             text: '목표 등록',
@@ -702,11 +704,11 @@ class _TechnicalCertificateDetailPageState
                             onPressed: selectedOption == null
                                 ? null
                                 : () {
-                              Navigator.pop(
-                                bottomSheetContext,
-                                selectedOption,
-                              );
-                            },
+                                    Navigator.pop(
+                                      bottomSheetContext,
+                                      selectedOption,
+                                    );
+                                  },
                           ),
                         ),
                       ],
@@ -724,7 +726,12 @@ class _TechnicalCertificateDetailPageState
       return;
     }
 
-    await _registerGoal(result);
+    final optionWithExamDate = await selectCertificateGoalExamDate(
+      context: context,
+      option: result,
+    );
+    if (optionWithExamDate == null || !mounted) return;
+    await _registerGoal(optionWithExamDate);
   }
 
   List<CertificateGoalOption> _buildGoalExamOptions() {
@@ -732,24 +739,18 @@ class _TechnicalCertificateDetailPageState
     final today = _dateOnly(DateTime.now());
 
     for (final schedule in _schedules) {
-      final writtenExamStartDate =
-          schedule.writtenExamStartAt;
+      final writtenExamStartDate = schedule.writtenExamStartAt;
 
-      final writtenExamEndDate =
-          schedule.writtenExamEndAt;
+      final writtenExamEndDate = schedule.writtenExamEndAt;
 
       final writtenExamDisplayStartDate =
-          writtenExamStartDate ??
-              writtenExamEndDate;
+          writtenExamStartDate ?? writtenExamEndDate;
 
-      final writtenExamFilterDate =
-          writtenExamEndDate ??
-              writtenExamStartDate;
+      final writtenExamFilterDate = writtenExamEndDate ?? writtenExamStartDate;
 
       if (writtenExamDisplayStartDate != null &&
           writtenExamFilterDate != null &&
-          !_dateOnly(writtenExamFilterDate)
-              .isBefore(today)) {
+          !_dateOnly(writtenExamFilterDate).isBefore(today)) {
         options.add(
           CertificateGoalOption(
             scheduleId: schedule.id,
@@ -757,43 +758,32 @@ class _TechnicalCertificateDetailPageState
             examType: 'WRITTEN',
             examTypeName: '필기',
 
-            examDate:
-            writtenExamDisplayStartDate,
-            examEndDate:
-            writtenExamEndDate,
+            examDate: writtenExamDisplayStartDate,
+            examStartDate: writtenExamDisplayStartDate,
+            examEndDate: writtenExamEndDate,
 
-            registrationStartDate:
-            schedule
-                .writtenRegistrationStartAt,
-            registrationEndDate:
-            schedule
-                .writtenRegistrationEndAt,
+            registrationStartDate: schedule.writtenRegistrationStartAt,
+            registrationEndDate: schedule.writtenRegistrationEndAt,
 
-            passAnnouncementDate:
-            schedule.writtenPassAt,
+            passAnnouncementDate: schedule.writtenPassAt,
             passAnnouncementEndDate: null,
           ),
         );
       }
 
-      final practicalExamStartDate =
-          schedule.practicalExamStartAt;
+      final practicalExamStartDate = schedule.practicalExamStartAt;
 
-      final practicalExamEndDate =
-          schedule.practicalExamEndAt;
+      final practicalExamEndDate = schedule.practicalExamEndAt;
 
       final practicalExamDisplayStartDate =
-          practicalExamStartDate ??
-              practicalExamEndDate;
+          practicalExamStartDate ?? practicalExamEndDate;
 
       final practicalExamFilterDate =
-          practicalExamEndDate ??
-              practicalExamStartDate;
+          practicalExamEndDate ?? practicalExamStartDate;
 
       if (practicalExamDisplayStartDate != null &&
           practicalExamFilterDate != null &&
-          !_dateOnly(practicalExamFilterDate)
-              .isBefore(today)) {
+          !_dateOnly(practicalExamFilterDate).isBefore(today)) {
         options.add(
           CertificateGoalOption(
             scheduleId: schedule.id,
@@ -801,40 +791,26 @@ class _TechnicalCertificateDetailPageState
             examType: 'PRACTICAL',
             examTypeName: '실기',
 
-            examDate:
-            practicalExamDisplayStartDate,
-            examEndDate:
-            practicalExamEndDate,
+            examDate: practicalExamDisplayStartDate,
+            examStartDate: practicalExamDisplayStartDate,
+            examEndDate: practicalExamEndDate,
 
-            registrationStartDate:
-            schedule
-                .practicalRegistrationStartAt,
-            registrationEndDate:
-            schedule
-                .practicalRegistrationEndAt,
+            registrationStartDate: schedule.practicalRegistrationStartAt,
+            registrationEndDate: schedule.practicalRegistrationEndAt,
 
-            passAnnouncementDate:
-            schedule.practicalPassStartAt,
-            passAnnouncementEndDate:
-            schedule.practicalPassEndAt,
+            passAnnouncementDate: schedule.practicalPassStartAt,
+            passAnnouncementEndDate: schedule.practicalPassEndAt,
           ),
         );
       }
     }
 
-    options.sort(
-          (first, second) =>
-          first.examDate.compareTo(
-            second.examDate,
-          ),
-    );
+    options.sort((first, second) => first.examDate.compareTo(second.examDate));
 
     return options;
   }
 
-  Future<void> _registerGoal(
-      CertificateGoalOption option,
-      ) async {
+  Future<void> _registerGoal(CertificateGoalOption option) async {
     final certificate = _certificate;
 
     if (certificate == null || _isRegisteringGoal) {
@@ -851,13 +827,9 @@ class _TechnicalCertificateDetailPageState
     }
 
     if (selectedSchedule == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            '선택한 시험 일정 정보를 찾을 수 없습니다.',
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('선택한 시험 일정 정보를 찾을 수 없습니다.')));
       return;
     }
 
@@ -865,15 +837,11 @@ class _TechnicalCertificateDetailPageState
     final DateTime? registrationEndDate;
 
     if (option.examType == 'WRITTEN') {
-      registrationStartDate =
-          selectedSchedule.writtenRegistrationStartAt;
-      registrationEndDate =
-          selectedSchedule.writtenRegistrationEndAt;
+      registrationStartDate = selectedSchedule.writtenRegistrationStartAt;
+      registrationEndDate = selectedSchedule.writtenRegistrationEndAt;
     } else {
-      registrationStartDate =
-          selectedSchedule.practicalRegistrationStartAt;
-      registrationEndDate =
-          selectedSchedule.practicalRegistrationEndAt;
+      registrationStartDate = selectedSchedule.practicalRegistrationStartAt;
+      registrationEndDate = selectedSchedule.practicalRegistrationEndAt;
     }
 
     setState(() {
@@ -881,25 +849,22 @@ class _TechnicalCertificateDetailPageState
     });
 
     try {
-      final goalId =
-      await _certificateDetailService.addCertificateGoal(
+      final goalId = await _certificateDetailService.addCertificateGoal(
         certificateId: widget.certificationId,
         scheduleId: option.scheduleId,
         certificateName: certificate.name,
         qualificationType: 'TECHNICAL',
         targetExamDate: option.examDate,
+        targetExamStartDate: option.examStartDate,
+        targetExamEndDate: option.examEndDate ?? option.examStartDate,
         targetRound: option.targetRound,
         targetExamType: option.examType,
 
-        targetRegistrationStartDate:
-        registrationStartDate,
-        targetRegistrationEndDate:
-        registrationEndDate,
+        targetRegistrationStartDate: registrationStartDate,
+        targetRegistrationEndDate: registrationEndDate,
 
-        targetPassAnnouncementDate:
-        option.passAnnouncementDate,
-        targetPassAnnouncementEndDate:
-        option.passAnnouncementEndDate,
+        targetPassAnnouncementDate: option.passAnnouncementDate,
+        targetPassAnnouncementEndDate: option.passAnnouncementEndDate,
         includeExamTypeInDuplicateCheck: true,
       );
 
@@ -919,23 +884,17 @@ class _TechnicalCertificateDetailPageState
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error.message),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } catch (_) {
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            '목표 자격증을 등록하지 못했습니다.',
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('목표 자격증을 등록하지 못했습니다.')));
     } finally {
       if (mounted) {
         setState(() {
@@ -982,11 +941,9 @@ class _TechnicalCertificateDetailPageState
       }
 
       if (!added) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('캘린더 일정 추가가 취소되었습니다.'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('캘린더 일정 추가가 취소되었습니다.')));
         return;
       }
 
@@ -999,40 +956,32 @@ class _TechnicalCertificateDetailPageState
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('시험 일정을 휴대폰 캘린더에 추가했습니다.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('시험 일정을 휴대폰 캘린더에 추가했습니다.')));
     } on CertificateGoalException catch (error) {
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } catch (_) {
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('휴대폰 캘린더에 일정을 추가하지 못했습니다.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('휴대폰 캘린더에 일정을 추가하지 못했습니다.')));
     }
   }
 
   static DateTime _dateOnly(DateTime date) {
     final localDate = date.toLocal();
 
-    return DateTime(
-      localDate.year,
-      localDate.month,
-      localDate.day,
-    );
+    return DateTime(localDate.year, localDate.month, localDate.day);
   }
 
   Future<void> _openExamStandard() async {
@@ -1060,23 +1009,15 @@ class _TechnicalCertificateDetailPageState
       );
 
       if (!opened && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Q-Net 그외 사항 페이지를 열지 못했습니다.',
-            ),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Q-Net 그외 사항 페이지를 열지 못했습니다.')));
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Q-Net 그외 사항 페이지를 열지 못했습니다.',
-            ),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Q-Net 그외 사항 페이지를 열지 못했습니다.')));
       }
     }
   }
@@ -1106,97 +1047,74 @@ class _TechnicalCertificateDetailPageState
       );
 
       if (!opened && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Q-Net 시험 일정 페이지를 열지 못했습니다.',
-            ),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Q-Net 시험 일정 페이지를 열지 못했습니다.')));
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Q-Net 시험 일정 페이지를 열지 못했습니다.',
-            ),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Q-Net 시험 일정 페이지를 열지 못했습니다.')));
       }
     }
   }
 
   void _showScheduleNoticeLinkError() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Q-Net 공지사항 페이지를 열지 못했습니다.',
-        ),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Q-Net 공지사항 페이지를 열지 못했습니다.')));
   }
 
   void _showLinkError() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Q-Net 출제기준 페이지를 열지 못했습니다.',
-        ),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Q-Net 출제기준 페이지를 열지 못했습니다.')));
   }
 
   Widget _buildGoalSettingButton() {
     return InkWell(
-      onTap: _isRegisteringGoal
-          ? null
-          : _openGoalSettingSheet,
+      onTap: _isRegisteringGoal ? null : _openGoalSettingSheet,
       borderRadius: BorderRadius.circular(12),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(
-          horizontal: 15,
-          vertical: 10,
-        ),
+        duration: Duration(milliseconds: 180),
+        padding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
         decoration: BoxDecoration(
           color: _isRegisteringGoal
-              ? const Color(0xFFF3F4F7)
-              : Colors.white,
+              ? context.colors.surfaceMuted
+              : context.colors.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: _isRegisteringGoal
-                ? certificateBorderColor
-                : certificatePrimaryPink.withValues(alpha: 0.5),
+                ? context.colors.border
+                : context.colors.pinkDeep.withValues(alpha: 0.5),
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (_isRegisteringGoal)
-              const SizedBox(
+              SizedBox(
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: certificateGrayText,
+                  color: context.colors.textSecondary,
                 ),
               )
             else
-              const Icon(
+              Icon(
                 Icons.flag_outlined,
                 size: 18,
-                color: certificatePrimaryPink,
+                color: context.colors.pinkDeep,
               ),
-            const SizedBox(width: 7),
+            SizedBox(width: 7),
             Text(
-              _isRegisteringGoal
-                  ? '등록 중...'
-                  : '목표 자격증 설정',
+              _isRegisteringGoal ? '등록 중...' : '목표 자격증 설정',
               style: TextStyle(
                 color: _isRegisteringGoal
-                    ? certificateGrayText
-                    : certificatePrimaryPink,
+                    ? context.colors.textSecondary
+                    : context.colors.pinkDeep,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
@@ -1215,30 +1133,24 @@ class _TechnicalCertificateDetailPageState
       backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
       appBar: AppTopBar(
-        title: certificateName.isEmpty
-            ? '국가기술자격 상세'
-            : '$certificateName 상세',
+        title: certificateName.isEmpty ? '국가기술자격 상세' : '$certificateName 상세',
         centerTitle: true,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: certificateDarkText,
+            color: context.colors.textPrimary,
             size: 21,
           ),
         ),
       ),
-      body: AppMainBackground(
-        child: _buildBody(),
-      ),
+      body: AppMainBackground(child: _buildBody()),
     );
   }
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const AppLoadingView(
-        message: '기술자격 정보를 불러오는 중입니다.',
-      );
+      return AppLoadingView(message: '기술자격 정보를 불러오는 중입니다.');
     }
 
     if (_loadError != null) {
@@ -1258,7 +1170,7 @@ class _TechnicalCertificateDetailPageState
     }
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(24, 18, 24, 40),
+      padding: EdgeInsets.fromLTRB(24, 18, 24, 40),
       children: [
         CertificateDetailHeader(
           name: certificate.name,
@@ -1267,7 +1179,7 @@ class _TechnicalCertificateDetailPageState
           action: _buildGoalSettingButton(),
         ),
 
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
 
         CertificateInfoCard(
           items: [
@@ -1276,10 +1188,7 @@ class _TechnicalCertificateDetailPageState
               value: certificate.qualificationName,
             ),
             if (certificate.seriesnm.trim().isNotEmpty)
-              CertificateInfoItem(
-                label: '등급',
-                value: certificate.seriesnm,
-              ),
+              CertificateInfoItem(label: '등급', value: certificate.seriesnm),
             if (certificate.obligfldnm.trim().isNotEmpty ||
                 certificate.mdobligfldnm.trim().isNotEmpty)
               CertificateInfoItem(
@@ -1292,14 +1201,14 @@ class _TechnicalCertificateDetailPageState
           ],
         ),
 
-        const SizedBox(height: 28),
+        SizedBox(height: 28),
 
         _buildDetailTabBar(),
 
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
 
         AnimatedSwitcher(
-          duration: const Duration(milliseconds: 200),
+          duration: Duration(milliseconds: 200),
           child: KeyedSubtree(
             key: ValueKey<int>(_selectedTabIndex),
             child: _buildSelectedTabContent(),
@@ -1312,13 +1221,11 @@ class _TechnicalCertificateDetailPageState
   Widget _buildDetailTabBar() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(5),
+      padding: EdgeInsets.all(5),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.72),
+        color: context.colors.surfaceTransparent,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: certificateBorderColor,
-        ),
+        border: Border.all(color: context.colors.border),
       ),
       child: TabBar(
         controller: _tabController,
@@ -1327,36 +1234,21 @@ class _TechnicalCertificateDetailPageState
         indicatorSize: TabBarIndicatorSize.tab,
         labelPadding: EdgeInsets.zero,
         indicator: BoxDecoration(
-          color: certificatePinkSoft,
+          color: context.colors.pinkSoft,
           borderRadius: BorderRadius.circular(12),
         ),
-        labelColor: certificatePrimaryPink,
-        unselectedLabelColor: certificateGrayText,
-        labelStyle: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w800,
-        ),
-        unselectedLabelStyle: const TextStyle(
+        labelColor: context.colors.pinkDeep,
+        unselectedLabelColor: context.colors.textSecondary,
+        labelStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+        unselectedLabelStyle: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
         ),
-        tabs: const [
-          Tab(
-            height: 44,
-            text: '시험 일정',
-          ),
-          Tab(
-            height: 44,
-            text: '자격 정보',
-          ),
-          Tab(
-            height: 44,
-            text: '추가 정보',
-          ),
-          Tab(
-            height: 44,
-            text: '통계',
-          ),
+        tabs: [
+          Tab(height: 44, text: '시험 일정'),
+          Tab(height: 44, text: '자격 정보'),
+          Tab(height: 44, text: '추가 정보'),
+          Tab(height: 44, text: '통계'),
         ],
       ),
     );
@@ -1382,65 +1274,46 @@ class _TechnicalCertificateDetailPageState
   }
 
   Widget _buildScheduleTab() {
-    if (_schedules.isEmpty) {
-      return _TechnicalDetailEmptyTab(
-        icon: Icons.event_busy_outlined,
-        title: '등록된 시험 일정이 없습니다.',
-        description: '시험 일정이 등록되면 이곳에서 확인할 수 있습니다.',
-        actionLabel: 'Q-Net 시험 일정 확인하기',
-        onAction: _openNoSchedulePage,
-      );
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ...List.generate(
-          _schedules.length,
-              (index) {
-            final schedule = _schedules[index];
+        CertificateScheduleNoticeCard(onOpenNotice: _openScheduleNotice),
+        SizedBox(height: 16),
+        if (_schedules.isEmpty)
+          _TechnicalDetailEmptyTab(
+            icon: Icons.event_busy_outlined,
+            title: '등록된 시험 일정이 없습니다.',
+            description: '시험 일정이 등록되면 이곳에서 확인할 수 있습니다.',
+            actionLabel: 'Q-Net 시험 일정 확인하기',
+            onAction: _openNoSchedulePage,
+          )
+        else
+          ...List.generate(_schedules.length, (index) {
+          final schedule = _schedules[index];
 
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom:
-                index == _schedules.length - 1 ? 0 : 14,
-              ),
-              child: TechnicalScheduleCard(
-                title: schedule.title,
-                writtenRegistrationStartAt:
-                schedule.writtenRegistrationStartAt,
-                writtenRegistrationEndAt:
-                schedule.writtenRegistrationEndAt,
-                writtenExamStartAt:
-                schedule.writtenExamStartAt,
-                writtenExamEndAt:
-                schedule.writtenExamEndAt,
-                writtenPassAt:
-                schedule.writtenPassAt,
-                documentSubmitStartAt:
-                schedule.documentSubmitStartAt,
-                documentSubmitEndAt:
-                schedule.documentSubmitEndAt,
-                practicalRegistrationStartAt:
-                schedule.practicalRegistrationStartAt,
-                practicalRegistrationEndAt:
-                schedule.practicalRegistrationEndAt,
-                practicalExamStartAt:
-                schedule.practicalExamStartAt,
-                practicalExamEndAt:
-                schedule.practicalExamEndAt,
-                practicalPassStartAt:
-                schedule.practicalPassStartAt,
-                practicalPassEndAt:
-                schedule.practicalPassEndAt,
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 16),
-        CertificateScheduleNoticeCard(
-          onOpenNotice: _openScheduleNotice,
-        ),
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: index == _schedules.length - 1 ? 0 : 14,
+            ),
+            child: TechnicalScheduleCard(
+              title: schedule.title,
+              writtenRegistrationStartAt: schedule.writtenRegistrationStartAt,
+              writtenRegistrationEndAt: schedule.writtenRegistrationEndAt,
+              writtenExamStartAt: schedule.writtenExamStartAt,
+              writtenExamEndAt: schedule.writtenExamEndAt,
+              writtenPassAt: schedule.writtenPassAt,
+              documentSubmitStartAt: schedule.documentSubmitStartAt,
+              documentSubmitEndAt: schedule.documentSubmitEndAt,
+              practicalRegistrationStartAt:
+                  schedule.practicalRegistrationStartAt,
+              practicalRegistrationEndAt: schedule.practicalRegistrationEndAt,
+              practicalExamStartAt: schedule.practicalExamStartAt,
+              practicalExamEndAt: schedule.practicalExamEndAt,
+              practicalPassStartAt: schedule.practicalPassStartAt,
+              practicalPassEndAt: schedule.practicalPassEndAt,
+            ),
+          );
+          }),
       ],
     );
   }
@@ -1450,9 +1323,7 @@ class _TechnicalCertificateDetailPageState
     final examFee = examDetails?.examFee;
 
     return TechnicalExamInformationCard(
-      writtenFee: examFee?.hasWrittenFee == true
-          ? examFee!.writtenFee
-          : null,
+      writtenFee: examFee?.hasWrittenFee == true ? examFee!.writtenFee : null,
       practicalFee: examFee?.hasPracticalFee == true
           ? examFee!.practicalFee
           : null,
@@ -1473,7 +1344,7 @@ class _TechnicalCertificateDetailPageState
           subjects: _examSubjects,
           onLookup: _loadExamSubjects,
         ),
-        const SizedBox(height: 14),
+        SizedBox(height: 14),
         TechnicalPracticalMaterialLookupCard(
           isLoading: _isLoadingPracticalMaterials,
           hasRequested: _hasRequestedPracticalMaterials,
@@ -1522,64 +1393,54 @@ class _TechnicalDetailEmptyTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasAction =
         actionLabel != null &&
-            actionLabel!.trim().isNotEmpty &&
-            onAction != null;
+        actionLabel!.trim().isNotEmpty &&
+        onAction != null;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 24,
-        vertical: 42,
-      ),
-      decoration: certificateCardDecoration(),
+      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 42),
+      decoration: certificateCardDecoration(context: context),
       child: Column(
         children: [
           Container(
             width: 58,
             height: 58,
             decoration: BoxDecoration(
-              color: certificatePinkSoft,
+              color: context.colors.pinkSoft,
               borderRadius: BorderRadius.circular(18),
             ),
-            child: Icon(
-              icon,
-              color: certificatePrimaryPink,
-              size: 29,
-            ),
+            child: Icon(icon, color: context.colors.pinkDeep, size: 29),
           ),
-          const SizedBox(height: 18),
+          SizedBox(height: 18),
           Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: certificateDarkText,
+            style: TextStyle(
+              color: context.colors.textPrimary,
               fontSize: 17,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 9),
+          SizedBox(height: 9),
           Text(
             description,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: certificateGrayText,
+            style: TextStyle(
+              color: context.colors.textSecondary,
               fontSize: 13,
               fontWeight: FontWeight.w500,
               height: 1.55,
             ),
           ),
           if (hasAction) ...[
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             InkWell(
               onTap: onAction,
               borderRadius: BorderRadius.circular(10),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 13,
-                  vertical: 9,
-                ),
+                padding: EdgeInsets.symmetric(horizontal: 13, vertical: 9),
                 decoration: BoxDecoration(
-                  color: certificatePinkSoft,
+                  color: context.colors.pinkSoft,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
@@ -1587,16 +1448,16 @@ class _TechnicalDetailEmptyTab extends StatelessWidget {
                   children: [
                     Text(
                       actionLabel!,
-                      style: const TextStyle(
-                        color: certificatePrimaryPink,
+                      style: TextStyle(
+                        color: context.colors.pinkDeep,
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(width: 7),
-                    const Icon(
+                    SizedBox(width: 7),
+                    Icon(
                       Icons.open_in_new_rounded,
-                      color: certificatePrimaryPink,
+                      color: context.colors.pinkDeep,
                       size: 17,
                     ),
                   ],

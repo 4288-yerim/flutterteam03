@@ -16,7 +16,7 @@ class HomeService {
     StreamSubscription<T>? sourceSubscription;
     StreamSubscription<User?>? authSubscription;
 
-    controller = StreamController<T>(
+    controller = StreamController<T>.broadcast(
       onListen: () {
         sourceSubscription = source.listen(
           controller.add,

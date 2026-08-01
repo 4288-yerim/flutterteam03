@@ -2,6 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../widgets/app_dialog.dart';
+
+import '../../theme.dart';
+
 import '../../ai/certificate_roadmap.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
@@ -50,17 +54,17 @@ class _MyCertificateRoadmapScreenState
 
     try {
       final QuerySnapshot<Map<String, dynamic>> snapshot =
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('roadmaps')
-          .orderBy('createdAt', descending: true)
-          .get();
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .collection('roadmaps')
+              .orderBy('createdAt', descending: true)
+              .get();
 
       final List<CertificateRoadmapItem> loadedRoadmaps = [];
 
       for (final QueryDocumentSnapshot<Map<String, dynamic>> document
-      in snapshot.docs) {
+          in snapshot.docs) {
         final Map<String, dynamic> data = document.data();
 
         final List<dynamic> certificateData =
@@ -73,34 +77,29 @@ class _MyCertificateRoadmapScreenState
             continue;
           }
 
-          final Map<String, dynamic> certificate =
-          Map<String, dynamic>.from(item);
+          final Map<String, dynamic> certificate = Map<String, dynamic>.from(
+            item,
+          );
 
           certificates.add(
             RoadmapCertificateStep(
               order: _readInt(certificate['order']),
-              certificateName:
-              certificate['name']?.toString() ?? '자격증명 없음',
-              description:
-              certificate['description']?.toString() ?? '',
-              examDate:
-              certificate['examDate']?.toString() ?? '-',
+              certificateName: certificate['name']?.toString() ?? '자격증명 없음',
+              description: certificate['description']?.toString() ?? '',
+              examDate: certificate['examDate']?.toString() ?? '-',
               registrationPeriod:
-              certificate['registrationPeriod']?.toString() ?? '-',
-              isEstimated:
-              certificate['isEstimated'] == true,
+                  certificate['registrationPeriod']?.toString() ?? '-',
+              isEstimated: certificate['isEstimated'] == true,
             ),
           );
         }
 
-        certificates.sort(
-              (
-              RoadmapCertificateStep first,
-              RoadmapCertificateStep second,
-              ) {
-            return first.order.compareTo(second.order);
-          },
-        );
+        certificates.sort((
+          RoadmapCertificateStep first,
+          RoadmapCertificateStep second,
+        ) {
+          return first.order.compareTo(second.order);
+        });
 
         DateTime? createdAt;
         final dynamic createdAtValue = data['createdAt'];
@@ -157,9 +156,7 @@ class _MyCertificateRoadmapScreenState
   Future<void> _openAiRoadmapScreen() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const CertificateRoadmapPage(),
-      ),
+      MaterialPageRoute(builder: (_) => CertificateRoadmapPage()),
     );
 
     if (!mounted) {
@@ -174,9 +171,7 @@ class _MyCertificateRoadmapScreenState
     await _loadRoadmaps();
   }
 
-  Future<void> _showDeleteDialog(
-      CertificateRoadmapItem roadmap,
-      ) async {
+  Future<void> _showDeleteDialog(CertificateRoadmapItem roadmap) async {
     if (_isDeleting) {
       return;
     }
@@ -184,28 +179,26 @@ class _MyCertificateRoadmapScreenState
     final bool? shouldDelete = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('로드맵 삭제'),
+        return AppAlertDialog(
+          title: Text('로드맵 삭제'),
           content: Text(
             '${roadmap.jobName} 자격증 로드맵을 삭제하시겠습니까?\n'
-                '삭제한 로드맵은 복구할 수 없습니다.',
+            '삭제한 로드맵은 복구할 수 없습니다.',
           ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(dialogContext, false);
               },
-              child: const Text('취소'),
+              child: Text('취소'),
             ),
             TextButton(
               onPressed: () {
                 Navigator.pop(dialogContext, true);
               },
-              child: const Text(
+              child: Text(
                 '삭제',
-                style: TextStyle(
-                  color: Colors.red,
-                ),
+                style: TextStyle(color: context.colors.incorrect),
               ),
             ),
           ],
@@ -220,9 +213,7 @@ class _MyCertificateRoadmapScreenState
     await _deleteRoadmap(roadmap);
   }
 
-  Future<void> _deleteRoadmap(
-      CertificateRoadmapItem roadmap,
-      ) async {
+  Future<void> _deleteRoadmap(CertificateRoadmapItem roadmap) async {
     final User? user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
@@ -247,11 +238,9 @@ class _MyCertificateRoadmapScreenState
       }
 
       setState(() {
-        _roadmaps.removeWhere(
-              (CertificateRoadmapItem item) {
-            return item.roadmapId == roadmap.roadmapId;
-          },
-        );
+        _roadmaps.removeWhere((CertificateRoadmapItem item) {
+          return item.roadmapId == roadmap.roadmapId;
+        });
       });
 
       _showMessage('로드맵을 삭제했습니다.');
@@ -273,11 +262,9 @@ class _MyCertificateRoadmapScreenState
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -290,10 +277,10 @@ class _MyCertificateRoadmapScreenState
           onPressed: () {
             Navigator.pop(context);
           },
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new,
             size: 20,
-            color: Color(0xFF1A1A1A),
+            color: context.colors.textPrimary,
           ),
         ),
       ),
@@ -301,13 +288,8 @@ class _MyCertificateRoadmapScreenState
         child: RefreshIndicator(
           onRefresh: _loadRoadmaps,
           child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(
-              20,
-              16,
-              20,
-              110,
-            ),
+            physics: AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(20, 16, 20, 110),
             child: _buildBody(),
           ),
         ),
@@ -317,9 +299,7 @@ class _MyCertificateRoadmapScreenState
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const AppLoadingView(
-        message: '저장한 로드맵을 불러오는 중입니다.',
-      );
+      return AppLoadingView(message: '저장한 로드맵을 불러오는 중입니다.');
     }
 
     if (_errorMessage != null) {
@@ -350,39 +330,38 @@ class _MyCertificateRoadmapScreenState
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildGuideCard(),
-        const SizedBox(height: 22),
+        SizedBox(height: 22),
         Row(
           children: [
-            const Text(
+            Text(
               '저장한 로드맵',
               style: TextStyle(
                 fontSize: 19,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A1A),
+                color: context.colors.textPrimary,
               ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Text(
               '${_roadmaps.length}개',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFFF0788F),
+                color: context.colors.pinkStart,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 14),
+        SizedBox(height: 14),
         ListView.separated(
           itemCount: _roadmaps.length,
           shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
+          physics: NeverScrollableScrollPhysics(),
           separatorBuilder: (_, _) {
-            return const SizedBox(height: 16);
+            return SizedBox(height: 16);
           },
           itemBuilder: (context, index) {
-            final CertificateRoadmapItem roadmap =
-            _roadmaps[index];
+            final CertificateRoadmapItem roadmap = _roadmaps[index];
 
             return _RoadmapSummaryCard(
               roadmap: roadmap,
@@ -392,9 +371,7 @@ class _MyCertificateRoadmapScreenState
                   context,
                   MaterialPageRoute(
                     builder: (_) {
-                      return CertificateRoadmapDetailScreen(
-                        roadmap: roadmap,
-                      );
+                      return CertificateRoadmapDetailScreen(roadmap: roadmap);
                     },
                   ),
                 );
@@ -411,8 +388,8 @@ class _MyCertificateRoadmapScreenState
 
   Widget _buildGuideCard() {
     return AppCard(
-      backgroundColor: Colors.white,
-      padding: const EdgeInsets.all(18),
+      backgroundColor: context.colors.surface,
+      padding: EdgeInsets.all(18),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -420,28 +397,28 @@ class _MyCertificateRoadmapScreenState
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 colors: [
-                  Color(0xFFF19AAF),
-                  Color(0xFF9B74F4),
+                  context.colors.pinkStart,
+                  context.colors.lavenderAccent,
                 ],
               ),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.auto_awesome_outlined,
               size: 22,
-              color: Colors.white,
+              color: context.colors.onPrimary,
             ),
           ),
-          const SizedBox(width: 13),
-          const Expanded(
+          SizedBox(width: 13),
+          Expanded(
             child: Text(
               '직무와 보유 자격증을 기준으로 AI가 추천한 자격증 취득 순서를 확인할 수 있습니다.',
               style: TextStyle(
                 fontSize: 13,
                 height: 1.55,
-                color: Color(0xFF666A73),
+                color: context.colors.textSecondary,
               ),
             ),
           ),
@@ -472,7 +449,7 @@ class _RoadmapSummaryCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(22),
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding: EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -483,34 +460,33 @@ class _RoadmapSummaryCard extends StatelessWidget {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFCEFF3),
+                      color: context.colors.pinkSoft,
                       borderRadius: BorderRadius.circular(15),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.route_outlined,
-                      color: Color(0xFFF0788F),
+                      color: context.colors.pinkStart,
                     ),
                   ),
-                  const SizedBox(width: 14),
+                  SizedBox(width: 14),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           '${roadmap.jobName} 자격증 로드맵',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF1A1A1A),
+                            color: context.colors.textPrimary,
                           ),
                         ),
-                        const SizedBox(height: 5),
+                        SizedBox(height: 5),
                         Text(
                           _buildSummaryText(),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
-                            color: Color(0xFF9AA0AC),
+                            color: context.colors.textSecondary,
                           ),
                         ),
                       ],
@@ -519,55 +495,51 @@ class _RoadmapSummaryCard extends StatelessWidget {
                   IconButton(
                     onPressed: isDeleting ? null : onDelete,
                     tooltip: '로드맵 삭제',
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.delete_outline,
                       size: 22,
-                      color: Color(0xFFE36D83),
+                      color: context.colors.pinkDeep,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
-              const Text(
+              SizedBox(height: 18),
+              Text(
                 'AI 추천 취득 순서',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF7A7F89),
+                  color: context.colors.textSecondary,
                 ),
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
               if (roadmap.certificates.isEmpty)
-                const Text(
+                Text(
                   '추천된 자격증이 없습니다.',
                   style: TextStyle(
                     fontSize: 13,
-                    color: Color(0xFF9AA0AC),
+                    color: context.colors.textSecondary,
                   ),
                 )
               else
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: roadmap.certificates
-                      .take(3)
-                      .map(
-                        (RoadmapCertificateStep step) {
-                      return _RoadmapChip(
-                        text:
-                        '${step.order}. ${step.certificateName}',
-                      );
-                    },
-                  )
-                      .toList(),
+                  children: roadmap.certificates.take(3).map((
+                    RoadmapCertificateStep step,
+                  ) {
+                    return _RoadmapChip(
+                      text: '${step.order}. ${step.certificateName}',
+                    );
+                  }).toList(),
                 ),
               if (roadmap.certificates.length > 3) ...[
-                const SizedBox(height: 10),
+                SizedBox(height: 10),
                 Text(
                   '외 ${roadmap.certificates.length - 3}개',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF9AA0AC),
+                    color: context.colors.textSecondary,
                   ),
                 ),
               ],
@@ -579,8 +551,7 @@ class _RoadmapSummaryCard extends StatelessWidget {
   }
 
   String _buildSummaryText() {
-    final String stepText =
-        '${roadmap.certificates.length}단계';
+    final String stepText = '${roadmap.certificates.length}단계';
 
     if (roadmap.createdAt == null) {
       return stepText;
@@ -599,10 +570,7 @@ class _RoadmapSummaryCard extends StatelessWidget {
 class CertificateRoadmapDetailScreen extends StatelessWidget {
   final CertificateRoadmapItem roadmap;
 
-  const CertificateRoadmapDetailScreen({
-    super.key,
-    required this.roadmap,
-  });
+  const CertificateRoadmapDetailScreen({super.key, required this.roadmap});
 
   @override
   Widget build(BuildContext context) {
@@ -614,44 +582,39 @@ class CertificateRoadmapDetailScreen extends StatelessWidget {
           onPressed: () {
             Navigator.pop(context);
           },
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new,
             size: 20,
-            color: Color(0xFF1A1A1A),
+            color: context.colors.textPrimary,
           ),
         ),
       ),
       body: AppMainBackground(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            20,
-            18,
-            20,
-            110,
-          ),
+          padding: EdgeInsets.fromLTRB(20, 18, 20, 110),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
+              Text(
                 '추천 자격증 로드맵',
                 style: TextStyle(
                   fontSize: 25,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF1A1A1A),
+                  color: context.colors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Text(
                 '${roadmap.jobName} 직무에 맞는 자격증을 취득 순서대로 정리했어요.',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   height: 1.55,
-                  color: Color(0xFF9AA0AC),
+                  color: context.colors.textSecondary,
                 ),
               ),
-              const SizedBox(height: 22),
+              SizedBox(height: 22),
               if (roadmap.certificates.isEmpty)
-                const AppEmptyView(
+                AppEmptyView(
                   message: '추천된 자격증이 없습니다.',
                   description: 'AI 자격증 로드맵을 다시 생성해 주세요.',
                 )
@@ -659,18 +622,15 @@ class CertificateRoadmapDetailScreen extends StatelessWidget {
                 ListView.separated(
                   itemCount: roadmap.certificates.length,
                   shrinkWrap: true,
-                  physics:
-                  const NeverScrollableScrollPhysics(),
+                  physics: NeverScrollableScrollPhysics(),
                   separatorBuilder: (_, _) {
-                    return const SizedBox(height: 12);
+                    return SizedBox(height: 12);
                   },
                   itemBuilder: (context, index) {
                     final RoadmapCertificateStep step =
-                    roadmap.certificates[index];
+                        roadmap.certificates[index];
 
-                    return _RoadmapStepCard(
-                      step: step,
-                    );
+                    return _RoadmapStepCard(step: step);
                   },
                 ),
             ],
@@ -684,14 +644,12 @@ class CertificateRoadmapDetailScreen extends StatelessWidget {
 class _RoadmapStepCard extends StatelessWidget {
   final RoadmapCertificateStep step;
 
-  const _RoadmapStepCard({
-    required this.step,
-  });
+  const _RoadmapStepCard({required this.step});
 
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(18),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -699,20 +657,20 @@ class _RoadmapStepCard extends StatelessWidget {
             width: 46,
             height: 46,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              color: Color(0xFFF3EEFF),
+            decoration: BoxDecoration(
+              color: context.colors.lavender,
               shape: BoxShape.circle,
             ),
             child: Text(
               '${step.order}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF8B62E7),
+                color: context.colors.lavenderAccent,
               ),
             ),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -723,35 +681,34 @@ class _RoadmapStepCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         step.certificateName,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF1A1A1A),
+                          color: context.colors.textPrimary,
                         ),
                       ),
                     ),
-                    if (step.isEstimated)
-                      const _EstimatedBadge(),
+                    if (step.isEstimated) _EstimatedBadge(),
                   ],
                 ),
                 if (step.description.isNotEmpty) ...[
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   Text(
                     step.description,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       height: 1.55,
-                      color: Color(0xFF8C93A2),
+                      color: context.colors.textMuted,
                     ),
                   ),
                 ],
-                const SizedBox(height: 14),
+                SizedBox(height: 14),
                 _RoadmapInformationRow(
                   icon: Icons.event_outlined,
                   title: '시험일',
                   value: step.examDate,
                 ),
-                const SizedBox(height: 9),
+                SizedBox(height: 9),
                 _RoadmapInformationRow(
                   icon: Icons.edit_calendar_outlined,
                   title: '접수 기간',
@@ -782,31 +739,27 @@ class _RoadmapInformationRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          icon,
-          size: 17,
-          color: const Color(0xFF9B74F4),
-        ),
-        const SizedBox(width: 8),
+        Icon(icon, size: 17, color: context.colors.lavenderAccent),
+        SizedBox(width: 8),
         SizedBox(
           width: 58,
           child: Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF7A7F89),
+              color: context.colors.textSecondary,
             ),
           ),
         ),
-        const SizedBox(width: 6),
+        SizedBox(width: 6),
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               height: 1.4,
-              color: Color(0xFF8C93A2),
+              color: context.colors.textMuted,
             ),
           ),
         ),
@@ -816,26 +769,23 @@ class _RoadmapInformationRow extends StatelessWidget {
 }
 
 class _EstimatedBadge extends StatelessWidget {
-  const _EstimatedBadge();
+  _EstimatedBadge();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(left: 8),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 5,
-      ),
+      margin: EdgeInsets.only(left: 8),
+      padding: EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF2DC),
+        color: context.colors.warningSoft,
         borderRadius: BorderRadius.circular(999),
       ),
-      child: const Text(
+      child: Text(
         '예상 일정',
         style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w700,
-          color: Color(0xFFD78A27),
+          color: context.colors.warning,
         ),
       ),
     );
@@ -845,27 +795,22 @@ class _EstimatedBadge extends StatelessWidget {
 class _RoadmapChip extends StatelessWidget {
   final String text;
 
-  const _RoadmapChip({
-    required this.text,
-  });
+  const _RoadmapChip({required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 11,
-        vertical: 8,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 11, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF2EEFF),
+        color: context.colors.lavender,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF7D62C9),
+          color: context.colors.lavenderAccent,
         ),
       ),
     );
@@ -878,7 +823,7 @@ class CertificateRoadmapItem {
   final DateTime? createdAt;
   final List<RoadmapCertificateStep> certificates;
 
-  const CertificateRoadmapItem({
+  CertificateRoadmapItem({
     required this.roadmapId,
     required this.jobName,
     required this.createdAt,
@@ -894,7 +839,7 @@ class RoadmapCertificateStep {
   final String registrationPeriod;
   final bool isEstimated;
 
-  const RoadmapCertificateStep({
+  RoadmapCertificateStep({
     required this.order,
     required this.certificateName,
     required this.description,

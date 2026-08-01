@@ -4,6 +4,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
+
+import '../../widgets/app_dialog.dart';
+
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
@@ -12,16 +16,13 @@ class StudyTimerScreen extends StatefulWidget {
   const StudyTimerScreen({super.key});
 
   @override
-  State<StudyTimerScreen> createState() =>
-      _StudyTimerScreenState();
+  State<StudyTimerScreen> createState() => _StudyTimerScreenState();
 }
 
 class _StudyTimerScreenState extends State<StudyTimerScreen>
     with WidgetsBindingObserver {
-  final TextEditingController _subjectController =
-  TextEditingController();
-  final TextEditingController _memoController =
-  TextEditingController();
+  final TextEditingController _subjectController = TextEditingController();
+  final TextEditingController _memoController = TextEditingController();
 
   static const String _freeStudyValue = '__FREE_STUDY__';
 
@@ -71,29 +72,28 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
 
     try {
       final QuerySnapshot<Map<String, dynamic>> snapshot =
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('goals')
-          .get();
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .collection('goals')
+              .get();
 
       final List<_GoalOption> goals = [];
 
       for (final QueryDocumentSnapshot<Map<String, dynamic>> document
-      in snapshot.docs) {
+          in snapshot.docs) {
         final Map<String, dynamic> data = document.data();
 
-        final String goalStatus =
-        (data['goalStatus'] as String? ?? '').trim();
+        final String goalStatus = (data['goalStatus'] as String? ?? '').trim();
 
         if (goalStatus == 'DELETED') {
           continue;
         }
 
-        final String certificateId =
-        (data['certificateId'] as String? ?? '').trim();
+        final String certificateId = (data['certificateId'] as String? ?? '')
+            .trim();
         final String certificateName =
-        (data['certificateName'] as String? ?? '').trim();
+            (data['certificateName'] as String? ?? '').trim();
 
         if (certificateId.isEmpty || certificateName.isEmpty) {
           continue;
@@ -134,15 +134,12 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
         if (mainGoalId != null) {
           _selectedGoalValue = mainGoalId;
         } else if (_selectedGoalValue != _freeStudyValue &&
-            !goals.any(
-                  (goal) => goal.goalId == _selectedGoalValue,
-            )) {
+            !goals.any((goal) => goal.goalId == _selectedGoalValue)) {
           _selectedGoalValue = _freeStudyValue;
         }
         _isLoadingGoals = false;
         _goalLoadError = null;
       });
-
     } on FirebaseException {
       if (!mounted) {
         return;
@@ -178,8 +175,7 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
       return _savedElapsed;
     }
 
-    return _savedElapsed +
-        DateTime.now().difference(_runningStartedAt!);
+    return _savedElapsed + DateTime.now().difference(_runningStartedAt!);
   }
 
   String get _formattedTime {
@@ -206,14 +202,11 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
     });
 
     _displayTimer?.cancel();
-    _displayTimer = Timer.periodic(
-      const Duration(seconds: 1),
-          (_) {
-        if (mounted) {
-          setState(() {});
-        }
-      },
-    );
+    _displayTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
 
   void _pauseTimer() {
@@ -222,8 +215,7 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
     }
 
     setState(() {
-      _savedElapsed +=
-          DateTime.now().difference(_runningStartedAt!);
+      _savedElapsed += DateTime.now().difference(_runningStartedAt!);
       _runningStartedAt = null;
       _isRunning = false;
     });
@@ -254,38 +246,33 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
     final bool? shouldSave = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
+        return AppAlertDialog(
           title: const Text(
             '공부 종료',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-            ),
+            style: TextStyle(fontWeight: FontWeight.w700),
           ),
           content: Text(
             '${_formatDurationForMessage(_savedElapsed)} 동안 공부했습니다.\n'
-                '학습 기록에 저장할까요?',
+            '학습 기록에 저장할까요?',
           ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(dialogContext, false);
               },
-              child: const Text(
+              child: Text(
                 '계속 공부',
-                style: TextStyle(
-                  color: Color(0xFF777B84),
-                ),
+                style: TextStyle(color: context.colors.textSecondary),
               ),
             ),
             TextButton(
               onPressed: () {
                 Navigator.pop(dialogContext, true);
               },
-              child: const Text(
+              child: Text(
                 '저장',
                 style: TextStyle(
-                  color: Color(0xFFF0788F),
+                  color: context.colors.pinkStart,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -316,89 +303,70 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
 
     try {
       final DateTime endedAt = DateTime.now();
-      final DateTime startedAt =
-          _startedAt ?? endedAt.subtract(_savedElapsed);
+      final DateTime startedAt = _startedAt ?? endedAt.subtract(_savedElapsed);
       final String dateId = _formatDateId(endedAt);
 
-      final _GoalOption? selectedGoal =
-      _selectedGoalValue == _freeStudyValue
+      final _GoalOption? selectedGoal = _selectedGoalValue == _freeStudyValue
           ? null
           : _goalOptions.cast<_GoalOption?>().firstWhere(
-            (goal) =>
-        goal?.goalId == _selectedGoalValue,
-        orElse: () => null,
-      );
+              (goal) => goal?.goalId == _selectedGoalValue,
+              orElse: () => null,
+            );
 
-      final _StudyTypeOption selectedStudyType =
-      _studyTypes.firstWhere(
-            (type) => type.code == _selectedStudyType,
+      final _StudyTypeOption selectedStudyType = _studyTypes.firstWhere(
+        (type) => type.code == _selectedStudyType,
       );
 
       final DocumentReference<Map<String, dynamic>> dailyDocument =
-      FirebaseFirestore.instance
-          .collection('userStudyLogs')
-          .doc(user.uid)
-          .collection('logs')
-          .doc(dateId);
+          FirebaseFirestore.instance
+              .collection('userStudyLogs')
+              .doc(user.uid)
+              .collection('logs')
+              .doc(dateId);
 
       final DocumentReference<Map<String, dynamic>> sessionDocument =
-      dailyDocument.collection('sessions').doc();
+          dailyDocument.collection('sessions').doc();
 
-      await FirebaseFirestore.instance.runTransaction(
-            (transaction) async {
-          final DocumentSnapshot<Map<String, dynamic>> dailySnapshot =
-          await transaction.get(dailyDocument);
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final DocumentSnapshot<Map<String, dynamic>> dailySnapshot =
+            await transaction.get(dailyDocument);
 
-          final int previousTotalSeconds =
-              (dailySnapshot.data()?['totalSeconds'] as num?)
-                  ?.toInt() ??
-                  0;
+        final int previousTotalSeconds =
+            (dailySnapshot.data()?['totalSeconds'] as num?)?.toInt() ?? 0;
 
-          final int newTotalSeconds =
-              previousTotalSeconds + elapsedSeconds;
+        final int newTotalSeconds = previousTotalSeconds + elapsedSeconds;
 
-          transaction.set(
-            dailyDocument,
-            {
-              'date': dateId,
-              'totalSeconds': newTotalSeconds,
-              'totalMinutes': newTotalSeconds ~/ 60,
-              'updatedAt': FieldValue.serverTimestamp(),
-            },
-            SetOptions(merge: true),
-          );
+        transaction.set(dailyDocument, {
+          'date': dateId,
+          'totalSeconds': newTotalSeconds,
+          'totalMinutes': newTotalSeconds ~/ 60,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
 
-          transaction.set(
-            sessionDocument,
-            {
-              'certificateId': selectedGoal?.certificateId,
-              'certificateName':
-              selectedGoal?.certificateName ?? '자유 학습',
-              'studyType': selectedStudyType.code,
-              'studyTypeName': selectedStudyType.name,
-              'subject': _subjectController.text.trim().isEmpty
-                  ? selectedStudyType.name
-                  : _subjectController.text.trim(),
-              'memo': _memoController.text.trim(),
-              'startedAt': Timestamp.fromDate(startedAt),
-              'endedAt': Timestamp.fromDate(endedAt),
-              'durationSeconds': elapsedSeconds,
-              'durationMinutes': elapsedSeconds ~/ 60,
-              'createdAt': FieldValue.serverTimestamp(),
-            },
-          );
-        },
-      );
+        transaction.set(sessionDocument, {
+          'certificateId': selectedGoal?.certificateId,
+          'certificateName': selectedGoal?.certificateName ?? '자유 학습',
+          'studyType': selectedStudyType.code,
+          'studyTypeName': selectedStudyType.name,
+          'subject': _subjectController.text.trim().isEmpty
+              ? selectedStudyType.name
+              : _subjectController.text.trim(),
+          'memo': _memoController.text.trim(),
+          'startedAt': Timestamp.fromDate(startedAt),
+          'endedAt': Timestamp.fromDate(endedAt),
+          'durationSeconds': elapsedSeconds,
+          'durationMinutes': elapsedSeconds ~/ 60,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      });
 
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('학습 시간이 저장되었습니다.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('학습 시간이 저장되었습니다.')));
 
       Navigator.pop(context, true);
     } on FirebaseException catch (error) {
@@ -429,10 +397,8 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
   }
 
   String _formatDateId(DateTime date) {
-    final String month =
-    date.month.toString().padLeft(2, '0');
-    final String day =
-    date.day.toString().padLeft(2, '0');
+    final String month = date.month.toString().padLeft(2, '0');
+    final String day = date.day.toString().padLeft(2, '0');
 
     return '${date.year}-$month-$day';
   }
@@ -454,11 +420,9 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<bool> _confirmExit() async {
@@ -469,37 +433,31 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
     final bool? shouldExit = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
+        return AppAlertDialog(
+          backgroundColor: context.colors.surfaceElevated,
           title: const Text(
             '타이머 종료',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-            ),
+            style: TextStyle(fontWeight: FontWeight.w700),
           ),
-          content: const Text(
-            '저장하지 않고 나가면 측정한 시간이 사라집니다.',
-          ),
+          content: const Text('저장하지 않고 나가면 측정한 시간이 사라집니다.'),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(dialogContext, false);
               },
-              child: const Text(
+              child: Text(
                 '취소',
-                style: TextStyle(
-                  color: Color(0xFF777B84),
-                ),
+                style: TextStyle(color: context.colors.textSecondary),
               ),
             ),
             TextButton(
               onPressed: () {
                 Navigator.pop(dialogContext, true);
               },
-              child: const Text(
+              child: Text(
                 '나가기',
                 style: TextStyle(
-                  color: Colors.red,
+                  color: context.colors.incorrect,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -552,21 +510,14 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
   }) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 13,
-          vertical: 12,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.86),
+          color: context.colors.surfaceTransparent,
           borderRadius: BorderRadius.circular(17),
         ),
         child: Row(
           children: [
-            Icon(
-              icon,
-              size: 19,
-              color: const Color(0xFFF0788F),
-            ),
+            Icon(icon, size: 19, color: context.colors.pinkStart),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
@@ -574,9 +525,9 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
                 children: [
                   Text(
                     label,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10,
-                      color: Color(0xFF9AA0AC),
+                      color: context.colors.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -584,10 +535,10 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
                     value,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF1A1A1A),
+                      color: context.colors.textPrimary,
                     ),
                   ),
                 ],
@@ -607,31 +558,26 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
         ? Icons.hourglass_empty_rounded
         : (_isRunning ? Icons.bolt_rounded : Icons.pause_rounded);
     final Color statusBackground = !_hasStarted
-        ? const Color(0xFFFFE8EE)
-        : (_isRunning
-        ? const Color(0xFFE8F7F1)
-        : const Color(0xFFEDEAF7));
+        ? context.colors.pinkSoft
+        : (_isRunning ? context.colors.mint : context.colors.lavender);
     final Color statusColor = !_hasStarted
-        ? const Color(0xFFF0788F)
+        ? context.colors.pinkStart
         : (_isRunning
-        ? const Color(0xFF4FAE8E)
-        : const Color(0xFF777B84));
+              ? context.colors.mintAccent
+              : context.colors.textSecondary);
 
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFFFEDF2),
-            Color(0xFFF1EEFF),
-          ],
+          colors: [context.colors.pinkSoftAlt, context.colors.lavender],
         ),
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFF0788F).withOpacity(0.10),
+            color: context.colors.pinkStart.withOpacity(0.10),
             blurRadius: 24,
             offset: const Offset(0, 10),
           ),
@@ -645,17 +591,17 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.88),
+                  color: context.colors.surfaceTransparent,
                   borderRadius: BorderRadius.circular(15),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.timer_outlined,
-                  color: Color(0xFFF0788F),
+                  color: context.colors.pinkStart,
                   size: 25,
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -664,7 +610,7 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF1A1A1A),
+                        color: context.colors.textPrimary,
                       ),
                     ),
                     SizedBox(height: 3),
@@ -672,7 +618,7 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
                       '내 페이스대로 공부시간을 기록해요.',
                       style: TextStyle(
                         fontSize: 11,
-                        color: Color(0xFF777B84),
+                        color: context.colors.textSecondary,
                       ),
                     ),
                   ],
@@ -727,30 +673,27 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF1A1A1A),
+              color: context.colors.textPrimary,
             ),
           ),
           const SizedBox(height: 12),
           Text(
             _formattedTime,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 48,
               height: 1,
               fontWeight: FontWeight.w800,
               letterSpacing: 2,
-              color: Color(0xFF1A1A1A),
+              color: context.colors.textPrimary,
             ),
           ),
           const SizedBox(height: 7),
-          const Text(
+          Text(
             '측정된 공부 시간',
-            style: TextStyle(
-              fontSize: 11,
-              color: Color(0xFF777B84),
-            ),
+            style: TextStyle(fontSize: 11, color: context.colors.textSecondary),
           ),
           const SizedBox(height: 22),
           if (!_hasStarted)
@@ -762,14 +705,11 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
                 icon: const Icon(Icons.play_arrow_rounded),
                 label: const Text(
                   '공부 시작',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF0788F),
-                  foregroundColor: Colors.white,
+                  backgroundColor: context.colors.pinkStart,
+                  foregroundColor: context.colors.onPrimary,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(17),
@@ -786,17 +726,15 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
                     ? null
                     : (_isRunning ? _pauseTimer : _resumeTimer),
                 icon: Icon(
-                  _isRunning
-                      ? Icons.pause_rounded
-                      : Icons.play_arrow_rounded,
+                  _isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
                 ),
                 label: Text(
                   _isRunning ? '일시정지' : '다시 시작',
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFF0788F),
-                  side: const BorderSide(color: Color(0xFFF0788F)),
+                  foregroundColor: context.colors.pinkStart,
+                  side: BorderSide(color: context.colors.pinkStart),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -815,8 +753,8 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF0788F),
-                  foregroundColor: Colors.white,
+                  backgroundColor: context.colors.pinkStart,
+                  foregroundColor: context.colors.onPrimary,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
@@ -830,10 +768,7 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
     );
   }
 
-  Widget _buildStudyTypeOption(
-      _StudyTypeOption type,
-      double width,
-      ) {
+  Widget _buildStudyTypeOption(_StudyTypeOption type, double width) {
     final bool isSelected = _selectedStudyType == type.code;
 
     return SizedBox(
@@ -843,25 +778,22 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
         onTap: _isSaving || _hasStarted
             ? null
             : () {
-          setState(() {
-            _selectedStudyType = type.code;
-          });
-        },
+                setState(() {
+                  _selectedStudyType = type.code;
+                });
+              },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 14,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
           decoration: BoxDecoration(
             color: isSelected
-                ? const Color(0xFFFFEDF2)
-                : const Color(0xFFFFFDFD),
+                ? context.colors.pinkSoftAlt
+                : context.colors.surface,
             borderRadius: BorderRadius.circular(17),
             border: Border.all(
               color: isSelected
-                  ? const Color(0xFFF0788F)
-                  : const Color(0xFFE8E8EC),
+                  ? context.colors.pinkStart
+                  : context.colors.border,
               width: isSelected ? 1.4 : 1,
             ),
           ),
@@ -871,8 +803,8 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
                 _studyTypeIcon(type.code),
                 size: 21,
                 color: isSelected
-                    ? const Color(0xFFF0788F)
-                    : const Color(0xFF9AA0AC),
+                    ? context.colors.pinkStart
+                    : context.colors.textSecondary,
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -882,11 +814,10 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 13,
-                    fontWeight:
-                    isSelected ? FontWeight.w700 : FontWeight.w600,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                     color: isSelected
-                        ? const Color(0xFFF0788F)
-                        : const Color(0xFF1A1A1A),
+                        ? context.colors.pinkStart
+                        : context.colors.textPrimary,
                   ),
                 ),
               ),
@@ -903,11 +834,11 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(
                 Icons.tune_rounded,
-                color: Color(0xFFF0788F),
+                color: context.colors.pinkStart,
                 size: 23,
               ),
               SizedBox(width: 9),
@@ -917,38 +848,32 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF1A1A1A),
+                    color: context.colors.textPrimary,
                   ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 5),
-          const Text(
+          Text(
             '기록에서 구분하기 쉽도록 학습 내용을 선택해 주세요.',
-            style: TextStyle(
-              fontSize: 11,
-              color: Color(0xFF9AA0AC),
-            ),
+            style: TextStyle(fontSize: 11, color: context.colors.textSecondary),
           ),
           if (_hasStarted) ...[
             const SizedBox(height: 12),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 13,
-                vertical: 11,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
               decoration: BoxDecoration(
-                color: const Color(0xFFF6F2F3),
+                color: context.colors.surfaceMuted,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Row(
+              child: Row(
                 children: [
                   Icon(
                     Icons.lock_outline_rounded,
                     size: 18,
-                    color: Color(0xFF777B84),
+                    color: context.colors.textSecondary,
                   ),
                   SizedBox(width: 8),
                   Expanded(
@@ -956,7 +881,7 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
                       '공부를 시작한 뒤에는 학습 내용을 수정할 수 없습니다.',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF777B84),
+                        color: context.colors.textSecondary,
                       ),
                     ),
                   ),
@@ -979,7 +904,7 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
                 child: Text('자유 학습'),
               ),
               ..._goalOptions.map(
-                    (goal) => DropdownMenuItem<String>(
+                (goal) => DropdownMenuItem<String>(
                   value: goal.goalId,
                   child: Text(
                     goal.certificateName,
@@ -991,25 +916,25 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
             onChanged: _isSaving || _isLoadingGoals || _hasStarted
                 ? null
                 : (value) {
-              if (value == null) return;
-              setState(() {
-                _selectedGoalValue = value;
-              });
-            },
+                    if (value == null) return;
+                    setState(() {
+                      _selectedGoalValue = value;
+                    });
+                  },
           ),
           if (_isLoadingGoals) ...[
             const SizedBox(height: 8),
-            const LinearProgressIndicator(
+            LinearProgressIndicator(
               minHeight: 2,
-              color: Color(0xFFF0788F),
-              backgroundColor: Color(0xFFFFE8EE),
+              color: context.colors.pinkStart,
+              backgroundColor: context.colors.pinkSoft,
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               '목표 자격증을 불러오는 중입니다.',
               style: TextStyle(
                 fontSize: 12,
-                color: Color(0xFF9AA0AC),
+                color: context.colors.textSecondary,
               ),
             ),
           ] else if (_goalLoadError != null) ...[
@@ -1019,9 +944,9 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
                 Expanded(
                   child: Text(
                     _goalLoadError!,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: Colors.red,
+                      color: context.colors.incorrect,
                     ),
                   ),
                 ),
@@ -1029,33 +954,33 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
                   onPressed: _hasStarted
                       ? null
                       : () {
-                    setState(() {
-                      _isLoadingGoals = true;
-                      _goalLoadError = null;
-                    });
-                    _loadGoalOptions();
-                  },
+                          setState(() {
+                            _isLoadingGoals = true;
+                            _goalLoadError = null;
+                          });
+                          _loadGoalOptions();
+                        },
                   child: const Text('다시 시도'),
                 ),
               ],
             ),
           ] else if (_goalOptions.isEmpty) ...[
             const SizedBox(height: 8),
-            const Text(
+            Text(
               '등록된 목표 자격증이 없어 자유 학습으로 기록됩니다.',
               style: TextStyle(
                 fontSize: 12,
-                color: Color(0xFF9AA0AC),
+                color: context.colors.textSecondary,
               ),
             ),
           ],
           const SizedBox(height: 20),
-          const Text(
+          Text(
             '학습 유형',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1A1A1A),
+              color: context.colors.textPrimary,
             ),
           ),
           const SizedBox(height: 10),
@@ -1124,10 +1049,10 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
                 Navigator.pop(context);
               }
             },
-            icon: const Icon(
+            icon: Icon(
               Icons.arrow_back_ios_new,
               size: 20,
-              color: Color(0xFF1A1A1A),
+              color: context.colors.textPrimary,
             ),
           ),
         ),
@@ -1157,34 +1082,24 @@ class _StudyTimerScreenState extends State<StudyTimerScreen>
       labelText: label,
       hintText: hint,
       filled: true,
-      fillColor: const Color(0xFFFFFDFD),
-      prefixIcon: Icon(
-        icon,
-        color: const Color(0xFF9AA0AC),
-      ),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 15,
-        vertical: 16,
-      ),
+      fillColor: context.colors.surface,
+      prefixIcon: Icon(icon, color: context.colors.textSecondary),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFFE8E8EC)),
+        borderSide: BorderSide(color: context.colors.border),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFFE8E8EC)),
+        borderSide: BorderSide(color: context.colors.border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(
-          color: Color(0xFFF0788F),
-          width: 1.5,
-        ),
+        borderSide: BorderSide(color: context.colors.pinkStart, width: 1.5),
       ),
     );
   }
 }
-
 
 class _GoalOption {
   final String goalId;
@@ -1204,8 +1119,5 @@ class _StudyTypeOption {
   final String code;
   final String name;
 
-  const _StudyTypeOption({
-    required this.code,
-    required this.name,
-  });
+  const _StudyTypeOption({required this.code, required this.name});
 }

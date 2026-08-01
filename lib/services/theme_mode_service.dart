@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -16,10 +20,48 @@ class ThemeModeService {
     ThemeMode.system,
   );
 
+  StreamSubscription<User?>? _authSubscription;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+  _settingsSubscription;
+  String? _activeUid;
+
   /// 앱 실행 시 기기에 저장된 테마 설정을 불러옵니다.
   Future<void> initialize() async {
     final preferences = await SharedPreferences.getInstance();
     themeMode.value = fromName(preferences.getString(_preferenceKey));
+  }
+
+  void startAuthSync() {
+    _authSubscription ??= FirebaseAuth.instance.authStateChanges().listen(
+      _handleAuthStateChanged,
+    );
+  }
+
+  Future<void> _handleAuthStateChanged(User? user) async {
+    await _settingsSubscription?.cancel();
+    _settingsSubscription = null;
+    _activeUid = user?.uid;
+
+    if (user == null) {
+      await setThemeModeName('SYSTEM');
+      return;
+    }
+
+    final uid = user.uid;
+    _settingsSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('settings')
+        .doc('app')
+        .snapshots()
+        .listen((snapshot) {
+          if (_activeUid != uid) {
+            return;
+          }
+
+          final value = snapshot.data()?['themeMode']?.toString() ?? 'SYSTEM';
+          setThemeModeName(value);
+        });
   }
 
   /// 설정 화면과 Firestore에서 사용하는 문자열을 ThemeMode로 변환합니다.

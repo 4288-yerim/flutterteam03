@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
+
 import '../services/admin_member_service.dart';
 
 enum AdminMemberStatusFilter { all, active, suspended, dormant, withdrawn }
@@ -54,20 +56,20 @@ class AdminMemberSearchControls extends StatelessWidget {
                     icon: const Icon(Icons.close_rounded),
                   ),
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.95),
+            fillColor: context.colors.surfaceTransparent,
             contentPadding: const EdgeInsets.symmetric(vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: Color(0xFFE2DFE6)),
+              borderSide: BorderSide(color: context.colors.border),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: Color(0xFFE2DFE6)),
+              borderSide: BorderSide(color: context.colors.border),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(
-                color: Color(0xFF6C63FF),
+              borderSide: BorderSide(
+                color: context.colors.lavenderAccent,
                 width: 1.5,
               ),
             ),
@@ -81,7 +83,7 @@ class AdminMemberSearchControls extends StatelessWidget {
               child: DropdownButtonFormField<AdminMemberStatusFilter>(
                 initialValue: selectedFilter,
                 isExpanded: true,
-                decoration: _dropdownDecoration('회원 상태'),
+                decoration: _dropdownDecoration(context, '회원 상태'),
                 items: AdminMemberStatusFilter.values.map((filter) {
                   return DropdownMenuItem(
                     value: filter,
@@ -104,7 +106,7 @@ class AdminMemberSearchControls extends StatelessWidget {
               child: DropdownButtonFormField<AdminMemberViewFilter>(
                 initialValue: selectedViewFilter,
                 isExpanded: true,
-                decoration: _dropdownDecoration('정렬·조건'),
+                decoration: _dropdownDecoration(context, '정렬·조건'),
                 items: AdminMemberViewFilter.values.map((filter) {
                   return DropdownMenuItem(
                     value: filter,
@@ -126,23 +128,23 @@ class AdminMemberSearchControls extends StatelessWidget {
     );
   }
 
-  InputDecoration _dropdownDecoration(String label) {
+  InputDecoration _dropdownDecoration(BuildContext context, String label) {
     return InputDecoration(
       labelText: label,
       filled: true,
-      fillColor: Colors.white.withValues(alpha: 0.95),
+      fillColor: context.colors.surfaceTransparent,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFFE2DFE6)),
+        borderSide: BorderSide(color: context.colors.border),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFFE2DFE6)),
+        borderSide: BorderSide(color: context.colors.border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFF6C63FF)),
+        borderSide: BorderSide(color: context.colors.lavenderAccent),
       ),
     );
   }
@@ -227,7 +229,7 @@ class AdminMemberCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withValues(alpha: 0.94),
+      color: context.colors.surfaceTransparent,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
@@ -244,7 +246,7 @@ class AdminMemberCard extends StatelessWidget {
                   children: [
                     Text(
                       member.nickname,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                       ),
@@ -256,8 +258,8 @@ class AdminMemberCard extends StatelessWidget {
                           : member.identifier,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF77747E),
+                      style: TextStyle(
+                        color: context.colors.textSecondary,
                         fontSize: 13,
                       ),
                     ),
@@ -266,7 +268,10 @@ class AdminMemberCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               AdminMemberStatusChip(member: member),
-              const Icon(Icons.chevron_right_rounded, color: Color(0xFF99949E)),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: context.colors.textMuted,
+              ),
             ],
           ),
         ),
@@ -283,10 +288,10 @@ class AdminMemberStatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = switch (member.status) {
-      'ACTIVE' => const Color(0xFF35A982),
-      'DORMANT' => const Color(0xFFE59831),
-      'SUSPENDED' => const Color(0xFFE85D68),
-      _ => const Color(0xFF77747E),
+      'ACTIVE' => context.colors.correct,
+      'DORMANT' => context.colors.warning,
+      'SUSPENDED' => context.colors.incorrect,
+      _ => context.colors.textSecondary,
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
@@ -320,10 +325,10 @@ class AdminMemberProfileImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final fallback = CircleAvatar(
       radius: size / 2,
-      backgroundColor: const Color(0xFFF0EDFF),
+      backgroundColor: context.colors.lavender,
       child: Icon(
         Icons.person_rounded,
-        color: const Color(0xFF6C63FF),
+        color: context.colors.lavenderAccent,
         size: size * 0.55,
       ),
     );
@@ -356,9 +361,9 @@ class AdminMemberMessageView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 44, color: const Color(0xFF99949E)),
+          Icon(icon, size: 44, color: context.colors.textMuted),
           const SizedBox(height: 12),
-          Text(message, style: const TextStyle(color: Color(0xFF77747E))),
+          Text(message, style: TextStyle(color: context.colors.textSecondary)),
         ],
       ),
     );

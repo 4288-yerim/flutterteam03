@@ -121,6 +121,50 @@ class CertificateDetailService {
     }
   }
 
+  Future<Set<String>> getActiveGoalScheduleKeys({
+    required String certificateId,
+  }) async {
+    final user = _firebaseAuth.currentUser;
+    final normalizedCertificateId = certificateId.trim();
+    if (user == null || normalizedCertificateId.isEmpty) return <String>{};
+
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('goals')
+          .where('goalStatus', isEqualTo: 'ACTIVE')
+          .get();
+
+      return snapshot.docs
+          .where(
+            (document) =>
+                _readString(document.data()['certificateId']) ==
+                normalizedCertificateId,
+          )
+          .map((document) {
+            final data = document.data();
+            return goalScheduleKey(
+              scheduleId: _readString(data['scheduleId']),
+              examType: _readString(data['targetExamType']),
+            );
+          })
+          .where((key) => key != '|')
+          .toSet();
+    } on FirebaseException catch (error) {
+      throw CertificateGoalException(
+        error.message ?? '등록된 목표 시험 정보를 불러오지 못했습니다.',
+      );
+    }
+  }
+
+  static String goalScheduleKey({
+    required String scheduleId,
+    required String examType,
+  }) {
+    return '${scheduleId.trim()}|${examType.trim().toUpperCase()}';
+  }
+
 
   Future<String> addCertificateGoal({
     required String certificateId,
@@ -128,6 +172,8 @@ class CertificateDetailService {
     required String certificateName,
     required String qualificationType,
     required DateTime targetExamDate,
+    required DateTime targetExamStartDate,
+    required DateTime targetExamEndDate,
     required String targetRound,
     required String targetExamType,
 
@@ -242,6 +288,15 @@ class CertificateDetailService {
       final calendarEventDocument = userDocument
           .collection('calendarEvents')
           .doc();
+      final applicationStartEventDocument = userDocument
+          .collection('calendarEvents')
+          .doc('${goalDocument.id}_application_start');
+      final applicationEndEventDocument = userDocument
+          .collection('calendarEvents')
+          .doc('${goalDocument.id}_application_end');
+      final passAnnouncementEventDocument = userDocument
+          .collection('calendarEvents')
+          .doc('${goalDocument.id}_pass_announcement');
 
       final examTypeName =
       normalizedTargetExamType == 'WRITTEN'
@@ -289,6 +344,16 @@ class CertificateDetailService {
       );
 
       final batch = _firestore.batch();
+      final calendarEventIds = <String>[calendarEventDocument.id];
+      if (targetRegistrationStartDate != null) {
+        calendarEventIds.add(applicationStartEventDocument.id);
+      }
+      if (targetRegistrationEndDate != null) {
+        calendarEventIds.add(applicationEndEventDocument.id);
+      }
+      if (targetPassAnnouncementDate != null) {
+        calendarEventIds.add(passAnnouncementEventDocument.id);
+      }
       batch.set(
         goalDocument,
         {
@@ -300,6 +365,8 @@ class CertificateDetailService {
           'targetExamDate': Timestamp.fromDate(
             targetExamDate,
           ),
+          'targetExamStartDate': Timestamp.fromDate(targetExamStartDate),
+          'targetExamEndDate': Timestamp.fromDate(targetExamEndDate),
 
           'examD7AlertDate': Timestamp.fromDate(
             examD7AlertDate,
@@ -371,6 +438,7 @@ class CertificateDetailService {
           'calendarLinked': false,
 
           'calendarEventId': calendarEventDocument.id,
+          'calendarEventIds': calendarEventIds,
         },
       );
 
@@ -381,8 +449,46 @@ class CertificateDetailService {
           'allDay': true,
           'title': calendarTitle,
           'eventType': 'EXAM',
+          'certificateName': normalizedCertificateName,
+          'scheduleName': '$normalizedTargetRound $examTypeName',
         },
       );
+
+      if (targetRegistrationStartDate != null) {
+        batch.set(applicationStartEventDocument, {
+          'startAt': Timestamp.fromDate(targetRegistrationStartDate),
+          'allDay': true,
+          'title': '$normalizedCertificateName $normalizedTargetRound '
+              '$examTypeName 원서접수 시작일',
+          'eventType': 'APPLICATION',
+          'certificateName': normalizedCertificateName,
+          'scheduleName': '$normalizedTargetRound $examTypeName 원서접수 시작',
+        });
+      }
+
+      if (targetRegistrationEndDate != null) {
+        batch.set(applicationEndEventDocument, {
+          'startAt': Timestamp.fromDate(targetRegistrationEndDate),
+          'allDay': true,
+          'title': '$normalizedCertificateName $normalizedTargetRound '
+              '$examTypeName 원서접수 종료일',
+          'eventType': 'APPLICATION',
+          'certificateName': normalizedCertificateName,
+          'scheduleName': '$normalizedTargetRound $examTypeName 원서접수 마감',
+        });
+      }
+
+      if (targetPassAnnouncementDate != null) {
+        batch.set(passAnnouncementEventDocument, {
+          'startAt': Timestamp.fromDate(targetPassAnnouncementDate),
+          'allDay': true,
+          'title': '$normalizedCertificateName $normalizedTargetRound '
+              '$examTypeName 합격자 발표일',
+          'eventType': 'RESULT',
+          'certificateName': normalizedCertificateName,
+          'scheduleName': '$normalizedTargetRound $examTypeName 합격자 발표',
+        });
+      }
 
       await batch.commit();
 

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
+
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_state_views.dart';
 import '../../widgets/app_top_bar.dart';
@@ -13,16 +15,14 @@ class CertificateSearchPage extends StatefulWidget {
   const CertificateSearchPage({super.key});
 
   @override
-  State<CertificateSearchPage> createState() =>
-      _CertificateSearchPageState();
+  State<CertificateSearchPage> createState() => _CertificateSearchPageState();
 }
 
 class _CertificateSearchPageState extends State<CertificateSearchPage> {
   final CertificateSearchService _certificateSearchService =
-  CertificateSearchService();
+      CertificateSearchService();
 
-  final TextEditingController _searchController =
-  TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
 
   final List<Certification> _certifications = [];
 
@@ -59,24 +59,18 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
         continue;
       }
 
-      if (certificate.obligfldcd.isEmpty ||
-          certificate.obligfldnm.isEmpty) {
+      if (certificate.obligfldcd.isEmpty || certificate.obligfldnm.isEmpty) {
         continue;
       }
 
       groupedFields.putIfAbsent(
         certificate.obligfldcd,
-            () => certificate.obligfldnm,
+        () => certificate.obligfldnm,
       );
     }
 
     final fields = groupedFields.entries
-        .map(
-          (entry) => _FilterOption(
-        code: entry.key,
-        name: entry.value,
-      ),
-    )
+        .map((entry) => _FilterOption(code: entry.key, name: entry.value))
         .toList();
 
     fields.sort((a, b) => a.name.compareTo(b.name));
@@ -107,17 +101,12 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
 
       groupedCategories.putIfAbsent(
         certificate.mdobligfldcd,
-            () => certificate.mdobligfldnm,
+        () => certificate.mdobligfldnm,
       );
     }
 
     final categories = groupedCategories.entries
-        .map(
-          (entry) => _FilterOption(
-        code: entry.key,
-        name: entry.value,
-      ),
-    )
+        .map((entry) => _FilterOption(code: entry.key, name: entry.value))
         .toList();
 
     categories.sort((a, b) => a.name.compareTo(b.name));
@@ -133,24 +122,18 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
         continue;
       }
 
-      if (certificate.seriescd.isEmpty ||
-          certificate.seriesnm.isEmpty) {
+      if (certificate.seriescd.isEmpty || certificate.seriesnm.isEmpty) {
         continue;
       }
 
       groupedSeries.putIfAbsent(
         certificate.seriescd,
-            () => certificate.seriesnm,
+        () => certificate.seriesnm,
       );
     }
 
     final series = groupedSeries.entries
-        .map(
-          (entry) => _FilterOption(
-        code: entry.key,
-        name: entry.value,
-      ),
-    )
+        .map((entry) => _FilterOption(code: entry.key, name: entry.value))
         .toList();
 
     series.sort((a, b) => a.name.compareTo(b.name));
@@ -159,8 +142,7 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
   }
 
   List<Certification> get _selectedTechnicalCertificates {
-    if (_selectedJobFieldCode == null ||
-        _selectedCategoryCode == null) {
+    if (_selectedJobFieldCode == null || _selectedCategoryCode == null) {
       return [];
     }
 
@@ -182,8 +164,7 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
 
     final certificates = _certifications.where((certificate) {
       return certificate.isProfessional &&
-          certificate.seriescd ==
-              _selectedProfessionalSeriesCode;
+          certificate.seriescd == _selectedProfessionalSeriesCode;
     }).toList();
 
     certificates.sort((a, b) => a.name.compareTo(b.name));
@@ -248,26 +229,20 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
 
     final results = _certifications
         .where((certificate) {
-      return certificate.name
-          .toLowerCase()
-          .contains(keyword);
-    })
+          return certificate.name.toLowerCase().contains(keyword);
+        })
         .map(
           (certificate) => _SearchResultItem(
-        certificationId: certificate.id,
-        certificateName: certificate.name,
-        qualificationType: certificate.qualificationName,
-        qualificationCode: certificate.qualgbcd,
-        detailText: certificate.searchDetailText,
-      ),
-    )
+            certificationId: certificate.id,
+            certificateName: certificate.name,
+            qualificationType: certificate.qualificationName,
+            qualificationCode: certificate.qualgbcd,
+            detailText: certificate.searchDetailText,
+          ),
+        )
         .toList();
 
-    results.sort(
-          (a, b) => a.certificateName.compareTo(
-        b.certificateName,
-      ),
-    );
+    results.sort((a, b) => a.certificateName.compareTo(b.certificateName));
 
     return results;
   }
@@ -285,8 +260,8 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
     });
 
     try {
-      final certifications =
-      await _certificateSearchService.getCertifications();
+      final certifications = await _certificateSearchService
+          .getCertifications();
 
       if (!mounted) {
         return;
@@ -338,9 +313,7 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
 
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => detailPage,
-      ),
+      MaterialPageRoute(builder: (context) => detailPage),
     );
   }
 
@@ -411,24 +384,20 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
         centerTitle: true,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: certificateDarkText,
+            color: context.colors.textPrimary,
             size: 21,
           ),
         ),
       ),
-      body: AppMainBackground(
-        child: _buildBody(),
-      ),
+      body: AppMainBackground(child: _buildBody()),
     );
   }
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const AppLoadingView(
-        message: '자격증 정보를 불러오는 중입니다.',
-      );
+      return AppLoadingView(message: '자격증 정보를 불러오는 중입니다.');
     }
 
     if (_loadError != null) {
@@ -439,13 +408,13 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
     }
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
+      padding: EdgeInsets.fromLTRB(24, 16, 24, 40),
       children: [
-        const CertificatePageHeader(
+        CertificatePageHeader(
           title: '원하는 자격증을 찾아보세요',
           subtitle: '이름으로 검색하거나 분야별로 확인할 수 있어요.',
         ),
-        const SizedBox(height: 22),
+        SizedBox(height: 22),
         CertificateSearchField(
           controller: _searchController,
           isSearching: _isSearching,
@@ -454,7 +423,7 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
           },
           onClear: _clearSearch,
         ),
-        const SizedBox(height: 30),
+        SizedBox(height: 30),
         if (_isSearching)
           _buildSearchResultSection()
         else
@@ -467,17 +436,14 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const CertificateSectionTitle(
-          title: '자격 구분',
-          subtitle: '조회할 자격 유형을 선택하세요.',
-        ),
-        const SizedBox(height: 15),
+        CertificateSectionTitle(title: '자격 구분', subtitle: '조회할 자격 유형을 선택하세요.'),
+        SizedBox(height: 15),
         QualificationTypeSelector(
           qualificationTypes: _qualificationTypes,
           selectedCode: _selectedQualificationCode,
           onSelected: _selectQualificationType,
         ),
-        const SizedBox(height: 34),
+        SizedBox(height: 34),
         if (_isTechnicalQualification)
           _buildTechnicalQualificationSection()
         else
@@ -490,14 +456,13 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const CertificateSectionTitle(
+        CertificateSectionTitle(
           title: '직무 분야',
           subtitle: '국가기술자격 직무 분야를 선택하세요.',
         ),
-        const SizedBox(height: 15),
+        SizedBox(height: 15),
 
-        if (_isTechnicalJobFieldCollapsed &&
-            _selectedTechnicalJobField != null)
+        if (_isTechnicalJobFieldCollapsed && _selectedTechnicalJobField != null)
           CollapsedSelectionCard(
             title: '선택한 직무 분야',
             value: _selectedTechnicalJobField!.name,
@@ -507,28 +472,26 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
           _buildTechnicalJobFieldGrid(),
 
         if (_selectedJobFieldCode != null) ...[
-          const SizedBox(height: 22),
+          SizedBox(height: 22),
           _buildSelectedTechnicalPath(),
-          const SizedBox(height: 34),
-          const CertificateSectionTitle(
+          SizedBox(height: 34),
+          CertificateSectionTitle(
             title: '분류',
             subtitle: '선택한 직무 분야의 세부 분류입니다.',
           ),
-          const SizedBox(height: 15),
+          SizedBox(height: 15),
           _buildTechnicalCategorySelector(),
         ],
 
         if (_selectedCategoryCode != null) ...[
-          const SizedBox(height: 34),
+          SizedBox(height: 34),
           CertificateSectionTitle(
             title: '시행 종목',
             subtitle: '자격증을 누르면 상세 정보를 확인할 수 있어요.',
             count: _selectedTechnicalCertificates.length,
           ),
-          const SizedBox(height: 15),
-          _buildCertificateList(
-            certificates: _selectedTechnicalCertificates,
-          ),
+          SizedBox(height: 15),
+          _buildCertificateList(certificates: _selectedTechnicalCertificates),
         ],
       ],
     );
@@ -538,11 +501,11 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const CertificateSectionTitle(
+        CertificateSectionTitle(
           title: '직무 분야',
           subtitle: '국가전문자격 직무 분야를 선택하세요.',
         ),
-        const SizedBox(height: 15),
+        SizedBox(height: 15),
 
         if (_isProfessionalSeriesCollapsed &&
             _selectedProfessionalSeries != null)
@@ -555,15 +518,15 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
           _buildProfessionalSeriesGrid(),
 
         if (_selectedProfessionalSeriesCode != null) ...[
-          const SizedBox(height: 22),
+          SizedBox(height: 22),
           _buildSelectedProfessionalPath(),
-          const SizedBox(height: 34),
+          SizedBox(height: 34),
           CertificateSectionTitle(
             title: '시행 종목',
             subtitle: '자격증을 누르면 상세 정보를 확인할 수 있어요.',
             count: _selectedProfessionalCertificates.length,
           ),
-          const SizedBox(height: 15),
+          SizedBox(height: 15),
           _buildCertificateList(
             certificates: _selectedProfessionalCertificates,
           ),
@@ -576,17 +539,14 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
     final jobFields = _technicalJobFields;
 
     if (jobFields.isEmpty) {
-      return const EmptyFilterResult(
-        message: '등록된 직무 분야가 없습니다.',
-      );
+      return EmptyFilterResult(message: '등록된 직무 분야가 없습니다.');
     }
 
     return GridView.builder(
       shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      physics: NeverScrollableScrollPhysics(),
       itemCount: jobFields.length,
-      gridDelegate:
-      const SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
@@ -611,17 +571,14 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
     final seriesList = _professionalSeries;
 
     if (seriesList.isEmpty) {
-      return const EmptyFilterResult(
-        message: '등록된 전문자격 분야가 없습니다.',
-      );
+      return EmptyFilterResult(message: '등록된 전문자격 분야가 없습니다.');
     }
 
     return GridView.builder(
       shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      physics: NeverScrollableScrollPhysics(),
       itemCount: seriesList.length,
-      gridDelegate:
-      const SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
@@ -632,8 +589,7 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
 
         return CertificateCategoryCard(
           label: series.name,
-          selected:
-          _selectedProfessionalSeriesCode == series.code,
+          selected: _selectedProfessionalSeriesCode == series.code,
           icon: Icons.category_outlined,
           onTap: () {
             _selectProfessionalSeries(series.code);
@@ -648,99 +604,84 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: certificateCardDecoration(),
+      padding: EdgeInsets.all(18),
+      decoration: certificateCardDecoration(context: context),
       child: categories.isEmpty
-          ? const EmptyInlineResult(
-        message: '등록된 분류가 없습니다.',
-      )
+          ? EmptyInlineResult(message: '등록된 분류가 없습니다.')
           : Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        children: categories.map((category) {
-          return CertificateSelectionChip(
-            label: category.name,
-            selected:
-            _selectedCategoryCode == category.code,
-            onTap: () {
-              _selectTechnicalCategory(category.code);
-            },
-          );
-        }).toList(),
-      ),
+              spacing: 10,
+              runSpacing: 10,
+              children: categories.map((category) {
+                return CertificateSelectionChip(
+                  label: category.name,
+                  selected: _selectedCategoryCode == category.code,
+                  onTap: () {
+                    _selectTechnicalCategory(category.code);
+                  },
+                );
+              }).toList(),
+            ),
     );
   }
 
-  Widget _buildCertificateList({
-    required List<Certification> certificates,
-  }) {
+  Widget _buildCertificateList({required List<Certification> certificates}) {
     if (certificates.isEmpty) {
-      return const EmptyFilterResult(
-        message: '해당 분야의 자격증이 없습니다.',
-      );
+      return EmptyFilterResult(message: '해당 분야의 자격증이 없습니다.');
     }
 
     return Container(
-      decoration: certificateCardDecoration(),
+      decoration: certificateCardDecoration(context: context),
       clipBehavior: Clip.antiAlias,
       child: Column(
-        children: List.generate(
-          certificates.length,
-              (index) {
-            final certificate = certificates[index];
-            final isLast = index == certificates.length - 1;
+        children: List.generate(certificates.length, (index) {
+          final certificate = certificates[index];
+          final isLast = index == certificates.length - 1;
 
-            return Column(
-              children: [
-                CertificateListTile(
-                  certificateName: certificate.name,
-                  detailText: certificate.listDetailText,
-                  qualificationCode: certificate.qualgbcd,
-                  onTap: () {
-                    _openCertificateDetail(
-                      certificationId: certificate.id,
-                      qualificationCode: certificate.qualgbcd,
-                    );
-                  },
+          return Column(
+            children: [
+              CertificateListTile(
+                certificateName: certificate.name,
+                detailText: certificate.listDetailText,
+                qualificationCode: certificate.qualgbcd,
+                onTap: () {
+                  _openCertificateDetail(
+                    certificationId: certificate.id,
+                    qualificationCode: certificate.qualgbcd,
+                  );
+                },
+              ),
+              if (!isLast)
+                Divider(
+                  height: 1,
+                  indent: 73,
+                  endIndent: 18,
+                  color: context.colors.border,
                 ),
-                if (!isLast)
-                  const Divider(
-                    height: 1,
-                    indent: 73,
-                    endIndent: 18,
-                    color: certificateBorderColor,
-                  ),
-              ],
-            );
-          },
-        ),
+            ],
+          );
+        }),
       ),
     );
   }
 
   Widget _buildSelectedTechnicalPath() {
-    final selectedJobFieldName =
-        _selectedTechnicalJobField?.name ?? '';
+    final selectedJobFieldName = _selectedTechnicalJobField?.name ?? '';
 
-    final selectedCategoryName =
-        _selectedTechnicalCategory?.name ?? '';
+    final selectedCategoryName = _selectedTechnicalCategory?.name ?? '';
 
     return SelectedPathCard(
       text: _selectedCategoryCode == null
           ? '국가기술자격  ›  $selectedJobFieldName'
           : '국가기술자격  ›  '
-          '$selectedJobFieldName  ›  '
-          '$selectedCategoryName',
+                '$selectedJobFieldName  ›  '
+                '$selectedCategoryName',
     );
   }
 
   Widget _buildSelectedProfessionalPath() {
-    final selectedSeriesName =
-        _selectedProfessionalSeries?.name ?? '';
+    final selectedSeriesName = _selectedProfessionalSeries?.name ?? '';
 
-    return SelectedPathCard(
-      text: '국가전문자격  ›  $selectedSeriesName',
-    );
+    return SelectedPathCard(text: '국가전문자격  ›  $selectedSeriesName');
   }
 
   Widget _buildSearchResultSection() {
@@ -754,48 +695,42 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
           subtitle: '검색어와 일치하는 자격증입니다.',
           count: results.length,
         ),
-        const SizedBox(height: 15),
+        SizedBox(height: 15),
         if (results.isEmpty)
-          const EmptySearchResult()
+          EmptySearchResult()
         else
           Container(
-            decoration: certificateCardDecoration(),
+            decoration: certificateCardDecoration(context: context),
             clipBehavior: Clip.antiAlias,
             child: Column(
-              children: List.generate(
-                results.length,
-                    (index) {
-                  final result = results[index];
-                  final isLast = index == results.length - 1;
+              children: List.generate(results.length, (index) {
+                final result = results[index];
+                final isLast = index == results.length - 1;
 
-                  return Column(
-                    children: [
-                      CertificateSearchResultTile(
-                        certificateName:
-                        result.certificateName,
-                        qualificationType:
-                        result.qualificationType,
-                        detailText: result.detailText,
-                        qualificationCode:
-                        result.qualificationCode,
-                        onTap: () {
-                          _openCertificateDetail(
-                            certificationId: result.certificationId,
-                            qualificationCode: result.qualificationCode,
-                          );
-                        },
+                return Column(
+                  children: [
+                    CertificateSearchResultTile(
+                      certificateName: result.certificateName,
+                      qualificationType: result.qualificationType,
+                      detailText: result.detailText,
+                      qualificationCode: result.qualificationCode,
+                      onTap: () {
+                        _openCertificateDetail(
+                          certificationId: result.certificationId,
+                          qualificationCode: result.qualificationCode,
+                        );
+                      },
+                    ),
+                    if (!isLast)
+                      Divider(
+                        height: 1,
+                        indent: 73,
+                        endIndent: 18,
+                        color: context.colors.border,
                       ),
-                      if (!isLast)
-                        const Divider(
-                          height: 1,
-                          indent: 73,
-                          endIndent: 18,
-                          color: certificateBorderColor,
-                        ),
-                    ],
-                  );
-                },
-              ),
+                  ],
+                );
+              }),
             ),
           ),
       ],
@@ -807,10 +742,7 @@ class _FilterOption {
   final String code;
   final String name;
 
-  const _FilterOption({
-    required this.code,
-    required this.name,
-  });
+  const _FilterOption({required this.code, required this.name});
 }
 
 class _SearchResultItem {

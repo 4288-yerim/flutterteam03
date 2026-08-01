@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../theme.dart';
 import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
 
@@ -48,12 +50,10 @@ class TechnicalScheduleCard extends StatefulWidget {
   });
 
   @override
-  State<TechnicalScheduleCard> createState() =>
-      _TechnicalScheduleCardState();
+  State<TechnicalScheduleCard> createState() => _TechnicalScheduleCardState();
 }
 
-class _TechnicalScheduleCardState
-    extends State<TechnicalScheduleCard> {
+class _TechnicalScheduleCardState extends State<TechnicalScheduleCard> {
   bool _isExpanded = false;
 
   @override
@@ -72,10 +72,7 @@ class _TechnicalScheduleCardState
             widget.writtenRegistrationEndAt,
           ),
         ),
-      if (_hasDate(
-        widget.writtenExamStartAt,
-        widget.writtenExamEndAt,
-      ))
+      if (_hasDate(widget.writtenExamStartAt, widget.writtenExamEndAt))
         CertificateInfoItem(
           label: '필기시험',
           value: _formatDateRange(
@@ -86,14 +83,9 @@ class _TechnicalScheduleCardState
       if (widget.writtenPassAt != null)
         CertificateInfoItem(
           label: '필기 합격 발표',
-          value: _formatDate(
-            widget.writtenPassAt!,
-          ),
+          value: _formatDate(widget.writtenPassAt!),
         ),
-      if (_hasDate(
-        widget.documentSubmitStartAt,
-        widget.documentSubmitEndAt,
-      ))
+      if (_hasDate(widget.documentSubmitStartAt, widget.documentSubmitEndAt))
         CertificateInfoItem(
           label: '서류 제출',
           value: _formatDateRange(
@@ -112,10 +104,7 @@ class _TechnicalScheduleCardState
             widget.practicalRegistrationEndAt,
           ),
         ),
-      if (_hasDate(
-        widget.practicalExamStartAt,
-        widget.practicalExamEndAt,
-      ))
+      if (_hasDate(widget.practicalExamStartAt, widget.practicalExamEndAt))
         CertificateInfoItem(
           label: '실기시험',
           value: _formatDateRange(
@@ -123,10 +112,7 @@ class _TechnicalScheduleCardState
             widget.practicalExamEndAt,
           ),
         ),
-      if (_hasDate(
-        widget.practicalPassStartAt,
-        widget.practicalPassEndAt,
-      ))
+      if (_hasDate(widget.practicalPassStartAt, widget.practicalPassEndAt))
         CertificateInfoItem(
           label: '최종 합격 발표',
           value: _formatDateRange(
@@ -138,7 +124,7 @@ class _TechnicalScheduleCardState
 
     return Container(
       width: double.infinity,
-      decoration: certificateCardDecoration(),
+      decoration: certificateCardDecoration(context: context),
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
@@ -149,19 +135,14 @@ class _TechnicalScheduleCardState
               });
             },
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 18,
-              ),
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 18),
               child: Row(
                 children: [
                   Expanded(
                     child: Text(
-                      widget.title.isEmpty
-                          ? '시험 일정'
-                          : widget.title,
-                      style: const TextStyle(
-                        color: certificateDarkText,
+                      widget.title.isEmpty ? '시험 일정' : widget.title,
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
                         height: 1.4,
@@ -170,23 +151,21 @@ class _TechnicalScheduleCardState
                   ),
 
                   if (scheduleStatus != null) ...[
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     CertificateScheduleStatusBadge(
                       label: scheduleStatus.label,
                       isActive: scheduleStatus.isActive,
                     ),
                   ],
 
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10),
 
                   AnimatedRotation(
                     turns: _isExpanded ? 0.5 : 0,
-                    duration: const Duration(
-                      milliseconds: 200,
-                    ),
-                    child: const Icon(
+                    duration: Duration(milliseconds: 200),
+                    child: Icon(
                       Icons.keyboard_arrow_down_rounded,
-                      color: certificateGrayText,
+                      color: context.colors.textSecondary,
                       size: 27,
                     ),
                   ),
@@ -195,90 +174,65 @@ class _TechnicalScheduleCardState
             ),
           ),
           AnimatedCrossFade(
-            firstChild: const SizedBox(
-              width: double.infinity,
-              height: 0,
-            ),
+            firstChild: SizedBox(width: double.infinity, height: 0),
             secondChild: items.isEmpty
-                ? const SizedBox.shrink()
+                ? SizedBox.shrink()
                 : Padding(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                0,
-                20,
-                20,
-              ),
-              child: Column(
-                children: [
-                  const Divider(
-                    height: 1,
-                    color: certificateBorderColor,
-                  ),
-                  const SizedBox(height: 18),
-                  ...List.generate(
-                    items.length,
-                        (index) {
-                      final item = items[index];
+                    padding: EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    child: Column(
+                      children: [
+                        Divider(height: 1, color: context.colors.border),
+                        SizedBox(height: 18),
+                        ...List.generate(items.length, (index) {
+                          final item = items[index];
 
-                      return Column(
-                        children: [
-                          Row(
-                            crossAxisAlignment:
-                            CrossAxisAlignment.start,
+                          return Column(
                             children: [
-                              SizedBox(
-                                width: 108,
-                                child: Text(
-                                  item.label,
-                                  style: const TextStyle(
-                                    color:
-                                    certificateGrayText,
-                                    fontSize: 13,
-                                    height: 1.4,
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SizedBox(
+                                    width: 108,
+                                    child: Text(
+                                      item.label,
+                                      style: TextStyle(
+                                        color: context.colors.textSecondary,
+                                        fontSize: 13,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      item.value,
+                                      style: TextStyle(
+                                        color: context.colors.textPrimary,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (index != items.length - 1)
+                                Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 14),
+                                  child: Divider(
+                                    height: 1,
+                                    color: context.colors.border,
                                   ),
                                 ),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  item.value,
-                                  style: const TextStyle(
-                                    color:
-                                    certificateDarkText,
-                                    fontSize: 14,
-                                    fontWeight:
-                                    FontWeight.w600,
-                                    height: 1.4,
-                                  ),
-                                ),
-                              ),
                             ],
-                          ),
-                          if (index !=
-                              items.length - 1)
-                            const Padding(
-                              padding:
-                              EdgeInsets.symmetric(
-                                vertical: 14,
-                              ),
-                              child: Divider(
-                                height: 1,
-                                color:
-                                certificateBorderColor,
-                              ),
-                            ),
-                        ],
-                      );
-                    },
+                          );
+                        }),
+                      ],
+                    ),
                   ),
-                ],
-              ),
-            ),
             crossFadeState: _isExpanded
                 ? CrossFadeState.showSecond
                 : CrossFadeState.showFirst,
-            duration: const Duration(
-              milliseconds: 200,
-            ),
+            duration: Duration(milliseconds: 200),
           ),
         ],
       ),
@@ -286,9 +240,7 @@ class _TechnicalScheduleCardState
   }
 
   _TechnicalScheduleStatus? _resolveScheduleStatus() {
-    final today = _dateOnly(
-      DateTime.now(),
-    );
+    final today = _dateOnly(DateTime.now());
 
     /*
      * 회차 전체 종료 판단
@@ -297,10 +249,7 @@ class _TechnicalScheduleCardState
      * 오늘보다 이전이면 더 이상 남은 일정이 없으므로 종료한다.
      */
     if (_isEntireScheduleFinished(today)) {
-      return const _TechnicalScheduleStatus(
-        label: '종료',
-        isActive: false,
-      );
+      return _TechnicalScheduleStatus(label: '종료', isActive: false);
     }
 
     /*
@@ -315,10 +264,7 @@ class _TechnicalScheduleCardState
       widget.practicalExamStartAt,
       widget.practicalExamEndAt,
     )) {
-      return const _TechnicalScheduleStatus(
-        label: '실기시험 진행중',
-        isActive: true,
-      );
+      return _TechnicalScheduleStatus(label: '실기시험 진행중', isActive: true);
     }
 
     if (_isDateWithinRange(
@@ -326,10 +272,7 @@ class _TechnicalScheduleCardState
       widget.practicalRegistrationStartAt,
       widget.practicalRegistrationEndAt,
     )) {
-      return const _TechnicalScheduleStatus(
-        label: '실기 원서접수 중',
-        isActive: true,
-      );
+      return _TechnicalScheduleStatus(label: '실기 원서접수 중', isActive: true);
     }
 
     if (_isDateWithinRange(
@@ -337,10 +280,7 @@ class _TechnicalScheduleCardState
       widget.writtenExamStartAt,
       widget.writtenExamEndAt,
     )) {
-      return const _TechnicalScheduleStatus(
-        label: '필기시험 진행중',
-        isActive: true,
-      );
+      return _TechnicalScheduleStatus(label: '필기시험 진행중', isActive: true);
     }
 
     if (_isDateWithinRange(
@@ -348,10 +288,7 @@ class _TechnicalScheduleCardState
       widget.writtenRegistrationStartAt,
       widget.writtenRegistrationEndAt,
     )) {
-      return const _TechnicalScheduleStatus(
-        label: '필기 원서접수 중',
-        isActive: true,
-      );
+      return _TechnicalScheduleStatus(label: '필기 원서접수 중', isActive: true);
     }
 
     /*
@@ -367,10 +304,7 @@ class _TechnicalScheduleCardState
       widget.practicalExamStartAt,
       widget.practicalExamEndAt,
     )) {
-      return const _TechnicalScheduleStatus(
-        label: '실기시험 종료',
-        isActive: false,
-      );
+      return _TechnicalScheduleStatus(label: '실기시험 종료', isActive: false);
     }
 
     if (_isRangeFinished(
@@ -378,10 +312,7 @@ class _TechnicalScheduleCardState
       widget.practicalRegistrationStartAt,
       widget.practicalRegistrationEndAt,
     )) {
-      return const _TechnicalScheduleStatus(
-        label: '실기 원서접수 종료',
-        isActive: false,
-      );
+      return _TechnicalScheduleStatus(label: '실기 원서접수 종료', isActive: false);
     }
 
     if (_isRangeFinished(
@@ -389,10 +320,7 @@ class _TechnicalScheduleCardState
       widget.writtenExamStartAt,
       widget.writtenExamEndAt,
     )) {
-      return const _TechnicalScheduleStatus(
-        label: '필기시험 종료',
-        isActive: false,
-      );
+      return _TechnicalScheduleStatus(label: '필기시험 종료', isActive: false);
     }
 
     if (_isRangeFinished(
@@ -400,18 +328,13 @@ class _TechnicalScheduleCardState
       widget.writtenRegistrationStartAt,
       widget.writtenRegistrationEndAt,
     )) {
-      return const _TechnicalScheduleStatus(
-        label: '필기 원서접수 종료',
-        isActive: false,
-      );
+      return _TechnicalScheduleStatus(label: '필기 원서접수 종료', isActive: false);
     }
 
     return null;
   }
 
-  bool _isEntireScheduleFinished(
-      DateTime today,
-      ) {
+  bool _isEntireScheduleFinished(DateTime today) {
     final scheduleDates = <DateTime?>[
       widget.writtenRegistrationStartAt,
       widget.writtenRegistrationEndAt,
@@ -443,50 +366,39 @@ class _TechnicalScheduleCardState
       return false;
     }
 
-    final lastScheduleDate = existingDates.reduce(
-          (currentLatest, date) {
-        return date.isAfter(currentLatest)
-            ? date
-            : currentLatest;
-      },
-    );
+    final lastScheduleDate = existingDates.reduce((currentLatest, date) {
+      return date.isAfter(currentLatest) ? date : currentLatest;
+    });
 
     return lastScheduleDate.isBefore(today);
   }
 
   static bool _isDateWithinRange(
-      DateTime today,
-      DateTime? startDate,
-      DateTime? endDate,
-      ) {
+    DateTime today,
+    DateTime? startDate,
+    DateTime? endDate,
+  ) {
     if (startDate == null && endDate == null) {
       return false;
     }
 
-    final start = _dateOnly(
-      startDate ?? endDate!,
-    );
+    final start = _dateOnly(startDate ?? endDate!);
 
-    final end = _dateOnly(
-      endDate ?? startDate!,
-    );
+    final end = _dateOnly(endDate ?? startDate!);
 
-    return !today.isBefore(start) &&
-        !today.isAfter(end);
+    return !today.isBefore(start) && !today.isAfter(end);
   }
 
   static bool _isRangeFinished(
-      DateTime today,
-      DateTime? startDate,
-      DateTime? endDate,
-      ) {
+    DateTime today,
+    DateTime? startDate,
+    DateTime? endDate,
+  ) {
     if (startDate == null && endDate == null) {
       return false;
     }
 
-    final lastDate = _dateOnly(
-      endDate ?? startDate!,
-    );
+    final lastDate = _dateOnly(endDate ?? startDate!);
 
     return lastDate.isBefore(today);
   }
@@ -494,24 +406,14 @@ class _TechnicalScheduleCardState
   static DateTime _dateOnly(DateTime date) {
     final local = date.toLocal();
 
-    return DateTime(
-      local.year,
-      local.month,
-      local.day,
-    );
+    return DateTime(local.year, local.month, local.day);
   }
 
-  static bool _hasDate(
-      DateTime? startDate,
-      DateTime? endDate,
-      ) {
+  static bool _hasDate(DateTime? startDate, DateTime? endDate) {
     return startDate != null || endDate != null;
   }
 
-  static String _formatDateRange(
-      DateTime? startDate,
-      DateTime? endDate,
-      ) {
+  static String _formatDateRange(DateTime? startDate, DateTime? endDate) {
     if (startDate == null && endDate == null) {
       return '';
     }
@@ -538,12 +440,8 @@ class _TechnicalScheduleCardState
     final localDate = date.toLocal();
 
     final year = localDate.year.toString();
-    final month = localDate.month
-        .toString()
-        .padLeft(2, '0');
-    final day = localDate.day
-        .toString()
-        .padLeft(2, '0');
+    final month = localDate.month.toString().padLeft(2, '0');
+    final day = localDate.day.toString().padLeft(2, '0');
 
     return '$year.$month.$day';
   }
@@ -553,10 +451,7 @@ class _TechnicalScheduleStatus {
   final String label;
   final bool isActive;
 
-  const _TechnicalScheduleStatus({
-    required this.label,
-    required this.isActive,
-  });
+  const _TechnicalScheduleStatus({required this.label, required this.isActive});
 }
 
 class TechnicalExamInformationCard extends StatelessWidget {
@@ -590,18 +485,11 @@ class TechnicalExamInformationCard extends StatelessWidget {
           child: Column(
             children: [
               if (writtenFee != null)
-                _ExamFeeRow(
-                  label: '필기',
-                  fee: writtenFee!,
-                ),
-              if (writtenFee != null &&
-                  practicalFee != null)
-                const SizedBox(height: 10),
+                _ExamFeeRow(label: '필기', fee: writtenFee!),
+              if (writtenFee != null && practicalFee != null)
+                SizedBox(height: 10),
               if (practicalFee != null)
-                _ExamFeeRow(
-                  label: '실기',
-                  fee: practicalFee!,
-                ),
+                _ExamFeeRow(label: '실기', fee: practicalFee!),
             ],
           ),
         ),
@@ -610,8 +498,8 @@ class TechnicalExamInformationCard extends StatelessWidget {
           title: '출제경향',
           child: Text(
             _formatStructuredContents(examTrends),
-            style: const TextStyle(
-              color: certificateDarkText,
+            style: TextStyle(
+              color: context.colors.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w500,
               height: 1.65,
@@ -623,8 +511,8 @@ class TechnicalExamInformationCard extends StatelessWidget {
           title: '취득방법',
           child: Text(
             _formatStructuredContents(howToObtain),
-            style: const TextStyle(
-              color: certificateDarkText,
+            style: TextStyle(
+              color: context.colors.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w500,
               height: 1.65,
@@ -636,37 +524,34 @@ class TechnicalExamInformationCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               '출제기준은 Q-Net 출제기준에서 확인 바랍니다.',
               style: TextStyle(
-                color: certificateDarkText,
+                color: context.colors.textPrimary,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
                 height: 1.5,
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Align(
               alignment: Alignment.centerLeft,
               child: InkWell(
                 onTap: onOpenExamStandard,
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 13,
-                    vertical: 9,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 13, vertical: 9),
                   decoration: BoxDecoration(
-                    color: certificatePinkSoft,
+                    color: context.colors.pinkSoft,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         'Q-Net에서 출제기준 확인하기',
                         style: TextStyle(
-                          color: certificatePrimaryPink,
+                          color: context.colors.pinkDeep,
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),
@@ -674,7 +559,7 @@ class TechnicalExamInformationCard extends StatelessWidget {
                       SizedBox(width: 7),
                       Icon(
                         Icons.open_in_new_rounded,
-                        color: certificatePrimaryPink,
+                        color: context.colors.pinkDeep,
                         size: 17,
                       ),
                     ],
@@ -691,37 +576,34 @@ class TechnicalExamInformationCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               '그외 사항은 Q-Net에서 확인 바랍니다.',
               style: TextStyle(
-                color: certificateDarkText,
+                color: context.colors.textPrimary,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
                 height: 1.5,
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Align(
               alignment: Alignment.centerLeft,
               child: InkWell(
                 onTap: onOpenOtherInformation,
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 13,
-                    vertical: 9,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 13, vertical: 9),
                   decoration: BoxDecoration(
-                    color: certificatePinkSoft,
+                    color: context.colors.pinkSoft,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         'Q-Net에서 상세정보 확인하기',
                         style: TextStyle(
-                          color: certificatePrimaryPink,
+                          color: context.colors.pinkDeep,
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),
@@ -729,7 +611,7 @@ class TechnicalExamInformationCard extends StatelessWidget {
                       SizedBox(width: 7),
                       Icon(
                         Icons.open_in_new_rounded,
-                        color: certificatePrimaryPink,
+                        color: context.colors.pinkDeep,
                         size: 17,
                       ),
                     ],
@@ -744,36 +626,28 @@ class TechnicalExamInformationCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: certificateCardDecoration(),
+      padding: EdgeInsets.all(20),
+      decoration: certificateCardDecoration(context: context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: List.generate(
-          sections.length,
-              (index) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                sections[index],
-                if (index != sections.length - 1)
-                  const Padding(
-                    padding:
-                    EdgeInsets.symmetric(vertical: 20),
-                    child: Divider(
-                      height: 1,
-                      color: certificateBorderColor,
-                    ),
-                  ),
-              ],
-            );
-          },
-        ),
+        children: List.generate(sections.length, (index) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              sections[index],
+              if (index != sections.length - 1)
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Divider(height: 1, color: context.colors.border),
+                ),
+            ],
+          );
+        }),
       ),
     );
   }
-  static String _formatStructuredContents(
-      String contents,
-      ) {
+
+  static String _formatStructuredContents(String contents) {
     var formatted = contents.trim();
 
     const circledNumbers = [
@@ -800,37 +674,24 @@ class TechnicalExamInformationCard extends StatelessWidget {
     ];
 
     for (final number in circledNumbers) {
-      formatted = formatted.replaceAll(
-        number,
-        '\n$number ',
-      );
+      formatted = formatted.replaceAll(number, '\n$number ');
     }
 
-    formatted = formatted.replaceAllMapped(
-      RegExp(r'(\d{1,2})\.\s*'),
-          (match) {
-        return '\n${match.group(1)}. ';
-      },
-    );
+    formatted = formatted.replaceAllMapped(RegExp(r'(\d{1,2})\.\s*'), (match) {
+      return '\n${match.group(1)}. ';
+    });
 
-    formatted = formatted.replaceAllMapped(
-      RegExp(r'<([^>]+)>'),
-          (match) {
-        return '\n<${match.group(1)}>\n';
-      },
-    );
+    formatted = formatted.replaceAllMapped(RegExp(r'<([^>]+)>'), (match) {
+      return '\n<${match.group(1)}>\n';
+    });
 
-    formatted = formatted.replaceAll(
-      RegExp(r'\n{3,}'),
-      '\n\n',
-    );
+    formatted = formatted.replaceAll(RegExp(r'\n{3,}'), '\n\n');
 
     return formatted.trim();
   }
 }
 
-class _TechnicalExamInformationSection
-    extends StatelessWidget {
+class _TechnicalExamInformationSection extends StatelessWidget {
   final String title;
   final Widget child;
 
@@ -846,13 +707,13 @@ class _TechnicalExamInformationSection
       children: [
         Text(
           title,
-          style: const TextStyle(
-            color: certificateDarkText,
+          style: TextStyle(
+            color: context.colors.textPrimary,
             fontSize: 17,
             fontWeight: FontWeight.w800,
           ),
         ),
-        const SizedBox(height: 13),
+        SizedBox(height: 13),
         child,
       ],
     );
@@ -863,10 +724,7 @@ class _ExamFeeRow extends StatelessWidget {
   final String label;
   final int fee;
 
-  const _ExamFeeRow({
-    required this.label,
-    required this.fee,
-  });
+  const _ExamFeeRow({required this.label, required this.fee});
 
   @override
   Widget build(BuildContext context) {
@@ -876,17 +734,14 @@ class _ExamFeeRow extends StatelessWidget {
           width: 48,
           child: Text(
             label,
-            style: const TextStyle(
-              color: certificateDarkText,
-              fontSize: 13,
-            ),
+            style: TextStyle(color: context.colors.textPrimary, fontSize: 13),
           ),
         ),
         Expanded(
           child: Text(
             '${_formatFee(fee)}원',
-            style: const TextStyle(
-              color: certificateDarkText,
+            style: TextStyle(
+              color: context.colors.textPrimary,
               fontSize: 15,
               fontWeight: FontWeight.w700,
             ),
@@ -918,85 +773,72 @@ class _ExamFeeRow extends StatelessWidget {
 class CertificateScheduleNoticeCard extends StatelessWidget {
   final VoidCallback onOpenNotice;
 
-  const CertificateScheduleNoticeCard({
-    super.key,
-    required this.onOpenNotice,
-  });
+  const CertificateScheduleNoticeCard({super.key, required this.onOpenNotice});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: certificateCardDecoration(),
+      padding: EdgeInsets.all(20),
+      decoration: certificateCardDecoration(context: context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(
                 Icons.info_outline_rounded,
-                color: certificatePrimaryPink,
+                color: context.colors.pinkDeep,
                 size: 21,
               ),
               SizedBox(width: 9),
               Text(
                 '시험 일정 안내',
                 style: TextStyle(
-                  color: certificateDarkText,
+                  color: context.colors.textPrimary,
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 17),
-          const _ScheduleNoticeRow(
-            text:
-            '원서접수 시간은 원서접수 첫날 10:00부터 마지막 날 18:00까지입니다.',
+          SizedBox(height: 17),
+          _ScheduleNoticeRow(
+            text: '원서접수 시간은 원서접수 첫날 10:00부터 마지막 날 18:00까지입니다.',
           ),
-          const SizedBox(height: 11),
-          const _ScheduleNoticeRow(
-            text:
-            '필기시험 합격예정자 및 최종합격자 발표 시간은 해당 발표일 09:00입니다.',
+          SizedBox(height: 11),
+          _ScheduleNoticeRow(
+            text: '필기시험 합격예정자 및 최종합격자 발표 시간은 해당 발표일 09:00입니다.',
           ),
-          const SizedBox(height: 11),
-          const _ScheduleNoticeRow(
-            text:
-            '시험 일정은 종목별, 지역별로 상이할 수 있습니다.',
+          SizedBox(height: 11),
+          _ScheduleNoticeRow(text: '시험 일정은 종목별, 지역별로 상이할 수 있습니다.'),
+          SizedBox(height: 11),
+          _ScheduleNoticeRow(
+            text: '접수 일정 전에 공지되는 해당 회별 수험자 안내(Q-Net 공지사항 게시)를 반드시 확인해야 합니다.',
           ),
-          const SizedBox(height: 11),
-          const _ScheduleNoticeRow(
-            text:
-            '접수 일정 전에 공지되는 해당 회별 수험자 안내(Q-Net 공지사항 게시)를 반드시 확인해야 합니다.',
+          SizedBox(height: 11),
+          _ScheduleNoticeRow(
+            text: '빈자리 원서접수 기간이 운영될 수 있으나, 자격증 상세보기에는 표시되지 않을 수 있습니다.',
           ),
-          const SizedBox(height: 11),
-          const _ScheduleNoticeRow(
-            text:
-            '빈자리 원서접수 기간이 운영될 수 있으나, 자격증 상세보기에는 표시되지 않을 수 있습니다.',
-          ),
-          const SizedBox(height: 17),
+          SizedBox(height: 17),
           Align(
             alignment: Alignment.centerLeft,
             child: InkWell(
               onTap: onOpenNotice,
               borderRadius: BorderRadius.circular(10),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 13,
-                  vertical: 9,
-                ),
+                padding: EdgeInsets.symmetric(horizontal: 13, vertical: 9),
                 decoration: BoxDecoration(
-                  color: certificatePinkSoft,
+                  color: context.colors.pinkSoft,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       'Q-Net에서 공지사항 확인하기',
                       style: TextStyle(
-                        color: certificatePrimaryPink,
+                        color: context.colors.pinkDeep,
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                       ),
@@ -1004,7 +846,7 @@ class CertificateScheduleNoticeCard extends StatelessWidget {
                     SizedBox(width: 7),
                     Icon(
                       Icons.open_in_new_rounded,
-                      color: certificatePrimaryPink,
+                      color: context.colors.pinkDeep,
                       size: 17,
                     ),
                   ],
@@ -1021,29 +863,27 @@ class CertificateScheduleNoticeCard extends StatelessWidget {
 class _ScheduleNoticeRow extends StatelessWidget {
   final String text;
 
-  const _ScheduleNoticeRow({
-    required this.text,
-  });
+  const _ScheduleNoticeRow({required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
+        Padding(
           padding: EdgeInsets.only(top: 8),
           child: Icon(
             Icons.circle,
             size: 5,
-            color: certificateGrayText,
+            color: context.colors.textSecondary,
           ),
         ),
-        const SizedBox(width: 10),
+        SizedBox(width: 10),
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(
-              color: certificateDarkText,
+            style: TextStyle(
+              color: context.colors.textPrimary,
               fontSize: 13,
               fontWeight: FontWeight.w500,
               height: 1.55,
@@ -1054,7 +894,6 @@ class _ScheduleNoticeRow extends StatelessWidget {
     );
   }
 }
-
 
 class TechnicalExamSubjectLookupCard extends StatefulWidget {
   final bool isLoading;
@@ -1085,7 +924,7 @@ class _TechnicalExamSubjectLookupCardState
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      decoration: certificateCardDecoration(),
+      decoration: certificateCardDecoration(context: context),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1097,37 +936,32 @@ class _TechnicalExamSubjectLookupCardState
               });
             },
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 18,
-              ),
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 18),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.menu_book_rounded,
-                    color: certificatePrimaryPink,
+                    color: context.colors.pinkDeep,
                     size: 22,
                   ),
-                  const SizedBox(width: 9),
-                  const Expanded(
+                  SizedBox(width: 9),
+                  Expanded(
                     child: Text(
                       '시험 교시·과목 정보',
                       style: TextStyle(
-                        color: certificateDarkText,
+                        color: context.colors.textPrimary,
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   AnimatedRotation(
                     turns: _isExpanded ? 0.5 : 0,
-                    duration: const Duration(
-                      milliseconds: 200,
-                    ),
-                    child: const Icon(
+                    duration: Duration(milliseconds: 200),
+                    child: Icon(
                       Icons.keyboard_arrow_down_rounded,
-                      color: certificateGrayText,
+                      color: context.colors.textSecondary,
                       size: 27,
                     ),
                   ),
@@ -1136,126 +970,100 @@ class _TechnicalExamSubjectLookupCardState
             ),
           ),
           AnimatedCrossFade(
-            firstChild: const SizedBox(
-              width: double.infinity,
-              height: 0,
-            ),
+            firstChild: SizedBox(width: double.infinity, height: 0),
             secondChild: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                0,
-                20,
-                20,
-              ),
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Divider(
-                    height: 1,
-                    color: certificateBorderColor,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
+                  Divider(height: 1, color: context.colors.border),
+                  SizedBox(height: 16),
+                  Text(
                     '현재 자격증의 시험 과목, 교시, 문항 수와 시험시간을 조회합니다.\n'
-                        '차수는 대체로 1차는 필기, 2차는 실기/면접입니다.',
+                    '차수는 대체로 1차는 필기, 2차는 실기/면접입니다.',
                     style: TextStyle(
-                      color: certificateGrayText,
+                      color: context.colors.textSecondary,
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                       height: 1.5,
                     ),
                   ),
-                  const SizedBox(height: 17),
+                  SizedBox(height: 17),
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
-                      onPressed:
-                      widget.isLoading ? null : widget.onLookup,
+                      onPressed: widget.isLoading ? null : widget.onLookup,
                       style: FilledButton.styleFrom(
-                        backgroundColor: certificatePrimaryPink,
-                        disabledBackgroundColor:
-                        certificatePrimaryPink.withValues(
-                          alpha: 0.55,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 14,
-                        ),
+                        backgroundColor: context.colors.pinkDeep,
+                        disabledBackgroundColor: context.colors.pinkDeep
+                            .withValues(alpha: 0.55),
+                        padding: EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       child: widget.isLoading
-                          ? const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.2,
-                              color: Colors.white,
-                            ),
-                          ),
-                          SizedBox(width: 10),
-                          Text(
-                            '조회 중...',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
-                      )
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: context.colors.onPrimary,
+                                  ),
+                                ),
+                                SizedBox(width: 10),
+                                Text(
+                                  '조회 중...',
+                                  style: TextStyle(
+                                    color: context.colors.onPrimary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            )
                           : Text(
-                        widget.hasRequested
-                            ? '다시 조회하기'
-                            : '과목 조회하기',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
+                              widget.hasRequested ? '다시 조회하기' : '과목 조회하기',
+                              style: TextStyle(
+                                color: context.colors.onPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                     ),
                   ),
                   if (widget.isLoading) ...[
-                    const SizedBox(height: 18),
-                    const _ExamSubjectMessage(
+                    SizedBox(height: 18),
+                    _ExamSubjectMessage(
                       icon: Icons.hourglass_top_rounded,
                       message: '시험 교시·과목 정보를 조회하고 있습니다.',
                     ),
                   ] else if (widget.errorMessage != null) ...[
-                    const SizedBox(height: 18),
+                    SizedBox(height: 18),
                     _ExamSubjectMessage(
                       icon: Icons.error_outline_rounded,
                       message: widget.errorMessage!,
                     ),
                   ] else if (widget.hasRequested &&
                       widget.subjects.isEmpty) ...[
-                    const SizedBox(height: 18),
-                    const _ExamSubjectMessage(
+                    SizedBox(height: 18),
+                    _ExamSubjectMessage(
                       icon: Icons.search_off_rounded,
                       message: '조회된 시험 교시·과목 정보가 없습니다.',
                     ),
                   ] else if (widget.subjects.isNotEmpty) ...[
-                    const Padding(
-                      padding: EdgeInsets.symmetric(
-                        vertical: 20,
-                      ),
-                      child: Divider(
-                        height: 1,
-                        color: certificateBorderColor,
-                      ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Divider(height: 1, color: context.colors.border),
                     ),
                     ...List.generate(
                       widget.subjects.length,
-                          (index) => Padding(
+                      (index) => Padding(
                         padding: EdgeInsets.only(
-                          bottom:
-                          index == widget.subjects.length - 1
-                              ? 0
-                              : 12,
+                          bottom: index == widget.subjects.length - 1 ? 0 : 12,
                         ),
                         child: _TechnicalExamSubjectItem(
                           subject: widget.subjects[index],
@@ -1269,9 +1077,7 @@ class _TechnicalExamSubjectLookupCardState
             crossFadeState: _isExpanded
                 ? CrossFadeState.showSecond
                 : CrossFadeState.showFirst,
-            duration: const Duration(
-              milliseconds: 200,
-            ),
+            duration: Duration(milliseconds: 200),
           ),
         ],
       ),
@@ -1282,38 +1088,21 @@ class _TechnicalExamSubjectLookupCardState
 class _TechnicalExamSubjectItem extends StatelessWidget {
   final TechnicalExamSubject subject;
 
-  const _TechnicalExamSubjectItem({
-    required this.subject,
-  });
+  const _TechnicalExamSubjectItem({required this.subject});
 
   @override
   Widget build(BuildContext context) {
     final items = <CertificateInfoItem>[
       if (subject.detailTypeName.isNotEmpty)
-        CertificateInfoItem(
-          label: '세부유형',
-          value: subject.detailTypeName,
-        ),
+        CertificateInfoItem(label: '세부유형', value: subject.detailTypeName),
       if (subject.sequenceNumber != null)
-        CertificateInfoItem(
-          label: '차수',
-          value: '${subject.sequenceNumber}차',
-        ),
+        CertificateInfoItem(label: '차수', value: '${subject.sequenceNumber}차'),
       if (subject.lessonNumber != null)
-        CertificateInfoItem(
-          label: '교시',
-          value: '${subject.lessonNumber}교시',
-        ),
+        CertificateInfoItem(label: '교시', value: '${subject.lessonNumber}교시'),
       if (subject.requiredSubjectName.isNotEmpty)
-        CertificateInfoItem(
-          label: '필수 여부',
-          value: subject.requiredSubjectName,
-        ),
+        CertificateInfoItem(label: '필수 여부', value: subject.requiredSubjectName),
       if (subject.questionCount != null)
-        CertificateInfoItem(
-          label: '문항 수',
-          value: '${subject.questionCount}문항',
-        ),
+        CertificateInfoItem(label: '문항 수', value: '${subject.questionCount}문항'),
       if (subject.shortAnswerQuestionCount != null)
         CertificateInfoItem(
           label: '단답형',
@@ -1331,36 +1120,33 @@ class _TechnicalExamSubjectItem extends StatelessWidget {
         ),
       if (subject.selectionFieldName.isNotEmpty &&
           subject.selectionFieldName != '선택분야없음')
-        CertificateInfoItem(
-          label: '선택분야',
-          value: subject.selectionFieldName,
-        ),
+        CertificateInfoItem(label: '선택분야', value: subject.selectionFieldName),
     ];
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: certificatePinkSoft.withValues(alpha: 0.55),
+        color: context.colors.pinkSoft.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: certificateBorderColor),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             subject.subjectName.isEmpty ? '과목 정보' : subject.subjectName,
-            style: const TextStyle(
-              color: certificateDarkText,
+            style: TextStyle(
+              color: context.colors.textPrimary,
               fontSize: 15,
               fontWeight: FontWeight.w800,
             ),
           ),
           if (items.isNotEmpty) ...[
-            const SizedBox(height: 14),
+            SizedBox(height: 14),
             ...List.generate(
               items.length,
-                  (index) => Padding(
+              (index) => Padding(
                 padding: EdgeInsets.only(
                   bottom: index == items.length - 1 ? 0 : 10,
                 ),
@@ -1371,8 +1157,8 @@ class _TechnicalExamSubjectItem extends StatelessWidget {
                       width: 78,
                       child: Text(
                         items[index].label,
-                        style: const TextStyle(
-                          color: certificateGrayText,
+                        style: TextStyle(
+                          color: context.colors.textSecondary,
                           fontSize: 12,
                           height: 1.4,
                         ),
@@ -1381,8 +1167,8 @@ class _TechnicalExamSubjectItem extends StatelessWidget {
                     Expanded(
                       child: Text(
                         items[index].value,
-                        style: const TextStyle(
-                          color: certificateDarkText,
+                        style: TextStyle(
+                          color: context.colors.textPrimary,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           height: 1.4,
@@ -1404,34 +1190,27 @@ class _ExamSubjectMessage extends StatelessWidget {
   final IconData icon;
   final String message;
 
-  const _ExamSubjectMessage({
-    required this.icon,
-    required this.message,
-  });
+  const _ExamSubjectMessage({required this.icon, required this.message});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: certificatePinkSoft.withValues(alpha: 0.55),
+        color: context.colors.pinkSoft.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            color: certificatePrimaryPink,
-            size: 20,
-          ),
-          const SizedBox(width: 10),
+          Icon(icon, color: context.colors.pinkDeep, size: 20),
+          SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(
-                color: certificateDarkText,
+              style: TextStyle(
+                color: context.colors.textPrimary,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 height: 1.5,
@@ -1444,8 +1223,6 @@ class _ExamSubjectMessage extends StatelessWidget {
   }
 }
 
-
-
 class TechnicalPracticalMaterialLookupCard extends StatefulWidget {
   final bool isLoading;
   final bool hasRequested;
@@ -1456,9 +1233,10 @@ class TechnicalPracticalMaterialLookupCard extends StatefulWidget {
   final PracticalMaterialPrecautions precautions;
 
   final Future<void> Function({
-  required String implementationYear,
-  required String implementationSequence,
-  }) onLookup;
+    required String implementationYear,
+    required String implementationSequence,
+  })
+  onLookup;
 
   const TechnicalPracticalMaterialLookupCard({
     super.key,
@@ -1479,10 +1257,12 @@ class TechnicalPracticalMaterialLookupCard extends StatefulWidget {
 
 class _TechnicalPracticalMaterialLookupCardState
     extends State<TechnicalPracticalMaterialLookupCard> {
-  final TextEditingController _yearController =
-  TextEditingController(text: '2026');
-  final TextEditingController _sequenceController =
-  TextEditingController(text: '1');
+  final TextEditingController _yearController = TextEditingController(
+    text: '2026',
+  );
+  final TextEditingController _sequenceController = TextEditingController(
+    text: '1',
+  );
 
   bool _isExpanded = true;
   String? _inputError;
@@ -1529,7 +1309,7 @@ class _TechnicalPracticalMaterialLookupCardState
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      decoration: certificateCardDecoration(),
+      decoration: certificateCardDecoration(context: context),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1541,35 +1321,32 @@ class _TechnicalPracticalMaterialLookupCardState
               });
             },
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 18,
-              ),
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 18),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.handyman_outlined,
-                    color: certificatePrimaryPink,
+                    color: context.colors.pinkDeep,
                     size: 22,
                   ),
-                  const SizedBox(width: 9),
-                  const Expanded(
+                  SizedBox(width: 9),
+                  Expanded(
                     child: Text(
                       '실기시험 지참 준비물',
                       style: TextStyle(
-                        color: certificateDarkText,
+                        color: context.colors.textPrimary,
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   AnimatedRotation(
                     turns: _isExpanded ? 0.5 : 0,
-                    duration: const Duration(milliseconds: 200),
-                    child: const Icon(
+                    duration: Duration(milliseconds: 200),
+                    child: Icon(
                       Icons.keyboard_arrow_down_rounded,
-                      color: certificateGrayText,
+                      color: context.colors.textSecondary,
                       size: 27,
                     ),
                   ),
@@ -1578,44 +1355,38 @@ class _TechnicalPracticalMaterialLookupCardState
             ),
           ),
           AnimatedCrossFade(
-            firstChild: const SizedBox(
-              width: double.infinity,
-              height: 0,
-            ),
+            firstChild: SizedBox(width: double.infinity, height: 0),
             secondChild: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Divider(
-                    height: 1,
-                    color: certificateBorderColor,
-                  ),
-                  const SizedBox(height: 16),
+                  Divider(height: 1, color: context.colors.border),
+                  SizedBox(height: 16),
                   if (widget.usesStoredData)
                     Text(
                       widget.storedImplementationYear == null
                           ? '저장된 실기시험 지참 준비물입니다.'
                           : '${widget.storedImplementationYear}년 기준으로 저장된 실기시험 지참 준비물입니다.',
-                      style: const TextStyle(
-                        color: certificateGrayText,
+                      style: TextStyle(
+                        color: context.colors.textSecondary,
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                         height: 1.5,
                       ),
                     )
                   else ...[
-                    const Text(
+                    Text(
                       '시행년도와 시행회차를 입력해 현재 자격증의 실기시험 지참 준비물을 조회합니다.\n'
-                          '실기시험 지참 준비물이 있는 경우에만 조회할 수 있습니다.',
+                      '실기시험 지참 준비물이 있는 경우에만 조회할 수 있습니다.',
                       style: TextStyle(
-                        color: certificateGrayText,
+                        color: context.colors.textSecondary,
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                         height: 1.5,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     Row(
                       children: [
                         Expanded(
@@ -1627,7 +1398,7 @@ class _TechnicalPracticalMaterialLookupCardState
                             maxLength: 4,
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        SizedBox(width: 12),
                         Expanded(
                           child: _PracticalMaterialInput(
                             controller: _sequenceController,
@@ -1639,103 +1410,93 @@ class _TechnicalPracticalMaterialLookupCardState
                       ],
                     ),
                     if (_inputError != null) ...[
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8),
                       Text(
                         _inputError!,
-                        style: const TextStyle(
-                          color: certificatePrimaryPink,
+                        style: TextStyle(
+                          color: context.colors.pinkDeep,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton(
                         onPressed: widget.isLoading ? null : _handleLookup,
                         style: FilledButton.styleFrom(
-                          backgroundColor: certificatePrimaryPink,
-                          disabledBackgroundColor:
-                          certificatePrimaryPink.withValues(alpha: 0.55),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          backgroundColor: context.colors.pinkDeep,
+                          disabledBackgroundColor: context.colors.pinkDeep
+                              .withValues(alpha: 0.55),
+                          padding: EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                         child: widget.isLoading
-                            ? const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.2,
-                                color: Colors.white,
-                              ),
-                            ),
-                            SizedBox(width: 10),
-                            Text(
-                              '조회 중...',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        )
+                            ? Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.2,
+                                      color: context.colors.onPrimary,
+                                    ),
+                                  ),
+                                  SizedBox(width: 10),
+                                  Text(
+                                    '조회 중...',
+                                    style: TextStyle(
+                                      color: context.colors.onPrimary,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ],
+                              )
                             : Text(
-                          widget.hasRequested
-                              ? '다시 조회하기'
-                              : '지참 준비물 조회하기',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
+                                widget.hasRequested ? '다시 조회하기' : '지참 준비물 조회하기',
+                                style: TextStyle(
+                                  color: context.colors.onPrimary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
                       ),
                     ),
                   ],
                   if (widget.isLoading) ...[
-                    const SizedBox(height: 18),
-                    const _ExamSubjectMessage(
+                    SizedBox(height: 18),
+                    _ExamSubjectMessage(
                       icon: Icons.hourglass_top_rounded,
                       message: '실기시험 지참 준비물을 조회하고 있습니다.',
                     ),
                   ] else if (widget.errorMessage != null) ...[
-                    const SizedBox(height: 18),
+                    SizedBox(height: 18),
                     _ExamSubjectMessage(
                       icon: Icons.error_outline_rounded,
                       message: widget.errorMessage!,
                     ),
                   ] else if (widget.hasRequested &&
                       widget.materials.isEmpty) ...[
-                    const SizedBox(height: 18),
-                    const _ExamSubjectMessage(
+                    SizedBox(height: 18),
+                    _ExamSubjectMessage(
                       icon: Icons.search_off_rounded,
                       message: '조회된 실기시험 지참 준비물이 없습니다.',
                     ),
                   ] else if (widget.materials.isNotEmpty) ...[
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(vertical: 20),
-                      child: Divider(
-                        height: 1,
-                        color: certificateBorderColor,
-                      ),
+                      child: Divider(height: 1, color: context.colors.border),
                     ),
-                    _PracticalMaterialsTable(
-                      materials: widget.materials,
-                    ),
+                    _PracticalMaterialsTable(materials: widget.materials),
                     if (widget.precautions.isNotEmpty) ...[
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.symmetric(vertical: 20),
-                        child: Divider(
-                          height: 1,
-                          color: certificateBorderColor,
-                        ),
+                        child: Divider(height: 1, color: context.colors.border),
                       ),
                       _PracticalMaterialPrecautionsView(
                         precautions: widget.precautions,
@@ -1748,7 +1509,7 @@ class _TechnicalPracticalMaterialLookupCardState
             crossFadeState: _isExpanded
                 ? CrossFadeState.showSecond
                 : CrossFadeState.showFirst,
-            duration: const Duration(milliseconds: 200),
+            duration: Duration(milliseconds: 200),
           ),
         ],
       ),
@@ -1756,118 +1517,86 @@ class _TechnicalPracticalMaterialLookupCardState
   }
 }
 
-class _PracticalMaterialPrecautionsView
-    extends StatelessWidget {
+class _PracticalMaterialPrecautionsView extends StatelessWidget {
   final PracticalMaterialPrecautions precautions;
 
-  const _PracticalMaterialPrecautionsView({
-    required this.precautions,
-  });
+  const _PracticalMaterialPrecautionsView({required this.precautions});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: List.generate(
-        precautions.blocks.length,
-            (index) {
-          final block = precautions.blocks[index];
+      children: List.generate(precautions.blocks.length, (index) {
+        final block = precautions.blocks[index];
 
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom:
-              index == precautions.blocks.length - 1
-                  ? 0
-                  : 24,
-            ),
-            child: _PracticalMaterialPrecautionBlockView(
-              block: block,
-            ),
-          );
-        },
-      ),
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: index == precautions.blocks.length - 1 ? 0 : 24,
+          ),
+          child: _PracticalMaterialPrecautionBlockView(block: block),
+        );
+      }),
     );
   }
 }
 
-class _PracticalMaterialPrecautionBlockView
-    extends StatelessWidget {
+class _PracticalMaterialPrecautionBlockView extends StatelessWidget {
   final PracticalMaterialPrecautionBlock block;
 
-  const _PracticalMaterialPrecautionBlockView({
-    required this.block,
-  });
+  const _PracticalMaterialPrecautionBlockView({required this.block});
 
   @override
   Widget build(BuildContext context) {
     switch (block.type) {
       case 'table':
-        return _PracticalMaterialPrecautionTable(
-          block: block,
-        );
+        return _PracticalMaterialPrecautionTable(block: block);
 
       case 'section':
       default:
-        return _PracticalMaterialPrecautionSection(
-          block: block,
-        );
+        return _PracticalMaterialPrecautionSection(block: block);
     }
   }
 }
 
-class _PracticalMaterialPrecautionSection
-    extends StatelessWidget {
+class _PracticalMaterialPrecautionSection extends StatelessWidget {
   final PracticalMaterialPrecautionBlock block;
 
-  const _PracticalMaterialPrecautionSection({
-    required this.block,
-  });
+  const _PracticalMaterialPrecautionSection({required this.block});
 
   @override
   Widget build(BuildContext context) {
     if (block.items.isEmpty) {
-      return const SizedBox.shrink();
+      return SizedBox.shrink();
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          block.title.isEmpty
-              ? '주의사항'
-              : block.title,
-          style: const TextStyle(
-            color: certificateDarkText,
+          block.title.isEmpty ? '주의사항' : block.title,
+          style: TextStyle(
+            color: context.colors.textPrimary,
             fontSize: 15,
             fontWeight: FontWeight.w800,
           ),
         ),
-        const SizedBox(height: 12),
-        ...List.generate(
-          block.items.length,
-              (index) {
-            final item = block.items[index];
+        SizedBox(height: 12),
+        ...List.generate(block.items.length, (index) {
+          final item = block.items[index];
 
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom:
-                index == block.items.length - 1
-                    ? 0
-                    : 10,
-              ),
-              child: _PracticalMaterialPrecautionItemView(
-                item: item,
-              ),
-            );
-          },
-        ),
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: index == block.items.length - 1 ? 0 : 10,
+            ),
+            child: _PracticalMaterialPrecautionItemView(item: item),
+          );
+        }),
       ],
     );
   }
 }
 
-class _PracticalMaterialPrecautionItemView
-    extends StatelessWidget {
+class _PracticalMaterialPrecautionItemView extends StatelessWidget {
   final PracticalMaterialPrecautionItem item;
   final bool showBullet;
 
@@ -1878,7 +1607,7 @@ class _PracticalMaterialPrecautionItemView
 
   @override
   Widget build(BuildContext context) {
-    final textColor = _textColor(item.type);
+    final textColor = _textColor(context, item.type);
     final fontWeight = _fontWeight(item.type);
 
     if (!showBullet) {
@@ -1897,14 +1626,10 @@ class _PracticalMaterialPrecautionItemView
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: Icon(
-            Icons.circle,
-            size: 5,
-            color: textColor,
-          ),
+          padding: EdgeInsets.only(top: 8),
+          child: Icon(Icons.circle, size: 5, color: textColor),
         ),
-        const SizedBox(width: 9),
+        SizedBox(width: 9),
         Expanded(
           child: Text(
             item.text,
@@ -1920,21 +1645,21 @@ class _PracticalMaterialPrecautionItemView
     );
   }
 
-  static Color _textColor(String type) {
+  static Color _textColor(BuildContext context, String type) {
     switch (type) {
       case 'disqualification':
       case 'zeroScore':
-        return const Color(0xFFE53935);
+        return context.colors.incorrect;
 
       case 'warning':
-        return certificatePrimaryPink;
+        return context.colors.pinkDeep;
 
       case 'prohibited':
-        return certificateDarkText;
+        return context.colors.textPrimary;
 
       case 'normal':
       default:
-        return certificateBodyText;
+        return context.colors.textSecondary;
     }
   }
 
@@ -1955,41 +1680,34 @@ class _PracticalMaterialPrecautionItemView
   }
 }
 
-class _PracticalMaterialPrecautionTable
-    extends StatelessWidget {
+class _PracticalMaterialPrecautionTable extends StatelessWidget {
   final PracticalMaterialPrecautionBlock block;
 
-  const _PracticalMaterialPrecautionTable({
-    required this.block,
-  });
+  const _PracticalMaterialPrecautionTable({required this.block});
 
   @override
   Widget build(BuildContext context) {
     if (block.rows.isEmpty) {
-      return const SizedBox.shrink();
+      return SizedBox.shrink();
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          block.title.isEmpty
-              ? '주의사항'
-              : block.title,
-          style: const TextStyle(
-            color: certificateDarkText,
+          block.title.isEmpty ? '주의사항' : block.title,
+          style: TextStyle(
+            color: context.colors.textPrimary,
             fontSize: 15,
             fontWeight: FontWeight.w800,
           ),
         ),
-        const SizedBox(height: 13),
+        SizedBox(height: 13),
         Container(
           width: double.infinity,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: certificateBorderColor,
-            ),
+            border: Border.all(color: context.colors.border),
           ),
           clipBehavior: Clip.antiAlias,
           child: SingleChildScrollView(
@@ -1997,28 +1715,22 @@ class _PracticalMaterialPrecautionTable
             child: SizedBox(
               width: 930,
               child: Table(
-                border: TableBorder.all(
-                  color: certificateBorderColor,
-                  width: 1,
-                ),
-                columnWidths: const {
+                border: TableBorder.all(color: context.colors.border, width: 1),
+                columnWidths: {
                   0: FixedColumnWidth(58),
                   1: FixedColumnWidth(130),
                   2: FixedColumnWidth(155),
                   3: FixedColumnWidth(587),
                 },
-                defaultVerticalAlignment:
-                TableCellVerticalAlignment.middle,
+                defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                 children: [
-                  _buildHeaderRow(),
+                  _buildHeaderRow(context),
                   ...List.generate(
                     block.rows.length,
-                        (index) => _buildDataRow(
+                    (index) => _buildDataRow(
+                      context: context,
                       row: block.rows[index],
-                      previousRow:
-                      index == 0
-                          ? null
-                          : block.rows[index - 1],
+                      previousRow: index == 0 ? null : block.rows[index - 1],
                     ),
                   ),
                 ],
@@ -2027,65 +1739,46 @@ class _PracticalMaterialPrecautionTable
           ),
         ),
         if (block.footerNotes.isNotEmpty) ...[
-          const SizedBox(height: 14),
-          ...List.generate(
-            block.footerNotes.length,
-                (index) {
-              final item = block.footerNotes[index];
+          SizedBox(height: 14),
+          ...List.generate(block.footerNotes.length, (index) {
+            final item = block.footerNotes[index];
 
-              return Padding(
-                padding: EdgeInsets.only(
-                  bottom:
-                  index ==
-                      block.footerNotes.length - 1
-                      ? 0
-                      : 9,
-                ),
-                child:
-                _PracticalMaterialPrecautionItemView(
-                  item: item,
-                ),
-              );
-            },
-          ),
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: index == block.footerNotes.length - 1 ? 0 : 9,
+              ),
+              child: _PracticalMaterialPrecautionItemView(item: item),
+            );
+          }),
         ],
       ],
     );
   }
 
-  TableRow _buildHeaderRow() {
+  TableRow _buildHeaderRow(BuildContext context) {
     final columns = block.columns.length >= 4
         ? block.columns
-        : const [
-      '순번',
-      '구분',
-      '세부 구분',
-      '세부기준',
-    ];
+        : ['순번', '구분', '세부 구분', '세부기준'];
 
     return TableRow(
       decoration: BoxDecoration(
-        color: certificatePinkSoft.withValues(
-          alpha: 0.7,
-        ),
+        color: context.colors.pinkSoft.withValues(alpha: 0.7),
       ),
       children: [
-        _buildHeaderCell(columns[0]),
-        _buildHeaderCell(columns[1]),
-        _buildHeaderCell(columns[2]),
-        _buildHeaderCell(columns[3]),
+        _buildHeaderCell(context, columns[0]),
+        _buildHeaderCell(context, columns[1]),
+        _buildHeaderCell(context, columns[2]),
+        _buildHeaderCell(context, columns[3]),
       ],
     );
   }
 
   TableRow _buildDataRow({
+    required BuildContext context,
     required PracticalMaterialPrecautionRow row,
-    required PracticalMaterialPrecautionRow?
-    previousRow,
+    required PracticalMaterialPrecautionRow? previousRow,
   }) {
-    final isSameGroup =
-        row.group.isNotEmpty &&
-            previousRow?.group == row.group;
+    final isSameGroup = row.group.isNotEmpty && previousRow?.group == row.group;
 
     return TableRow(
       children: [
@@ -2093,8 +1786,8 @@ class _PracticalMaterialPrecautionTable
           Text(
             row.number?.toString() ?? '-',
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: certificateDarkText,
+            style: TextStyle(
+              color: context.colors.textPrimary,
               fontSize: 13,
               fontWeight: FontWeight.w800,
             ),
@@ -2102,47 +1795,42 @@ class _PracticalMaterialPrecautionTable
         ),
         _buildCell(
           isSameGroup
-              ? const SizedBox.shrink()
+              ? SizedBox.shrink()
               : Column(
-            mainAxisAlignment:
-            MainAxisAlignment.center,
-            children: [
-              Text(
-                row.group.isEmpty
-                    ? '-'
-                    : row.group,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: certificateDarkText,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  height: 1.4,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      row.group.isEmpty ? '-' : row.group,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        height: 1.4,
+                      ),
+                    ),
+                    if (row.groupNote.isNotEmpty) ...[
+                      SizedBox(height: 5),
+                      Text(
+                        row.groupNote,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: context.colors.incorrect,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-              ),
-              if (row.groupNote.isNotEmpty) ...[
-                const SizedBox(height: 5),
-                Text(
-                  row.groupNote,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFFE53935),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ],
-          ),
         ),
         _buildCell(
           Text(
-            row.category.isEmpty
-                ? '-'
-                : row.category,
+            row.category.isEmpty ? '-' : row.category,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: certificateDarkText,
+            style: TextStyle(
+              color: context.colors.textPrimary,
               fontSize: 13,
               fontWeight: FontWeight.w800,
               height: 1.4,
@@ -2151,29 +1839,20 @@ class _PracticalMaterialPrecautionTable
         ),
         _buildCell(
           Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
-            children: List.generate(
-              row.contents.length,
-                  (index) {
-                final item = row.contents[index];
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: List.generate(row.contents.length, (index) {
+              final item = row.contents[index];
 
-                return Padding(
-                  padding: EdgeInsets.only(
-                    bottom:
-                    index ==
-                        row.contents.length - 1
-                        ? 0
-                        : 7,
-                  ),
-                  child:
-                  _PracticalMaterialPrecautionItemView(
-                    item: item,
-                    showBullet: false,
-                  ),
-                );
-              },
-            ),
+              return Padding(
+                padding: EdgeInsets.only(
+                  bottom: index == row.contents.length - 1 ? 0 : 7,
+                ),
+                child: _PracticalMaterialPrecautionItemView(
+                  item: item,
+                  showBullet: false,
+                ),
+              );
+            }),
           ),
           alignment: Alignment.centerLeft,
         ),
@@ -2181,18 +1860,15 @@ class _PracticalMaterialPrecautionTable
     );
   }
 
-  Widget _buildHeaderCell(String text) {
+  Widget _buildHeaderCell(BuildContext context, String text) {
     return Container(
       alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 13,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 13),
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: const TextStyle(
-          color: certificateDarkText,
+        style: TextStyle(
+          color: context.colors.textPrimary,
           fontSize: 12,
           fontWeight: FontWeight.w800,
         ),
@@ -2200,16 +1876,10 @@ class _PracticalMaterialPrecautionTable
     );
   }
 
-  Widget _buildCell(
-      Widget child, {
-        Alignment alignment = Alignment.center,
-      }) {
+  Widget _buildCell(Widget child, {Alignment alignment = Alignment.center}) {
     return Container(
       alignment: alignment,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 11,
-        vertical: 13,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 11, vertical: 13),
       child: child,
     );
   }
@@ -2241,25 +1911,19 @@ class _PracticalMaterialInput extends StatelessWidget {
         hintText: hintText,
         counterText: '',
         filled: true,
-        fillColor: const Color(0xFFFAFAFC),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 14,
-        ),
+        fillColor: context.colors.surfaceMuted,
+        contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: certificateBorderColor),
+          borderSide: BorderSide(color: context.colors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: certificatePrimaryPink,
-            width: 1.4,
-          ),
+          borderSide: BorderSide(color: context.colors.pinkDeep, width: 1.4),
         ),
       ),
-      style: const TextStyle(
-        color: certificateDarkText,
+      style: TextStyle(
+        color: context.colors.textPrimary,
         fontSize: 14,
         fontWeight: FontWeight.w700,
       ),
@@ -2270,18 +1934,14 @@ class _PracticalMaterialInput extends StatelessWidget {
 class _PracticalMaterialsTable extends StatelessWidget {
   final List<TechnicalPracticalExamMaterial> materials;
 
-  const _PracticalMaterialsTable({
-    required this.materials,
-  });
+  const _PracticalMaterialsTable({required this.materials});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        border: Border.all(
-          color: certificateBorderColor,
-        ),
+        border: Border.all(color: context.colors.border),
         borderRadius: BorderRadius.circular(14),
       ),
       clipBehavior: Clip.antiAlias,
@@ -2294,119 +1954,83 @@ class _PracticalMaterialsTable extends StatelessWidget {
           dataRowMinHeight: 52,
           dataRowMaxHeight: 100,
           headingRowColor: WidgetStateProperty.all(
-            certificatePinkSoft.withValues(alpha: 0.7),
+            context.colors.pinkSoft.withValues(alpha: 0.7),
           ),
-          border: const TableBorder(
-            horizontalInside: BorderSide(
-              color: certificateBorderColor,
-            ),
-            verticalInside: BorderSide(
-              color: certificateBorderColor,
-            ),
+          border: TableBorder(
+            horizontalInside: BorderSide(color: context.colors.border),
+            verticalInside: BorderSide(color: context.colors.border),
           ),
-          columns: const [
+          columns: [
             DataColumn(
               numeric: true,
-              label: _PracticalMaterialTableHeader(
-                text: '번호',
-              ),
+              label: _PracticalMaterialTableHeader(text: '번호'),
             ),
-            DataColumn(
-              label: _PracticalMaterialTableHeader(
-                text: '준비물명',
-              ),
-            ),
-            DataColumn(
-              label: _PracticalMaterialTableHeader(
-                text: '규격',
-              ),
-            ),
-            DataColumn(
-              label: _PracticalMaterialTableHeader(
-                text: '단위',
-              ),
-            ),
-            DataColumn(
-              label: _PracticalMaterialTableHeader(
-                text: '수량',
-              ),
-            ),
-            DataColumn(
-              label: _PracticalMaterialTableHeader(
-                text: '비고',
-              ),
-            ),
+            DataColumn(label: _PracticalMaterialTableHeader(text: '준비물명')),
+            DataColumn(label: _PracticalMaterialTableHeader(text: '규격')),
+            DataColumn(label: _PracticalMaterialTableHeader(text: '단위')),
+            DataColumn(label: _PracticalMaterialTableHeader(text: '수량')),
+            DataColumn(label: _PracticalMaterialTableHeader(text: '비고')),
           ],
-          rows: List.generate(
-            materials.length,
-                (index) {
-              final material = materials[index];
+          rows: List.generate(materials.length, (index) {
+            final material = materials[index];
 
-              return DataRow(
-                cells: [
-                  DataCell(
-                    Text(
-                      '${index + 1}',
-                      style: _cellTextStyle,
+            return DataRow(
+              cells: [
+                DataCell(Text('${index + 1}', style: _cellTextStyle(context))),
+                DataCell(
+                  SizedBox(
+                    width: 130,
+                    child: Text(
+                      _displayValue(material.materialName),
+                      style: _importantCellTextStyle(context),
                     ),
                   ),
-                  DataCell(
-                    SizedBox(
-                      width: 130,
-                      child: Text(
-                        _displayValue(material.materialName),
-                        style: _importantCellTextStyle,
-                      ),
+                ),
+                DataCell(
+                  SizedBox(
+                    width: 180,
+                    child: Text(
+                      _displayValue(material.specification),
+                      style: _cellTextStyle(context),
                     ),
                   ),
-                  DataCell(
-                    SizedBox(
-                      width: 180,
-                      child: Text(
-                        _displayValue(material.specification),
-                        style: _cellTextStyle,
-                      ),
+                ),
+                DataCell(
+                  SizedBox(
+                    width: 60,
+                    child: Text(
+                      _displayValue(material.unitCode),
+                      style: _cellTextStyle(context),
                     ),
                   ),
-                  DataCell(
-                    SizedBox(
-                      width: 60,
-                      child: Text(
-                        _displayValue(material.unitCode),
-                        style: _cellTextStyle,
-                      ),
+                ),
+                DataCell(
+                  SizedBox(
+                    width: 60,
+                    child: Text(
+                      _displayValue(material.commonUseQuantity),
+                      style: _cellTextStyle(context),
                     ),
                   ),
-                  DataCell(
-                    SizedBox(
-                      width: 60,
-                      child: Text(
-                        _displayValue(material.commonUseQuantity),
-                        style: _cellTextStyle,
-                      ),
+                ),
+                DataCell(
+                  SizedBox(
+                    width: 190,
+                    child: Text(
+                      _buildRemark(material),
+                      style: _cellTextStyle(context),
                     ),
                   ),
-                  DataCell(
-                    SizedBox(
-                      width: 190,
-                      child: Text(
-                        _buildRemark(material),
-                        style: _cellTextStyle,
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
+                ),
+              ],
+            );
+          }),
         ),
       ),
     );
   }
 
-  static String _buildRemark(
-      TechnicalPracticalExamMaterial material,
-      ) {
+  static String _buildRemark(TechnicalPracticalExamMaterial material) {
     final values = <String>[
       if (material.standardRemark.trim().isNotEmpty)
         material.standardRemark.trim(),
@@ -2414,9 +2038,7 @@ class _PracticalMaterialsTable extends StatelessWidget {
           material.selectionFieldName.trim() != '선택분야없음')
         '선택분야: ${material.selectionFieldName.trim()}',
       if (material.drawingYn.trim().isNotEmpty)
-        material.drawingYn.trim().toUpperCase() == 'Y'
-            ? '도면 있음'
-            : '도면 없음',
+        material.drawingYn.trim().toUpperCase() == 'Y' ? '도면 있음' : '도면 없음',
     ];
 
     return values.isEmpty ? '-' : values.join('\n');
@@ -2427,15 +2049,15 @@ class _PracticalMaterialsTable extends StatelessWidget {
     return trimmedValue.isEmpty ? '-' : trimmedValue;
   }
 
-  static const TextStyle _cellTextStyle = TextStyle(
-    color: certificateBodyText,
+  static TextStyle _cellTextStyle(BuildContext context) => TextStyle(
+    color: context.colors.textSecondary,
     fontSize: 12,
     fontWeight: FontWeight.w500,
     height: 1.45,
   );
 
-  static const TextStyle _importantCellTextStyle = TextStyle(
-    color: certificateDarkText,
+  static TextStyle _importantCellTextStyle(BuildContext context) => TextStyle(
+    color: context.colors.textPrimary,
     fontSize: 12,
     fontWeight: FontWeight.w700,
     height: 1.45,
@@ -2445,16 +2067,14 @@ class _PracticalMaterialsTable extends StatelessWidget {
 class _PracticalMaterialTableHeader extends StatelessWidget {
   final String text;
 
-  const _PracticalMaterialTableHeader({
-    required this.text,
-  });
+  const _PracticalMaterialTableHeader({required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
-        color: certificateDarkText,
+      style: TextStyle(
+        color: context.colors.textPrimary,
         fontSize: 12,
         fontWeight: FontWeight.w800,
       ),
@@ -2465,39 +2085,22 @@ class _PracticalMaterialTableHeader extends StatelessWidget {
 class _TechnicalPracticalMaterialItem extends StatelessWidget {
   final TechnicalPracticalExamMaterial material;
 
-  const _TechnicalPracticalMaterialItem({
-    required this.material,
-  });
+  const _TechnicalPracticalMaterialItem({required this.material});
 
   @override
   Widget build(BuildContext context) {
     final detailItems = <CertificateInfoItem>[
       if (material.examDate.isNotEmpty)
-        CertificateInfoItem(
-          label: '시험일',
-          value: material.formattedExamDate,
-        ),
+        CertificateInfoItem(label: '시험일', value: material.formattedExamDate),
       if (material.quantityText.isNotEmpty)
-        CertificateInfoItem(
-          label: '수량',
-          value: material.quantityText,
-        ),
+        CertificateInfoItem(label: '수량', value: material.quantityText),
       if (material.specification.isNotEmpty)
-        CertificateInfoItem(
-          label: '규격',
-          value: material.specification,
-        ),
+        CertificateInfoItem(label: '규격', value: material.specification),
       if (material.standardRemark.isNotEmpty)
-        CertificateInfoItem(
-          label: '비고',
-          value: material.standardRemark,
-        ),
+        CertificateInfoItem(label: '비고', value: material.standardRemark),
       if (material.selectionFieldName.isNotEmpty &&
           material.selectionFieldName != '선택분야없음')
-        CertificateInfoItem(
-          label: '선택분야',
-          value: material.selectionFieldName,
-        ),
+        CertificateInfoItem(label: '선택분야', value: material.selectionFieldName),
       if (material.drawingYn.isNotEmpty)
         CertificateInfoItem(
           label: '도면 여부',
@@ -2507,31 +2110,29 @@ class _TechnicalPracticalMaterialItem extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: certificatePinkSoft.withValues(alpha: 0.55),
+        color: context.colors.pinkSoft.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: certificateBorderColor),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            material.materialName.isEmpty
-                ? '지참 준비물'
-                : material.materialName,
-            style: const TextStyle(
-              color: certificateDarkText,
+            material.materialName.isEmpty ? '지참 준비물' : material.materialName,
+            style: TextStyle(
+              color: context.colors.textPrimary,
               fontSize: 15,
               fontWeight: FontWeight.w800,
             ),
           ),
           if (material.implementationPlanName.isNotEmpty) ...[
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             Text(
               material.implementationPlanName,
-              style: const TextStyle(
-                color: certificateGrayText,
+              style: TextStyle(
+                color: context.colors.textSecondary,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 height: 1.4,
@@ -2539,10 +2140,10 @@ class _TechnicalPracticalMaterialItem extends StatelessWidget {
             ),
           ],
           if (detailItems.isNotEmpty) ...[
-            const SizedBox(height: 14),
+            SizedBox(height: 14),
             ...List.generate(
               detailItems.length,
-                  (index) => Padding(
+              (index) => Padding(
                 padding: EdgeInsets.only(
                   bottom: index == detailItems.length - 1 ? 0 : 10,
                 ),
@@ -2553,8 +2154,8 @@ class _TechnicalPracticalMaterialItem extends StatelessWidget {
                       width: 76,
                       child: Text(
                         detailItems[index].label,
-                        style: const TextStyle(
-                          color: certificateGrayText,
+                        style: TextStyle(
+                          color: context.colors.textSecondary,
                           fontSize: 12,
                           height: 1.4,
                         ),
@@ -2563,8 +2164,8 @@ class _TechnicalPracticalMaterialItem extends StatelessWidget {
                     Expanded(
                       child: Text(
                         detailItems[index].value,
-                        style: const TextStyle(
-                          color: certificateDarkText,
+                        style: TextStyle(
+                          color: context.colors.textPrimary,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           height: 1.4,
@@ -2618,13 +2219,13 @@ class TechnicalCertificateStatisticsSection extends StatelessWidget {
       children: [
         Text(
           '$baseYear년 기준 최근 5개년 통계',
-          style: const TextStyle(
-            color: certificateGrayText,
+          style: TextStyle(
+            color: context.colors.textSecondary,
             fontSize: 13,
             fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         TechnicalExamStatisticsCard(
           title: '필기시험 현황',
           icon: Icons.edit_note_rounded,
@@ -2634,7 +2235,7 @@ class TechnicalCertificateStatisticsSection extends StatelessWidget {
           emptyMessage: '해당 종목의 필기시험 통계가 없습니다.',
           onRetry: onRetryWritten,
         ),
-        const SizedBox(height: 14),
+        SizedBox(height: 14),
         TechnicalExamStatisticsCard(
           title: '실기시험 현황',
           icon: Icons.build_outlined,
@@ -2645,7 +2246,7 @@ class TechnicalCertificateStatisticsSection extends StatelessWidget {
           onRetry: onRetryPractical,
         ),
         if (hasTableData) ...[
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           TechnicalExamStatisticsTablesCard(
             writtenStatistics: writtenStatistics,
             practicalStatistics: practicalStatistics,
@@ -2687,23 +2288,18 @@ class TechnicalExamStatisticsCard extends StatelessWidget {
 
   Widget _buildContent() {
     if (isLoading) {
-      return const _StatisticsLoading();
+      return _StatisticsLoading();
     }
 
     if (errorMessage != null) {
-      return _StatisticsError(
-        message: errorMessage!,
-        onRetry: onRetry,
-      );
+      return _StatisticsError(message: errorMessage!, onRetry: onRetry);
     }
 
     if (statistics.isEmpty) {
       return _StatisticsEmpty(message: emptyMessage);
     }
 
-    return TechnicalExamStatisticsLineChart(
-      statistics: statistics,
-    );
+    return TechnicalExamStatisticsLineChart(statistics: statistics);
   }
 }
 
@@ -2726,24 +2322,14 @@ class TechnicalExamStatisticsTablesCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (writtenStatistics.isNotEmpty)
-            _ExamStatisticsTable(
-              title: '필기',
-              statistics: writtenStatistics,
-            ),
-          if (writtenStatistics.isNotEmpty &&
-              practicalStatistics.isNotEmpty)
-            const Padding(
+            _ExamStatisticsTable(title: '필기', statistics: writtenStatistics),
+          if (writtenStatistics.isNotEmpty && practicalStatistics.isNotEmpty)
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 22),
-              child: Divider(
-                height: 1,
-                color: certificateBorderColor,
-              ),
+              child: Divider(height: 1, color: context.colors.border),
             ),
           if (practicalStatistics.isNotEmpty)
-            _ExamStatisticsTable(
-              title: '실기',
-              statistics: practicalStatistics,
-            ),
+            _ExamStatisticsTable(title: '실기', statistics: practicalStatistics),
         ],
       ),
     );
@@ -2754,10 +2340,7 @@ class _ExamStatisticsTable extends StatelessWidget {
   final String title;
   final List<TechnicalExamStatistic> statistics;
 
-  const _ExamStatisticsTable({
-    required this.title,
-    required this.statistics,
-  });
+  const _ExamStatisticsTable({required this.title, required this.statistics});
 
   @override
   Widget build(BuildContext context) {
@@ -2769,45 +2352,39 @@ class _ExamStatisticsTable extends StatelessWidget {
       children: [
         Text(
           title,
-          style: const TextStyle(
-            color: certificateDarkText,
+          style: TextStyle(
+            color: context.colors.textPrimary,
             fontSize: 15,
             fontWeight: FontWeight.w800,
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
-            border: Border.all(color: certificateBorderColor),
+            border: Border.all(color: context.colors.border),
             borderRadius: BorderRadius.circular(12),
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
-              const _ExamStatisticsTableRow(
+              _ExamStatisticsTableRow(
                 isHeader: true,
                 year: '연도',
                 examineeCount: '응시수',
                 passerCount: '합격수',
                 passRate: '합격률',
               ),
-              ...List.generate(
-                sortedStatistics.length,
-                    (index) {
-                  final statistic = sortedStatistics[index];
+              ...List.generate(sortedStatistics.length, (index) {
+                final statistic = sortedStatistics[index];
 
-                  return _ExamStatisticsTableRow(
-                    year: '${statistic.year}',
-                    examineeCount:
-                    '${_formatCount(statistic.examineeCount)}명',
-                    passerCount:
-                    '${_formatCount(statistic.passerCount)}명',
-                    passRate:
-                    '${statistic.passRate.toStringAsFixed(1)}%',
-                    showTopBorder: true,
-                  );
-                },
-              ),
+                return _ExamStatisticsTableRow(
+                  year: '${statistic.year}',
+                  examineeCount: '${_formatCount(statistic.examineeCount)}명',
+                  passerCount: '${_formatCount(statistic.passerCount)}명',
+                  passRate: '${statistic.passRate.toStringAsFixed(1)}%',
+                  showTopBorder: true,
+                );
+              }),
             ],
           ),
         ),
@@ -2836,7 +2413,9 @@ class _ExamStatisticsTableRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textStyle = TextStyle(
-      color: isHeader ? certificateDarkText : certificateBodyText,
+      color: isHeader
+          ? context.colors.textPrimary
+          : context.colors.textSecondary,
       fontSize: isHeader ? 12 : 11,
       fontWeight: isHeader ? FontWeight.w800 : FontWeight.w600,
     );
@@ -2844,27 +2423,18 @@ class _ExamStatisticsTableRow extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: isHeader
-            ? certificatePinkSoft.withValues(alpha: 0.55)
-            : Colors.white,
+            ? context.colors.pinkSoft.withValues(alpha: 0.55)
+            : context.colors.surface,
         border: showTopBorder
-            ? const Border(
-          top: BorderSide(color: certificateBorderColor),
-        )
+            ? Border(top: BorderSide(color: context.colors.border))
             : null,
       ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 12,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
       child: Row(
         children: [
           Expanded(
             flex: 17,
-            child: Text(
-              year,
-              textAlign: TextAlign.center,
-              style: textStyle,
-            ),
+            child: Text(year, textAlign: TextAlign.center, style: textStyle),
           ),
           Expanded(
             flex: 28,
@@ -2889,8 +2459,8 @@ class _ExamStatisticsTableRow extends StatelessWidget {
               textAlign: TextAlign.center,
               style: textStyle.copyWith(
                 color: isHeader
-                    ? certificateDarkText
-                    : certificatePrimaryPink,
+                    ? context.colors.textPrimary
+                    : context.colors.pinkDeep,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -2916,20 +2486,20 @@ class _StatisticsCardShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: certificateCardDecoration(),
+      padding: EdgeInsets.all(20),
+      decoration: certificateCardDecoration(context: context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, color: certificatePrimaryPink, size: 22),
-              const SizedBox(width: 9),
+              Icon(icon, color: context.colors.pinkDeep, size: 22),
+              SizedBox(width: 9),
               Expanded(
                 child: Text(
                   title,
-                  style: const TextStyle(
-                    color: certificateDarkText,
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                   ),
@@ -2937,9 +2507,9 @@ class _StatisticsCardShell extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 18),
-          const Divider(height: 1, color: certificateBorderColor),
-          const SizedBox(height: 18),
+          SizedBox(height: 18),
+          Divider(height: 1, color: context.colors.border),
+          SizedBox(height: 18),
           child,
         ],
       ),
@@ -2952,7 +2522,7 @@ class _StatisticsLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
+    return Padding(
       padding: EdgeInsets.symmetric(vertical: 24),
       child: Center(
         child: Column(
@@ -2962,14 +2532,14 @@ class _StatisticsLoading extends StatelessWidget {
               height: 28,
               child: CircularProgressIndicator(
                 strokeWidth: 2.5,
-                color: certificatePrimaryPink,
+                color: context.colors.pinkDeep,
               ),
             ),
             SizedBox(height: 12),
             Text(
               '조회 중...',
               style: TextStyle(
-                color: certificateGrayText,
+                color: context.colors.textSecondary,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -2989,13 +2559,13 @@ class _StatisticsEmpty extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 22),
+      padding: EdgeInsets.symmetric(vertical: 22),
       child: Center(
         child: Text(
           message,
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: certificateGrayText,
+          style: TextStyle(
+            color: context.colors.textSecondary,
             fontSize: 13,
             height: 1.5,
           ),
@@ -3009,47 +2579,41 @@ class _StatisticsError extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
 
-  const _StatisticsError({
-    required this.message,
-    required this.onRetry,
-  });
+  const _StatisticsError({required this.message, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 14),
+      padding: EdgeInsets.symmetric(vertical: 14),
       child: Column(
         children: [
-          const Icon(
+          Icon(
             Icons.error_outline_rounded,
-            color: certificatePrimaryPink,
+            color: context.colors.pinkDeep,
             size: 30,
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: certificateBodyText,
+            style: TextStyle(
+              color: context.colors.textSecondary,
               fontSize: 13,
               height: 1.5,
             ),
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           OutlinedButton.icon(
             onPressed: onRetry,
             style: OutlinedButton.styleFrom(
-              foregroundColor: certificatePrimaryPink,
-              side: const BorderSide(color: certificatePrimaryPink),
+              foregroundColor: context.colors.pinkDeep,
+              side: BorderSide(color: context.colors.pinkDeep),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(11),
               ),
             ),
-            icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: const Text(
-              '다시 조회',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
+            icon: Icon(Icons.refresh_rounded, size: 18),
+            label: Text('다시 조회', style: TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -3060,81 +2624,58 @@ class _StatisticsError extends StatelessWidget {
 String _formatCount(int value) {
   return value.toString().replaceAllMapped(
     RegExp(r'\B(?=(\d{3})+(?!\d))'),
-        (match) => ',',
+    (match) => ',',
   );
 }
 
 class TechnicalExamStatisticsLineChart extends StatelessWidget {
   final List<TechnicalExamStatistic> statistics;
 
-  const TechnicalExamStatisticsLineChart({
-    super.key,
-    required this.statistics,
-  });
+  const TechnicalExamStatisticsLineChart({super.key, required this.statistics});
 
   @override
   Widget build(BuildContext context) {
     if (statistics.isEmpty) {
-      return const SizedBox.shrink();
+      return SizedBox.shrink();
     }
 
     final sortedStatistics = [...statistics]
       ..sort((a, b) => a.year.compareTo(b.year));
 
-    final maximumValue = sortedStatistics.fold<double>(
-      0,
-          (maximum, statistic) {
-        final currentMaximum = [
-          statistic.registrationCount,
-          statistic.examineeCount,
-          statistic.passerCount,
-        ].reduce((a, b) => a > b ? a : b);
+    final maximumValue = sortedStatistics.fold<double>(0, (maximum, statistic) {
+      final currentMaximum = [
+        statistic.registrationCount,
+        statistic.examineeCount,
+        statistic.passerCount,
+      ].reduce((a, b) => a > b ? a : b);
 
-        return currentMaximum > maximum
-            ? currentMaximum.toDouble()
-            : maximum;
-      },
-    );
+      return currentMaximum > maximum ? currentMaximum.toDouble() : maximum;
+    });
 
-    final chartMaximumY = maximumValue <= 0
-        ? 10.0
-        : maximumValue * 1.2;
+    final chartMaximumY = maximumValue <= 0 ? 10.0 : maximumValue * 1.2;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _StatisticsChartLegend(
+        _StatisticsChartLegend(
           items: [
-            _StatisticsLegendItem(
-              label: '접수자',
-              color: certificatePrimaryPink,
-            ),
-            _StatisticsLegendItem(
-              label: '응시자',
-              color: Color(0xFF7191D8),
-            ),
-            _StatisticsLegendItem(
-              label: '합격자',
-              color: Color(0xFF65AF91),
-            ),
+            _StatisticsLegendItem(label: '접수자', color: context.colors.pinkDeep),
+            _StatisticsLegendItem(label: '응시자', color: context.colors.info),
+            _StatisticsLegendItem(label: '합격자', color: context.colors.correct),
           ],
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
         SizedBox(
           height: 290,
           child: Padding(
-            padding: const EdgeInsets.only(
-              left: 4,
-              right: 12,
-              top: 8,
-            ),
+            padding: EdgeInsets.only(left: 4, right: 12, top: 8),
             child: LineChart(
               LineChartData(
                 minX: 0,
                 maxX: (sortedStatistics.length - 1).toDouble(),
                 minY: 0,
                 maxY: chartMaximumY,
-                clipData: const FlClipData(
+                clipData: FlClipData(
                   top: false,
                   bottom: false,
                   left: false,
@@ -3143,22 +2684,17 @@ class TechnicalExamStatisticsLineChart extends StatelessWidget {
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
-                  horizontalInterval: _calculateChartInterval(
-                    chartMaximumY,
-                  ),
+                  horizontalInterval: _calculateChartInterval(chartMaximumY),
                   getDrawingHorizontalLine: (_) {
-                    return FlLine(
-                      color: certificateBorderColor,
-                      strokeWidth: 1,
-                    );
+                    return FlLine(color: context.colors.border, strokeWidth: 1);
                   },
                 ),
                 borderData: FlBorderData(show: false),
                 titlesData: FlTitlesData(
-                  topTitles: const AxisTitles(
+                  topTitles: AxisTitles(
                     sideTitles: SideTitles(showTitles: false),
                   ),
-                  rightTitles: const AxisTitles(
+                  rightTitles: AxisTitles(
                     sideTitles: SideTitles(showTitles: false),
                   ),
                   bottomTitles: AxisTitles(
@@ -3168,21 +2704,20 @@ class TechnicalExamStatisticsLineChart extends StatelessWidget {
                       interval: 1,
                       getTitlesWidget: (value, meta) {
                         if (value % 1 != 0) {
-                          return const SizedBox.shrink();
+                          return SizedBox.shrink();
                         }
 
                         final index = value.toInt();
-                        if (index < 0 ||
-                            index >= sortedStatistics.length) {
-                          return const SizedBox.shrink();
+                        if (index < 0 || index >= sortedStatistics.length) {
+                          return SizedBox.shrink();
                         }
 
                         return Padding(
-                          padding: const EdgeInsets.only(top: 8),
+                          padding: EdgeInsets.only(top: 8),
                           child: Text(
                             '${sortedStatistics[index].year}',
-                            style: const TextStyle(
-                              color: certificateGrayText,
+                            style: TextStyle(
+                              color: context.colors.textSecondary,
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
                             ),
@@ -3198,11 +2733,11 @@ class TechnicalExamStatisticsLineChart extends StatelessWidget {
                       interval: _calculateChartInterval(chartMaximumY),
                       getTitlesWidget: (value, meta) {
                         return Padding(
-                          padding: const EdgeInsets.only(right: 6),
+                          padding: EdgeInsets.only(right: 6),
                           child: Text(
                             _formatCompactNumber(value),
-                            style: const TextStyle(
-                              color: certificateGrayText,
+                            style: TextStyle(
+                              color: context.colors.textSecondary,
                               fontSize: 10,
                             ),
                           ),
@@ -3216,33 +2751,27 @@ class TechnicalExamStatisticsLineChart extends StatelessWidget {
                   touchTooltipData: LineTouchTooltipData(
                     getTooltipItems: (touchedSpots) {
                       return touchedSpots.map((spot) {
-                        final labels = [
-                          '접수자',
-                          '응시자',
-                          '합격자',
-                        ];
+                        final labels = ['접수자', '응시자', '합격자'];
 
                         final statisticIndex = spot.x.round();
                         final statistic =
-                        statisticIndex >= 0 &&
-                            statisticIndex <
-                                sortedStatistics.length
+                            statisticIndex >= 0 &&
+                                statisticIndex < sortedStatistics.length
                             ? sortedStatistics[statisticIndex]
                             : null;
 
                         final passRateText =
-                        spot.barIndex == 2 && statistic != null
+                            spot.barIndex == 2 && statistic != null
                             ? '\n합격률 '
-                            '${statistic.passRate.toStringAsFixed(1)}%'
+                                  '${statistic.passRate.toStringAsFixed(1)}%'
                             : '';
 
                         return LineTooltipItem(
                           '${labels[spot.barIndex]}\n'
-                              '${_formatCount(spot.y.round())}명'
-                              '$passRateText',
+                          '${_formatCount(spot.y.round())}명'
+                          '$passRateText',
                           TextStyle(
-                            color:
-                            spot.bar.color ?? certificateDarkText,
+                            color: spot.bar.color ?? context.colors.textPrimary,
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
                           ),
@@ -3254,17 +2783,20 @@ class TechnicalExamStatisticsLineChart extends StatelessWidget {
                 lineBarsData: [
                   _buildStatisticsLine(
                     statistics: sortedStatistics,
-                    color: certificatePrimaryPink,
+                    color: context.colors.pinkDeep,
+                    dotColor: context.colors.surface,
                     valueSelector: (item) => item.registrationCount,
                   ),
                   _buildStatisticsLine(
                     statistics: sortedStatistics,
-                    color: const Color(0xFF7191D8),
+                    color: context.colors.info,
+                    dotColor: context.colors.surface,
                     valueSelector: (item) => item.examineeCount,
                   ),
                   _buildStatisticsLine(
                     statistics: sortedStatistics,
-                    color: const Color(0xFF65AF91),
+                    color: context.colors.correct,
+                    dotColor: context.colors.surface,
                     valueSelector: (item) => item.passerCount,
                   ),
                 ],
@@ -3279,8 +2811,8 @@ class TechnicalExamStatisticsLineChart extends StatelessWidget {
   static LineChartBarData _buildStatisticsLine({
     required List<TechnicalExamStatistic> statistics,
     required Color color,
-    required int Function(TechnicalExamStatistic item)
-    valueSelector,
+    required Color dotColor,
+    required int Function(TechnicalExamStatistic item) valueSelector,
   }) {
     return LineChartBarData(
       isCurved: false,
@@ -3289,30 +2821,22 @@ class TechnicalExamStatisticsLineChart extends StatelessWidget {
       isStrokeCapRound: true,
       dotData: FlDotData(
         show: true,
-        getDotPainter: (
-            spot,
-            percent,
-            barData,
-            index,
-            ) {
+        getDotPainter: (spot, percent, barData, index) {
           return FlDotCirclePainter(
             radius: 4,
-            color: Colors.white,
+            color: dotColor,
             strokeWidth: 2,
             strokeColor: color,
           );
         },
       ),
       belowBarData: BarAreaData(show: false),
-      spots: List.generate(
-        statistics.length,
-            (index) {
-          return FlSpot(
-            index.toDouble(),
-            valueSelector(statistics[index]).toDouble(),
-          );
-        },
-      ),
+      spots: List.generate(statistics.length, (index) {
+        return FlSpot(
+          index.toDouble(),
+          valueSelector(statistics[index]).toDouble(),
+        );
+      }),
     );
   }
 
@@ -3342,9 +2866,7 @@ class TechnicalExamStatisticsLineChart extends StatelessWidget {
 class _StatisticsChartLegend extends StatelessWidget {
   final List<_StatisticsLegendItem> items;
 
-  const _StatisticsChartLegend({
-    required this.items,
-  });
+  const _StatisticsChartLegend({required this.items});
 
   @override
   Widget build(BuildContext context) {
@@ -3363,11 +2885,11 @@ class _StatisticsChartLegend extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
             ),
-            const SizedBox(width: 6),
+            SizedBox(width: 6),
             Text(
               item.label,
-              style: const TextStyle(
-                color: certificateBodyText,
+              style: TextStyle(
+                color: context.colors.textSecondary,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -3383,8 +2905,5 @@ class _StatisticsLegendItem {
   final String label;
   final Color color;
 
-  const _StatisticsLegendItem({
-    required this.label,
-    required this.color,
-  });
+  const _StatisticsLegendItem({required this.label, required this.color});
 }

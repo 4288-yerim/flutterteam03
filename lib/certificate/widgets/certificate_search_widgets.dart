@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
+
 import 'certificate_common_widgets.dart';
 
 class CertificateSearchField extends StatelessWidget {
@@ -20,44 +22,41 @@ class CertificateSearchField extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 56,
-      decoration: certificateCardDecoration(),
+      decoration: certificateCardDecoration(context: context),
       child: TextField(
         controller: controller,
         textInputAction: TextInputAction.search,
         onChanged: onChanged,
-        style: const TextStyle(
-          color: certificateDarkText,
+        style: TextStyle(
+          color: context.colors.textPrimary,
           fontSize: 15,
           fontWeight: FontWeight.w500,
         ),
         decoration: InputDecoration(
           hintText: '자격증 이름을 검색해보세요',
-          hintStyle: const TextStyle(
-            color: certificateGrayText,
+          hintStyle: TextStyle(
+            color: context.colors.textSecondary,
             fontSize: 15,
           ),
-          prefixIcon: const Icon(
+          prefixIcon: Icon(
             Icons.search_rounded,
-            color: certificatePrimaryPink,
+            color: context.colors.pinkDeep,
             size: 23,
           ),
           suffixIcon: isSearching
               ? IconButton(
-            onPressed: onClear,
-            icon: const Icon(
-              Icons.close_rounded,
-              color: certificateGrayText,
-              size: 20,
-            ),
-          )
+                  onPressed: onClear,
+                  icon: Icon(
+                    Icons.close_rounded,
+                    color: context.colors.textSecondary,
+                    size: 20,
+                  ),
+                )
               : null,
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 18,
-            vertical: 18,
-          ),
+          contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 18),
         ),
       ),
     );
@@ -79,9 +78,9 @@ class QualificationTypeSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(5),
+      padding: EdgeInsets.all(5),
       decoration: BoxDecoration(
-        color: certificatePinkSoft,
+        color: context.colors.pinkSoft,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -95,12 +94,12 @@ class QualificationTypeSelector extends StatelessWidget {
                 onTap: () => onSelected(entry.key),
                 borderRadius: BorderRadius.circular(16),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
+                  duration: Duration(milliseconds: 180),
                   height: 48,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: selected
-                        ? certificatePrimaryPink
+                        ? context.colors.pinkDeep
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -110,12 +109,10 @@ class QualificationTypeSelector extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: selected
-                          ? Colors.white
-                          : certificateBodyText,
+                          ? context.colors.onPrimary
+                          : context.colors.textSecondary,
                       fontSize: 14,
-                      fontWeight: selected
-                          ? FontWeight.w700
-                          : FontWeight.w500,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),
                 ),
@@ -151,18 +148,13 @@ class CertificateCategoryCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(22),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 15,
-            vertical: 14,
-          ),
+          duration: Duration(milliseconds: 160),
+          padding: EdgeInsets.symmetric(horizontal: 15, vertical: 14),
           decoration: BoxDecoration(
-            color: selected ? certificatePinkSoft : Colors.white,
+            color: selected ? context.colors.pinkSoft : context.colors.surface,
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: selected
-                  ? certificatePrimaryPink
-                  : Colors.transparent,
+              color: selected ? context.colors.pinkDeep : Colors.transparent,
               width: selected ? 1.3 : 1,
             ),
           ),
@@ -171,23 +163,21 @@ class CertificateCategoryCard extends StatelessWidget {
               Icon(
                 icon,
                 color: selected
-                    ? certificatePrimaryPink
-                    : certificateGrayText,
+                    ? context.colors.pinkDeep
+                    : context.colors.textSecondary,
                 size: 20,
               ),
-              const SizedBox(width: 10),
+              SizedBox(width: 10),
               Expanded(
                 child: Text(
                   label,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: certificateDarkText,
+                    color: context.colors.textPrimary,
                     fontSize: 13,
                     height: 1.3,
-                    fontWeight: selected
-                        ? FontWeight.w700
-                        : FontWeight.w600,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
                   ),
                 ),
               ),
@@ -215,38 +205,35 @@ class CollapsedSelectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 18,
-        vertical: 16,
-      ),
-      decoration: certificateCardDecoration(),
+      padding: EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      decoration: certificateCardDecoration(context: context),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.check_circle_rounded,
-            color: certificatePrimaryPink,
+            color: context.colors.pinkDeep,
             size: 24,
           ),
-          const SizedBox(width: 13),
+          SizedBox(width: 13),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    color: certificateGrayText,
+                  style: TextStyle(
+                    color: context.colors.textSecondary,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   value,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: certificateDarkText,
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     height: 1.3,
@@ -255,22 +242,16 @@ class CollapsedSelectionCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           TextButton(
             onPressed: onReselect,
             style: TextButton.styleFrom(
-              foregroundColor: certificatePrimaryPink,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 8,
-              ),
+              foregroundColor: context.colors.pinkDeep,
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             ),
-            child: const Text(
+            child: Text(
               '다시 선택',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -294,28 +275,23 @@ class CertificateSelectionChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? certificatePrimaryPink : certificatePinkSoft,
+      color: selected ? context.colors.pinkDeep : context.colors.pinkSoft,
       borderRadius: BorderRadius.circular(30),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(30),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 17,
-            vertical: 11,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(30),
-          ),
+          duration: Duration(milliseconds: 150),
+          padding: EdgeInsets.symmetric(horizontal: 17, vertical: 11),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(30)),
           child: Text(
             label,
             style: TextStyle(
-              color: selected ? Colors.white : certificateBodyText,
+              color: selected
+                  ? context.colors.onPrimary
+                  : context.colors.textSecondary,
               fontSize: 13,
-              fontWeight: selected
-                  ? FontWeight.w700
-                  : FontWeight.w500,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
         ),
@@ -327,36 +303,30 @@ class CertificateSelectionChip extends StatelessWidget {
 class SelectedPathCard extends StatelessWidget {
   final String text;
 
-  const SelectedPathCard({
-    super.key,
-    required this.text,
-  });
+  const SelectedPathCard({super.key, required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 13,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       decoration: BoxDecoration(
-        color: certificatePinkSoft,
+        color: context.colors.pinkSoft,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.account_tree_outlined,
-            color: certificatePrimaryPink,
+            color: context.colors.pinkDeep,
             size: 19,
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(
-                color: certificateBodyText,
+              style: TextStyle(
+                color: context.colors.textSecondary,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 height: 1.4,
@@ -392,10 +362,7 @@ class CertificateListTile extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 18,
-            vertical: 17,
-          ),
+          padding: EdgeInsets.symmetric(horizontal: 18, vertical: 17),
           child: Row(
             children: [
               Container(
@@ -403,40 +370,40 @@ class CertificateListTile extends StatelessWidget {
                 height: 42,
                 decoration: BoxDecoration(
                   color: isTechnical
-                      ? certificateSoftBlue
-                      : certificateMint,
+                      ? context.colors.softBlue
+                      : context.colors.mint,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
                   Icons.workspace_premium_outlined,
                   color: isTechnical
-                      ? const Color(0xFF5B7FC4)
-                      : const Color(0xFF4D9678),
+                      ? context.colors.info
+                      : context.colors.correct,
                   size: 22,
                 ),
               ),
-              const SizedBox(width: 13),
+              SizedBox(width: 13),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       certificateName,
-                      style: const TextStyle(
-                        color: certificateDarkText,
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         height: 1.3,
                       ),
                     ),
                     if (detailText.isNotEmpty) ...[
-                      const SizedBox(height: 5),
+                      SizedBox(height: 5),
                       Text(
                         detailText,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: certificateGrayText,
+                        style: TextStyle(
+                          color: context.colors.textSecondary,
                           fontSize: 12,
                         ),
                       ),
@@ -444,10 +411,10 @@ class CertificateListTile extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              const Icon(
+              SizedBox(width: 8),
+              Icon(
                 Icons.chevron_right_rounded,
-                color: certificateGrayText,
+                color: context.colors.textSecondary,
                 size: 22,
               ),
             ],
@@ -487,10 +454,7 @@ class CertificateSearchResultTile extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 18,
-            vertical: 17,
-          ),
+          padding: EdgeInsets.symmetric(horizontal: 18, vertical: 17),
           child: Row(
             children: [
               Container(
@@ -498,49 +462,49 @@ class CertificateSearchResultTile extends StatelessWidget {
                 height: 42,
                 decoration: BoxDecoration(
                   color: isTechnical
-                      ? certificateSoftBlue
-                      : certificateMint,
+                      ? context.colors.softBlue
+                      : context.colors.mint,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
                   Icons.workspace_premium_outlined,
                   color: isTechnical
-                      ? const Color(0xFF5B7FC4)
-                      : const Color(0xFF4D9678),
+                      ? context.colors.info
+                      : context.colors.correct,
                   size: 22,
                 ),
               ),
-              const SizedBox(width: 13),
+              SizedBox(width: 13),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       certificateName,
-                      style: const TextStyle(
-                        color: certificateDarkText,
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         height: 1.3,
                       ),
                     ),
-                    const SizedBox(height: 5),
+                    SizedBox(height: 5),
                     Text(
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: certificateGrayText,
+                      style: TextStyle(
+                        color: context.colors.textSecondary,
                         fontSize: 12,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              const Icon(
+              SizedBox(width: 8),
+              Icon(
                 Icons.chevron_right_rounded,
-                color: certificateGrayText,
+                color: context.colors.textSecondary,
                 size: 22,
               ),
             ],
@@ -558,21 +522,16 @@ class EmptySearchResult extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 20,
-        vertical: 40,
-      ),
-      decoration: certificateCardDecoration(),
-      child: const Column(
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+      decoration: certificateCardDecoration(context: context),
+      child: Column(
         children: [
-          CertificateEmptyIcon(
-            icon: Icons.search_off_rounded,
-          ),
+          CertificateEmptyIcon(icon: Icons.search_off_rounded),
           SizedBox(height: 14),
           Text(
             '검색 결과가 없습니다.',
             style: TextStyle(
-              color: certificateBodyText,
+              color: context.colors.textSecondary,
               fontSize: 15,
               fontWeight: FontWeight.w600,
             ),
@@ -580,10 +539,7 @@ class EmptySearchResult extends StatelessWidget {
           SizedBox(height: 6),
           Text(
             '다른 자격증 이름으로 검색해보세요.',
-            style: TextStyle(
-              color: certificateGrayText,
-              fontSize: 13,
-            ),
+            style: TextStyle(color: context.colors.textSecondary, fontSize: 13),
           ),
         ],
       ),

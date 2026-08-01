@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../theme.dart';
 
 import '../theme.dart';
 import 'services/certificate_api_service.dart';
@@ -9,11 +10,10 @@ import '../widgets/app_top_bar.dart';
 import 'widgets/wave_loading_indicator.dart';
 
 class CertificateRoadmapPage extends StatefulWidget {
-  const CertificateRoadmapPage({super.key});
+  CertificateRoadmapPage({super.key});
 
   @override
-  State<CertificateRoadmapPage> createState() =>
-      _CertificateRoadmapPageState();
+  State<CertificateRoadmapPage> createState() => _CertificateRoadmapPageState();
 }
 
 class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
@@ -58,10 +58,12 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
       if (!mounted) return;
       setState(() {
         _popularJobs = snapshot.docs
-            .map((doc) => _PopularJob(
-          displayName: (doc.data()['displayName'] as String?) ?? doc.id,
-          count: (doc.data()['count'] as num?)?.toInt() ?? 0,
-        ))
+            .map(
+              (doc) => _PopularJob(
+                displayName: (doc.data()['displayName'] as String?) ?? doc.id,
+                count: (doc.data()['count'] as num?)?.toInt() ?? 0,
+              ),
+            )
             .toList();
         _isLoadingPopularJobs = false;
       });
@@ -77,6 +79,7 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
     _jobController.selection = TextSelection.collapsed(offset: job.length);
     if (_jobInputError != null) setState(() => _jobInputError = null);
   }
+
   @override
   void dispose() {
     _pageController.dispose();
@@ -90,7 +93,7 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
     setState(() => _currentStep = step);
     _pageController.animateToPage(
       step,
-      duration: const Duration(milliseconds: 320),
+      duration: Duration(milliseconds: 320),
       curve: Curves.easeOutCubic,
     );
   }
@@ -132,14 +135,17 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
     });
 
     _loadingController.value = 0;
-    _loadingController.duration = const Duration(milliseconds: 1500);
+    _loadingController.duration = Duration(milliseconds: 1500);
     _loadingController.animateTo(0.9, curve: Curves.easeOut);
 
     try {
       final suggestions = await CertificateApiService.suggestCertificates(job);
 
-      await _loadingController.animateTo(1.0, duration: const Duration(milliseconds: 200));
-      await Future.delayed(const Duration(milliseconds: 300));
+      await _loadingController.animateTo(
+        1.0,
+        duration: Duration(milliseconds: 200),
+      );
+      await Future.delayed(Duration(milliseconds: 300));
       if (!mounted) return;
 
       setState(() {
@@ -147,7 +153,9 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
         _isLoadingSuggestions = false;
       });
       if (suggestions.isEmpty) {
-        setState(() => _suggestionError = '해당 직무에 대한 자격증을 찾지 못했어요. 다른 직무로 시도해주세요.');
+        setState(
+          () => _suggestionError = '해당 직무에 대한 자격증을 찾지 못했어요. 다른 직무로 시도해주세요.',
+        );
         return;
       }
       _goToStep(1);
@@ -180,7 +188,9 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
     setState(() {
       _customCertError = null;
       if (!_suggestedCertificates.any((c) => c.name == name)) {
-        _suggestedCertificates.add(SuggestedCertificate(name: name, description: ''));
+        _suggestedCertificates.add(
+          SuggestedCertificate(name: name, description: ''),
+        );
       }
       _ownedCertificates.add(name);
       _customAddedCertificates.add(name);
@@ -227,14 +237,18 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
         final c = dialogContext.colors;
         return Dialog(
           backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 32),
+          insetPadding: EdgeInsets.symmetric(horizontal: 32),
           child: Container(
-            padding: const EdgeInsets.fromLTRB(26, 30, 26, 22),
+            padding: EdgeInsets.fromLTRB(26, 30, 26, 22),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.colors.surface,
               borderRadius: BorderRadius.circular(28),
-              boxShadow: const [
-                BoxShadow(color: Color(0x33000000), blurRadius: 30, offset: Offset(0, 14)),
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0x33000000),
+                  blurRadius: 30,
+                  offset: Offset(0, 14),
+                ),
               ],
             ),
             child: Column(
@@ -248,24 +262,44 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
                     color: c.pinkSoft,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.help_outline_rounded, color: c.pinkStart, size: 30),
+                  child: Icon(
+                    Icons.help_outline_rounded,
+                    color: c.pinkStart,
+                    size: 30,
+                  ),
                 ),
-                const SizedBox(height: 18),
-                Text('확인되지 않는 자격증이에요',
-                    style: TextStyle(color: c.textPrimary, fontSize: 17, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 10),
+                SizedBox(height: 18),
+                Text(
+                  '확인되지 않는 자격증이에요',
+                  style: TextStyle(
+                    color: c.textPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(height: 10),
                 Text.rich(
                   TextSpan(
-                    style: TextStyle(color: c.textSecondary, fontSize: 13.5, height: 1.55),
+                    style: TextStyle(
+                      color: c.textSecondary,
+                      fontSize: 13.5,
+                      height: 1.55,
+                    ),
                     children: [
-                      const TextSpan(text: '"'),
-                      TextSpan(text: name, style: TextStyle(color: c.textPrimary, fontWeight: FontWeight.w700)),
-                      const TextSpan(text: '"은(는) 자격증 정보에서\n확인되지 않았어요. 그래도 추가할까요?'),
+                      TextSpan(text: '"'),
+                      TextSpan(
+                        text: name,
+                        style: TextStyle(
+                          color: c.textPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      TextSpan(text: '"은(는) 자격증 정보에서\n확인되지 않았어요. 그래도 추가할까요?'),
                     ],
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: 24),
                 Row(
                   children: [
                     Expanded(
@@ -274,13 +308,18 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
                         style: OutlinedButton.styleFrom(
                           foregroundColor: c.textSecondary,
                           side: BorderSide(color: c.pinkSoft),
-                          padding: const EdgeInsets.symmetric(vertical: 13),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                          padding: EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
                         ),
-                        child: const Text('취소', style: TextStyle(fontWeight: FontWeight.w700)),
+                        child: Text(
+                          '취소',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    SizedBox(width: 10),
                     Expanded(
                       child: DecoratedBox(
                         decoration: BoxDecoration(
@@ -292,11 +331,16 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
                           child: InkWell(
                             borderRadius: BorderRadius.circular(15),
                             onTap: () => Navigator.pop(dialogContext, true),
-                            child: const Padding(
+                            child: Padding(
                               padding: EdgeInsets.symmetric(vertical: 13),
                               child: Center(
-                                child: Text('그래도 추가',
-                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                                child: Text(
+                                  '그래도 추가',
+                                  style: TextStyle(
+                                    color: context.colors.onPrimary,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -322,7 +366,7 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
 
     if (recommended.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('추천할 자격증이 없어요. 이미 보유한 자격증을 확인해주세요.')),
+        SnackBar(content: Text('추천할 자격증이 없어요. 이미 보유한 자격증을 확인해주세요.')),
       );
       return;
     }
@@ -330,10 +374,12 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
     setState(() => _isNavigatingToResult = true);
     final result = await Navigator.push(
       context,
-      _slideRoute(CertificateRoadmapResultPage(
-        job: _jobController.text.trim(),
-        certificates: recommended,
-      )),
+      _slideRoute(
+        CertificateRoadmapResultPage(
+          job: _jobController.text.trim(),
+          certificates: recommended,
+        ),
+      ),
     );
     if (!mounted) return;
     setState(() => _isNavigatingToResult = false);
@@ -354,11 +400,13 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
 
   Route _slideRoute(Widget page) {
     return PageRouteBuilder(
-      transitionDuration: const Duration(milliseconds: 340),
+      transitionDuration: Duration(milliseconds: 340),
       pageBuilder: (_, __, ___) => page,
       transitionsBuilder: (_, animation, __, child) {
-        final tween = Tween(begin: const Offset(1, 0), end: Offset.zero)
-            .chain(CurveTween(curve: Curves.easeOutCubic));
+        final tween = Tween(
+          begin: Offset(1, 0),
+          end: Offset.zero,
+        ).chain(CurveTween(curve: Curves.easeOutCubic));
         return SlideTransition(position: animation.drive(tween), child: child);
       },
     );
@@ -376,9 +424,9 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
         // 2단계에서는 페이지 뒤로가기가 아니라 1단계로 슬라이드 복귀
         leading: _currentStep == 1
             ? IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-          onPressed: () => _goToStep(0),
-        )
+                icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+                onPressed: () => _goToStep(0),
+              )
             : null,
       ),
       // After
@@ -390,19 +438,19 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
               Positioned.fill(
                 child: PageView(
                   controller: _pageController,
-                  physics: const NeverScrollableScrollPhysics(),
+                  physics: NeverScrollableScrollPhysics(),
                   onPageChanged: (i) => setState(() => _currentStep = i),
-                  children: [
-                    _buildStep1(colors),
-                    _buildStep2(colors),
-                  ],
+                  children: [_buildStep1(colors), _buildStep2(colors)],
                 ),
               ),
               Positioned(
                 top: 48,
                 left: 0,
                 right: 0,
-                child: _StepProgressBar(currentStep: _currentStep, colors: colors),
+                child: _StepProgressBar(
+                  currentStep: _currentStep,
+                  colors: colors,
+                ),
               ),
             ],
           ),
@@ -411,35 +459,38 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
     );
   }
 
-
-
   Widget _buildStep1(AppColors colors) {
     return Align(
-      alignment: const Alignment(0, -0.15),
+      alignment: Alignment(0, -0.15),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 22),
+        padding: EdgeInsets.symmetric(horizontal: 22),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             AnimatedSwitcher(
-              duration: const Duration(milliseconds: 350),
+              duration: Duration(milliseconds: 350),
               switchInCurve: Curves.easeOut,
               switchOutCurve: Curves.easeIn,
               transitionBuilder: (child, anim) => FadeTransition(
                 opacity: anim,
                 child: SlideTransition(
-                  position: Tween(begin: const Offset(0, 0.03), end: Offset.zero).animate(anim),
+                  position: Tween(
+                    begin: Offset(0, 0.03),
+                    end: Offset.zero,
+                  ).animate(anim),
                   child: child,
                 ),
               ),
               child: KeyedSubtree(
                 key: ValueKey(_isLoadingSuggestions),
-                child: _isLoadingSuggestions ? _buildLoadingContent(colors) : _buildIdleContent(colors),
+                child: _isLoadingSuggestions
+                    ? _buildLoadingContent(colors)
+                    : _buildIdleContent(colors),
               ),
             ),
             if (_suggestionError != null) ...[
-              const SizedBox(height: 18),
+              SizedBox(height: 18),
               _InlineMessage(text: _suggestionError!, colors: colors),
             ],
           ],
@@ -453,30 +504,43 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
       mainAxisSize: MainAxisSize.min,
       children: [
         _FadeSlideIn(
-          delay: const Duration(milliseconds: 200),
-          duration: const Duration(milliseconds: 700),
+          delay: Duration(milliseconds: 200),
+          duration: Duration(milliseconds: 700),
           child: Column(
             children: [
-              Text('원하는 직무를 입력해주세요',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: colors.textPrimary, fontSize: 21, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-              const SizedBox(height: 8),
-              Text('직무를 알려주시면 AI가 어울리는 자격증을 순서대로 추천해드려요.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: colors.textSecondary, fontSize: 13.5, height: 1.5)),
+              Text(
+                '원하는 직무를 입력해주세요',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                '직무를 알려주시면 AI가 어울리는 자격증을 순서대로 추천해드려요.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 13.5,
+                  height: 1.5,
+                ),
+              ),
             ],
           ),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         _FadeSlideIn(
-          delay: const Duration(milliseconds: 400),
-          duration: const Duration(milliseconds: 900),
+          delay: Duration(milliseconds: 400),
+          duration: Duration(milliseconds: 900),
           child: _buildJobInput(colors),
         ),
-        const SizedBox(height: 22),
+        SizedBox(height: 22),
         _FadeSlideIn(
-          delay: const Duration(milliseconds: 600),
-          duration: const Duration(milliseconds: 900),
+          delay: Duration(milliseconds: 600),
+          duration: Duration(milliseconds: 900),
           child: _buildPopularJobs(colors),
         ),
       ],
@@ -488,18 +552,32 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text('AI가 자격증을 찾고 있어요',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: colors.textPrimary, fontSize: 21, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-        const SizedBox(height: 8),
-        Text('$job 직무에 맞는 자격증을 분석하고 있어요.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: colors.textSecondary, fontSize: 13.5, height: 1.5)),
-        const SizedBox(height: 30),
+        Text(
+          'AI가 자격증을 찾고 있어요',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 21,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.5,
+          ),
+        ),
+        SizedBox(height: 8),
+        Text(
+          '$job 직무에 맞는 자격증을 분석하고 있어요.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: colors.textSecondary,
+            fontSize: 13.5,
+            height: 1.5,
+          ),
+        ),
+        SizedBox(height: 30),
         _LoadingIndicator(progress: _loadingController, colors: colors),
       ],
     );
   }
+
   Widget _buildPopularJobs(AppColors colors) {
     if (_isLoadingPopularJobs) {
       return SizedBox(
@@ -508,12 +586,15 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
           child: SizedBox(
             width: 16,
             height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2, color: colors.pinkSoft),
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: colors.pinkSoft,
+            ),
           ),
         ),
       );
     }
-    if (_popularJobs.isEmpty) return const SizedBox.shrink();
+    if (_popularJobs.isEmpty) return SizedBox.shrink();
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -522,19 +603,31 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(3),
+              padding: EdgeInsets.all(3),
               decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [colors.pinkStart, colors.pinkDeep]),
+                gradient: LinearGradient(
+                  colors: [colors.pinkStart, colors.pinkDeep],
+                ),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.trending_up_rounded, size: 11, color: Colors.white),
+              child: Icon(
+                Icons.trending_up_rounded,
+                size: 11,
+                color: context.colors.onPrimary,
+              ),
             ),
-            const SizedBox(width: 6),
-            Text('요즘 인기있는 직종',
-                style: TextStyle(color: colors.textSecondary, fontSize: 12.5, fontWeight: FontWeight.w700)),
+            SizedBox(width: 6),
+            Text(
+              '요즘 인기있는 직종',
+              style: TextStyle(
+                color: colors.textSecondary,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ],
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
         Wrap(
           alignment: WrapAlignment.center,
           spacing: 8,
@@ -545,7 +638,9 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
               rank: index + 1,
               job: job,
               colors: colors,
-              onTap: _isLoadingSuggestions ? null : () => _selectPopularJob(job.displayName),
+              onTap: _isLoadingSuggestions
+                  ? null
+                  : () => _selectPopularJob(job.displayName),
             );
           }),
         ),
@@ -553,35 +648,46 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
     );
   }
 
-
-
   Widget _buildStep2(AppColors colors) {
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
+          padding: EdgeInsets.fromLTRB(22, 12, 22, 24),
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: constraints.maxHeight - 36),
             child: Center(
               child: _FadeSlideIn(
-                delay: const Duration(milliseconds: 300),
-                duration: const Duration(milliseconds: 800),
+                delay: Duration(milliseconds: 300),
+                duration: Duration(milliseconds: 800),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text('보유 자격증을 선택해주세요',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: colors.textPrimary, fontSize: 21, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-                    const SizedBox(height: 8),
-                    Text('이미 갖고 있는 자격증을 체크하면 추천에서 제외돼요.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: colors.textSecondary, fontSize: 13.5, height: 1.5)),
-                    const SizedBox(height: 20),
+                    Text(
+                      '보유 자격증을 선택해주세요',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 21,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      '이미 갖고 있는 자격증을 체크하면 추천에서 제외돼요.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 13.5,
+                        height: 1.5,
+                      ),
+                    ),
+                    SizedBox(height: 20),
                     _buildCertificateSelector(colors),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                     _buildCustomCertInput(colors),
-                    const SizedBox(height: 30),
+                    SizedBox(height: 30),
                     _buildGenerateButton(colors),
                   ],
                 ),
@@ -596,10 +702,20 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
   Widget _buildJobInput(AppColors colors) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: _jobInputError != null ? const Color(0xFFE96B7A) : colors.pinkSoft),
-        boxShadow: const [BoxShadow(color: Color(0x14C98198), blurRadius: 18, offset: Offset(0, 8))],
+        border: Border.all(
+          color: _jobInputError != null
+              ? context.colors.incorrect
+              : colors.pinkSoft,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x14C98198),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -610,23 +726,37 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
             onChanged: (_) {
               if (_jobInputError != null) setState(() => _jobInputError = null);
             },
-            style: TextStyle(color: colors.textPrimary, fontSize: 15.5, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 15.5,
+              fontWeight: FontWeight.w700,
+            ),
             decoration: InputDecoration(
               hintText: '예: 백엔드 개발자, 데이터 분석가',
-              hintStyle: const TextStyle(color: Color(0xFFB7AFB1), fontSize: 15),
+              hintStyle: TextStyle(
+                color: context.colors.textMuted,
+                fontSize: 15,
+              ),
               prefixIcon: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(12),
                 child: Container(
                   decoration: BoxDecoration(
                     color: colors.pinkSoft,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.work_outline_rounded, color: colors.pinkStart, size: 19),
+                  child: Icon(
+                    Icons.work_outline_rounded,
+                    color: colors.pinkStart,
+                    size: 19,
+                  ),
                 ),
               ),
-              prefixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+              prefixIconConstraints: BoxConstraints(
+                minWidth: 44,
+                minHeight: 44,
+              ),
               suffixIcon: Padding(
-                padding: const EdgeInsets.only(right: 6),
+                padding: EdgeInsets.only(right: 6),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     color: colors.pinkStart,
@@ -639,29 +769,49 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
                       borderRadius: BorderRadius.circular(14),
                       onTap: _isLoadingSuggestions ? null : _onFindCertificates,
                       child: _isLoadingSuggestions
-                          ? const Padding(
-                        padding: EdgeInsets.all(10),
-                        child: SizedBox(
-                            width: 20, height: 20,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.2)),
-                      )
-                          : const Padding(
-                        padding: EdgeInsets.all(10),
-                        child: Icon(Icons.search_rounded, color: Colors.white, size: 20),
-                      ),
+                          ? Padding(
+                              padding: EdgeInsets.all(10),
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: context.colors.surface,
+                                  strokeWidth: 2.2,
+                                ),
+                              ),
+                            )
+                          : Padding(
+                              padding: EdgeInsets.all(10),
+                              child: Icon(
+                                Icons.search_rounded,
+                                color: context.colors.onPrimary,
+                                size: 20,
+                              ),
+                            ),
                     ),
                   ),
                 ),
               ),
-              contentPadding: EdgeInsets.fromLTRB(6, 17, 6, _jobInputError != null ? 6 : 17),
+              contentPadding: EdgeInsets.fromLTRB(
+                6,
+                17,
+                6,
+                _jobInputError != null ? 6 : 17,
+              ),
               border: InputBorder.none,
             ),
           ),
           if (_jobInputError != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
-              child: Text(_jobInputError!,
-                  style: const TextStyle(color: Color(0xFFE05169), fontSize: 12.5, fontWeight: FontWeight.w600)),
+              padding: EdgeInsets.fromLTRB(18, 0, 18, 12),
+              child: Text(
+                _jobInputError!,
+                style: TextStyle(
+                  color: context.colors.incorrect,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
         ],
       ),
@@ -671,12 +821,18 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
   Widget _buildCertificateSelector(AppColors colors) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFDFD),
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: colors.pinkSoft),
-        boxShadow: const [BoxShadow(color: Color(0x0FC98198), blurRadius: 14, offset: Offset(0, 6))],
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x0FC98198),
+            blurRadius: 14,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: Wrap(
         spacing: 10,
@@ -685,9 +841,21 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
           final cert = _suggestedCertificates[index];
           final isOwned = _ownedCertificates.contains(cert.name);
           final palette = [
-            (bg: colors.pinkSoft, selected: colors.pinkStart, border: colors.pinkStart),
-            (bg: colors.lavender, selected: colors.lavenderAccent, border: colors.lavenderAccent),
-            (bg: colors.mint, selected: colors.mintAccent, border: colors.mintAccent),
+            (
+              bg: colors.pinkSoft,
+              selected: colors.pinkStart,
+              border: colors.pinkStart,
+            ),
+            (
+              bg: colors.lavender,
+              selected: colors.lavenderAccent,
+              border: colors.lavenderAccent,
+            ),
+            (
+              bg: colors.mint,
+              selected: colors.mintAccent,
+              border: colors.mintAccent,
+            ),
           ];
           final tone = palette[index % palette.length];
           return FilterChip(
@@ -695,13 +863,22 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
             label: Text(cert.name),
             onSelected: (selected) => _toggleOwned(cert.name, selected),
             showCheckmark: true,
-            checkmarkColor: Colors.white,
+            checkmarkColor: context.colors.onPrimary,
             selectedColor: tone.selected,
             backgroundColor: tone.bg,
-            side: BorderSide(color: isOwned ? tone.border : Colors.transparent, width: isOwned ? 1.4 : 1),
-            labelStyle: TextStyle(color: isOwned ? Colors.white : colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+            side: BorderSide(
+              color: isOwned ? tone.border : Colors.transparent,
+              width: isOwned ? 1.4 : 1,
+            ),
+            labelStyle: TextStyle(
+              color: isOwned ? context.colors.onPrimary : colors.textPrimary,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(30),
+            ),
           );
         }),
       ),
@@ -719,27 +896,46 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
                 controller: _customCertController,
                 onSubmitted: (_) => _addCustomCertificate(),
                 onChanged: (_) {
-                  if (_customCertError != null) setState(() => _customCertError = null);
+                  if (_customCertError != null)
+                    setState(() => _customCertError = null);
                 },
-                style: TextStyle(fontSize: 13.5, color: colors.textPrimary, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontSize: 13.5,
+                  color: colors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
                 decoration: InputDecoration(
                   hintText: '목록에 없는 보유 자격증 직접 입력',
-                  hintStyle: const TextStyle(color: Color(0xFFB7AFB1), fontSize: 13),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  hintStyle: TextStyle(
+                    color: context.colors.textMuted,
+                    fontSize: 13,
+                  ),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: context.colors.surface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: _customCertError != null ? const Color(0xFFE96B7A) : colors.pinkSoft),
+                    borderSide: BorderSide(
+                      color: _customCertError != null
+                          ? context.colors.incorrect
+                          : colors.pinkSoft,
+                    ),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: _customCertError != null ? const Color(0xFFE96B7A) : colors.pinkSoft),
+                    borderSide: BorderSide(
+                      color: _customCertError != null
+                          ? context.colors.incorrect
+                          : colors.pinkSoft,
+                    ),
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: 10),
             DecoratedBox(
               decoration: BoxDecoration(
                 color: colors.pinkStart,
@@ -752,10 +948,21 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
                   borderRadius: BorderRadius.circular(16),
                   onTap: _isCheckingCertName ? null : _addCustomCertificate,
                   child: Padding(
-                    padding: const EdgeInsets.all(13),
+                    padding: EdgeInsets.all(13),
                     child: _isCheckingCertName
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.2))
-                        : const Icon(Icons.add_rounded, color: Colors.white, size: 20),
+                        ? SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: context.colors.surface,
+                              strokeWidth: 2.2,
+                            ),
+                          )
+                        : Icon(
+                            Icons.add_rounded,
+                            color: context.colors.onPrimary,
+                            size: 20,
+                          ),
                   ),
                 ),
               ),
@@ -764,8 +971,15 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
         ),
         if (_customCertError != null)
           Padding(
-            padding: const EdgeInsets.only(top: 8, left: 4),
-            child: Text(_customCertError!, style: const TextStyle(color: Color(0xFFE05169), fontSize: 12.5, fontWeight: FontWeight.w600)),
+            padding: EdgeInsets.only(top: 8, left: 4),
+            child: Text(
+              _customCertError!,
+              style: TextStyle(
+                color: context.colors.incorrect,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
       ],
     );
@@ -779,7 +993,13 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(21),
           color: colors.pinkStart,
-          boxShadow: [BoxShadow(color: colors.pinkStart.withValues(alpha: 0.2), blurRadius: 18, offset: const Offset(0, 8))],
+          boxShadow: [
+            BoxShadow(
+              color: colors.pinkStart.withValues(alpha: 0.2),
+              blurRadius: 18,
+              offset: Offset(0, 8),
+            ),
+          ],
         ),
         child: Material(
           color: Colors.transparent,
@@ -790,10 +1010,21 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.auto_awesome_rounded, size: 21, color: Colors.white),
-                  const SizedBox(width: 9),
-                  const Text('자격증 로드맵 생성하기',
-                      style: TextStyle(color: Colors.white, fontSize: 16.5, fontWeight: FontWeight.w800, letterSpacing: -0.2)),
+                  Icon(
+                    Icons.auto_awesome_rounded,
+                    size: 21,
+                    color: context.colors.onPrimary,
+                  ),
+                  SizedBox(width: 9),
+                  Text(
+                    '자격증 로드맵 생성하기',
+                    style: TextStyle(
+                      color: context.colors.onPrimary,
+                      fontSize: 16.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -807,7 +1038,7 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
 class _StepProgressBar extends StatelessWidget {
   final int currentStep;
   final AppColors colors;
-  const _StepProgressBar({required this.currentStep, required this.colors});
+  _StepProgressBar({required this.currentStep, required this.colors});
 
   @override
   Widget build(BuildContext context) {
@@ -817,9 +1048,9 @@ class _StepProgressBar extends StatelessWidget {
         final active = i == currentStep;
         final done = i < currentStep;
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 280),
+          duration: Duration(milliseconds: 280),
           curve: Curves.easeOut,
-          margin: const EdgeInsets.symmetric(horizontal: 4),
+          margin: EdgeInsets.symmetric(horizontal: 4),
           width: active ? 28 : 18,
           height: 5,
           decoration: BoxDecoration(
@@ -835,7 +1066,7 @@ class _StepProgressBar extends StatelessWidget {
 class _LoadingIndicator extends StatelessWidget {
   final Animation<double> progress;
   final AppColors colors;
-  const _LoadingIndicator({required this.progress, required this.colors});
+  _LoadingIndicator({required this.progress, required this.colors});
 
   @override
   Widget build(BuildContext context) {
@@ -852,9 +1083,15 @@ class _LoadingIndicator extends StatelessWidget {
             waveColorEnd: colors.pinkDeep,
             useSmoothing: false,
           ),
-          const SizedBox(height: 12),
-          Text('${(progress.value * 100).toInt()}%',
-              style: TextStyle(color: colors.pinkStart, fontSize: 13, fontWeight: FontWeight.w800)),
+          SizedBox(height: 12),
+          Text(
+            '${(progress.value * 100).toInt()}%',
+            style: TextStyle(
+              color: colors.pinkStart,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ],
       ),
     );
@@ -864,15 +1101,27 @@ class _LoadingIndicator extends StatelessWidget {
 class _InlineMessage extends StatelessWidget {
   final String text;
   final AppColors colors;
-  const _InlineMessage({required this.text, required this.colors});
+  _InlineMessage({required this.text, required this.colors});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(color: colors.pinkSoft, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFFBDDE3))),
-      child: Text(text, textAlign: TextAlign.center, style: TextStyle(color: colors.textSecondary, fontSize: 13.5, fontWeight: FontWeight.w600)),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: colors.pinkSoft,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.colors.pinkBorder),
+      ),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: colors.textSecondary,
+          fontSize: 13.5,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }
@@ -880,7 +1129,7 @@ class _InlineMessage extends StatelessWidget {
 class _PopularJob {
   final String displayName;
   final int count;
-  const _PopularJob({required this.displayName, required this.count});
+  _PopularJob({required this.displayName, required this.count});
 }
 
 class _PopularJobChip extends StatelessWidget {
@@ -889,7 +1138,12 @@ class _PopularJobChip extends StatelessWidget {
   final AppColors colors;
   final VoidCallback? onTap;
 
-  const _PopularJobChip({required this.rank, required this.job, required this.colors, required this.onTap});
+  _PopularJobChip({
+    required this.rank,
+    required this.job,
+    required this.colors,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -900,21 +1154,42 @@ class _PopularJobChip extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(30),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: context.colors.surface,
             borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: isTop ? colors.pinkStart : colors.pinkSoft, width: isTop ? 1.4 : 1),
-            boxShadow: const [BoxShadow(color: Color(0x0FC98198), blurRadius: 10, offset: Offset(0, 4))],
+            border: Border.all(
+              color: isTop ? colors.pinkStart : colors.pinkSoft,
+              width: isTop ? 1.4 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x0FC98198),
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              ),
+            ],
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('$rank',
-                  style: TextStyle(color: isTop ? colors.pinkStart : colors.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w900)),
-              const SizedBox(width: 6),
-              Text(job.displayName,
-                  style: TextStyle(color: colors.textPrimary, fontSize: 12.5, fontWeight: FontWeight.w700)),
+              Text(
+                '$rank',
+                style: TextStyle(
+                  color: isTop ? colors.pinkStart : colors.textSecondary,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              SizedBox(width: 6),
+              Text(
+                job.displayName,
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ],
           ),
         ),
@@ -927,7 +1202,7 @@ class _FadeSlideIn extends StatefulWidget {
   final Widget child;
   final Duration delay;
   final Duration duration;
-  const _FadeSlideIn({
+  _FadeSlideIn({
     super.key,
     required this.child,
     this.delay = Duration.zero,
@@ -938,12 +1213,20 @@ class _FadeSlideIn extends StatefulWidget {
   State<_FadeSlideIn> createState() => _FadeSlideInState();
 }
 
-class _FadeSlideInState extends State<_FadeSlideIn> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller =
-  AnimationController(vsync: this, duration: widget.duration);
-  late final Animation<double> _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
-  late final Animation<Offset> _slide = Tween(begin: const Offset(0, 0.06), end: Offset.zero)
-      .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+class _FadeSlideInState extends State<_FadeSlideIn>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: widget.duration,
+  );
+  late final Animation<double> _fade = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOutCubic,
+  );
+  late final Animation<Offset> _slide = Tween(
+    begin: Offset(0, 0.06),
+    end: Offset.zero,
+  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
   @override
   void initState() {
@@ -967,4 +1250,3 @@ class _FadeSlideInState extends State<_FadeSlideIn> with SingleTickerProviderSta
     );
   }
 }
-

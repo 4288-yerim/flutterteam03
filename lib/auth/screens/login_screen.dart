@@ -100,11 +100,14 @@ class _LoginScreenState extends State<LoginScreen>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _fadeAnim = CurvedAnimation(parent: _entryController, curve: Curves.easeOut);
-    _slideAnim = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic));
+    _fadeAnim = CurvedAnimation(
+      parent: _entryController,
+      curve: Curves.easeOut,
+    );
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
+        );
     _logoScale = Tween<double>(begin: 0.6, end: 1.0).animate(
       CurvedAnimation(
         parent: _entryController,
@@ -157,7 +160,8 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   String? get _emailDisplayError => _emailServerError ?? _emailFormatError;
-  String? get _passwordDisplayError => _passwordServerError ?? _passwordFormatError;
+  String? get _passwordDisplayError =>
+      _passwordServerError ?? _passwordFormatError;
 
   // ── 단계별 공개 조건 ──────────────────────────────────────────
   bool get _showPasswordStep =>
@@ -169,9 +173,9 @@ class _LoginScreenState extends State<LoginScreen>
 
   bool get _isFormValid =>
       _emailController.text.trim().isNotEmpty &&
-          _passwordController.text.isNotEmpty &&
-          _emailFormatError == null &&
-          _passwordFormatError == null;
+      _passwordController.text.isNotEmpty &&
+      _emailFormatError == null &&
+      _passwordFormatError == null;
 
   @override
   void dispose() {
@@ -198,9 +202,7 @@ class _LoginScreenState extends State<LoginScreen>
       final userDocRef = FirebaseFirestore.instance
           .collection('users')
           .doc(credential.user!.uid);
-      await userDocRef.update({
-        'lastLoginAt': FieldValue.serverTimestamp(),
-      });
+      await userDocRef.update({'lastLoginAt': FieldValue.serverTimestamp()});
 
       final check = await AccountStatusService.checkCurrentUserStatus();
       if (!mounted) return;
@@ -214,7 +216,8 @@ class _LoginScreenState extends State<LoginScreen>
           context,
           icon: Icons.pause_circle_filled_rounded,
           title: '로그인 불가',
-          description: '이용이 정지된 계정입니다.\n정지 기간: $untilText\n\n정지 해제 문의는 DdaiT@naver.com으로 해주세요.',
+          description:
+              '이용이 정지된 계정입니다.\n정지 기간: $untilText\n\n정지 해제 문의는 DdaiT@naver.com으로 해주세요.',
           primaryLabel: '확인',
           onPrimaryPressed: () => Navigator.of(context).pop(),
           barrierDismissible: false,
@@ -232,13 +235,13 @@ class _LoginScreenState extends State<LoginScreen>
       if (role == 'ADMIN') {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const AdminPage()),
-              (route) => false,
+          (route) => false,
         );
         return;
       }
 
       final bool isWithdrawalPending =
-      await WithdrawalStatusService.isCurrentUserWithdrawalPending();
+          await WithdrawalStatusService.isCurrentUserWithdrawalPending();
 
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
@@ -247,7 +250,7 @@ class _LoginScreenState extends State<LoginScreen>
               ? const WithdrawalPendingScreen()
               : const MainPage(),
         ),
-            (route) => false,
+        (route) => false,
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -275,9 +278,7 @@ class _LoginScreenState extends State<LoginScreen>
     } catch (_) {
       await FirebaseAuth.instance.signOut();
       if (!mounted) return;
-      _showLoginFailedModal(
-        '회원 상태를 확인하지 못했습니다. 잠시 후 다시 로그인해주세요.',
-      );
+      _showLoginFailedModal('회원 상태를 확인하지 못했습니다. 잠시 후 다시 로그인해주세요.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -355,9 +356,9 @@ class _LoginScreenState extends State<LoginScreen>
       suffixIcon: controller.text.isEmpty
           ? null
           : IconButton(
-        icon: Icon(Icons.close, color: colors.textSecondary, size: 18),
-        onPressed: () => controller.clear(),
-      ),
+              icon: Icon(Icons.close, color: colors.textSecondary, size: 18),
+              onPressed: () => controller.clear(),
+            ),
     );
   }
 
@@ -438,7 +439,9 @@ class _LoginScreenState extends State<LoginScreen>
                 return SingleChildScrollView(
                   padding: EdgeInsets.symmetric(horizontal: 24),
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
                     child: IntrinsicHeight(
                       child: FadeTransition(
                         opacity: _fadeAnim,
@@ -451,7 +454,9 @@ class _LoginScreenState extends State<LoginScreen>
                               _logoHeader(colors),
                               SizedBox(height: 8),
                               Image.asset(
-                                'assets/images/textLogo.png',
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? 'assets/images/textLogo_dark.png'
+                                    : 'assets/images/textLogo.png',
                                 height: 22,
                               ),
                               SizedBox(height: 20),
@@ -465,8 +470,11 @@ class _LoginScreenState extends State<LoginScreen>
                               ),
                               SizedBox(height: 8),
                               Text(
-                                '따자에 오신 걸 환영해요!',
-                                style: TextStyle(fontSize: 14, color: colors.textSecondary),
+                                '따iT에 오신 걸 환영해요!',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: colors.textSecondary,
+                                ),
                               ),
                               SizedBox(height: 36),
 
@@ -478,7 +486,9 @@ class _LoginScreenState extends State<LoginScreen>
                                 textInputAction: TextInputAction.next,
                                 onSubmitted: (_) {
                                   if (_showPasswordStep) {
-                                    FocusScope.of(context).requestFocus(_passwordFocus);
+                                    FocusScope.of(
+                                      context,
+                                    ).requestFocus(_passwordFocus);
                                   }
                                 },
                                 decoration: _decoration(
@@ -496,7 +506,10 @@ class _LoginScreenState extends State<LoginScreen>
                                   alignment: Alignment.centerLeft,
                                   child: Text(
                                     _emailDisplayError!,
-                                    style: TextStyle(color: errorColor, fontSize: 12),
+                                    style: TextStyle(
+                                      color: errorColor,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ),
                               ] else if (_showPasswordStep) ...[
@@ -506,11 +519,18 @@ class _LoginScreenState extends State<LoginScreen>
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.check_circle, size: 14, color: colors.pinkStart),
+                                      Icon(
+                                        Icons.check_circle,
+                                        size: 14,
+                                        color: colors.pinkStart,
+                                      ),
                                       SizedBox(width: 4),
                                       Text(
                                         '좋은 이메일이에요',
-                                        style: TextStyle(color: colors.pinkStart, fontSize: 12),
+                                        style: TextStyle(
+                                          color: colors.pinkStart,
+                                          fontSize: 12,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -532,7 +552,8 @@ class _LoginScreenState extends State<LoginScreen>
                                       obscuringCharacter: '●',
                                       textInputAction: TextInputAction.done,
                                       onSubmitted: (_) {
-                                        if (_isFormValid && !_isLoading) _login();
+                                        if (_isFormValid && !_isLoading)
+                                          _login();
                                       },
                                       decoration: _decoration(
                                         colors: colors,
@@ -549,7 +570,10 @@ class _LoginScreenState extends State<LoginScreen>
                                         alignment: Alignment.centerLeft,
                                         child: Text(
                                           _passwordDisplayError!,
-                                          style: TextStyle(color: errorColor, fontSize: 12),
+                                          style: TextStyle(
+                                            color: errorColor,
+                                            fontSize: 12,
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -568,18 +592,23 @@ class _LoginScreenState extends State<LoginScreen>
                                     builder: (context, child) {
                                       final t = _buttonPulseController.value;
                                       // 0 -> 1.06 -> 1.0 로 살짝 튀는 스케일
-                                      final scale = 1.0 +
+                                      final scale =
+                                          1.0 +
                                           (Curves.easeOutBack.transform(t) *
                                               (t < 1 ? 0.06 : 0.0));
-                                      return Transform.scale(scale: scale, child: child);
+                                      return Transform.scale(
+                                        scale: scale,
+                                        child: child,
+                                      );
                                     },
                                     child: AppButton(
                                       text: '로그인',
                                       type: _isFormValid
                                           ? AppButtonType.primaryPink
                                           : AppButtonType.gray,
-                                      onPressed:
-                                      (_isFormValid && !_isLoading) ? _login : null,
+                                      onPressed: (_isFormValid && !_isLoading)
+                                          ? _login
+                                          : null,
                                     ),
                                   ),
                                 ),
@@ -597,12 +626,13 @@ class _LoginScreenState extends State<LoginScreen>
                                       onTap: _isLoading
                                           ? null
                                           : () {
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) => ResetPasswordScreen(),
-                                          ),
-                                        );
-                                      },
+                                              Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      ResetPasswordScreen(),
+                                                ),
+                                              );
+                                            },
                                       child: Text(
                                         '비밀번호를 잊으셨나요?',
                                         style: TextStyle(

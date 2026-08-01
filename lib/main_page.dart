@@ -76,29 +76,29 @@ class _MainPageState extends State<MainPage> {
             todayStudyKey: widget.showTutorial ? _todayStudyKey : null,
           ),
           const StudyListApp(),
-          const AiPage(),
+          AiPage(),
           const CommunityMainPage(),
           const MyPageScreen(),
         ],
       ),
-    bottomNavigationBar: widget.showTutorial
-    ? Showcase.withWidget(
-      key: _bottomBarKey,
-      targetBorderRadius: BorderRadius.circular(18),
-      targetPadding: const EdgeInsets.all(10),
-      overlayColor: Colors.black,
-      overlayOpacity: 0.65,
-      tooltipPosition: TooltipPosition.top,
-      container: const TutorialCard(
-        icon: Icons.grid_view_rounded,
-        title: '메인 메뉴',
-        description: '여기서 홈, 스터디, AI, 커뮤니티, 마이페이지로 이동할 수 있어요!',
-        isLast: true,
-        pointUp: false,
-      ),
-      child: bottomBar,
-    )
-        : bottomBar,
+      bottomNavigationBar: widget.showTutorial
+          ? Showcase.withWidget(
+              key: _bottomBarKey,
+              targetBorderRadius: BorderRadius.circular(18),
+              targetPadding: const EdgeInsets.all(10),
+              overlayColor: Colors.black,
+              overlayOpacity: 0.65,
+              tooltipPosition: TooltipPosition.top,
+              container: const TutorialCard(
+                icon: Icons.grid_view_rounded,
+                title: '메인 메뉴',
+                description: '여기서 홈, 스터디, AI, 커뮤니티, 마이페이지로 이동할 수 있어요!',
+                isLast: true,
+                pointUp: false,
+              ),
+              child: bottomBar,
+            )
+          : bottomBar,
     );
   }
 }

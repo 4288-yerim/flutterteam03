@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../appwidgets/goal_schedule_app_widget.dart';
@@ -14,8 +16,7 @@ import '../widgets/certificate_detail_widgets.dart';
 import '../widgets/professional_certificate_widgets.dart';
 import '../widgets/technical_certificate_widgets.dart';
 
-class ProfessionalCertificateDetailPage
-    extends StatefulWidget {
+class ProfessionalCertificateDetailPage extends StatefulWidget {
   final String certificationId;
 
   const ProfessionalCertificateDetailPage({
@@ -24,8 +25,7 @@ class ProfessionalCertificateDetailPage
   });
 
   @override
-  State<ProfessionalCertificateDetailPage>
-  createState() =>
+  State<ProfessionalCertificateDetailPage> createState() =>
       _ProfessionalCertificateDetailPageState();
 }
 
@@ -35,13 +35,11 @@ class _ProfessionalCertificateDetailPageState
   final CertificateDetailService _certificateDetailService =
       CertificateDetailService();
 
-  final ProfessionalCertificateService
-  _professionalCertificateService =
-  ProfessionalCertificateService();
+  final ProfessionalCertificateService _professionalCertificateService =
+      ProfessionalCertificateService();
 
-  final TechnicalCertificateService
-  _technicalCertificateService =
-  TechnicalCertificateService();
+  final TechnicalCertificateService _technicalCertificateService =
+      TechnicalCertificateService();
 
   late final TabController _tabController;
 
@@ -53,8 +51,7 @@ class _ProfessionalCertificateDetailPageState
   String? _loadError;
   Certification? _certificate;
 
-  List<ProfessionalCertificateSchedule>
-  _schedules = [];
+  List<ProfessionalCertificateSchedule> _schedules = [];
 
   bool _isLoadingExamSubjects = false;
   bool _hasRequestedExamSubjects = false;
@@ -65,23 +62,16 @@ class _ProfessionalCertificateDetailPageState
   void initState() {
     super.initState();
 
-    _tabController = TabController(
-      length: 4,
-      vsync: this,
-    );
+    _tabController = TabController(length: 4, vsync: this);
 
-    _tabController.addListener(
-      _handleTabChanged,
-    );
+    _tabController.addListener(_handleTabChanged);
 
     _loadCertificate();
   }
 
   @override
   void dispose() {
-    _tabController.removeListener(
-      _handleTabChanged,
-    );
+    _tabController.removeListener(_handleTabChanged);
 
     _tabController.dispose();
 
@@ -93,14 +83,12 @@ class _ProfessionalCertificateDetailPageState
       return;
     }
 
-    if (_selectedTabIndex ==
-        _tabController.index) {
+    if (_selectedTabIndex == _tabController.index) {
       return;
     }
 
     setState(() {
-      _selectedTabIndex =
-          _tabController.index;
+      _selectedTabIndex = _tabController.index;
     });
   }
 
@@ -111,29 +99,17 @@ class _ProfessionalCertificateDetailPageState
     });
 
     try {
-      final certificateFuture =
-      _professionalCertificateService
-          .getProfessionalCertificateById(
-        widget.certificationId,
-      );
+      final certificateFuture = _professionalCertificateService
+          .getProfessionalCertificateById(widget.certificationId);
 
-      final schedulesFuture =
-      _professionalCertificateService
-          .getProfessionalSchedules(
-        widget.certificationId,
-      );
+      final schedulesFuture = _professionalCertificateService
+          .getProfessionalSchedules(widget.certificationId);
 
-      final results = await Future.wait([
-        certificateFuture,
-        schedulesFuture,
-      ]);
+      final results = await Future.wait([certificateFuture, schedulesFuture]);
 
-      final certificate =
-      results[0] as Certification;
+      final certificate = results[0] as Certification;
 
-      final schedules =
-      results[1]
-      as List<ProfessionalCertificateSchedule>;
+      final schedules = results[1] as List<ProfessionalCertificateSchedule>;
 
       if (!mounted) {
         return;
@@ -160,8 +136,7 @@ class _ProfessionalCertificateDetailPageState
 
       setState(() {
         _isLoading = false;
-        _loadError =
-        '자격증 정보를 불러오지 못했습니다.';
+        _loadError = '자격증 정보를 불러오지 못했습니다.';
       });
     }
   }
@@ -169,8 +144,7 @@ class _ProfessionalCertificateDetailPageState
   Future<void> _loadExamSubjects() async {
     final certificate = _certificate;
 
-    if (certificate == null ||
-        _isLoadingExamSubjects) {
+    if (certificate == null || _isLoadingExamSubjects) {
       return;
     }
 
@@ -180,9 +154,7 @@ class _ProfessionalCertificateDetailPageState
     });
 
     try {
-      final subjects =
-      await _technicalCertificateService
-          .getExamSubjects(
+      final subjects = await _technicalCertificateService.getExamSubjects(
         jmCd: certificate.jmcd,
       );
 
@@ -215,44 +187,30 @@ class _ProfessionalCertificateDetailPageState
         _examSubjects = [];
         _hasRequestedExamSubjects = true;
         _isLoadingExamSubjects = false;
-        _examSubjectError =
-        '시험 교시·과목 정보를 불러오지 못했습니다.';
+        _examSubjectError = '시험 교시·과목 정보를 불러오지 못했습니다.';
       });
     }
   }
 
-  List<ProfessionalCertificateSchedule>
-  get _availableGoalSchedules {
-    final today = _dateOnly(
-      DateTime.now(),
-    );
+  List<ProfessionalCertificateSchedule> get _availableGoalSchedules {
+    final today = _dateOnly(DateTime.now());
 
-    final schedules = _schedules.where(
-          (schedule) {
-        final filterDate =
-            schedule.examEndAt ??
-                schedule.examStartAt;
+    final schedules = _schedules.where((schedule) {
+      final filterDate = schedule.examEndAt ?? schedule.examStartAt;
 
-        if (filterDate == null) {
-          return false;
-        }
+      if (filterDate == null) {
+        return false;
+      }
 
-        return !_dateOnly(filterDate)
-            .isBefore(today);
-      },
-    ).toList();
+      return !_dateOnly(filterDate).isBefore(today);
+    }).toList();
 
     schedules.sort((first, second) {
-      final firstStartDate =
-          first.examStartAt ??
-              first.examEndAt;
+      final firstStartDate = first.examStartAt ?? first.examEndAt;
 
-      final secondStartDate =
-          second.examStartAt ??
-              second.examEndAt;
+      final secondStartDate = second.examStartAt ?? second.examEndAt;
 
-      if (firstStartDate == null &&
-          secondStartDate == null) {
+      if (firstStartDate == null && secondStartDate == null) {
         return 0;
       }
 
@@ -264,9 +222,7 @@ class _ProfessionalCertificateDetailPageState
         return -1;
       }
 
-      return firstStartDate.compareTo(
-        secondStartDate,
-      );
+      return firstStartDate.compareTo(secondStartDate);
     });
 
     return schedules;
@@ -275,11 +231,7 @@ class _ProfessionalCertificateDetailPageState
   static DateTime _dateOnly(DateTime date) {
     final localDate = date.toLocal();
 
-    return DateTime(
-      localDate.year,
-      localDate.month,
-      localDate.day,
-    );
+    return DateTime(localDate.year, localDate.month, localDate.day);
   }
 
   Future<void> _openQnetExamInformation() async {
@@ -292,269 +244,220 @@ class _ProfessionalCertificateDetailPageState
     final seriesCode = certificate.seriescd.trim();
 
     if (seriesCode.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Q-Net 자격 정보 연결값이 등록되지 않았습니다.',
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Q-Net 자격 정보 연결값이 등록되지 않았습니다.')));
 
       return;
     }
 
     final uri = Uri.parse(
       'https://www.q-net.or.kr/crf005.do'
-          '?id=crf00503'
-          '&gSite=L'
-          '&gId=$seriesCode',
+      '?id=crf00503'
+      '&gSite=L'
+      '&gId=$seriesCode',
     );
 
-    final opened = await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
-    );
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
 
     if (!opened && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Q-Net 자격 정보 페이지를 열지 못했습니다.',
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Q-Net 자격 정보 페이지를 열지 못했습니다.')));
     }
   }
 
   Future<void> _openGoalSettingSheet() async {
     final certificate = _certificate;
 
-    if (certificate == null ||
-        _isRegisteringGoal) {
+    if (certificate == null || _isRegisteringGoal) {
       return;
     }
 
-    final schedules =
-        _availableGoalSchedules;
+    final schedules = _availableGoalSchedules;
 
     if (schedules.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content: Text(
-            '목표로 등록할 수 있는 예정 시험이 없습니다.',
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('목표로 등록할 수 있는 예정 시험이 없습니다.')));
 
       return;
     }
 
-    ProfessionalCertificateSchedule?
-    selectedSchedule;
+    Set<String> registeredGoalKeys;
+    try {
+      registeredGoalKeys =
+          await _certificateDetailService.getActiveGoalScheduleKeys(
+        certificateId: widget.certificationId,
+      );
+    } on CertificateGoalException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+      return;
+    }
+    if (!mounted) return;
 
-    final result = await showModalBottomSheet<
-        ProfessionalCertificateSchedule>(
+    ProfessionalCertificateSchedule? selectedSchedule;
+
+    final result = await showModalBottomSheet<ProfessionalCertificateSchedule>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (bottomSheetContext) {
         return StatefulBuilder(
-          builder: (
-              context,
-              setBottomSheetState,
-              ) {
+          builder: (context, setBottomSheetState) {
             return SafeArea(
               top: false,
               child: Container(
                 constraints: BoxConstraints(
-                  maxHeight:
-                  MediaQuery.of(context)
-                      .size
-                      .height *
-                      0.82,
+                  maxHeight: MediaQuery.of(context).size.height * 0.82,
                 ),
-                padding:
-                const EdgeInsets.fromLTRB(
-                  24,
-                  14,
-                  24,
-                  24,
-                ),
-                decoration:
-                const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius:
-                  BorderRadius.vertical(
-                    top: Radius.circular(26),
-                  ),
+                padding: EdgeInsets.fromLTRB(24, 14, 24, 24),
+                decoration: BoxDecoration(
+                  color: context.colors.surfaceElevated,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
                 ),
                 child: Column(
-                  mainAxisSize:
-                  MainAxisSize.min,
-                  crossAxisAlignment:
-                  CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Center(
                       child: Container(
                         width: 42,
                         height: 4,
-                        decoration:
-                        BoxDecoration(
-                          color:
-                          certificateBorderColor,
-                          borderRadius:
-                          BorderRadius.circular(
-                            20,
-                          ),
+                        decoration: BoxDecoration(
+                          color: context.colors.border,
+                          borderRadius: BorderRadius.circular(20),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 22),
-                    const Text(
+                    SizedBox(height: 22),
+                    Text(
                       '목표 시험 선택',
                       style: TextStyle(
-                        color:
-                        certificateDarkText,
+                        color: context.colors.textPrimary,
                         fontSize: 21,
-                        fontWeight:
-                        FontWeight.w800,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 7),
-                    const Text(
+                    SizedBox(height: 7),
+                    Text(
                       '목표로 준비할 시험 일정을 선택해주세요.',
                       style: TextStyle(
-                        color:
-                        certificateGrayText,
+                        color: context.colors.textSecondary,
                         fontSize: 13,
                         height: 1.5,
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
                     Flexible(
-                      child:
-                      ListView.separated(
+                      child: ListView.separated(
                         shrinkWrap: true,
-                        itemCount:
-                        schedules.length,
-                        separatorBuilder:
-                            (_, __) =>
-                        const SizedBox(
-                          height: 10,
-                        ),
-                        itemBuilder:
-                            (context, index) {
-                          final schedule =
-                          schedules[index];
+                        itemCount: schedules.length,
+                        separatorBuilder: (_, _) => SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final schedule = schedules[index];
+                          final scheduleExamType =
+                              schedule.description.contains('필기')
+                                  ? 'WRITTEN'
+                                  : 'PRACTICAL';
+                          final isAlreadyRegistered = registeredGoalKeys.contains(
+                            CertificateDetailService.goalScheduleKey(
+                              scheduleId: schedule.id,
+                              examType: scheduleExamType,
+                            ),
+                          );
 
                           final isSelected =
-                              selectedSchedule
-                                  ?.id ==
-                                  schedule.id;
+                              selectedSchedule?.id == schedule.id;
 
                           return InkWell(
-                            onTap: () {
-                              setBottomSheetState(
-                                    () {
-                                  selectedSchedule =
-                                      schedule;
-                                },
-                              );
+                            onTap: isAlreadyRegistered ? null : () {
+                              setBottomSheetState(() {
+                                selectedSchedule = schedule;
+                              });
                             },
-                            borderRadius:
-                            BorderRadius.circular(
-                              16,
-                            ),
-                            child:
-                            AnimatedContainer(
-                              duration:
-                              const Duration(
-                                milliseconds: 160,
-                              ),
-                              padding:
-                              const EdgeInsets.all(
-                                16,
-                              ),
-                              decoration:
-                              BoxDecoration(
-                                color: isSelected
-                                    ? certificatePinkSoft
-                                    : const Color(
-                                  0xFFFAFAFC,
+                            borderRadius: BorderRadius.circular(16),
+                            child: Opacity(
+                              opacity: isAlreadyRegistered ? 0.48 : 1,
+                              child: AnimatedContainer(
+                                duration: Duration(milliseconds: 160),
+                                padding: EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: isAlreadyRegistered
+                                      ? context.colors.surfaceMuted
+                                      : isSelected
+                                          ? context.colors.pinkSoft
+                                          : context.colors.surfaceMuted,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: isAlreadyRegistered
+                                        ? context.colors.textDisabled
+                                        : isSelected
+                                            ? context.colors.pinkDeep
+                                            : context.colors.border,
+                                    width: isSelected ? 1.4 : 1,
+                                  ),
                                 ),
-                                borderRadius:
-                                BorderRadius.circular(
-                                  16,
-                                ),
-                                border:
-                                Border.all(
-                                  color: isSelected
-                                      ? certificatePrimaryPink
-                                      : certificateBorderColor,
-                                  width: isSelected
-                                      ? 1.4
-                                      : 1,
-                                ),
-                              ),
-                              child: Row(
+                                child: Row(
                                 children: [
                                   Icon(
                                     isSelected
-                                        ? Icons
-                                        .radio_button_checked_rounded
-                                        : Icons
-                                        .radio_button_off_rounded,
+                                        ? Icons.radio_button_checked_rounded
+                                        : Icons.radio_button_off_rounded,
                                     color: isSelected
-                                        ? certificatePrimaryPink
-                                        : certificateGrayText,
+                                        ? context.colors.pinkDeep
+                                        : context.colors.textSecondary,
                                   ),
-                                  const SizedBox(
-                                    width: 12,
-                                  ),
+                                  SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          schedule.description,
-                                          style: const TextStyle(
-                                            color: certificateDarkText,
+                                          isAlreadyRegistered
+                                              ? '${schedule.description} (등록됨)'
+                                              : schedule.description,
+                                          style: TextStyle(
+                                            color: isAlreadyRegistered
+                                                ? context.colors.textDisabled
+                                                : context.colors.textPrimary,
                                             fontSize: 15,
                                             fontWeight: FontWeight.w800,
                                           ),
                                         ),
 
-                                        const SizedBox(height: 9),
+                                        SizedBox(height: 9),
 
                                         if (getCertificateRegistrationStatus(
-                                          registrationStartDate:
-                                          schedule
-                                              .examRegistrationStartAt,
-                                          registrationEndDate:
-                                          schedule
-                                              .examRegistrationEndAt,
-                                        )
-                                        case final registrationStatus?)
+                                              registrationStartDate: schedule
+                                                  .examRegistrationStartAt,
+                                              registrationEndDate: schedule
+                                                  .examRegistrationEndAt,
+                                            )
+                                            case final registrationStatus?)
                                           CertificateScheduleStatusBadge(
                                             label: registrationStatus.label,
                                             isActive:
-                                            registrationStatus.isActive,
+                                                registrationStatus.isActive,
                                           ),
 
-                                        const SizedBox(height: 9),
+                                        SizedBox(height: 9),
 
                                         Row(
                                           crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                              CrossAxisAlignment.start,
                                           children: [
-                                            const Icon(
+                                            Icon(
                                               Icons.event_outlined,
                                               size: 16,
-                                              color: certificateGrayText,
+                                              color:
+                                                  context.colors.textSecondary,
                                             ),
-                                            const SizedBox(width: 6),
+                                            SizedBox(width: 6),
                                             Expanded(
                                               child: Text(
                                                 formatCertificateGoalDateRange(
@@ -564,8 +467,10 @@ class _ProfessionalCertificateDetailPageState
                                                       ? null
                                                       : schedule.examEndAt,
                                                 ),
-                                                style: const TextStyle(
-                                                  color: certificateGrayText,
+                                                style: TextStyle(
+                                                  color: context
+                                                      .colors
+                                                      .textSecondary,
                                                   fontSize: 13,
                                                   height: 1.4,
                                                 ),
@@ -577,51 +482,40 @@ class _ProfessionalCertificateDetailPageState
                                     ),
                                   ),
                                 ],
+                                ),
                               ),
                             ),
                           );
                         },
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
                     Row(
                       children: [
                         Expanded(
                           child: OutlinedButton(
                             onPressed: () {
-                              Navigator.pop(
-                                bottomSheetContext,
-                              );
+                              Navigator.pop(bottomSheetContext);
                             },
-                            child:
-                            const Text('취소'),
+                            child: Text('취소'),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        SizedBox(width: 12),
                         Expanded(
                           child: FilledButton(
-                            onPressed:
-                            selectedSchedule ==
-                                null
+                            onPressed: selectedSchedule == null
                                 ? null
                                 : () {
-                              Navigator.pop(
-                                bottomSheetContext,
-                                selectedSchedule,
-                              );
-                            },
-                            style:
-                            FilledButton.styleFrom(
-                              backgroundColor:
-                              certificatePrimaryPink,
-                              padding:
-                              const EdgeInsets.symmetric(
-                                vertical: 14,
-                              ),
+                                    Navigator.pop(
+                                      bottomSheetContext,
+                                      selectedSchedule,
+                                    );
+                                  },
+                            style: FilledButton.styleFrom(
+                              backgroundColor: context.colors.pinkDeep,
+                              padding: EdgeInsets.symmetric(vertical: 14),
                             ),
-                            child: const Text(
-                              '목표 등록',
-                            ),
+                            child: Text('목표 등록'),
                           ),
                         ),
                       ],
@@ -635,73 +529,71 @@ class _ProfessionalCertificateDetailPageState
       },
     );
 
-    if (result == null) {
+    if (result == null || !mounted) {
       return;
     }
 
-    await _registerGoal(result);
+    final examStartDate = result.examStartAt ?? result.examEndAt!;
+    final examType = result.description.contains('필기')
+        ? 'WRITTEN'
+        : 'PRACTICAL';
+    final option = CertificateGoalOption(
+      scheduleId: result.id,
+      targetRound: result.description,
+      examType: examType,
+      examTypeName: examType == 'WRITTEN' ? '필기' : '실기·면접',
+      examDate: examStartDate,
+      examStartDate: examStartDate,
+      examEndDate: result.examStartAt == null ? null : result.examEndAt,
+      registrationStartDate: result.examRegistrationStartAt,
+      registrationEndDate: result.examRegistrationEndAt,
+      passAnnouncementDate: result.passStartAt,
+      passAnnouncementEndDate: result.passEndAt,
+    );
+    final optionWithExamDate = await selectCertificateGoalExamDate(
+      context: context,
+      option: option,
+    );
+    if (optionWithExamDate == null || !mounted) return;
+    await _registerGoal(result, optionWithExamDate);
   }
 
   Future<void> _registerGoal(
     ProfessionalCertificateSchedule schedule,
+    CertificateGoalOption option,
   ) async {
     final certificate = _certificate;
-    final examDate = schedule.examStartAt ?? schedule.examEndAt;
+    final examDate = option.examDate;
 
-    if (certificate == null || examDate == null || _isRegisteringGoal) {
+    if (certificate == null || _isRegisteringGoal) {
       return;
     }
 
-    final examType =
-        schedule.description.contains('필기') ? 'WRITTEN' : 'PRACTICAL';
-
-    final option = CertificateGoalOption(
-      scheduleId: schedule.id,
-      targetRound: schedule.description,
-      examType: examType,
-      examTypeName:
-      examType == 'WRITTEN'
-          ? '필기'
-          : '실기·면접',
-
-      examDate: examDate,
-      examEndDate: schedule.examEndAt,
-
-      registrationStartDate:
-      schedule.examRegistrationStartAt,
-      registrationEndDate:
-      schedule.examRegistrationEndAt,
-
-      passAnnouncementDate:
-      schedule.passStartAt,
-      passAnnouncementEndDate:
-      schedule.passEndAt,
-    );
+    final examType = schedule.description.contains('필기')
+        ? 'WRITTEN'
+        : 'PRACTICAL';
 
     setState(() {
       _isRegisteringGoal = true;
     });
 
     try {
-      final goalId =
-      await _certificateDetailService.addCertificateGoal(
+      final goalId = await _certificateDetailService.addCertificateGoal(
         certificateId: widget.certificationId,
         scheduleId: schedule.id,
         certificateName: certificate.name,
         qualificationType: 'PROFESSIONAL',
         targetExamDate: examDate,
+        targetExamStartDate: option.examStartDate,
+        targetExamEndDate: option.examEndDate ?? option.examStartDate,
         targetRound: schedule.description,
         targetExamType: examType,
 
-        targetRegistrationStartDate:
-        schedule.examRegistrationStartAt,
-        targetRegistrationEndDate:
-        schedule.examRegistrationEndAt,
+        targetRegistrationStartDate: schedule.examRegistrationStartAt,
+        targetRegistrationEndDate: schedule.examRegistrationEndAt,
 
-        targetPassAnnouncementDate:
-        schedule.passStartAt,
-        targetPassAnnouncementEndDate:
-        schedule.passEndAt,
+        targetPassAnnouncementDate: schedule.passStartAt,
+        targetPassAnnouncementEndDate: schedule.passEndAt,
         includeExamTypeInDuplicateCheck: false,
       );
 
@@ -711,8 +603,7 @@ class _ProfessionalCertificateDetailPageState
         return;
       }
 
-      final shouldLinkCalendar =
-      await showCertificateCalendarLinkDialog(
+      final shouldLinkCalendar = await showCertificateCalendarLinkDialog(
         context: context,
         option: option,
       );
@@ -722,11 +613,9 @@ class _ProfessionalCertificateDetailPageState
       }
 
       if (shouldLinkCalendar != true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('목표 자격증으로 등록했습니다.'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('목표 자격증으로 등록했습니다.')));
         return;
       }
 
@@ -740,11 +629,9 @@ class _ProfessionalCertificateDetailPageState
       }
 
       if (!added) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('캘린더 일정 추가가 취소되었습니다.'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('캘린더 일정 추가가 취소되었습니다.')));
         return;
       }
 
@@ -757,29 +644,25 @@ class _ProfessionalCertificateDetailPageState
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('시험 일정을 휴대폰 캘린더에 추가했습니다.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('시험 일정을 휴대폰 캘린더에 추가했습니다.')));
     } on CertificateGoalException catch (error) {
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } catch (_) {
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('목표 자격증을 등록하지 못했습니다.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('목표 자격증을 등록하지 못했습니다.')));
     } finally {
       if (mounted) {
         setState(() {
@@ -791,59 +674,44 @@ class _ProfessionalCertificateDetailPageState
 
   Widget _buildGoalSettingButton() {
     return InkWell(
-      onTap: _isRegisteringGoal
-          ? null
-          : _openGoalSettingSheet,
+      onTap: _isRegisteringGoal ? null : _openGoalSettingSheet,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding:
-        const EdgeInsets.symmetric(
-          horizontal: 15,
-          vertical: 10,
-        ),
+        padding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius:
-          BorderRadius.circular(12),
+          color: context.colors.surface,
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: certificatePrimaryPink
-                .withValues(alpha: 0.5),
+            color: context.colors.pinkDeep.withValues(alpha: 0.5),
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (_isRegisteringGoal)
-              const SizedBox(
+              SizedBox(
                 width: 16,
                 height: 16,
-                child:
-                CircularProgressIndicator(
+                child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color:
-                  certificateGrayText,
+                  color: context.colors.textSecondary,
                 ),
               )
             else
-              const Icon(
+              Icon(
                 Icons.flag_outlined,
                 size: 18,
-                color:
-                certificatePrimaryPink,
+                color: context.colors.pinkDeep,
               ),
-            const SizedBox(width: 7),
+            SizedBox(width: 7),
             Text(
-              _isRegisteringGoal
-                  ? '등록 중...'
-                  : '목표 자격증 설정',
+              _isRegisteringGoal ? '등록 중...' : '목표 자격증 설정',
               style: TextStyle(
-                color:
-                _isRegisteringGoal
-                    ? certificateGrayText
-                    : certificatePrimaryPink,
+                color: _isRegisteringGoal
+                    ? context.colors.textSecondary
+                    : context.colors.pinkDeep,
                 fontSize: 13,
-                fontWeight:
-                FontWeight.w700,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],
@@ -854,39 +722,30 @@ class _ProfessionalCertificateDetailPageState
 
   @override
   Widget build(BuildContext context) {
-    final certificateName =
-        _certificate?.name.trim() ?? '';
+    final certificateName = _certificate?.name.trim() ?? '';
 
     return Scaffold(
-      backgroundColor:
-      Colors.transparent,
+      backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
       appBar: AppTopBar(
-        title: certificateName.isEmpty
-            ? '국가전문자격 상세'
-            : '$certificateName 상세',
+        title: certificateName.isEmpty ? '국가전문자격 상세' : '$certificateName 상세',
         centerTitle: true,
         leading: IconButton(
-          onPressed: () =>
-              Navigator.pop(context),
-          icon: const Icon(
+          onPressed: () => Navigator.pop(context),
+          icon: Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: certificateDarkText,
+            color: context.colors.textPrimary,
             size: 21,
           ),
         ),
       ),
-      body: AppMainBackground(
-        child: _buildBody(),
-      ),
+      body: AppMainBackground(child: _buildBody()),
     );
   }
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const AppLoadingView(
-        message: '전문자격 정보를 불러오는 중입니다.',
-      );
+      return AppLoadingView(message: '전문자격 정보를 불러오는 중입니다.');
     }
 
     if (_loadError != null) {
@@ -900,40 +759,26 @@ class _ProfessionalCertificateDetailPageState
 
     if (certificate == null) {
       return CertificateLoadError(
-        message:
-        '자격증 정보를 찾을 수 없습니다.',
+        message: '자격증 정보를 찾을 수 없습니다.',
         onRetry: _loadCertificate,
       );
     }
 
     return ListView(
-      padding:
-      const EdgeInsets.fromLTRB(
-        24,
-        18,
-        24,
-        40,
-      ),
+      padding: EdgeInsets.fromLTRB(24, 18, 24, 40),
       children: [
         ProfessionalCertificateOverview(
           certificate: certificate,
-          action:
-          _buildGoalSettingButton(),
+          action: _buildGoalSettingButton(),
         ),
-        const SizedBox(height: 28),
+        SizedBox(height: 28),
         _buildDetailTabBar(),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
         AnimatedSwitcher(
-          duration:
-          const Duration(
-            milliseconds: 200,
-          ),
+          duration: Duration(milliseconds: 200),
           child: KeyedSubtree(
-            key: ValueKey<int>(
-              _selectedTabIndex,
-            ),
-            child:
-            _buildSelectedTabContent(),
+            key: ValueKey<int>(_selectedTabIndex),
+            child: _buildSelectedTabContent(),
           ),
         ),
       ],
@@ -943,63 +788,34 @@ class _ProfessionalCertificateDetailPageState
   Widget _buildDetailTabBar() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(5),
+      padding: EdgeInsets.all(5),
       decoration: BoxDecoration(
-        color: Colors.white
-            .withValues(alpha: 0.72),
-        borderRadius:
-        BorderRadius.circular(16),
-        border: Border.all(
-          color:
-          certificateBorderColor,
-        ),
+        color: context.colors.surfaceTransparent,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.colors.border),
       ),
       child: TabBar(
         controller: _tabController,
         isScrollable: false,
-        dividerColor:
-        Colors.transparent,
-        indicatorSize:
-        TabBarIndicatorSize.tab,
+        dividerColor: Colors.transparent,
+        indicatorSize: TabBarIndicatorSize.tab,
         labelPadding: EdgeInsets.zero,
         indicator: BoxDecoration(
-          color: certificatePinkSoft,
-          borderRadius:
-          BorderRadius.circular(12),
+          color: context.colors.pinkSoft,
+          borderRadius: BorderRadius.circular(12),
         ),
-        labelColor:
-        certificatePrimaryPink,
-        unselectedLabelColor:
-        certificateGrayText,
-        labelStyle:
-        const TextStyle(
+        labelColor: context.colors.pinkDeep,
+        unselectedLabelColor: context.colors.textSecondary,
+        labelStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+        unselectedLabelStyle: TextStyle(
           fontSize: 13,
-          fontWeight:
-          FontWeight.w800,
+          fontWeight: FontWeight.w600,
         ),
-        unselectedLabelStyle:
-        const TextStyle(
-          fontSize: 13,
-          fontWeight:
-          FontWeight.w600,
-        ),
-        tabs: const [
-          Tab(
-            height: 44,
-            text: '시험 일정',
-          ),
-          Tab(
-            height: 44,
-            text: '자격 정보',
-          ),
-          Tab(
-            height: 44,
-            text: '추가 정보',
-          ),
-          Tab(
-            height: 44,
-            text: '통계',
-          ),
+        tabs: [
+          Tab(height: 44, text: '시험 일정'),
+          Tab(height: 44, text: '자격 정보'),
+          Tab(height: 44, text: '추가 정보'),
+          Tab(height: 44, text: '통계'),
         ],
       ),
     );
@@ -1017,11 +833,10 @@ class _ProfessionalCertificateDetailPageState
         return _buildAdditionalInformationTab();
 
       case 3:
-        return const ProfessionalEmptyTab(
+        return ProfessionalEmptyTab(
           icon: Icons.bar_chart_rounded,
           title: '등록된 통계가 없습니다.',
-          description:
-          '전문자격 통계 정보가 등록되면 이곳에 표시됩니다.',
+          description: '전문자격 통계 정보가 등록되면 이곳에 표시됩니다.',
         );
 
       default:
@@ -1032,61 +847,58 @@ class _ProfessionalCertificateDetailPageState
   Widget _buildExamInformationTab() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: certificateCardDecoration(),
+      padding: EdgeInsets.all(22),
+      decoration: certificateCardDecoration(context: context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(
                 Icons.description_outlined,
-                color: certificatePrimaryPink,
+                color: context.colors.pinkDeep,
                 size: 22,
               ),
               SizedBox(width: 9),
               Text(
                 '자격 정보',
                 style: TextStyle(
-                  color: certificateDarkText,
+                  color: context.colors.textPrimary,
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 17),
-          const Text(
+          SizedBox(height: 17),
+          Text(
             '자격 정보는 Q-Net에서 확인 바랍니다.',
             style: TextStyle(
-              color: certificateDarkText,
+              color: context.colors.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w500,
               height: 1.5,
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Align(
             alignment: Alignment.centerLeft,
             child: InkWell(
               onTap: _openQnetExamInformation,
               borderRadius: BorderRadius.circular(10),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 13,
-                  vertical: 9,
-                ),
+                padding: EdgeInsets.symmetric(horizontal: 13, vertical: 9),
                 decoration: BoxDecoration(
-                  color: certificatePinkSoft,
+                  color: context.colors.pinkSoft,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       'Q-Net에서 자격 정보 확인하기',
                       style: TextStyle(
-                        color: certificatePrimaryPink,
+                        color: context.colors.pinkDeep,
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                       ),
@@ -1094,7 +906,7 @@ class _ProfessionalCertificateDetailPageState
                     SizedBox(width: 7),
                     Icon(
                       Icons.open_in_new_rounded,
-                      color: certificatePrimaryPink,
+                      color: context.colors.pinkDeep,
                       size: 17,
                     ),
                   ],
@@ -1122,23 +934,23 @@ class _ProfessionalCertificateDetailPageState
       children: [
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(18),
-          decoration: certificateCardDecoration(),
-          child: const Row(
+          padding: EdgeInsets.all(18),
+          decoration: certificateCardDecoration(context: context),
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(
                 Icons.info_outline_rounded,
-                color: certificatePrimaryPink,
+                color: context.colors.pinkDeep,
                 size: 21,
               ),
               SizedBox(width: 10),
               Expanded(
                 child: Text(
                   '원서접수시간은 원서접수 첫날 09:00부터 '
-                      '마지막 날 18:00까지입니다.',
+                  '마지막 날 18:00까지입니다.',
                   style: TextStyle(
-                    color: certificateDarkText,
+                    color: context.colors.textPrimary,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     height: 1.55,
@@ -1148,30 +960,22 @@ class _ProfessionalCertificateDetailPageState
             ],
           ),
         ),
-        const SizedBox(height: 14),
+        SizedBox(height: 14),
         if (_schedules.isEmpty)
-          const ProfessionalEmptyTab(
+          ProfessionalEmptyTab(
             icon: Icons.event_busy_outlined,
             title: '등록된 시험 일정이 없습니다.',
-            description:
-            '전문자격 시험 일정이 등록되면 이곳에서 확인할 수 있습니다.',
+            description: '전문자격 시험 일정이 등록되면 이곳에서 확인할 수 있습니다.',
           )
         else
-          ...List.generate(
-            _schedules.length,
-                (index) {
-              return Padding(
-                padding: EdgeInsets.only(
-                  bottom: index == _schedules.length - 1
-                      ? 0
-                      : 14,
-                ),
-                child: ProfessionalScheduleCard(
-                  schedule: _schedules[index],
-                ),
-              );
-            },
-          ),
+          ...List.generate(_schedules.length, (index) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: index == _schedules.length - 1 ? 0 : 14,
+              ),
+              child: ProfessionalScheduleCard(schedule: _schedules[index]),
+            );
+          }),
       ],
     );
   }

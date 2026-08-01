@@ -2,6 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
+
+import '../../widgets/app_dialog.dart';
+
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
@@ -46,55 +50,45 @@ class _BlockedUserScreenState extends State<BlockedUserScreen> {
 
     try {
       final QuerySnapshot<Map<String, dynamic>> blockedSnapshot =
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUid)
-          .collection('blockedUsers')
-          .orderBy(
-        'createdAt',
-        descending: true,
-      )
-          .get();
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUid)
+              .collection('blockedUsers')
+              .orderBy('createdAt', descending: true)
+              .get();
 
       final List<BlockedUserItem> blockedUsers = [];
 
-      for (final QueryDocumentSnapshot<Map<String, dynamic>>
-      blockedDocument in blockedSnapshot.docs) {
+      for (final QueryDocumentSnapshot<Map<String, dynamic>> blockedDocument
+          in blockedSnapshot.docs) {
         final DocumentSnapshot<Map<String, dynamic>> userDocument =
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(blockedDocument.id)
-            .get();
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(blockedDocument.id)
+                .get();
 
-        final Map<String, dynamic> blockedData =
-        blockedDocument.data();
+        final Map<String, dynamic> blockedData = blockedDocument.data();
 
-        final Map<String, dynamic>? userData =
-        userDocument.data();
+        final Map<String, dynamic>? userData = userDocument.data();
 
         final String nickname =
-        (userData?['nickname'] as String? ?? '알 수 없는 사용자')
-            .trim();
+            (userData?['nickname'] as String? ?? '알 수 없는 사용자').trim();
 
         final String? savedProfileImageUrl =
-        (userData?['profileImageUrl'] as String?)?.trim();
+            (userData?['profileImageUrl'] as String?)?.trim();
 
-        final Timestamp? createdAt =
-        blockedData['createdAt'] as Timestamp?;
+        final Timestamp? createdAt = blockedData['createdAt'] as Timestamp?;
 
-        final String reason =
-        (blockedData['reason'] as String? ?? 'OTHER')
+        final String reason = (blockedData['reason'] as String? ?? 'OTHER')
             .trim()
             .toUpperCase();
 
         blockedUsers.add(
           BlockedUserItem(
             uid: blockedDocument.id,
-            nickname:
-            nickname.isEmpty ? '알 수 없는 사용자' : nickname,
+            nickname: nickname.isEmpty ? '알 수 없는 사용자' : nickname,
             profileImageUrl:
-            savedProfileImageUrl != null &&
-                savedProfileImageUrl.isNotEmpty
+                savedProfileImageUrl != null && savedProfileImageUrl.isNotEmpty
                 ? savedProfileImageUrl
                 : null,
             createdAt: createdAt?.toDate(),
@@ -121,17 +115,13 @@ class _BlockedUserScreenState extends State<BlockedUserScreen> {
         _isLoading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('차단 사용자 목록을 불러오지 못했습니다.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('차단 사용자 목록을 불러오지 못했습니다.')));
     }
   }
 
-  Future<void> _unblockUser(
-      BlockedUserItem user,
-      ) async {
+  Future<void> _unblockUser(BlockedUserItem user) async {
     final String? currentUid = FirebaseAuth.instance.currentUser?.uid;
 
     if (currentUid == null) {
@@ -141,37 +131,30 @@ class _BlockedUserScreenState extends State<BlockedUserScreen> {
     final bool? shouldUnblock = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
+        return AppAlertDialog(
           title: const Text(
             '차단 해제',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-            ),
+            style: TextStyle(fontWeight: FontWeight.w700),
           ),
-          content: Text(
-            '${user.nickname}님의 차단을 해제하시겠습니까?',
-          ),
+          content: Text('${user.nickname}님의 차단을 해제하시겠습니까?'),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(dialogContext, false);
               },
-              child: const Text(
+              child: Text(
                 '취소',
-                style: TextStyle(
-                  color: Color(0xFF9AA0AC),
-                ),
+                style: TextStyle(color: context.colors.textSecondary),
               ),
             ),
             TextButton(
               onPressed: () {
                 Navigator.pop(dialogContext, true);
               },
-              child: const Text(
+              child: Text(
                 '차단 해제',
                 style: TextStyle(
-                  color: Color(0xFFF0788F),
+                  color: context.colors.pinkStart,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -197,11 +180,9 @@ class _BlockedUserScreenState extends State<BlockedUserScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${user.nickname}님의 차단을 해제했습니다.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${user.nickname}님의 차단을 해제했습니다.')));
 
       await _loadBlockedUsers();
     } catch (error) {
@@ -209,24 +190,16 @@ class _BlockedUserScreenState extends State<BlockedUserScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('차단을 해제하지 못했습니다.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('차단을 해제하지 못했습니다.')));
     }
   }
 
-  Future<void> _openUserProfile(
-      BlockedUserItem user,
-      ) async {
+  Future<void> _openUserProfile(BlockedUserItem user) async {
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => UserProfileScreen(
-          userUid: user.uid,
-        ),
-      ),
+      MaterialPageRoute(builder: (_) => UserProfileScreen(userUid: user.uid)),
     );
 
     await _loadBlockedUsers();
@@ -237,10 +210,8 @@ class _BlockedUserScreenState extends State<BlockedUserScreen> {
       return '차단 일시 없음';
     }
 
-    final String month =
-    date.month.toString().padLeft(2, '0');
-    final String day =
-    date.day.toString().padLeft(2, '0');
+    final String month = date.month.toString().padLeft(2, '0');
+    final String day = date.day.toString().padLeft(2, '0');
 
     return '${date.year}.$month.$day';
   }
@@ -265,34 +236,23 @@ class _BlockedUserScreenState extends State<BlockedUserScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: const AppTopBar(
-        title: '차단 사용자 관리',
-      ),
-      body: AppMainBackground(
-        child: _buildBody(),
-      ),
+      appBar: const AppTopBar(title: '차단 사용자 관리'),
+      body: AppMainBackground(child: _buildBody()),
     );
   }
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          color: Color(0xFFF0788F),
-        ),
+      return Center(
+        child: CircularProgressIndicator(color: context.colors.pinkStart),
       );
     }
 
     return RefreshIndicator(
-      color: const Color(0xFFF0788F),
+      color: context.colors.pinkStart,
       onRefresh: _loadBlockedUsers,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          20,
-          16,
-          20,
-          40,
-        ),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
         children: [
           _buildNoticeCard(),
           const SizedBox(height: 20),
@@ -302,16 +262,12 @@ class _BlockedUserScreenState extends State<BlockedUserScreen> {
           if (_blockedUsers.isEmpty)
             _buildEmptyCard()
           else
-            ..._blockedUsers.map(
-                  (user) {
-                return Padding(
-                  padding: const EdgeInsets.only(
-                    bottom: 12,
-                  ),
-                  child: _buildBlockedUserCard(user),
-                );
-              },
-            ),
+            ..._blockedUsers.map((user) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildBlockedUserCard(user),
+              );
+            }),
         ],
       ),
     );
@@ -321,19 +277,17 @@ class _BlockedUserScreenState extends State<BlockedUserScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF7E8),
+        color: context.colors.warningSoft,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFFFE5B2),
-        ),
+        border: Border.all(color: context.colors.warningSoft),
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
             Icons.info_outline_rounded,
             size: 20,
-            color: Color(0xFFE59B2E),
+            color: context.colors.warning,
           ),
           SizedBox(width: 10),
           Expanded(
@@ -342,7 +296,7 @@ class _BlockedUserScreenState extends State<BlockedUserScreen> {
               style: TextStyle(
                 fontSize: 12,
                 height: 1.5,
-                color: Color(0xFF8A6429),
+                color: context.colors.warning,
               ),
             ),
           ),
@@ -354,31 +308,29 @@ class _BlockedUserScreenState extends State<BlockedUserScreen> {
   Widget _buildHeader() {
     return Row(
       children: [
-        const Expanded(
+        Expanded(
           child: Text(
             '차단한 사용자',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF1A1A1A),
+              color: context.colors.textPrimary,
             ),
           ),
         ),
         Text(
           '${_blockedUsers.length}명',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w700,
-            color: Color(0xFFF0788F),
+            color: context.colors.pinkStart,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildBlockedUserCard(
-      BlockedUserItem user,
-      ) {
+  Widget _buildBlockedUserCard(BlockedUserItem user) {
     return AppCard(
       padding: EdgeInsets.zero,
       child: InkWell(
@@ -387,12 +339,7 @@ class _BlockedUserScreenState extends State<BlockedUserScreen> {
           _openUserProfile(user);
         },
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            16,
-            15,
-            12,
-            15,
-          ),
+          padding: const EdgeInsets.fromLTRB(16, 15, 12, 15),
           child: Row(
             children: [
               _buildProfileImage(user),
@@ -405,10 +352,10 @@ class _BlockedUserScreenState extends State<BlockedUserScreen> {
                     Text(
                       user.nickname,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF1A1A1A),
+                        color: context.colors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 5),
@@ -416,17 +363,17 @@ class _BlockedUserScreenState extends State<BlockedUserScreen> {
                       '차단 사유: ${_getReasonText(user.reason)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF777B84),
+                        color: context.colors.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       '차단일: ${_formatDate(user.createdAt)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF9AA0AC),
+                        color: context.colors.textSecondary,
                       ),
                     ),
                   ],
@@ -440,26 +387,19 @@ class _BlockedUserScreenState extends State<BlockedUserScreen> {
                   _unblockUser(user);
                 },
                 style: OutlinedButton.styleFrom(
-                  foregroundColor:
-                  const Color(0xFFF0788F),
-                  side: const BorderSide(
-                    color: Color(0xFFFFC5D1),
-                  ),
+                  foregroundColor: context.colors.pinkStart,
+                  side: BorderSide(color: context.colors.pinkBorder),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 9,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius:
-                    BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 child: const Text(
                   '차단 해제',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                 ),
               ),
             ],
@@ -469,64 +409,50 @@ class _BlockedUserScreenState extends State<BlockedUserScreen> {
     );
   }
 
-  Widget _buildProfileImage(
-      BlockedUserItem user,
-      ) {
+  Widget _buildProfileImage(BlockedUserItem user) {
     return Container(
       width: 52,
       height: 52,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Color(0xFFFCE1E8),
+        color: context.colors.pinkSoft,
       ),
       clipBehavior: Clip.antiAlias,
       child: user.profileImageUrl != null
           ? Image.network(
-        user.profileImageUrl!,
-        fit: BoxFit.cover,
-        errorBuilder: (
-            context,
-            error,
-            stackTrace,
-            ) {
-          return _buildProfileInitial(
-            user.nickname,
-          );
-        },
-      )
+              user.profileImageUrl!,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return _buildProfileInitial(user.nickname);
+              },
+            )
           : _buildProfileInitial(user.nickname),
     );
   }
 
-  Widget _buildProfileInitial(
-      String nickname,
-      ) {
+  Widget _buildProfileInitial(String nickname) {
     return Center(
       child: Text(
-        nickname.isEmpty
-            ? '?'
-            : nickname.substring(0, 1),
-        style: const TextStyle(
+        nickname.isEmpty ? '?' : nickname.substring(0, 1),
+        style: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w800,
-          color: Color(0xFFF0788F),
+          color: context.colors.pinkStart,
         ),
       ),
     );
   }
 
   Widget _buildEmptyCard() {
-    return const AppCard(
+    return AppCard(
       child: Padding(
-        padding: EdgeInsets.symmetric(
-          vertical: 32,
-        ),
+        padding: EdgeInsets.symmetric(vertical: 32),
         child: Column(
           children: [
             Icon(
               Icons.person_off_outlined,
               size: 46,
-              color: Color(0xFFB4B8C2),
+              color: context.colors.textMuted,
             ),
             SizedBox(height: 12),
             Text(
@@ -534,7 +460,7 @@ class _BlockedUserScreenState extends State<BlockedUserScreen> {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A1A),
+                color: context.colors.textPrimary,
               ),
             ),
             SizedBox(height: 6),
@@ -544,7 +470,7 @@ class _BlockedUserScreenState extends State<BlockedUserScreen> {
               style: TextStyle(
                 fontSize: 13,
                 height: 1.5,
-                color: Color(0xFF9AA0AC),
+                color: context.colors.textSecondary,
               ),
             ),
           ],

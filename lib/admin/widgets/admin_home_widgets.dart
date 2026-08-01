@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
+
 import '../services/admin_home_service.dart';
 
 class AdminWelcomeCard extends StatelessWidget {
@@ -17,8 +19,11 @@ class AdminWelcomeCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF6C63FF), Color(0xFF8B7DF5)],
+        gradient: LinearGradient(
+          colors: [
+            context.colors.lavenderAccent,
+            context.colors.lavenderAccent,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -37,12 +42,12 @@ class AdminWelcomeCard extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
+              color: context.colors.onPrimary.withValues(alpha: 0.18),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.admin_panel_settings_rounded,
-              color: Colors.white,
+              color: context.colors.onPrimary,
               size: 29,
             ),
           ),
@@ -53,8 +58,8 @@ class AdminWelcomeCard extends StatelessWidget {
               children: [
                 Text(
                   '$administratorName님, 안녕하세요',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: context.colors.onPrimary,
                     fontSize: 19,
                     fontWeight: FontWeight.w900,
                   ),
@@ -63,7 +68,7 @@ class AdminWelcomeCard extends StatelessWidget {
                 Text(
                   '$todayLabel · 서비스 운영 현황입니다.',
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.82),
+                    color: context.colors.onPrimary.withValues(alpha: 0.82),
                     fontSize: 13,
                   ),
                 ),
@@ -89,8 +94,8 @@ class AdminSectionTitle extends StatelessWidget {
       children: [
         Text(
           title,
-          style: const TextStyle(
-            color: Color(0xFF29292E),
+          style: TextStyle(
+            color: context.colors.textPrimary,
             fontSize: 18,
             fontWeight: FontWeight.w900,
           ),
@@ -99,7 +104,7 @@ class AdminSectionTitle extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             subtitle!,
-            style: const TextStyle(color: Color(0xFF77747E), fontSize: 13),
+            style: TextStyle(color: context.colors.textSecondary, fontSize: 13),
           ),
         ],
       ],
@@ -131,8 +136,8 @@ class AdminPendingSummary extends StatelessWidget {
             count: reportCount,
             unit: '건',
             icon: Icons.report_problem_rounded,
-            color: const Color(0xFFE85D68),
-            backgroundColor: const Color(0xFFFFF0F1),
+            color: context.colors.incorrect,
+            backgroundColor: context.colors.incorrectSoft,
             onTap: onReportTap,
           ),
         ),
@@ -143,8 +148,8 @@ class AdminPendingSummary extends StatelessWidget {
             count: inquiryCount,
             unit: '건',
             icon: Icons.mark_unread_chat_alt_rounded,
-            color: const Color(0xFFE59831),
-            backgroundColor: const Color(0xFFFFF6E8),
+            color: context.colors.warning,
+            backgroundColor: context.colors.warningSoft,
             onTap: onInquiryTap,
           ),
         ),
@@ -195,8 +200,8 @@ class _PendingCard extends StatelessWidget {
               const SizedBox(height: 18),
               Text(
                 title,
-                style: const TextStyle(
-                  color: Color(0xFF5D5962),
+                style: TextStyle(
+                  color: context.colors.textSecondary,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
@@ -215,8 +220,8 @@ class _PendingCard extends StatelessWidget {
                     ),
                     TextSpan(
                       text: ' $unit',
-                      style: const TextStyle(
-                        color: Color(0xFF5D5962),
+                      style: TextStyle(
+                        color: context.colors.textSecondary,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -232,10 +237,7 @@ class _PendingCard extends StatelessWidget {
 }
 
 class AdminMetricGrid extends StatelessWidget {
-  const AdminMetricGrid({
-    super.key,
-    required this.metrics,
-  });
+  const AdminMetricGrid({super.key, required this.metrics});
 
   final List<AdminMetric> metrics;
 
@@ -257,37 +259,31 @@ class AdminMetricGrid extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.92),
+            color: context.colors.surfaceTransparent,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: const Color(0xFFECE9F0),
-            ),
+            border: Border.all(color: context.colors.border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(
-                metric.icon,
-                color: metric.color,
-                size: 23,
-              ),
+              Icon(metric.icon, color: metric.color, size: 23),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     metric.value,
-                    style: const TextStyle(
-                      color: Color(0xFF29292E),
+                    style: TextStyle(
+                      color: context.colors.textPrimary,
                       fontSize: 21,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
                   Text(
                     metric.label,
-                    style: const TextStyle(
-                      color: Color(0xFF5D5962),
+                    style: TextStyle(
+                      color: context.colors.textSecondary,
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                     ),
@@ -297,8 +293,8 @@ class AdminMetricGrid extends StatelessWidget {
                     metric.comparison,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF99949E),
+                    style: TextStyle(
+                      color: context.colors.textMuted,
                       fontSize: 10,
                     ),
                   ),
@@ -322,9 +318,9 @@ class AdminWeeklyStatusCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.92),
+        color: context.colors.surfaceTransparent,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFECE9F0)),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
         children: List.generate(statuses.length, (index) {
@@ -340,8 +336,8 @@ class AdminWeeklyStatusCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         status.label,
-                        style: const TextStyle(
-                          color: Color(0xFF4D4951),
+                        style: TextStyle(
+                          color: context.colors.textPrimary,
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),
@@ -349,16 +345,16 @@ class AdminWeeklyStatusCard extends StatelessWidget {
                     ),
                     Text(
                       status.detail,
-                      style: const TextStyle(
-                        color: Color(0xFF77747E),
+                      style: TextStyle(
+                        color: context.colors.textSecondary,
                         fontSize: 12,
                       ),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       '${(status.value * 100).round()}%',
-                      style: const TextStyle(
-                        color: Color(0xFF6C63FF),
+                      style: TextStyle(
+                        color: context.colors.lavenderAccent,
                         fontSize: 13,
                         fontWeight: FontWeight.w900,
                       ),
@@ -371,9 +367,9 @@ class AdminWeeklyStatusCard extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: status.value,
                     minHeight: 7,
-                    backgroundColor: const Color(0xFFEDEAF7),
-                    valueColor: const AlwaysStoppedAnimation(
-                      Color(0xFF756CE0),
+                    backgroundColor: context.colors.lavender,
+                    valueColor: AlwaysStoppedAnimation(
+                      context.colors.lavenderAccent,
                     ),
                   ),
                 ),
@@ -391,8 +387,8 @@ class AdminHomeLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: CircularProgressIndicator(color: Color(0xFF6C63FF)),
+    return Center(
+      child: CircularProgressIndicator(color: context.colors.lavenderAccent),
     );
   }
 }
@@ -408,10 +404,10 @@ class AdminHomeErrorView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             Icons.error_outline_rounded,
             size: 42,
-            color: Color(0xFFE85D68),
+            color: context.colors.incorrect,
           ),
           const SizedBox(height: 12),
           const Text('홈 정보를 불러오지 못했습니다.'),
