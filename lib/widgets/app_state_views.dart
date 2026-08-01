@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme.dart';
+
 class AppLoadingView extends StatelessWidget {
   final String message;
   final String imagePath;
@@ -124,6 +126,8 @@ class AppStateViewLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -140,10 +144,10 @@ class AppStateViewLayout extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF24324A),
+                color: colors.textPrimary,
               ),
             ),
             if (description != null && description!.trim().isNotEmpty) ...[
@@ -151,21 +155,21 @@ class AppStateViewLayout extends StatelessWidget {
               Text(
                 description!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   height: 1.6,
-                  color: Color(0xFF6F7C91),
+                  color: colors.textSecondary,
                 ),
               ),
             ],
             if (showProgressIndicator) ...[
               const SizedBox(height: 24),
-              const SizedBox(
+              SizedBox(
                 width: 30,
                 height: 30,
                 child: CircularProgressIndicator(
                   strokeWidth: 3,
-                  color: Color(0xFF4F7DF3),
+                  color: colors.info,
                 ),
               ),
             ],
@@ -179,8 +183,8 @@ class AppStateViewLayout extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: onButtonPressed,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4F7DF3),
-                    foregroundColor: Colors.white,
+                    backgroundColor: colors.info,
+                    foregroundColor: colors.onPrimary,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),

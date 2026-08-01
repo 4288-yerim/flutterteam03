@@ -13,8 +13,7 @@ class GoalCertificateScreen extends StatefulWidget {
   const GoalCertificateScreen({super.key});
 
   @override
-  State<GoalCertificateScreen> createState() =>
-      _GoalCertificateScreenState();
+  State<GoalCertificateScreen> createState() => _GoalCertificateScreenState();
 }
 
 class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
@@ -46,30 +45,30 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
 
     try {
       final QuerySnapshot<Map<String, dynamic>> snapshot =
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('goals')
-          .get();
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .collection('goals')
+              .get();
 
       final List<GoalCertificateItem> loadedGoals = [];
 
       for (final QueryDocumentSnapshot<Map<String, dynamic>> document
-      in snapshot.docs) {
+          in snapshot.docs) {
         final Map<String, dynamic> data = document.data();
 
-        final String goalStatus =
-        (data['goalStatus'] as String? ?? 'ACTIVE').trim();
+        final String goalStatus = (data['goalStatus'] as String? ?? 'ACTIVE')
+            .trim();
 
         if (goalStatus == 'DELETED') {
           continue;
         }
 
-        final String certificateId =
-        (data['certificateId'] as String? ?? '').trim();
+        final String certificateId = (data['certificateId'] as String? ?? '')
+            .trim();
 
-        String certificateName =
-        (data['certificateName'] as String? ?? '').trim();
+        String certificateName = (data['certificateName'] as String? ?? '')
+            .trim();
 
         if (certificateId.isEmpty) {
           continue;
@@ -78,16 +77,14 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
         // 기존 목표 문서에 자격증명이 없으면
         // 자격증 원본 문서의 jmfldnm을 사용합니다.
         if (certificateName.isEmpty) {
-          final DocumentSnapshot<Map<String, dynamic>>
-          certificateSnapshot =
-          await FirebaseFirestore.instance
-              .collection('certifications')
-              .doc(certificateId)
-              .get();
+          final DocumentSnapshot<Map<String, dynamic>> certificateSnapshot =
+              await FirebaseFirestore.instance
+                  .collection('certifications')
+                  .doc(certificateId)
+                  .get();
 
           certificateName =
-              (certificateSnapshot.data()?['jmfldnm'] as String? ?? '')
-                  .trim();
+              (certificateSnapshot.data()?['jmfldnm'] as String? ?? '').trim();
         }
 
         if (certificateName.isEmpty) {
@@ -95,32 +92,34 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
         }
 
         final Timestamp? targetExamTimestamp =
-        data['targetExamDate'] as Timestamp?;
+            data['targetExamDate'] as Timestamp?;
+
+        final Timestamp? registrationStartTimestamp =
+            data['targetRegistrationStartDate'] as Timestamp?;
+
+        final Timestamp? registrationEndTimestamp =
+            data['targetRegistrationEndDate'] as Timestamp?;
 
         final Timestamp? passAnnouncementTimestamp =
-        data['targetPassAnnouncementDate'] as Timestamp?;
+            data['targetPassAnnouncementDate'] as Timestamp?;
 
         final Timestamp? passAnnouncementEndTimestamp =
-        data['targetPassAnnouncementEndDate'] as Timestamp?;
+            data['targetPassAnnouncementEndDate'] as Timestamp?;
 
         loadedGoals.add(
           GoalCertificateItem(
             goalId: document.id,
             certificateId: certificateId,
             certificateName: certificateName,
-            targetRound:
-            (data['targetRound'] as String? ?? '시험 회차 미선택')
-                .trim(),
-            targetExamType:
-            (data['targetExamType'] as String? ?? '').trim(),
+            targetRound: (data['targetRound'] as String? ?? '시험 회차 미선택').trim(),
+            targetExamType: (data['targetExamType'] as String? ?? '').trim(),
             targetExamDate: targetExamTimestamp?.toDate(),
-            passAnnouncementDate:
-            passAnnouncementTimestamp?.toDate(),
-            passAnnouncementEndDate:
-            passAnnouncementEndTimestamp?.toDate(),
+            registrationStartDate: registrationStartTimestamp?.toDate(),
+            registrationEndDate: registrationEndTimestamp?.toDate(),
+            passAnnouncementDate: passAnnouncementTimestamp?.toDate(),
+            passAnnouncementEndDate: passAnnouncementEndTimestamp?.toDate(),
             isMainGoal: data['isMainGoal'] as bool? ?? false,
-            calendarEventId:
-            (data['calendarEventId'] as String? ?? '').trim(),
+            calendarEventId: (data['calendarEventId'] as String? ?? '').trim(),
           ),
         );
       }
@@ -129,11 +128,8 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
         if (a.isMainGoal != b.isMainGoal) {
           return a.isMainGoal ? -1 : 1;
         }
-        if (a.targetExamDate == null &&
-            b.targetExamDate == null) {
-          return a.certificateName.compareTo(
-            b.certificateName,
-          );
+        if (a.targetExamDate == null && b.targetExamDate == null) {
+          return a.certificateName.compareTo(b.certificateName);
         }
 
         if (a.targetExamDate == null) {
@@ -144,9 +140,7 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
           return -1;
         }
 
-        return a.targetExamDate!.compareTo(
-          b.targetExamDate!,
-        );
+        return a.targetExamDate!.compareTo(b.targetExamDate!);
       });
 
       if (!mounted) {
@@ -198,27 +192,21 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
     }
 
     try {
-      final WriteBatch batch =
-      FirebaseFirestore.instance.batch();
+      final WriteBatch batch = FirebaseFirestore.instance.batch();
 
-      final CollectionReference<Map<String, dynamic>>
-      goalsCollection = FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('goals');
+      final CollectionReference<Map<String, dynamic>> goalsCollection =
+          FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .collection('goals');
 
       // 기존 목표는 모두 false로 변경하고,
       // 선택한 목표만 true로 변경합니다.
       for (final GoalCertificateItem goal in _goals) {
-        batch.update(
-          goalsCollection.doc(goal.goalId),
-          {
-            'isMainGoal':
-            goal.goalId == selectedGoal.goalId,
-            'updatedAt':
-            FieldValue.serverTimestamp(),
-          },
-        );
+        batch.update(goalsCollection.doc(goal.goalId), {
+          'isMainGoal': goal.goalId == selectedGoal.goalId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
       }
 
       await batch.commit();
@@ -231,8 +219,7 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
       setState(() {
         for (int i = 0; i < _goals.length; i++) {
           _goals[i] = _goals[i].copyWith(
-            isMainGoal:
-            _goals[i].goalId == selectedGoal.goalId,
+            isMainGoal: _goals[i].goalId == selectedGoal.goalId,
           );
         }
 
@@ -241,11 +228,8 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
             return a.isMainGoal ? -1 : 1;
           }
 
-          if (a.targetExamDate == null &&
-              b.targetExamDate == null) {
-            return a.certificateName.compareTo(
-              b.certificateName,
-            );
+          if (a.targetExamDate == null && b.targetExamDate == null) {
+            return a.certificateName.compareTo(b.certificateName);
           }
 
           if (a.targetExamDate == null) {
@@ -256,9 +240,7 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
             return -1;
           }
 
-          return a.targetExamDate!.compareTo(
-            b.targetExamDate!,
-          );
+          return a.targetExamDate!.compareTo(b.targetExamDate!);
         });
       });
 
@@ -266,7 +248,7 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
         SnackBar(
           content: Text(
             '${selectedGoal.certificateName}이(가) '
-                '대표 목표로 설정되었습니다.',
+            '대표 목표로 설정되었습니다.',
           ),
         ),
       );
@@ -275,16 +257,13 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
         return;
       }
 
-      final String message =
-      error.code == 'permission-denied'
+      final String message = error.code == 'permission-denied'
           ? '대표 목표를 변경할 권한이 없습니다.'
           : '대표 목표 변경에 실패했습니다.';
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -297,7 +276,8 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
       context,
       icon: Icons.delete_outline,
       title: '목표 삭제',
-      description: '${goal.certificateName} '
+      description:
+          '${goal.certificateName} '
           '${goal.targetRound} '
           '${_formatExamType(goal.targetExamType)} 목표를 '
           '삭제하시겠습니까?',
@@ -319,20 +299,16 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('로그인이 필요합니다.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다.')));
       return;
     }
 
     try {
-      final FirebaseFirestore firestore =
-          FirebaseFirestore.instance;
+      final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
-      final DocumentReference<Map<String, dynamic>>
-      goalDocument = firestore
+      final DocumentReference<Map<String, dynamic>> goalDocument = firestore
           .collection('users')
           .doc(user.uid)
           .collection('goals')
@@ -343,12 +319,12 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
       batch.delete(goalDocument);
 
       if (goal.calendarEventId.isNotEmpty) {
-        final DocumentReference<Map<String, dynamic>>
-        calendarEventDocument = firestore
-            .collection('users')
-            .doc(user.uid)
-            .collection('calendarEvents')
-            .doc(goal.calendarEventId);
+        final DocumentReference<Map<String, dynamic>> calendarEventDocument =
+            firestore
+                .collection('users')
+                .doc(user.uid)
+                .collection('calendarEvents')
+                .doc(goal.calendarEventId);
 
         batch.delete(calendarEventDocument);
       }
@@ -368,7 +344,7 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
         SnackBar(
           content: Text(
             '${goal.certificateName} 목표와 '
-                '캘린더 일정이 삭제되었습니다.',
+            '캘린더 일정이 삭제되었습니다.',
           ),
         ),
       );
@@ -381,11 +357,9 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
           ? '목표 자격증을 삭제할 권한이 없습니다.'
           : '목표 자격증 삭제에 실패했습니다.';
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -408,12 +382,7 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
       ),
       body: AppMainBackground(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            20,
-            16,
-            20,
-            110,
-          ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 110),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -447,30 +416,27 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
               else if (_errorMessage != null)
                 _buildErrorView()
               else if (_goals.isEmpty)
-                  _buildEmptyView()
-                else
-                  ListView.separated(
-                    itemCount: _goals.length,
-                    shrinkWrap: true,
-                    physics:
-                    const NeverScrollableScrollPhysics(),
-                    separatorBuilder: (_, _) =>
-                    const SizedBox(height: 14),
-                    itemBuilder: (context, index) {
-                      final GoalCertificateItem goal =
-                      _goals[index];
+                _buildEmptyView()
+              else
+                ListView.separated(
+                  itemCount: _goals.length,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  separatorBuilder: (_, _) => const SizedBox(height: 14),
+                  itemBuilder: (context, index) {
+                    final GoalCertificateItem goal = _goals[index];
 
-                      return GoalCertificateCard(
-                        goal: goal,
-                        onSetMain: () {
-                          _setMainGoal(index);
-                        },
-                        onDelete: () {
-                          _showDeleteDialog(index);
-                        },
-                      );
-                    },
-                  ),
+                    return GoalCertificateCard(
+                      goal: goal,
+                      onSetMain: () {
+                        _setMainGoal(index);
+                      },
+                      onDelete: () {
+                        _showDeleteDialog(index);
+                      },
+                    );
+                  },
+                ),
             ],
           ),
         ),
@@ -502,7 +468,7 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
           const Expanded(
             child: Text(
               '등록한 목표 자격증의 시험 회차와 '
-                  '필기·실기 시험일을 확인할 수 있습니다.',
+              '필기·실기 시험일을 확인할 수 있습니다.',
               style: TextStyle(
                 fontSize: 13,
                 height: 1.5,
@@ -516,15 +482,12 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
   }
 
   Widget _buildLoadingView() {
-    return const AppLoadingView(
-      message: '목표 자격증을 불러오는 중입니다.',
-    );
+    return const AppLoadingView(message: '목표 자격증을 불러오는 중입니다.');
   }
 
   Widget _buildErrorView() {
     return AppErrorView(
-      message:
-      _errorMessage ?? '목표 자격증을 불러오지 못했습니다.',
+      message: _errorMessage ?? '목표 자격증을 불러오지 못했습니다.',
       description: '잠시 후 다시 시도해 주세요.',
       onRetryPressed: () {
         setState(() {
@@ -540,8 +503,7 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
   Widget _buildEmptyView() {
     return const AppEmptyView(
       message: '등록된 목표 자격증이 없습니다.',
-      description:
-      '자격증 상세보기에서 목표 자격증을 등록할 수 있습니다.',
+      description: '자격증 상세보기에서 목표 자격증을 등록할 수 있습니다.',
     );
   }
 
@@ -629,8 +591,7 @@ class GoalCertificateCard extends StatelessWidget {
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
-                        crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             goal.certificateName,
@@ -647,27 +608,19 @@ class GoalCertificateCard extends StatelessWidget {
                             children: [
                               _GoalLabel(
                                 text: goal.targetRound,
-                                backgroundColor:
-                                const Color(0xFFF4F1FF),
-                                textColor:
-                                const Color(0xFF7665A7),
+                                backgroundColor: const Color(0xFFF4F1FF),
+                                textColor: const Color(0xFF7665A7),
                               ),
                               _GoalLabel(
-                                text: _formatExamType(
-                                  goal.targetExamType,
-                                ),
-                                backgroundColor:
-                                const Color(0xFFFCEFF3),
-                                textColor:
-                                const Color(0xFFF0788F),
+                                text: _formatExamType(goal.targetExamType),
+                                backgroundColor: const Color(0xFFFCEFF3),
+                                textColor: const Color(0xFFF0788F),
                               ),
                               if (goal.isMainGoal)
                                 const _GoalLabel(
                                   text: '대표 목표',
-                                  backgroundColor:
-                                  Color(0xFFFFE8AE),
-                                  textColor:
-                                  Color(0xFF9A6B00),
+                                  backgroundColor: Color(0xFFFFE8AE),
+                                  textColor: Color(0xFF9A6B00),
                                 ),
                             ],
                           ),
@@ -677,10 +630,7 @@ class GoalCertificateCard extends StatelessWidget {
                     IconButton(
                       tooltip: '목표 자격증 삭제',
                       onPressed: onDelete,
-                      icon: const Icon(
-                        Icons.delete_outline,
-                        color: Colors.red,
-                      ),
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
                     ),
                   ],
                 ),
@@ -702,8 +652,7 @@ class GoalCertificateCard extends StatelessWidget {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
-                          crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
                               '목표 시험일',
@@ -716,9 +665,7 @@ class GoalCertificateCard extends StatelessWidget {
                             Text(
                               goal.targetExamDate == null
                                   ? '시험 일정 미선택'
-                                  : _formatDate(
-                                goal.targetExamDate!,
-                              ),
+                                  : _formatDate(goal.targetExamDate!),
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
@@ -729,9 +676,7 @@ class GoalCertificateCard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        dDay == null
-                            ? '-'
-                            : _formatDday(dDay),
+                        dDay == null ? '-' : _formatDday(dDay),
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -741,6 +686,39 @@ class GoalCertificateCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (goal.registrationStartDate != null ||
+                    goal.registrationEndDate != null) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.edit_calendar_outlined,
+                        size: 18,
+                        color: Color(0xFF9AA0AC),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        '원서 접수',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF777B84),
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        _formatDateRange(
+                          goal.registrationStartDate,
+                          goal.registrationEndDate,
+                        ),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF44474E),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 if (goal.passAnnouncementDate != null) ...[
                   const SizedBox(height: 12),
                   Row(
@@ -779,22 +757,13 @@ class GoalCertificateCard extends StatelessWidget {
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: onSetMain,
-                      icon: const Icon(
-                        Icons.star_outline,
-                        size: 19,
-                      ),
-                      label: const Text(
-                        '대표 목표로 설정',
-                      ),
+                      icon: const Icon(Icons.star_outline, size: 19),
+                      label: const Text('대표 목표로 설정'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor:
-                        const Color(0xFFF0788F),
-                        side: const BorderSide(
-                          color: Color(0xFFF0788F),
-                        ),
+                        foregroundColor: const Color(0xFFF0788F),
+                        side: const BorderSide(color: Color(0xFFF0788F)),
                         shape: RoundedRectangleBorder(
-                          borderRadius:
-                          BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                       ),
                     ),
@@ -823,11 +792,7 @@ class GoalCertificateCard extends StatelessWidget {
   static int _calculateDday(DateTime examDate) {
     final DateTime now = DateTime.now();
 
-    final DateTime today = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    );
+    final DateTime today = DateTime(now.year, now.month, now.day);
 
     final DateTime examDay = DateTime(
       examDate.year,
@@ -856,12 +821,8 @@ class GoalCertificateCard extends StatelessWidget {
         '${date.day.toString().padLeft(2, '0')}';
   }
 
-  static String _formatPassAnnouncement(
-      DateTime startDate,
-      DateTime? endDate,
-      ) {
-    if (endDate == null ||
-        _isSameDate(startDate, endDate)) {
+  static String _formatPassAnnouncement(DateTime startDate, DateTime? endDate) {
+    if (endDate == null || _isSameDate(startDate, endDate)) {
       return _formatDate(startDate);
     }
 
@@ -869,10 +830,20 @@ class GoalCertificateCard extends StatelessWidget {
         ' ~ ${_formatDate(endDate)}';
   }
 
-  static bool _isSameDate(
-      DateTime firstDate,
-      DateTime secondDate,
-      ) {
+  static String _formatDateRange(DateTime? startDate, DateTime? endDate) {
+    if (startDate == null && endDate == null) {
+      return '접수 일정 미선택';
+    }
+    if (startDate == null) {
+      return _formatDate(endDate!);
+    }
+    if (endDate == null || _isSameDate(startDate, endDate)) {
+      return _formatDate(startDate);
+    }
+    return '${_formatDate(startDate)} ~ ${_formatDate(endDate)}';
+  }
+
+  static bool _isSameDate(DateTime firstDate, DateTime secondDate) {
     return firstDate.year == secondDate.year &&
         firstDate.month == secondDate.month &&
         firstDate.day == secondDate.day;
@@ -893,10 +864,7 @@ class _GoalLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 5,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(12),
@@ -920,6 +888,8 @@ class GoalCertificateItem {
   final String targetRound;
   final String targetExamType;
   final DateTime? targetExamDate;
+  final DateTime? registrationStartDate;
+  final DateTime? registrationEndDate;
   final DateTime? passAnnouncementDate;
   final DateTime? passAnnouncementEndDate;
   final bool isMainGoal;
@@ -932,15 +902,15 @@ class GoalCertificateItem {
     required this.targetRound,
     required this.targetExamType,
     required this.targetExamDate,
+    required this.registrationStartDate,
+    required this.registrationEndDate,
     required this.passAnnouncementDate,
     required this.passAnnouncementEndDate,
     required this.isMainGoal,
     required this.calendarEventId,
   });
 
-  GoalCertificateItem copyWith({
-    bool? isMainGoal,
-  }) {
+  GoalCertificateItem copyWith({bool? isMainGoal}) {
     return GoalCertificateItem(
       goalId: goalId,
       certificateId: certificateId,
@@ -948,12 +918,11 @@ class GoalCertificateItem {
       targetRound: targetRound,
       targetExamType: targetExamType,
       targetExamDate: targetExamDate,
-      passAnnouncementDate:
-      passAnnouncementDate,
-      passAnnouncementEndDate:
-      passAnnouncementEndDate,
-      isMainGoal:
-      isMainGoal ?? this.isMainGoal,
+      registrationStartDate: registrationStartDate,
+      registrationEndDate: registrationEndDate,
+      passAnnouncementDate: passAnnouncementDate,
+      passAnnouncementEndDate: passAnnouncementEndDate,
+      isMainGoal: isMainGoal ?? this.isMainGoal,
       calendarEventId: calendarEventId,
     );
   }

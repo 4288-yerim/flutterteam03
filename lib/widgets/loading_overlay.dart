@@ -38,9 +38,9 @@ class _LoadingOverlayState extends State<LoadingOverlay>
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<AppColors>();
-    final pinkStart = colors?.pinkStart ?? const Color(0xFFFF7E9C);
-    final pinkEnd = colors?.pinkEnd ?? const Color(0xFFFF5C8A);
+    final colors = context.colors;
+    final pinkStart = colors.pinkStart;
+    final pinkEnd = colors.pinkDeep;
 
     return Material(
       type: MaterialType.transparency,
@@ -50,7 +50,7 @@ class _LoadingOverlayState extends State<LoadingOverlay>
           Positioned.fill(
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
-              child: Container(color: Colors.black.withOpacity(0.18)),
+              child: Container(color: colors.overlay),
             ),
           ),
           Center(
@@ -65,11 +65,11 @@ class _LoadingOverlayState extends State<LoadingOverlay>
                   width: 96,
                   height: 96,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.92),
+                    color: colors.surfaceTransparent,
                     borderRadius: BorderRadius.circular(28),
                     boxShadow: [
                       BoxShadow(
-                        color: pinkStart.withOpacity(0.25),
+                        color: pinkStart.withValues(alpha: 0.25),
                         blurRadius: 28,
                         offset: const Offset(0, 12),
                       ),

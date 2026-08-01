@@ -342,7 +342,6 @@ class _DetailBody extends StatelessWidget {
           rows: [
             ('가입 일시', _formatDateTime(member.createdAt)),
             ('마지막 로그인', _formatDateTime(member.lastLoginAt)),
-            ('상시 로그인 여부', member.hasPersistentLogin ? '상시 로그인' : '아님'),
             ('상태', member.statusLabel),
             ('가입 유형', member.providerLabel),
             ('구독 여부', detail.isSubscribed ? '구독 중' : '미구독'),

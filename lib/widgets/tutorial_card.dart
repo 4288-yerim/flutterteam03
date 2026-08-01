@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:showcaseview/showcaseview.dart';
 
+import '../theme.dart';
+
 class TutorialCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String description;
   final bool isLast;
-  final bool pointUp; // true: 카드가 타겟 아래에 있음(화살표 위로) / false: 카드가 타겟 위에 있음(화살표 아래로)
+  final bool
+  pointUp; // true: 카드가 타겟 아래에 있음(화살표 위로) / false: 카드가 타겟 위에 있음(화살표 아래로)
   final bool showArrow;
   final double arrowAlignX; // -1.0(왼쪽) ~ 1.0(오른쪽), 0.0이 가운데
 
@@ -23,19 +26,21 @@ class TutorialCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     final card = Container(
       width: 270,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Colors.white, Color(0xFFFFF2F5)],
+          colors: [colors.surfaceElevated, colors.pinkSoftAlt],
         ),
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFF06F91).withOpacity(0.28),
+            color: colors.pinkDeep.withValues(alpha: 0.28),
             blurRadius: 26,
             offset: const Offset(0, 12),
           ),
@@ -48,30 +53,28 @@ class TutorialCard extends StatelessWidget {
           Container(
             width: 42,
             height: 42,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [Color(0xFFF06F91), Color(0xFFFF4D6D)],
-              ),
+              gradient: colors.themedPinkGradient,
             ),
-            child: Icon(icon, color: Colors.white, size: 21),
+            child: Icon(icon, color: colors.onPrimary, size: 21),
           ),
           const SizedBox(height: 14),
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16.5,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF302C2E),
+              color: colors.textPrimary,
             ),
           ),
           const SizedBox(height: 6),
           Text(
             description,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13.5,
               height: 1.55,
-              color: Color(0xFF817B7D),
+              color: colors.textSecondary,
             ),
           ),
           const SizedBox(height: 16),
@@ -86,15 +89,16 @@ class TutorialCard extends StatelessWidget {
                 }
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 9,
+                ),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFF06F91), Color(0xFFFF4D6D)],
-                  ),
+                  gradient: colors.themedPinkGradient,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFFF4D6D).withOpacity(0.35),
+                      color: colors.pinkDeep.withValues(alpha: 0.35),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -102,10 +106,10 @@ class TutorialCard extends StatelessWidget {
                 ),
                 child: Text(
                   isLast ? '확인' : '다음',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    color: colors.onPrimary,
                   ),
                 ),
               ),
@@ -121,7 +125,7 @@ class TutorialCard extends StatelessWidget {
 
     final arrow = ClipPath(
       clipper: _TriangleClipper(pointUp: pointUp),
-      child: Container(width: 22, height: 11, color: Colors.white),
+      child: Container(width: 22, height: 11, color: colors.surfaceElevated),
     );
 
     // arrowAlignX: -1.0(왼쪽 끝) ~ 1.0(오른쪽 끝) 기준으로 화살표를 카드 폭(270) 안에서 이동

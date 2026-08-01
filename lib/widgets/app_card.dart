@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme.dart';
+
 /// 앱 전체에서 재사용하는 기본 카드 (Radius 22 / Shadow Soft)
 ///
 /// 사용 예시 1 - 제목/설명만 필요한 경우:
@@ -28,7 +30,7 @@ class AppCard extends StatelessWidget {
 
   final double borderRadius;
   final EdgeInsetsGeometry padding;
-  final Color backgroundColor;
+  final Color? backgroundColor;
 
   const AppCard({
     super.key,
@@ -37,26 +39,29 @@ class AppCard extends StatelessWidget {
     this.child,
     this.borderRadius = 22,
     this.padding = const EdgeInsets.all(24),
-    this.backgroundColor = Colors.white,
+    this.backgroundColor,
   });
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     return Container(
       width: double.infinity,
       padding: padding,
       decoration: BoxDecoration(
-        color: backgroundColor,
+        color: backgroundColor ?? colors.surface,
         borderRadius: BorderRadius.circular(borderRadius),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.045),
+            color: colors.shadow,
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: child ??
+      child:
+          child ??
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -64,13 +69,17 @@ class AppCard extends StatelessWidget {
               if (title != null)
                 Text(
                   title!,
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: colors.textPrimary,
+                  ),
                 ),
               if (title != null && subtitle != null) const SizedBox(height: 6),
               if (subtitle != null)
                 Text(
                   subtitle!,
-                  style: const TextStyle(fontSize: 14, color: Color(0xFF9AA0AC)),
+                  style: TextStyle(fontSize: 14, color: colors.textSecondary),
                 ),
             ],
           ),

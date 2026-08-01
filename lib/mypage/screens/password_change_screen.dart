@@ -3,10 +3,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../auth/screens/welcome_screen.dart';
+import '../../theme.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
+
+enum _PasswordStrength { none, weak, medium, strong }
 
 class PasswordChangeScreen extends StatefulWidget {
   const PasswordChangeScreen({super.key});
@@ -38,6 +41,33 @@ class _PasswordChangeScreenState
   bool _isCheckingProvider = true;
   bool _isPasswordAccount = false;
   String _loginProvider = '';
+
+  int get _passwordScore {
+    final password = _newPasswordController.text;
+    if (password.isEmpty) return 0;
+
+    var score = 0;
+    if (password.length >= 8) score++;
+    if (password.length >= 12) score++;
+    if (RegExp(r'[A-Z]').hasMatch(password)) score++;
+    if (RegExp(r'[a-z]').hasMatch(password)) score++;
+    if (RegExp(r'[0-9]').hasMatch(password)) score++;
+    if (RegExp(
+      r'[!@#\$%^&*(),.?":{}|<>_\-+=~`\[\]/;]',
+    ).hasMatch(password)) {
+      score++;
+    }
+    return score;
+  }
+
+  _PasswordStrength get _passwordStrength {
+    final password = _newPasswordController.text;
+    if (password.isEmpty) return _PasswordStrength.none;
+    if (password.length < 8) return _PasswordStrength.weak;
+    if (_passwordScore >= 5) return _PasswordStrength.strong;
+    if (_passwordScore >= 3) return _PasswordStrength.medium;
+    return _PasswordStrength.weak;
+  }
 
   @override
   void initState() {
@@ -229,20 +259,6 @@ class _PasswordChangeScreenState
                       return '비밀번호는 8자 이상 입력해 주세요.';
                     }
 
-                    if (!_containsLetter(password)) {
-                      return '영문자를 1자 이상 포함해 주세요.';
-                    }
-
-                    if (!_containsNumber(password)) {
-                      return '숫자를 1자 이상 포함해 주세요.';
-                    }
-
-                    if (!_containsSpecialCharacter(
-                      password,
-                    )) {
-                      return '특수문자를 1자 이상 포함해 주세요.';
-                    }
-
                     if (password ==
                         _currentPasswordController.text) {
                       return '현재 비밀번호와 다른 비밀번호를 입력해 주세요.';
@@ -251,6 +267,8 @@ class _PasswordChangeScreenState
                     return null;
                   },
                 ),
+
+                _buildStrengthMeter(),
 
                 const SizedBox(height: 12),
 
@@ -451,20 +469,71 @@ class _PasswordChangeScreenState
     );
   }
 
-  bool _containsLetter(String password) {
-    return RegExp(r'[A-Za-z]').hasMatch(password);
-  }
+  Widget _buildStrengthMeter() {
+    final colors = context.colors;
+    final strength = _passwordStrength;
 
-  bool _containsNumber(String password) {
-    return RegExp(r'[0-9]').hasMatch(password);
-  }
+    if (strength == _PasswordStrength.none) {
+      return const SizedBox.shrink();
+    }
 
-  bool _containsSpecialCharacter(
-      String password,
-      ) {
-    return RegExp(
-      r'[!@#$%^&*(),.?":{}|<>_\-+=/\\[\];`~]',
-    ).hasMatch(password);
+    late final Color activeColor;
+    late final String label;
+    late final int filledBars;
+
+    switch (strength) {
+      case _PasswordStrength.weak:
+        activeColor = colors.incorrect;
+        label = '약함';
+        filledBars = 1;
+        break;
+      case _PasswordStrength.medium:
+        activeColor = colors.textPrimary;
+        label = '보통';
+        filledBars = 2;
+        break;
+      case _PasswordStrength.strong:
+        activeColor = colors.pinkStart;
+        label = '강함';
+        filledBars = 3;
+        break;
+      case _PasswordStrength.none:
+        activeColor = colors.textSecondary;
+        label = '';
+        filledBars = 0;
+        break;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          for (int index = 0; index < 3; index++)
+            Expanded(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                margin: EdgeInsets.only(right: index < 2 ? 6 : 0),
+                height: 4,
+                decoration: BoxDecoration(
+                  color: index < filledBars
+                      ? activeColor
+                      : colors.textSecondary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: activeColor,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _changePassword() async {
@@ -623,7 +692,7 @@ class _PasswordGuideCard extends StatelessWidget {
               CrossAxisAlignment.start,
               children: [
                 Text(
-                  '안전한 비밀번호를 사용해 주세요.',
+                  '현재 비밀번호와 새 비밀번호를 입력해 주세요.',
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
@@ -632,7 +701,7 @@ class _PasswordGuideCard extends StatelessWidget {
                 ),
                 SizedBox(height: 6),
                 Text(
-                  '기존 비밀번호와 다르게 설정하고, 다른 서비스에서 사용하는 비밀번호는 피하는 것이 좋습니다.',
+                  '본인 확인을 위해 현재 비밀번호를 입력한 뒤, 변경할 새 비밀번호를 입력해 주세요.',
                   style: TextStyle(
                     fontSize: 12,
                     height: 1.5,
@@ -662,25 +731,6 @@ class _PasswordConditionList extends StatelessWidget {
         _PasswordCondition(
           text: '8자 이상',
           isSatisfied: password.length >= 8,
-        ),
-        const SizedBox(height: 6),
-        _PasswordCondition(
-          text: '영문자 포함',
-          isSatisfied:
-          RegExp(r'[A-Za-z]').hasMatch(password),
-        ),
-        const SizedBox(height: 6),
-        _PasswordCondition(
-          text: '숫자 포함',
-          isSatisfied:
-          RegExp(r'[0-9]').hasMatch(password),
-        ),
-        const SizedBox(height: 6),
-        _PasswordCondition(
-          text: '특수문자 포함',
-          isSatisfied: RegExp(
-            r'[!@#$%^&*(),.?":{}|<>_\-+=/\\[\];`~]',
-          ).hasMatch(password),
         ),
       ],
     );

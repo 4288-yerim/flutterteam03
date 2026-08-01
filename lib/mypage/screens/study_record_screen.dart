@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
+import '../utils/study_time_formatter.dart';
 import 'study_timer_screen.dart';
 
 class StudyRecordScreen extends StatefulWidget {
@@ -165,7 +166,6 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
             studiedAt: studiedAt,
             subject: subject,
             description: '$groupName · $timerModeText',
-            minutes: studySeconds ~/ 60,
             seconds: studySeconds,
             icon: Icons.groups_2_outlined,
             source: 'STUDY',
@@ -242,8 +242,6 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
           (dailyData['totalSeconds'] as num?)?.toInt() ??
               ((dailyData['totalMinutes'] as num?)?.toInt() ?? 0) * 60;
 
-      final int totalMinutes = totalSeconds ~/ 60;
-
       if (totalSeconds <= 0) return [];
 
       return [
@@ -251,7 +249,6 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
           studiedAt: fallbackDate,
           subject: '학습 기록',
           description: '해당 날짜의 총 학습 시간',
-          minutes: totalMinutes,
           seconds: totalSeconds,
           icon: Icons.timer_outlined,
           source: 'PERSONAL',
@@ -289,7 +286,6 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
         studiedAt: _readSessionDate(data, fallbackDate),
         subject: subject,
         description: description,
-        minutes: minutes,
         seconds: durationSeconds > 0 ? durationSeconds : minutes * 60,
         icon: _iconForStudyType(data['studyType'] as String?),
         source: 'PERSONAL',
@@ -393,7 +389,7 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
               const SizedBox(height: 18),
 
               _StudySummaryCard(
-                totalMinutes: _getTotalMinutes(selectedRecords),
+                totalSeconds: _getTotalSeconds(selectedRecords),
                 studyDays: _getStudyDayCount(selectedRecords),
                 recordCount: selectedRecords.length,
                 periodLabel: _getSummaryPeriodLabel(),
@@ -409,7 +405,7 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
 
               _StudyChart(
                 chartData: _getChartData(),
-                totalMinutes: _getTotalMinutes(selectedRecords),
+                totalSeconds: _getTotalSeconds(selectedRecords),
                 description: _getChartDescription(),
               ),
 
@@ -657,11 +653,11 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
     final List<_StudyRecordData> periodRecords =
     _getPeriodRecordsWithoutSourceFilter();
 
-    final int personalMinutes = _getTotalMinutes(
+    final int personalSeconds = _getTotalSeconds(
       periodRecords.where((record) => record.source == 'PERSONAL').toList(),
     );
 
-    final int studyMinutes = _getTotalMinutes(
+    final int studySeconds = _getTotalSeconds(
       periodRecords.where((record) => record.source == 'STUDY').toList(),
     );
 
@@ -694,7 +690,7 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
                 child: _buildSourceSummaryItem(
                   icon: Icons.person_outline_rounded,
                   label: '개인 학습',
-                  minutes: personalMinutes,
+                  seconds: personalSeconds,
                 ),
               ),
               Container(
@@ -706,7 +702,7 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
                 child: _buildSourceSummaryItem(
                   icon: Icons.groups_2_outlined,
                   label: '스터디 학습',
-                  minutes: studyMinutes,
+                  seconds: studySeconds,
                 ),
               ),
             ],
@@ -719,14 +715,14 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
   Widget _buildSourceSummaryItem({
     required IconData icon,
     required String label,
-    required int minutes,
+    required int seconds,
   }) {
     return Column(
       children: [
         Icon(icon, size: 21, color: const Color(0xFFF0788F)),
         const SizedBox(height: 6),
         Text(
-          _formatMinutes(minutes),
+          formatStudyTime(seconds),
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w700,
@@ -1079,7 +1075,7 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
 
       return _ChartData(
         label: dayNames[index],
-        minutes: totalSeconds ~/ 60,
+        seconds: totalSeconds,
       );
     });
   }
@@ -1099,7 +1095,7 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
 
       return _ChartData(
         label: '$weekNumber주',
-        minutes: totalSeconds ~/ 60,
+        seconds: totalSeconds,
       );
     });
   }
@@ -1145,7 +1141,7 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
       chartData.add(
         _ChartData(
           label: '${currentMonth.month}월',
-          minutes: totalSeconds ~/ 60,
+          seconds: totalSeconds,
         ),
       );
 
@@ -1165,14 +1161,14 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
         first.day == second.day;
   }
 
-  int _getTotalMinutes(List<_StudyRecordData> records) {
+  int _getTotalSeconds(List<_StudyRecordData> records) {
     int totalSeconds = 0;
 
     for (final record in records) {
       totalSeconds += record.seconds;
     }
 
-    return totalSeconds ~/ 60;
+    return totalSeconds;
   }
 
   int _getStudyDayCount(List<_StudyRecordData> records) {
@@ -1201,21 +1197,6 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
     ];
 
     return dayNames[date.weekday - 1];
-  }
-
-  String _formatMinutes(int totalMinutes) {
-    if (totalMinutes < 60) {
-      return '$totalMinutes분';
-    }
-
-    final int hours = totalMinutes ~/ 60;
-    final int minutes = totalMinutes % 60;
-
-    if (minutes == 0) {
-      return '$hours시간';
-    }
-
-    return '$hours시간 $minutes분';
   }
 
   Widget _buildRecordList() {
@@ -1338,7 +1319,7 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
     required DateTime date,
     required List<_StudyRecordData> records,
   }) {
-    final int totalMinutes = _getTotalMinutes(records);
+    final int totalSeconds = _getTotalSeconds(records);
 
     return AppCard(
       padding: EdgeInsets.zero,
@@ -1362,7 +1343,7 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
                   ),
                 ),
                 Text(
-                  '총 ${_formatMinutes(totalMinutes)}',
+                  '총 ${formatStudyTime(totalSeconds)}',
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -1421,7 +1402,7 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
                   ),
                 ),
                 Text(
-                  '총 ${_formatMinutes(_getTotalMinutes(records))}',
+                  '총 ${formatStudyTime(_getTotalSeconds(records))}',
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -1473,13 +1454,13 @@ class _StudyRecordScreenState extends State<StudyRecordScreen> {
 }
 
 class _StudySummaryCard extends StatelessWidget {
-  final int totalMinutes;
+  final int totalSeconds;
   final int studyDays;
   final int recordCount;
   final String periodLabel;
 
   const _StudySummaryCard({
-    required this.totalMinutes,
+    required this.totalSeconds,
     required this.studyDays,
     required this.recordCount,
     required this.periodLabel,
@@ -1511,7 +1492,7 @@ class _StudySummaryCard extends StatelessWidget {
                 child: _SummaryValue(
                   icon: Icons.timer_outlined,
                   label: periodLabel,
-                  value: _formatMinutes(totalMinutes),
+                  value: formatStudyTime(totalSeconds),
                 ),
               ),
               Container(width: 1, height: 45, color: const Color(0xFFF0F0F2)),
@@ -1537,20 +1518,6 @@ class _StudySummaryCard extends StatelessWidget {
     );
   }
 
-  String _formatMinutes(int totalMinutes) {
-    if (totalMinutes < 60) {
-      return '$totalMinutes분';
-    }
-
-    final int hours = totalMinutes ~/ 60;
-    final int minutes = totalMinutes % 60;
-
-    if (minutes == 0) {
-      return '$hours시간';
-    }
-
-    return '$hours시간 $minutes분';
-  }
 }
 
 class _SummaryValue extends StatelessWidget {
@@ -1592,22 +1559,22 @@ class _SummaryValue extends StatelessWidget {
 
 class _StudyChart extends StatelessWidget {
   final List<_ChartData> chartData;
-  final int totalMinutes;
+  final int totalSeconds;
   final String description;
 
   const _StudyChart({
     required this.chartData,
-    required this.totalMinutes,
+    required this.totalSeconds,
     required this.description,
   });
 
   @override
   Widget build(BuildContext context) {
-    int maxMinutes = 0;
+    int maxSeconds = 0;
 
     for (final data in chartData) {
-      if (data.minutes > maxMinutes) {
-        maxMinutes = data.minutes;
+      if (data.seconds > maxSeconds) {
+        maxSeconds = data.seconds;
       }
     }
 
@@ -1620,7 +1587,7 @@ class _StudyChart extends StatelessWidget {
               const Icon(Icons.bar_chart, size: 20, color: Color(0xFFF0788F)),
               const SizedBox(width: 8),
               Text(
-                '총 ${_formatMinutes(totalMinutes)}',
+                '총 ${formatStudyTime(totalSeconds)}',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
@@ -1651,11 +1618,11 @@ class _StudyChart extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: chartData.map((data) {
-                  final double heightRatio = maxMinutes == 0
+                  final double heightRatio = maxSeconds == 0
                       ? 0
-                      : data.minutes / maxMinutes;
+                      : data.seconds / maxSeconds;
 
-                  final double barHeight = data.minutes == 0
+                  final double barHeight = data.seconds == 0
                       ? 4
                       : 100 * heightRatio;
 
@@ -1664,7 +1631,7 @@ class _StudyChart extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         Text(
-                          '${data.minutes}',
+                          formatStudyTime(data.seconds),
                           style: const TextStyle(
                             fontSize: 10,
                             color: Color(0xFF9AA0AC),
@@ -1695,32 +1662,11 @@ class _StudyChart extends StatelessWidget {
                 }).toList(),
               ),
             ),
-          const SizedBox(height: 12),
-          const Center(
-            child: Text(
-              '단위: 분',
-              style: TextStyle(fontSize: 10, color: Color(0xFFB4B8C2)),
-            ),
-          ),
         ],
       ),
     );
   }
 
-  String _formatMinutes(int totalMinutes) {
-    if (totalMinutes < 60) {
-      return '$totalMinutes분';
-    }
-
-    final int hours = totalMinutes ~/ 60;
-    final int minutes = totalMinutes % 60;
-
-    if (minutes == 0) {
-      return '$hours시간';
-    }
-
-    return '$hours시간 $minutes분';
-  }
 }
 
 class _StudyRecordTile extends StatelessWidget {
@@ -1921,11 +1867,7 @@ class _StudyRecordTile extends StatelessWidget {
   }
 
   String _formatRecordTime(_StudyRecordData record) {
-    if (record.minutes > 0) {
-      return '${record.minutes}분';
-    }
-
-    return '${record.seconds}초';
+    return formatStudyTime(record.seconds);
   }
 
   String _getDayOfWeek(DateTime date) {
@@ -1963,16 +1905,15 @@ class _SectionTitle extends StatelessWidget {
 
 class _ChartData {
   final String label;
-  final int minutes;
+  final int seconds;
 
-  const _ChartData({required this.label, required this.minutes});
+  const _ChartData({required this.label, required this.seconds});
 }
 
 class _StudyRecordData {
   final DateTime studiedAt;
   final String subject;
   final String description;
-  final int minutes;
   final int seconds;
   final IconData icon;
   final String source;
@@ -1985,7 +1926,6 @@ class _StudyRecordData {
     required this.studiedAt,
     required this.subject,
     required this.description,
-    required this.minutes,
     required this.seconds,
     required this.icon,
     required this.source,

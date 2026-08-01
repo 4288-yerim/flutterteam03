@@ -291,7 +291,6 @@ class AdminMember {
     required this.bio,
     required this.createdAt,
     required this.lastLoginAt,
-    required this.hasPersistentLogin,
     required this.reportCount,
     required this.postReportCount,
     required this.commentsReportCount,
@@ -322,8 +321,6 @@ class AdminMember {
       bio: AdminMemberService._text(data['bio']),
       createdAt: createdAt is Timestamp ? createdAt.toDate() : null,
       lastLoginAt: AdminMemberService._nullableDate(data['lastLoginAt']),
-      hasPersistentLogin:
-          data['fcmTokens'] is List && (data['fcmTokens'] as List).isNotEmpty,
       reportCount: AdminMemberService._integer(data['reportCount']),
       postReportCount: AdminMemberService._integer(data['postReportCount']),
       commentsReportCount: AdminMemberService._integer(
@@ -344,7 +341,6 @@ class AdminMember {
   final String bio;
   final DateTime? createdAt;
   final DateTime? lastLoginAt;
-  final bool hasPersistentLogin;
   final int reportCount;
   final int postReportCount;
   final int commentsReportCount;

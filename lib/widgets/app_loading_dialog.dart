@@ -11,19 +11,15 @@ class AppLoadingDialog extends StatelessWidget {
   final String title;
   final String? description;
 
-  const AppLoadingDialog({
-    super.key,
-    required this.title,
-    this.description,
-  });
+  const AppLoadingDialog({super.key, required this.title, this.description});
 
   /// 로딩 다이얼로그를 띄웁니다. 뒤로가기로 닫히지 않으며,
   /// 닫으려면 [close]를 호출해야 합니다.
   static Future<void> show(
-      BuildContext context, {
-        required String title,
-        String? description,
-      }) {
+    BuildContext context, {
+    required String title,
+    String? description,
+  }) {
     return showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -55,11 +51,11 @@ class AppLoadingDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(
+            SizedBox(
               width: 48,
               height: 48,
               child: CircularProgressIndicator(
-                color: AppColors.pink,
+                color: context.colors.pinkDeep,
                 strokeWidth: 4,
               ),
             ),

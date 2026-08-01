@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
+import '../theme.dart';
+
 /// 메인 화면(홈, 목록 등)에서 쓰는 배경 위젯
 ///
 /// 로그인/회원가입용 `AppBackground`와 달리, 두 개의 블러 원이
@@ -35,11 +37,12 @@ class AppMainBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final colors = context.colors;
 
     return Container(
       width: double.infinity,
       height: double.infinity,
-      color: const Color(0xFFFFFDFC), // 아주 옅은 화이트 배경
+      color: colors.background,
       child: Stack(
         children: [
           if (showBlobs) ...[
@@ -49,7 +52,7 @@ class AppMainBackground extends StatelessWidget {
               left: size.width * 0.01,
               child: _BlurBlob(
                 diameter: size.width * 0.3,
-                color: const Color(0x66FCE7EF), // 연분홍
+                color: colors.backgroundBlobPink,
               ),
             ),
             // 우측 상단 연보라색 블러 원
@@ -58,7 +61,7 @@ class AppMainBackground extends StatelessWidget {
               right: -size.width * 0.05,
               child: _BlurBlob(
                 diameter: size.width * 0.45,
-                color: const Color(0x66E8E4FB), // 연보라
+                color: colors.backgroundBlobLavender,
               ),
             ),
           ],
@@ -75,10 +78,7 @@ class _BlurBlob extends StatelessWidget {
   final double diameter;
   final Color color;
 
-  const _BlurBlob({
-    required this.diameter,
-    required this.color,
-  });
+  const _BlurBlob({required this.diameter, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -87,10 +87,7 @@ class _BlurBlob extends StatelessWidget {
       child: Container(
         width: diameter,
         height: diameter,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: color,
-        ),
+        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
       ),
     );
   }

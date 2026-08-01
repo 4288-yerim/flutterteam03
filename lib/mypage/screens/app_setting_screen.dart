@@ -1,27 +1,32 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../services/theme_mode_service.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
+import '../../widgets/loading_overlay.dart';
 import 'blocked_user_screen.dart';
 
 class AppSettingScreen extends StatefulWidget {
   const AppSettingScreen({super.key});
 
   @override
-  State<AppSettingScreen> createState() =>
-      _AppSettingScreenState();
+  State<AppSettingScreen> createState() => _AppSettingScreenState();
 }
 
-class _AppSettingScreenState
-    extends State<AppSettingScreen> {
+class _AppSettingScreenState extends State<AppSettingScreen> {
   bool _isLoadingSettings = true;
   bool _isSavingSettings = false;
+  bool _showSavingOverlay = false;
+  Timer? _savingOverlayTimer;
 
   // 기존 DB 설계 필드
-  String _themeMode = 'SYSTEM';
+  String _themeMode = ThemeModeService.instance.modeName;
+  bool _profileActivityPublic = true;
 
   bool _pushEnabled = true;
   bool _certificateAlertEnabled = true;
@@ -36,9 +41,6 @@ class _AppSettingScreenState
   bool _friendAlertEnabled = true;
   bool _chatsAlertEnabled = true;
   bool _marketingAlertEnabled = false;
-
-  // DB 설계 추가 예정 필드
-  String _fontSizeMode = 'MEDIUM';
 
   bool _applicationStartAlertEnabled = true;
   bool _applicationEndD1AlertEnabled = true;
@@ -61,6 +63,12 @@ class _AppSettingScreenState
     _loadSettings();
   }
 
+  @override
+  void dispose() {
+    _savingOverlayTimer?.cancel();
+    super.dispose();
+  }
+
   Future<void> _loadSettings() async {
     final User? user = FirebaseAuth.instance.currentUser;
 
@@ -79,12 +87,12 @@ class _AppSettingScreenState
 
     try {
       final DocumentSnapshot<Map<String, dynamic>> snapshot =
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('settings')
-          .doc('app')
-          .get();
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .collection('settings')
+              .doc('app')
+              .get();
 
       final Map<String, dynamic> data = snapshot.data() ?? {};
 
@@ -93,51 +101,83 @@ class _AppSettingScreenState
       }
 
       setState(() {
-        _themeMode = _readString(data, 'themeMode', 'SYSTEM');
-        _fontSizeMode = _readString(data, 'fontSizeMode', 'MEDIUM');
+        _themeMode = ThemeModeService.toName(
+          ThemeModeService.fromName(_readString(data, 'themeMode', 'SYSTEM')),
+        );
+        _profileActivityPublic = _readBool(data, 'profileActivityPublic', true);
         _pushEnabled = _readBool(data, 'pushEnabled', true);
-        _certificateAlertEnabled =
-            _readBool(data, 'certificateAlertEnabled', true);
-        _applicationStartAlertEnabled =
-            _readBool(data, 'applicationStartAlertEnabled', true);
-        _applicationEndD1AlertEnabled =
-            _readBool(data, 'applicationEndD1AlertEnabled', true);
-        _examD7AlertEnabled =
-            _readBool(data, 'examD7AlertEnabled', true);
-        _examD1AlertEnabled =
-            _readBool(data, 'examD1AlertEnabled', true);
-        _examDayAlertEnabled =
-            _readBool(data, 'examDayAlertEnabled', true);
-        _resultAlertEnabled =
-            _readBool(data, 'resultAlertEnabled', true);
-        _studyAlertEnabled =
-            _readBool(data, 'studyAlertEnabled', true);
-        _dailyStudyPlanAlertEnabled =
-            _readBool(data, 'dailyStudyPlanAlertEnabled', true);
-        _studyStartTimeAlertEnabled =
-            _readBool(data, 'studyStartTimeAlertEnabled', true);
-        _incompleteStudyAlertEnabled =
-            _readBool(data, 'incompleteStudyAlertEnabled', true);
-        _studyGroupAlertEnabled =
-            _readBool(data, 'studyGroupAlertEnabled', true);
-        _studyNoticeAlertEnabled =
-            _readBool(data, 'studyNoticeAlertEnabled', true);
-        _studyJoinApprovalAlertEnabled =
-            _readBool(data, 'studyJoinApprovalAlertEnabled', true);
-        _studyNewMemberAlertEnabled =
-            _readBool(data, 'studyNewMemberAlertEnabled', true);
-        _studyChatsAlertEnabled =
-            _readBool(data, 'studyChatsAlertEnabled', true);
-        _communityAlertEnabled =
-            _readBool(data, 'communityAlertEnabled', true);
-        _friendAlertEnabled =
-            _readBool(data, 'friendAlertEnabled', true);
-        _chatsAlertEnabled =
-            _readBool(data, 'chatsAlertEnabled', true);
-        _marketingAlertEnabled =
-            _readBool(data, 'marketingAlertEnabled', false);
+        _certificateAlertEnabled = _readBool(
+          data,
+          'certificateAlertEnabled',
+          true,
+        );
+        _applicationStartAlertEnabled = _readBool(
+          data,
+          'applicationStartAlertEnabled',
+          true,
+        );
+        _applicationEndD1AlertEnabled = _readBool(
+          data,
+          'applicationEndD1AlertEnabled',
+          true,
+        );
+        _examD7AlertEnabled = _readBool(data, 'examD7AlertEnabled', true);
+        _examD1AlertEnabled = _readBool(data, 'examD1AlertEnabled', true);
+        _examDayAlertEnabled = _readBool(data, 'examDayAlertEnabled', true);
+        _resultAlertEnabled = _readBool(data, 'resultAlertEnabled', true);
+        _studyAlertEnabled = _readBool(data, 'studyAlertEnabled', true);
+        _dailyStudyPlanAlertEnabled = _readBool(
+          data,
+          'dailyStudyPlanAlertEnabled',
+          true,
+        );
+        _studyStartTimeAlertEnabled = _readBool(
+          data,
+          'studyStartTimeAlertEnabled',
+          true,
+        );
+        _incompleteStudyAlertEnabled = _readBool(
+          data,
+          'incompleteStudyAlertEnabled',
+          true,
+        );
+        _studyGroupAlertEnabled = _readBool(
+          data,
+          'studyGroupAlertEnabled',
+          true,
+        );
+        _studyNoticeAlertEnabled = _readBool(
+          data,
+          'studyNoticeAlertEnabled',
+          true,
+        );
+        _studyJoinApprovalAlertEnabled = _readBool(
+          data,
+          'studyJoinApprovalAlertEnabled',
+          true,
+        );
+        _studyNewMemberAlertEnabled = _readBool(
+          data,
+          'studyNewMemberAlertEnabled',
+          true,
+        );
+        _studyChatsAlertEnabled = _readBool(
+          data,
+          'studyChatsAlertEnabled',
+          true,
+        );
+        _communityAlertEnabled = _readBool(data, 'communityAlertEnabled', true);
+        _friendAlertEnabled = _readBool(data, 'friendAlertEnabled', true);
+        _chatsAlertEnabled = _readBool(data, 'chatsAlertEnabled', true);
+        _marketingAlertEnabled = _readBool(
+          data,
+          'marketingAlertEnabled',
+          false,
+        );
         _isLoadingSettings = false;
       });
+
+      await ThemeModeService.instance.setThemeModeName(_themeMode);
 
       if (!snapshot.exists) {
         await _saveSettings();
@@ -156,19 +196,19 @@ class _AppSettingScreenState
   }
 
   bool _readBool(
-      Map<String, dynamic> data,
-      String fieldName,
-      bool defaultValue,
-      ) {
+    Map<String, dynamic> data,
+    String fieldName,
+    bool defaultValue,
+  ) {
     final dynamic value = data[fieldName];
     return value is bool ? value : defaultValue;
   }
 
   String _readString(
-      Map<String, dynamic> data,
-      String fieldName,
-      String defaultValue,
-      ) {
+    Map<String, dynamic> data,
+    String fieldName,
+    String defaultValue,
+  ) {
     final dynamic value = data[fieldName];
     return value is String ? value : defaultValue;
   }
@@ -184,18 +224,30 @@ class _AppSettingScreenState
     if (mounted) {
       setState(() {
         _isSavingSettings = true;
+        _showSavingOverlay = false;
+      });
+
+      _savingOverlayTimer?.cancel();
+      _savingOverlayTimer = Timer(const Duration(milliseconds: 300), () {
+        if (mounted && _isSavingSettings) {
+          setState(() {
+            _showSavingOverlay = true;
+          });
+        }
       });
     }
 
     try {
-      await FirebaseFirestore.instance
+      final firestore = FirebaseFirestore.instance;
+      final batch = firestore.batch();
+      final settingsReference = firestore
           .collection('users')
           .doc(user.uid)
           .collection('settings')
-          .doc('app')
-          .set({
+          .doc('app');
+      batch.set(settingsReference, {
         'themeMode': _themeMode,
-        'fontSizeMode': _fontSizeMode,
+        'profileActivityPublic': _profileActivityPublic,
         'pushEnabled': _pushEnabled,
         'certificateAlertEnabled': _certificateAlertEnabled,
         'applicationStartAlertEnabled': _applicationStartAlertEnabled,
@@ -219,12 +271,18 @@ class _AppSettingScreenState
         'marketingAlertEnabled': _marketingAlertEnabled,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+      batch.set(firestore.collection('users').doc(user.uid), {
+        'profileActivityPublic': _profileActivityPublic,
+      }, SetOptions(merge: true));
+      await batch.commit();
     } catch (error) {
       _showMessage('설정을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {
+      _savingOverlayTimer?.cancel();
       if (mounted) {
         setState(() {
           _isSavingSettings = false;
+          _showSavingOverlay = false;
         });
       }
     }
@@ -232,35 +290,38 @@ class _AppSettingScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppTopBar(
-        title: '설정',
-      ),
-      body: AppMainBackground(
-        child: _isLoadingSettings
-            ? const Center(
-          child: CircularProgressIndicator(
-            color: Color(0xFFF0788F),
+    return PopScope(
+      canPop: !_isSavingSettings,
+      child: Stack(
+        children: [
+          AbsorbPointer(
+            absorbing: _isSavingSettings,
+            child: Scaffold(
+              extendBodyBehindAppBar: true,
+              appBar: AppTopBar(title: '설정'),
+              body: AppMainBackground(
+                child: _isLoadingSettings
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFFF0788F),
+                        ),
+                      )
+                    : ListView(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+                        children: [
+                          _buildScreenSettingSection(),
+                          const SizedBox(height: 26),
+                          _buildNotificationSettingSection(),
+                          const SizedBox(height: 26),
+                          _buildPrivacySettingSection(),
+                        ],
+                      ),
+              ),
+            ),
           ),
-        )
-            : ListView(
-          padding: const EdgeInsets.fromLTRB(
-            20,
-            16,
-            20,
-            40,
-          ),
-          children: [
-            _buildScreenSettingSection(),
-            const SizedBox(height: 26),
-            _buildNotificationSettingSection(),
-            const SizedBox(height: 26),
-            _buildPrivacySettingSection(),
-            const SizedBox(height: 22),
-            _buildStorageNotice(),
-          ],
-        ),
+          if (_showSavingOverlay)
+            const Positioned.fill(child: LoadingOverlay()),
+        ],
       ),
     );
   }
@@ -271,8 +332,8 @@ class _AppSettingScreenState
       children: [
         const _SettingSectionTitle(
           icon: Icons.palette_outlined,
-          title: '화면 설정',
-          description: '앱 화면의 테마와 글자 크기를 설정합니다.',
+          title: '개인 설정',
+          description: '테마와 프로필 활동 공개 범위를 설정합니다.',
         ),
         const SizedBox(height: 12),
         AppCard(
@@ -281,7 +342,18 @@ class _AppSettingScreenState
             children: [
               _buildThemeModeTile(),
               const _SettingDivider(),
-              _buildFontSizeTile(),
+              _SettingSwitchTile(
+                icon: Icons.visibility_outlined,
+                title: '프로필 활동 공개',
+                subtitle: '내 활동 기록을 다른 사용자에게 공개합니다.',
+                value: _profileActivityPublic,
+                onChanged: (value) {
+                  setState(() {
+                    _profileActivityPublic = value;
+                  });
+                  _saveSettings();
+                },
+              ),
             ],
           ),
         ),
@@ -291,22 +363,14 @@ class _AppSettingScreenState
 
   Widget _buildThemeModeTile() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        16,
-        14,
-        16,
-        14,
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Row(
         children: [
-          const _SettingIcon(
-            icon: Icons.brightness_6_outlined,
-          ),
+          const _SettingIcon(icon: Icons.brightness_6_outlined),
           const SizedBox(width: 14),
           const Expanded(
             child: Column(
-              crossAxisAlignment:
-              CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   '테마 모드',
@@ -319,10 +383,7 @@ class _AppSettingScreenState
                 SizedBox(height: 4),
                 Text(
                   '앱의 밝기 모드를 설정합니다.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF9AA0AC),
-                  ),
+                  style: TextStyle(fontSize: 12, color: Color(0xFF9AA0AC)),
                 ),
               ],
             ),
@@ -334,18 +395,9 @@ class _AppSettingScreenState
               dropdownColor: Colors.white,
               borderRadius: BorderRadius.circular(14),
               items: const [
-                DropdownMenuItem<String>(
-                  value: 'SYSTEM',
-                  child: Text('시스템'),
-                ),
-                DropdownMenuItem<String>(
-                  value: 'LIGHT',
-                  child: Text('라이트'),
-                ),
-                DropdownMenuItem<String>(
-                  value: 'DARK',
-                  child: Text('다크'),
-                ),
+                DropdownMenuItem<String>(value: 'SYSTEM', child: Text('시스템')),
+                DropdownMenuItem<String>(value: 'LIGHT', child: Text('라이트')),
+                DropdownMenuItem<String>(value: 'DARK', child: Text('다크')),
               ],
               onChanged: (value) {
                 if (value == null) {
@@ -356,82 +408,7 @@ class _AppSettingScreenState
                   _themeMode = value;
                 });
 
-                _saveSettings();
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFontSizeTile() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        16,
-        14,
-        16,
-        14,
-      ),
-      child: Row(
-        children: [
-          const _SettingIcon(
-            icon: Icons.text_fields_outlined,
-          ),
-          const SizedBox(width: 14),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment:
-              CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '글자 크기',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1A1A1A),
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  '앱에서 표시되는 글자 크기를 설정합니다.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF9AA0AC),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: _fontSizeMode,
-              dropdownColor: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              items: const [
-                DropdownMenuItem<String>(
-                  value: 'SMALL',
-                  child: Text('작게'),
-                ),
-                DropdownMenuItem<String>(
-                  value: 'MEDIUM',
-                  child: Text('보통'),
-                ),
-                DropdownMenuItem<String>(
-                  value: 'LARGE',
-                  child: Text('크게'),
-                ),
-              ],
-              onChanged: (value) {
-                if (value == null) {
-                  return;
-                }
-
-                setState(() {
-                  _fontSizeMode = value;
-                });
-
+                ThemeModeService.instance.setThemeModeName(value);
                 _saveSettings();
               },
             ),
@@ -516,8 +493,7 @@ class _AppSettingScreenState
             title: '접수 시작',
             subtitle: '자격증 원서 접수가 시작되면 알려줍니다.',
             value: _applicationStartAlertEnabled,
-            enabled: _pushEnabled &&
-                _certificateAlertEnabled,
+            enabled: _pushEnabled && _certificateAlertEnabled,
             isChildSetting: true,
             onChanged: (value) {
               setState(() {
@@ -534,8 +510,7 @@ class _AppSettingScreenState
             title: '접수 마감 전날',
             subtitle: '자격증 원서 접수 마감 하루 전에 알려줍니다.',
             value: _applicationEndD1AlertEnabled,
-            enabled: _pushEnabled &&
-                _certificateAlertEnabled,
+            enabled: _pushEnabled && _certificateAlertEnabled,
             isChildSetting: true,
             onChanged: (value) {
               setState(() {
@@ -552,8 +527,7 @@ class _AppSettingScreenState
             title: '시험 D-7',
             subtitle: '시험일 7일 전에 알려줍니다.',
             value: _examD7AlertEnabled,
-            enabled: _pushEnabled &&
-                _certificateAlertEnabled,
+            enabled: _pushEnabled && _certificateAlertEnabled,
             isChildSetting: true,
             onChanged: (value) {
               setState(() {
@@ -570,8 +544,7 @@ class _AppSettingScreenState
             title: '시험 전날',
             subtitle: '시험 하루 전에 알려줍니다.',
             value: _examD1AlertEnabled,
-            enabled: _pushEnabled &&
-                _certificateAlertEnabled,
+            enabled: _pushEnabled && _certificateAlertEnabled,
             isChildSetting: true,
             onChanged: (value) {
               setState(() {
@@ -588,8 +561,7 @@ class _AppSettingScreenState
             title: '시험 당일',
             subtitle: '시험 당일 일정을 알려줍니다.',
             value: _examDayAlertEnabled,
-            enabled: _pushEnabled &&
-                _certificateAlertEnabled,
+            enabled: _pushEnabled && _certificateAlertEnabled,
             isChildSetting: true,
             onChanged: (value) {
               setState(() {
@@ -606,8 +578,7 @@ class _AppSettingScreenState
             title: '합격 발표',
             subtitle: '합격 발표일에 알림을 받습니다.',
             value: _resultAlertEnabled,
-            enabled: _pushEnabled &&
-                _certificateAlertEnabled,
+            enabled: _pushEnabled && _certificateAlertEnabled,
             isChildSetting: true,
             onChanged: (value) {
               setState(() {
@@ -653,8 +624,7 @@ class _AppSettingScreenState
             title: '오늘의 학습 계획',
             subtitle: '오늘 진행할 학습 계획을 알려줍니다.',
             value: _dailyStudyPlanAlertEnabled,
-            enabled:
-            _pushEnabled && _studyAlertEnabled,
+            enabled: _pushEnabled && _studyAlertEnabled,
             isChildSetting: true,
             onChanged: (value) {
               setState(() {
@@ -671,8 +641,7 @@ class _AppSettingScreenState
             title: '공부 시작 시간',
             subtitle: '설정한 공부 시작 시간이 되면 알려줍니다.',
             value: _studyStartTimeAlertEnabled,
-            enabled:
-            _pushEnabled && _studyAlertEnabled,
+            enabled: _pushEnabled && _studyAlertEnabled,
             isChildSetting: true,
             onChanged: (value) {
               setState(() {
@@ -689,8 +658,7 @@ class _AppSettingScreenState
             title: '미완료 계획',
             subtitle: '완료하지 않은 학습 계획을 알려줍니다.',
             value: _incompleteStudyAlertEnabled,
-            enabled:
-            _pushEnabled && _studyAlertEnabled,
+            enabled: _pushEnabled && _studyAlertEnabled,
             isChildSetting: true,
             onChanged: (value) {
               setState(() {
@@ -723,8 +691,7 @@ class _AppSettingScreenState
             title: '스터디 공지',
             subtitle: '새로운 스터디 공지가 등록되면 알려줍니다.',
             value: _studyNoticeAlertEnabled,
-            enabled: _pushEnabled &&
-                _studyGroupAlertEnabled,
+            enabled: _pushEnabled && _studyGroupAlertEnabled,
             isChildSetting: true,
             onChanged: (value) {
               setState(() {
@@ -741,8 +708,7 @@ class _AppSettingScreenState
             title: '가입 승인',
             subtitle: '스터디 가입 요청 결과를 알려줍니다.',
             value: _studyJoinApprovalAlertEnabled,
-            enabled: _pushEnabled &&
-                _studyGroupAlertEnabled,
+            enabled: _pushEnabled && _studyGroupAlertEnabled,
             isChildSetting: true,
             onChanged: (value) {
               setState(() {
@@ -759,8 +725,7 @@ class _AppSettingScreenState
             title: '새 멤버',
             subtitle: '스터디에 새로운 멤버가 참여하면 알려줍니다.',
             value: _studyNewMemberAlertEnabled,
-            enabled: _pushEnabled &&
-                _studyGroupAlertEnabled,
+            enabled: _pushEnabled && _studyGroupAlertEnabled,
             isChildSetting: true,
             onChanged: (value) {
               setState(() {
@@ -777,8 +742,7 @@ class _AppSettingScreenState
             title: '스터디 채팅',
             subtitle: '스터디 채팅에 새 메시지가 오면 알려줍니다.',
             value: _studyChatsAlertEnabled,
-            enabled: _pushEnabled &&
-                _studyGroupAlertEnabled,
+            enabled: _pushEnabled && _studyGroupAlertEnabled,
             isChildSetting: true,
             onChanged: (value) {
               setState(() {
@@ -889,7 +853,7 @@ class _AppSettingScreenState
       children: [
         const _SettingSectionTitle(
           icon: Icons.shield_outlined,
-          title: '개인정보 및 사용자 관리',
+          title: '차단 사용자 관리',
           description: '차단한 사용자를 확인하고 관리합니다.',
         ),
         const SizedBox(height: 12),
@@ -900,29 +864,18 @@ class _AppSettingScreenState
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                  const BlockedUserScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const BlockedUserScreen()),
               );
             },
             child: const Padding(
-              padding: EdgeInsets.fromLTRB(
-                16,
-                14,
-                14,
-                14,
-              ),
+              padding: EdgeInsets.fromLTRB(16, 14, 14, 14),
               child: Row(
                 children: [
-                  _SettingIcon(
-                    icon: Icons.person_off_outlined,
-                  ),
+                  _SettingIcon(icon: Icons.person_off_outlined),
                   SizedBox(width: 14),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           '차단 사용자 관리',
@@ -944,10 +897,7 @@ class _AppSettingScreenState
                     ),
                   ),
                   SizedBox(width: 8),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    color: Color(0xFFB4B8C2),
-                  ),
+                  Icon(Icons.chevron_right_rounded, color: Color(0xFFB4B8C2)),
                 ],
               ),
             ),
@@ -957,52 +907,14 @@ class _AppSettingScreenState
     );
   }
 
-  Widget _buildStorageNotice() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF7E8),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFFFE5B2),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(
-            Icons.info_outline_rounded,
-            size: 20,
-            color: Color(0xFFE59B2E),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              _isSavingSettings
-                  ? '설정 변경 내용을 저장하고 있습니다.'
-                  : '설정 변경 내용은 계정에 자동으로 저장됩니다.',
-              style: const TextStyle(
-                fontSize: 12,
-                height: 1.5,
-                color: Color(0xFF8A6429),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showMessage(String message) {
     if (!mounted) {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -1029,17 +941,12 @@ class _SettingSectionTitle extends StatelessWidget {
             color: const Color(0xFFFCEFF3),
             borderRadius: BorderRadius.circular(13),
           ),
-          child: Icon(
-            icon,
-            size: 22,
-            color: const Color(0xFFF0788F),
-          ),
+          child: Icon(icon, size: 22, color: const Color(0xFFF0788F)),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
@@ -1052,10 +959,7 @@ class _SettingSectionTitle extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 description,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF9AA0AC),
-                ),
+                style: const TextStyle(fontSize: 13, color: Color(0xFF9AA0AC)),
               ),
             ],
           ),
@@ -1065,32 +969,19 @@ class _SettingSectionTitle extends StatelessWidget {
   }
 }
 
-class _NotificationGroupHeader
-    extends StatelessWidget {
+class _NotificationGroupHeader extends StatelessWidget {
   final IconData icon;
   final String title;
 
-  const _NotificationGroupHeader({
-    required this.icon,
-    required this.title,
-  });
+  const _NotificationGroupHeader({required this.icon, required this.title});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        16,
-        16,
-        16,
-        14,
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
       child: Row(
         children: [
-          Icon(
-            icon,
-            size: 20,
-            color: const Color(0xFFF0788F),
-          ),
+          Icon(icon, size: 20, color: const Color(0xFFF0788F)),
           const SizedBox(width: 8),
           Text(
             title,
@@ -1138,19 +1029,11 @@ class _SettingSwitchTile extends StatelessWidget {
         : const Color(0xFFD0D2D8);
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(
-        isChildSetting ? 30 : 16,
-        10,
-        10,
-        10,
-      ),
+      padding: EdgeInsets.fromLTRB(isChildSetting ? 30 : 16, 10, 10, 10),
       child: Row(
         children: [
           if (icon != null) ...[
-            _SettingIcon(
-              icon: icon!,
-              enabled: enabled,
-            ),
+            _SettingIcon(icon: icon!, enabled: enabled),
             const SizedBox(width: 14),
           ],
 
@@ -1170,8 +1053,7 @@ class _SettingSwitchTile extends StatelessWidget {
 
           Expanded(
             child: Column(
-              crossAxisAlignment:
-              CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
@@ -1199,9 +1081,7 @@ class _SettingSwitchTile extends StatelessWidget {
           Switch(
             value: value,
             activeThumbColor: const Color(0xFFF0788F),
-            onChanged: enabled
-                ? onChanged
-                : null,
+            onChanged: enabled ? onChanged : null,
           ),
         ],
       ),
@@ -1213,10 +1093,7 @@ class _SettingIcon extends StatelessWidget {
   final IconData icon;
   final bool enabled;
 
-  const _SettingIcon({
-    required this.icon,
-    this.enabled = true,
-  });
+  const _SettingIcon({required this.icon, this.enabled = true});
 
   @override
   Widget build(BuildContext context) {
@@ -1224,17 +1101,13 @@ class _SettingIcon extends StatelessWidget {
       width: 42,
       height: 42,
       decoration: BoxDecoration(
-        color: enabled
-            ? const Color(0xFFFCEFF3)
-            : const Color(0xFFF3F3F5),
+        color: enabled ? const Color(0xFFFCEFF3) : const Color(0xFFF3F3F5),
         borderRadius: BorderRadius.circular(13),
       ),
       child: Icon(
         icon,
         size: 21,
-        color: enabled
-            ? const Color(0xFFF0788F)
-            : const Color(0xFFB4B8C2),
+        color: enabled ? const Color(0xFFF0788F) : const Color(0xFFB4B8C2),
       ),
     );
   }
