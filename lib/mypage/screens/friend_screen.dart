@@ -270,6 +270,19 @@ class _FriendScreenState extends State<FriendScreen> {
           continue;
         }
 
+        // 상대방이 현재 사용자를 차단했다면 검색 결과에 노출하지 않습니다.
+        final DocumentSnapshot<Map<String, dynamic>> blockedByOtherDocument =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(document.id)
+                .collection('blockedUsers')
+                .doc(currentUid)
+                .get();
+
+        if (blockedByOtherDocument.exists) {
+          continue;
+        }
+
         final String bio =
         (data['bio'] as String? ?? '').trim();
 

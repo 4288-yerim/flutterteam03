@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+
+import '../theme.dart';
 
 /// 배경이 투명한 상단 앱바
 ///
@@ -33,6 +34,8 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     return AppBar(
       backgroundColor: Colors.transparent,
       elevation: 0,
@@ -43,20 +46,16 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
       titleSpacing: 24,
       title: title != null
           ? Text(
-        title!,
-        style: titleStyle ??
-            const TextStyle(
-              color: Color(0xFF1A1A1A),
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-      )
+              title!,
+              style:
+                  titleStyle ??
+                  TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+            )
           : null,
-      systemOverlayStyle: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.light,
-      ),
     );
   }
 

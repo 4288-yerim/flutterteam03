@@ -12,22 +12,17 @@ import 'appwidgets/app_widget_sync.dart';
 import 'firebase_options.dart';
 import 'notification/services/push_notification_service.dart';
 import 'services/app_icon_service.dart';
+import 'services/theme_mode_service.dart';
 import 'splash/screens/splash_screen.dart';
 import 'theme.dart';
 
 const _iconCheckTaskName = 'checkInactivityIconTask';
 
 @pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(
-    RemoteMessage message,
-    ) async {
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  debugPrint(
-    '백그라운드 FCM 수신: ${message.messageId}',
-  );
+  debugPrint('백그라운드 FCM 수신: ${message.messageId}');
 }
 
 @pragma('vm:entry-point')
@@ -43,21 +38,17 @@ void callbackDispatcher() {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await ThemeModeService.instance.initialize();
+
   await dotenv.load(fileName: ".env");
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  FirebaseMessaging.onBackgroundMessage(
-    firebaseMessagingBackgroundHandler,
-  );
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   await PushNotificationService.instance.initialize();
 
-  await HomeWidget.registerInteractivityCallback(
-    appWidgetBackgroundCallback,
-  );
+  await HomeWidget.registerInteractivityCallback(appWidgetBackgroundCallback);
 
   try {
     await AppWidgetSync.syncAll();
@@ -125,13 +116,18 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: PushNotificationService.navigatorKey,
-      debugShowCheckedModeBanner: false,
-      theme: lightTheme,
-      darkTheme: darkTheme,
-      themeMode: ThemeMode.system,
-      home: const SplashScreen(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeModeService.instance.themeMode,
+      builder: (context, themeMode, _) {
+        return MaterialApp(
+          navigatorKey: PushNotificationService.navigatorKey,
+          debugShowCheckedModeBanner: false,
+          theme: lightTheme,
+          darkTheme: darkTheme,
+          themeMode: themeMode,
+          home: const SplashScreen(),
+        );
+      },
     );
   }
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme.dart';
+
 /// 버튼 스타일 종류
 enum AppButtonType {
   /// 핑크 그라데이션 (채워진 버튼)
@@ -43,6 +45,8 @@ class AppButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     switch (type) {
       case AppButtonType.primaryPink:
         return _GradientButton(
@@ -50,8 +54,8 @@ class AppButton extends StatelessWidget {
           onPressed: onPressed,
           height: height,
           borderRadius: borderRadius,
-          gradientColors: const [Color(0xFFFF9FB6), Color(0xFFFF5F8F)],
-          textColor: Colors.white,
+          gradientColors: [colors.pinkStart, colors.pinkDeep],
+          textColor: colors.onPrimary,
         );
 
       case AppButtonType.primaryBlue:
@@ -60,8 +64,8 @@ class AppButton extends StatelessWidget {
           onPressed: onPressed,
           height: height,
           borderRadius: borderRadius,
-          gradientColors: const [Color(0xFF5B8DEF), Color(0xFF2F6BEB)],
-          textColor: Colors.white,
+          gradientColors: [colors.info, colors.softBlueAccent],
+          textColor: colors.onPrimary,
         );
 
       case AppButtonType.outlinePink:
@@ -71,18 +75,18 @@ class AppButton extends StatelessWidget {
           child: OutlinedButton(
             onPressed: onPressed,
             style: OutlinedButton.styleFrom(
-              backgroundColor: Colors.white,
-              side: const BorderSide(color: Color(0xFFFF6B95), width: 1.5),
+              backgroundColor: colors.surface,
+              side: BorderSide(color: colors.pinkDeep, width: 1.5),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(borderRadius),
               ),
             ),
             child: Text(
               text,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFFFF6B95),
+                color: colors.pinkDeep,
               ),
             ),
           ),
@@ -95,8 +99,10 @@ class AppButton extends StatelessWidget {
           child: ElevatedButton(
             onPressed: onPressed,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFF3F4F7),
-              foregroundColor: const Color(0xFF9AA0AC),
+              backgroundColor: colors.surfaceMuted,
+              foregroundColor: colors.textSecondary,
+              disabledBackgroundColor: colors.surfaceMuted,
+              disabledForegroundColor: colors.textDisabled,
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(borderRadius),
@@ -104,10 +110,12 @@ class AppButton extends StatelessWidget {
             ),
             child: Text(
               text,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF9AA0AC),
+                color: onPressed == null
+                    ? colors.textDisabled
+                    : colors.textSecondary,
               ),
             ),
           ),

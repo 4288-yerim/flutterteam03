@@ -168,8 +168,7 @@ List<AdminMember> adminApplyViewFilter(
     case AdminMemberViewFilter.longInactive:
       final threshold = DateTime(now.year - 1, now.month, now.day);
       return result.where((member) {
-        return !member.hasPersistentLogin &&
-            member.lastLoginAt != null &&
+        return member.lastLoginAt != null &&
             member.lastLoginAt!.isBefore(threshold);
       }).toList();
   }

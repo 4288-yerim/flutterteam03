@@ -1,7 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../auth/screens/welcome_screen.dart';
 import '../../auth/services/auth_service.dart';
+import '../../main_page.dart';
 import '../../widgets/app_confirm_dialog.dart';
 import '../../widgets/app_main_background.dart';
 import 'admin_home_screen.dart';
@@ -27,6 +30,49 @@ class AdminPage extends StatefulWidget {
 class _AdminPageState extends State<AdminPage> {
   int _selectedIndex = 0;
   bool _isSigningOut = false;
+  bool _isRedirecting = false;
+  late final Future<bool> _adminAccessCheck;
+
+  @override
+  void initState() {
+    super.initState();
+    _adminAccessCheck = _hasAdminAccess();
+  }
+
+  Future<bool> _hasAdminAccess() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return false;
+    }
+
+    final userDocument = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+
+    return userDocument.data()?['role'] == 'ADMIN';
+  }
+
+  void _redirectUnauthorizedUser() {
+    if (_isRedirecting) {
+      return;
+    }
+    _isRedirecting = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      final destination = FirebaseAuth.instance.currentUser == null
+          ? const WelcomeScreen()
+          : const MainPage();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => destination),
+        (route) => false,
+      );
+    });
+  }
 
   static const List<_AdminMenuItem> _menus = [
     _AdminMenuItem('홈', Icons.home_outlined),
@@ -116,6 +162,28 @@ class _AdminPageState extends State<AdminPage> {
 
   @override
   Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: _adminAccessCheck,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.data != true) {
+          _redirectUnauthorizedUser();
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        return _buildAdminPage();
+      },
+    );
+  }
+
+  Widget _buildAdminPage() {
     final _AdminMenuItem selectedMenu = _menus[_selectedIndex];
 
     return PopScope(

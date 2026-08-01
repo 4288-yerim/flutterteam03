@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
 import '../../widgets/app_card.dart';
-
+import '../utils/study_time_formatter.dart';
 
 class MyPageSummaryCard extends StatelessWidget {
-  final int studyMinutes;
+  final int studySeconds;
   final int studyGroupCount;
   final int postCount;
 
@@ -14,7 +15,7 @@ class MyPageSummaryCard extends StatelessWidget {
 
   const MyPageSummaryCard({
     super.key,
-    required this.studyMinutes,
+    required this.studySeconds,
     required this.studyGroupCount,
     required this.postCount,
     required this.onStudyTap,
@@ -35,7 +36,7 @@ class MyPageSummaryCard extends StatelessWidget {
             child: _SummaryItem(
               icon: Icons.timer_outlined,
               title: '이번 주 학습',
-              value: '$studyMinutes분',
+              value: formatStudyTime(studySeconds),
               onTap: onStudyTap,
             ),
           ),
@@ -90,24 +91,24 @@ class _SummaryItem extends StatelessWidget {
             Icon(
               icon,
               size: 22,
-              color: const Color(0xFFF0788F),
+              color: context.colors.pinkDeep,
             ),
             const SizedBox(height: 8),
             Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A1A),
+                color: context.colors.textPrimary,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
-                color: Color(0xFF9AA0AC),
+                color: context.colors.textSecondary,
               ),
             ),
           ],
@@ -125,7 +126,7 @@ class _VerticalSummaryDivider extends StatelessWidget {
     return Container(
       width: 1,
       height: 54,
-      color: const Color(0xFFF0F0F2),
+      color: context.colors.divider,
     );
   }
 }

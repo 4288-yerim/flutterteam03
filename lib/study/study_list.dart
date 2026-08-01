@@ -9,6 +9,7 @@ import '../firebase_options.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_top_bar.dart';
+import '../notification/screens/notification.dart';
 import 'study_add.dart';
 import 'study_detail.dart';
 import 'study_join_requests.dart';
@@ -18,9 +19,7 @@ import 'study_room.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   if (FirebaseAuth.instance.currentUser == null) {
     await FirebaseAuth.instance.signInAnonymously();
@@ -72,10 +71,7 @@ class StudyListPage extends StatefulWidget {
   // 기존 다른 파일과 연결이 끊기지 않도록 유지
   final bool showBottomBar;
 
-  const StudyListPage({
-    super.key,
-    this.showBottomBar = false,
-  });
+  const StudyListPage({super.key, this.showBottomBar = false});
 
   @override
   State<StudyListPage> createState() {
@@ -112,10 +108,7 @@ class _StudyListPageState extends State<StudyListPage> {
     return _studyGroupStream!;
   }
 
-  int _getInt(
-      Map<String, dynamic> data,
-      String fieldName,
-      ) {
+  int _getInt(Map<String, dynamic> data, String fieldName) {
     dynamic value = data[fieldName];
 
     if (value is int) {
@@ -130,20 +123,13 @@ class _StudyListPageState extends State<StudyListPage> {
   }
 
   bool _isRecruiting(Map<String, dynamic> data) {
-    String recruitmentStatus =
-        data['recruitmentStatus']?.toString() ?? '';
+    String recruitmentStatus = data['recruitmentStatus']?.toString() ?? '';
 
     String groupStatus = data['status']?.toString() ?? '';
 
-    int currentMemberCount = _getInt(
-      data,
-      'currentMemberCount',
-    );
+    int currentMemberCount = _getInt(data, 'currentMemberCount');
 
-    int maxMemberCount = _getInt(
-      data,
-      'maxMemberCount',
-    );
+    int maxMemberCount = _getInt(data, 'maxMemberCount');
 
     if (groupStatus == 'COMPLETED') {
       return false;
@@ -157,8 +143,7 @@ class _StudyListPageState extends State<StudyListPage> {
       return false;
     }
 
-    if (maxMemberCount > 0 &&
-        currentMemberCount >= maxMemberCount) {
+    if (maxMemberCount > 0 && currentMemberCount >= maxMemberCount) {
       return false;
     }
 
@@ -188,9 +173,7 @@ class _StudyListPageState extends State<StudyListPage> {
       _studyGroupStream = null;
     });
 
-    await Future<void>.delayed(
-      Duration(milliseconds: 300),
-    );
+    await Future<void>.delayed(Duration(milliseconds: 300));
   }
 
   Future<void> _openCreatePage() async {
@@ -206,39 +189,27 @@ class _StudyListPageState extends State<StudyListPage> {
     );
   }
 
-  void _openStudyDetail(
-      String studyId,
-      Map<String, dynamic> studyData,
-      ) {
+  void _openStudyDetail(String studyId, Map<String, dynamic> studyData) {
     FocusScope.of(context).unfocus();
 
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) {
-          return StudyDetailPage(
-            studyId: studyId,
-            studyData: studyData,
-          );
+          return StudyDetailPage(studyId: studyId, studyData: studyData);
         },
       ),
     );
   }
 
-  void _openStudyRoom(
-      String studyId,
-      String groupName,
-      ) {
+  void _openStudyRoom(String studyId, String groupName) {
     FocusScope.of(context).unfocus();
 
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) {
-          return StudyRoomPage(
-            studyId: studyId,
-            groupName: groupName,
-          );
+          return StudyRoomPage(studyId: studyId, groupName: groupName);
         },
       ),
     );
@@ -251,18 +222,15 @@ class _StudyListPageState extends State<StudyListPage> {
       context,
       MaterialPageRoute(
         builder: (context) {
-          return StudyJoinRequestsPage(
-            studyId: studyId,
-          );
+          return StudyJoinRequestsPage(studyId: studyId);
         },
       ),
     );
   }
 
-  Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
-  _loadMyStudyList(
-      List<QueryDocumentSnapshot<Map<String, dynamic>>> allStudyList,
-      ) async {
+  Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> _loadMyStudyList(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> allStudyList,
+  ) async {
     List<QueryDocumentSnapshot<Map<String, dynamic>>> myStudyList = [];
 
     User? currentUser = FirebaseAuth.instance.currentUser;
@@ -273,7 +241,7 @@ class _StudyListPageState extends State<StudyListPage> {
 
     for (int i = 0; i < allStudyList.length; i++) {
       QueryDocumentSnapshot<Map<String, dynamic>> studyDocument =
-      allStudyList[i];
+          allStudyList[i];
 
       Map<String, dynamic> studyData = studyDocument.data();
 
@@ -285,12 +253,12 @@ class _StudyListPageState extends State<StudyListPage> {
       }
 
       DocumentSnapshot<Map<String, dynamic>> memberSnapshot =
-      await FirebaseFirestore.instance
-          .collection('studyGroups')
-          .doc(studyDocument.id)
-          .collection('members')
-          .doc(currentUser.uid)
-          .get();
+          await FirebaseFirestore.instance
+              .collection('studyGroups')
+              .doc(studyDocument.id)
+              .collection('members')
+              .doc(currentUser.uid)
+              .get();
 
       if (memberSnapshot.exists) {
         Map<String, dynamic> memberData = memberSnapshot.data() ?? {};
@@ -311,17 +279,14 @@ class _StudyListPageState extends State<StudyListPage> {
     }).toList();
   }
 
-  bool _matchesStudySearch(
-      Map<String, dynamic> studyData,
-      ) {
+  bool _matchesStudySearch(Map<String, dynamic> studyData) {
     String keyword = _searchText.trim().toLowerCase();
 
     if (keyword.isEmpty) {
       return true;
     }
 
-    String groupName =
-        studyData['groupName']?.toString().toLowerCase() ?? '';
+    String groupName = studyData['groupName']?.toString().toLowerCase() ?? '';
     String description =
         studyData['description']?.toString().toLowerCase() ?? '';
     String certificateName =
@@ -333,15 +298,15 @@ class _StudyListPageState extends State<StudyListPage> {
   }
 
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _filterFindStudyList(
-      List<QueryDocumentSnapshot<Map<String, dynamic>>> allStudyList,
-      ) {
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> allStudyList,
+  ) {
     List<QueryDocumentSnapshot<Map<String, dynamic>>> visibleStudyList = [];
 
     String searchText = _searchText.toLowerCase();
 
     for (int i = 0; i < allStudyList.length; i++) {
       QueryDocumentSnapshot<Map<String, dynamic>> studyDocument =
-      allStudyList[i];
+          allStudyList[i];
 
       Map<String, dynamic> studyData = studyDocument.data();
 
@@ -357,8 +322,7 @@ class _StudyListPageState extends State<StudyListPage> {
         continue;
       }
 
-      String groupName =
-          studyData['groupName']?.toString().toLowerCase() ?? '';
+      String groupName = studyData['groupName']?.toString().toLowerCase() ?? '';
 
       String description =
           studyData['description']?.toString().toLowerCase() ?? '';
@@ -368,8 +332,8 @@ class _StudyListPageState extends State<StudyListPage> {
 
       bool matchesSearch =
           groupName.contains(searchText) ||
-              description.contains(searchText) ||
-              certificateName.contains(searchText);
+          description.contains(searchText) ||
+          certificateName.contains(searchText);
 
       if (matchesSearch == false) {
         continue;
@@ -425,8 +389,7 @@ class _StudyListPageState extends State<StudyListPage> {
             title,
             style: TextStyle(
               fontSize: 14,
-              fontWeight:
-              isSelected ? FontWeight.w700 : FontWeight.w500,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
         ),
@@ -447,10 +410,7 @@ class _StudyListPageState extends State<StudyListPage> {
         },
         decoration: InputDecoration(
           hintText: '스터디 이름 또는 자격증 검색',
-          hintStyle: TextStyle(
-            fontSize: 13,
-            color: _studyColors.textSecondary,
-          ),
+          hintStyle: TextStyle(fontSize: 13, color: _studyColors.textSecondary),
           prefixIcon: Icon(
             Icons.search_rounded,
             size: 21,
@@ -459,42 +419,31 @@ class _StudyListPageState extends State<StudyListPage> {
           suffixIcon: _searchText.isEmpty
               ? null
               : IconButton(
-            tooltip: '검색어 지우기',
-            onPressed: () {
-              _searchController.clear();
+                  tooltip: '검색어 지우기',
+                  onPressed: () {
+                    _searchController.clear();
 
-              setState(() {
-                _searchText = '';
-              });
-            },
-            icon: Icon(
-              Icons.close_rounded,
-              size: 19,
-            ),
-          ),
+                    setState(() {
+                      _searchText = '';
+                    });
+                  },
+                  icon: Icon(Icons.close_rounded, size: 19),
+                ),
           filled: true,
           fillColor: _studyColorScheme.surface,
           isDense: true,
-          contentPadding: EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 12,
-          ),
+          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
             borderSide: BorderSide.none,
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(
-              color: _studyColors.pinkSoft,
-            ),
+            borderSide: BorderSide(color: _studyColors.pinkSoft),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(
-              color: _studyColors.pinkStart,
-              width: 1.3,
-            ),
+            borderSide: BorderSide(color: _studyColors.pinkStart, width: 1.3),
           ),
         ),
       ),
@@ -520,22 +469,14 @@ class _StudyListPageState extends State<StudyListPage> {
       showCheckmark: false,
       selectedColor: backgroundColor,
       backgroundColor: backgroundColor,
-      side: BorderSide(
-        color: borderColor,
-      ),
+      side: BorderSide(color: borderColor),
       labelStyle: TextStyle(
         fontSize: 12,
         color: textColor,
-        fontWeight:
-        isSelected ? FontWeight.bold : FontWeight.normal,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
       ),
-      padding: EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 4,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       onSelected: (value) {
         setState(() {
           _selectedFindFilter = title;
@@ -544,16 +485,9 @@ class _StudyListPageState extends State<StudyListPage> {
     );
   }
 
-  Widget _buildBadge(
-      String text,
-      Color backgroundColor,
-      Color textColor,
-      ) {
+  Widget _buildBadge(String text, Color backgroundColor, Color textColor) {
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 5,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(9),
@@ -571,10 +505,7 @@ class _StudyListPageState extends State<StudyListPage> {
     );
   }
 
-  Widget _buildStudyCircle(
-      String certificateName,
-      String thumbnailUrl,
-      ) {
+  Widget _buildStudyCircle(String certificateName, String thumbnailUrl) {
     if (thumbnailUrl.isNotEmpty) {
       return CircleAvatar(
         radius: 27,
@@ -604,34 +535,23 @@ class _StudyListPageState extends State<StudyListPage> {
   }
 
   Widget _buildMyStudyCard(
-      QueryDocumentSnapshot<Map<String, dynamic>> studyDocument,
-      ) {
+    QueryDocumentSnapshot<Map<String, dynamic>> studyDocument,
+  ) {
     Map<String, dynamic> studyData = studyDocument.data();
 
-    String groupName =
-        studyData['groupName']?.toString() ?? '스터디';
+    String groupName = studyData['groupName']?.toString() ?? '스터디';
 
-    String description =
-        studyData['description']?.toString() ?? '';
+    String description = studyData['description']?.toString() ?? '';
 
-    String certificateName =
-        studyData['certificateName']?.toString() ?? '공통';
+    String certificateName = studyData['certificateName']?.toString() ?? '공통';
 
-    String thumbnailUrl =
-        studyData['thumbnailUrl']?.toString() ?? '';
+    String thumbnailUrl = studyData['thumbnailUrl']?.toString() ?? '';
 
-    String ownerUid =
-        studyData['ownerUid']?.toString() ?? '';
+    String ownerUid = studyData['ownerUid']?.toString() ?? '';
 
-    int currentMemberCount = _getInt(
-      studyData,
-      'currentMemberCount',
-    );
+    int currentMemberCount = _getInt(studyData, 'currentMemberCount');
 
-    int maxMemberCount = _getInt(
-      studyData,
-      'maxMemberCount',
-    );
+    int maxMemberCount = _getInt(studyData, 'maxMemberCount');
 
     User? currentUser = FirebaseAuth.instance.currentUser;
     String currentUserUid = '';
@@ -667,10 +587,7 @@ class _StudyListPageState extends State<StudyListPage> {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
-          _openStudyRoom(
-            studyDocument.id,
-            groupName,
-          );
+          _openStudyRoom(studyDocument.id, groupName);
         },
         child: Padding(
           padding: EdgeInsets.only(bottom: 10),
@@ -691,25 +608,17 @@ class _StudyListPageState extends State<StudyListPage> {
                       ),
                     ),
                     SizedBox(width: 7),
-                    _buildBadge(
-                      roleText,
-                      roleBackgroundColor,
-                      roleTextColor,
-                    ),
+                    _buildBadge(roleText, roleBackgroundColor, roleTextColor),
                   ],
                 ),
-                if (isOwner)
-                  _buildJoinRequestNotice(
-                    studyDocument.id,
-                  ),
+                if (isOwner) _buildJoinRequestNotice(studyDocument.id),
                 SizedBox(height: 9),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: Column(
-                        crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             groupName,
@@ -730,8 +639,7 @@ class _StudyListPageState extends State<StudyListPage> {
                             style: TextStyle(
                               fontSize: 12,
                               height: 1.4,
-                              color:
-                              _studyColors.textSecondary,
+                              color: _studyColors.textSecondary,
                             ),
                           ),
                         ],
@@ -740,26 +648,18 @@ class _StudyListPageState extends State<StudyListPage> {
                     if (thumbnailUrl.isNotEmpty) ...[
                       SizedBox(width: 11),
                       ClipRRect(
-                        borderRadius:
-                        BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(12),
                         child: Image.network(
                           thumbnailUrl,
                           width: 68,
                           height: 68,
                           fit: BoxFit.cover,
-                          errorBuilder: (
-                              context,
-                              error,
-                              stackTrace,
-                              ) {
+                          errorBuilder: (context, error, stackTrace) {
                             return Container(
                               width: 68,
                               height: 68,
                               color: _studyColors.pinkSoft,
-                              child: Icon(
-                                Icons
-                                    .image_not_supported_outlined,
-                              ),
+                              child: Icon(Icons.image_not_supported_outlined),
                             );
                           },
                         ),
@@ -786,10 +686,7 @@ class _StudyListPageState extends State<StudyListPage> {
                     Spacer(),
                     TextButton(
                       onPressed: () {
-                        _openStudyDetail(
-                          studyDocument.id,
-                          studyData,
-                        );
+                        _openStudyDetail(studyDocument.id, studyData);
                       },
                       style: TextButton.styleFrom(
                         minimumSize: Size(0, 28),
@@ -797,8 +694,7 @@ class _StudyListPageState extends State<StudyListPage> {
                           horizontal: 7,
                           vertical: 3,
                         ),
-                        tapTargetSize:
-                        MaterialTapTargetSize.shrinkWrap,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                       child: Text(
                         '정보',
@@ -833,19 +729,13 @@ class _StudyListPageState extends State<StudyListPage> {
     );
   }
 
-  Widget _buildJoinRequestNotice(
-      String studyId,
-      ) {
-    return StreamBuilder<
-        QuerySnapshot<Map<String, dynamic>>>(
+  Widget _buildJoinRequestNotice(String studyId) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('studyGroups')
           .doc(studyId)
           .collection('members')
-          .where(
-        'status',
-        isEqualTo: 'PENDING',
-      )
+          .where('status', isEqualTo: 'PENDING')
           .snapshots(),
       builder: (context, snapshot) {
         int pendingCount = 0;
@@ -869,10 +759,7 @@ class _StudyListPageState extends State<StudyListPage> {
               },
               borderRadius: BorderRadius.circular(12),
               child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 11,
-                  vertical: 9,
-                ),
+                padding: EdgeInsets.symmetric(horizontal: 11, vertical: 9),
                 child: Row(
                   children: [
                     Stack(
@@ -892,9 +779,7 @@ class _StudyListPageState extends State<StudyListPage> {
                               minHeight: 17,
                             ),
                             alignment: Alignment.center,
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 4,
-                            ),
+                            padding: EdgeInsets.symmetric(horizontal: 4),
                             decoration: BoxDecoration(
                               color: _studyColors.pinkStart,
                               shape: BoxShape.circle,
@@ -947,31 +832,22 @@ class _StudyListPageState extends State<StudyListPage> {
   }
 
   Widget _buildFindStudyCard(
-      QueryDocumentSnapshot<Map<String, dynamic>> studyDocument,
-      ) {
+    QueryDocumentSnapshot<Map<String, dynamic>> studyDocument,
+  ) {
     Map<String, dynamic> studyData = studyDocument.data();
 
-    String groupName =
-        studyData['groupName']?.toString() ?? '그룹명 없음';
+    String groupName = studyData['groupName']?.toString() ?? '그룹명 없음';
 
-    String description =
-        studyData['description']?.toString() ?? '';
+    String description = studyData['description']?.toString() ?? '';
 
     String certificateName =
         studyData['certificateName']?.toString() ?? '공통 스터디';
 
-    String thumbnailUrl =
-        studyData['thumbnailUrl']?.toString() ?? '';
+    String thumbnailUrl = studyData['thumbnailUrl']?.toString() ?? '';
 
-    int currentMemberCount = _getInt(
-      studyData,
-      'currentMemberCount',
-    );
+    int currentMemberCount = _getInt(studyData, 'currentMemberCount');
 
-    int maxMemberCount = _getInt(
-      studyData,
-      'maxMemberCount',
-    );
+    int maxMemberCount = _getInt(studyData, 'maxMemberCount');
 
     bool isRecruiting = _isRecruiting(studyData);
 
@@ -994,10 +870,7 @@ class _StudyListPageState extends State<StudyListPage> {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
-          _openStudyDetail(
-            studyDocument.id,
-            studyData,
-          );
+          _openStudyDetail(studyDocument.id, studyData);
         },
         child: Padding(
           padding: EdgeInsets.only(bottom: 10),
@@ -1031,8 +904,7 @@ class _StudyListPageState extends State<StudyListPage> {
                   children: [
                     Expanded(
                       child: Column(
-                        crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             groupName,
@@ -1053,8 +925,7 @@ class _StudyListPageState extends State<StudyListPage> {
                             style: TextStyle(
                               fontSize: 12,
                               height: 1.4,
-                              color:
-                              _studyColors.textSecondary,
+                              color: _studyColors.textSecondary,
                             ),
                           ),
                         ],
@@ -1063,26 +934,18 @@ class _StudyListPageState extends State<StudyListPage> {
                     if (thumbnailUrl.isNotEmpty) ...[
                       SizedBox(width: 11),
                       ClipRRect(
-                        borderRadius:
-                        BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(12),
                         child: Image.network(
                           thumbnailUrl,
                           width: 68,
                           height: 68,
                           fit: BoxFit.cover,
-                          errorBuilder: (
-                              context,
-                              error,
-                              stackTrace,
-                              ) {
+                          errorBuilder: (context, error, stackTrace) {
                             return Container(
                               width: 68,
                               height: 68,
                               color: _studyColors.pinkSoft,
-                              child: Icon(
-                                Icons
-                                    .image_not_supported_outlined,
-                              ),
+                              child: Icon(Icons.image_not_supported_outlined),
                             );
                           },
                         ),
@@ -1131,24 +994,20 @@ class _StudyListPageState extends State<StudyListPage> {
   }
 
   Widget _buildMyStudyBody(
-      List<QueryDocumentSnapshot<Map<String, dynamic>>> allStudyList,
-      ) {
-    return FutureBuilder<
-        List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> allStudyList,
+  ) {
+    return FutureBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
       future: _loadMyStudyList(allStudyList),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return AppLoadingView(
-            message: '참여 중인 스터디를 불러오는 중입니다.',
-          );
+          return AppLoadingView(message: '참여 중인 스터디를 불러오는 중입니다.');
         }
 
         if (snapshot.hasError) {
           if (_isNetworkError(snapshot.error)) {
             return AppNetworkErrorView(
               message: '인터넷 연결을 확인해 주세요.',
-              description:
-              'Wi-Fi 또는 모바일 데이터를 확인한 뒤 다시 시도해 주세요.',
+              description: 'Wi-Fi 또는 모바일 데이터를 확인한 뒤 다시 시도해 주세요.',
               retryButtonText: '다시 시도',
               onRetryPressed: _reloadStudyList,
             );
@@ -1214,9 +1073,7 @@ class _StudyListPageState extends State<StudyListPage> {
               padding: EdgeInsets.zero,
               itemCount: myStudyList.length,
               itemBuilder: (context, index) {
-                return _buildMyStudyCard(
-                  myStudyList[index],
-                );
+                return _buildMyStudyCard(myStudyList[index]);
               },
             ),
           ],
@@ -1226,10 +1083,10 @@ class _StudyListPageState extends State<StudyListPage> {
   }
 
   Widget _buildFindStudyBody(
-      List<QueryDocumentSnapshot<Map<String, dynamic>>> allStudyList,
-      ) {
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> allStudyList,
+  ) {
     List<QueryDocumentSnapshot<Map<String, dynamic>>> visibleStudyList =
-    _filterFindStudyList(allStudyList);
+        _filterFindStudyList(allStudyList);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1245,10 +1102,7 @@ class _StudyListPageState extends State<StudyListPage> {
         ),
         SizedBox(height: 14),
         if (visibleStudyList.isEmpty)
-          SizedBox(
-            height: 390,
-            child: _buildFindEmptyScreen(),
-          )
+          SizedBox(height: 390, child: _buildFindEmptyScreen())
         else ...[
           Padding(
             padding: EdgeInsets.only(left: 2, bottom: 12),
@@ -1280,9 +1134,7 @@ class _StudyListPageState extends State<StudyListPage> {
             padding: EdgeInsets.zero,
             itemCount: visibleStudyList.length,
             itemBuilder: (context, index) {
-              return _buildFindStudyCard(
-                visibleStudyList[index],
-              );
+              return _buildFindStudyCard(visibleStudyList[index]);
             },
           ),
         ],
@@ -1322,8 +1174,7 @@ class _StudyListPageState extends State<StudyListPage> {
 
   @override
   Widget build(BuildContext context) {
-    bool isKeyboardOpen =
-        MediaQuery.of(context).viewInsets.bottom > 0;
+    bool isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
 
     double bottomPadding = 12;
 
@@ -1332,24 +1183,34 @@ class _StudyListPageState extends State<StudyListPage> {
     }
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
       resizeToAvoidBottomInset: true,
       appBar: AppTopBar(
         title: '스터디',
         centerTitle: false,
+        actions: [
+          IconButton(
+            tooltip: '알림',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificationPage()),
+              );
+            },
+            icon: const Icon(
+              Icons.notifications_none_rounded,
+              color: Color(0xFF302C2E),
+            ),
+          ),
+        ],
       ),
       body: AppMainBackground(
-        applySafeArea: false,
         child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            16,
-            4,
-            16,
-            bottomPadding,
-          ),
+          padding: EdgeInsets.fromLTRB(16, 4, 16, bottomPadding),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              double bodyMinHeight =
-                  constraints.maxHeight - 99;
+              double bodyMinHeight = constraints.maxHeight - 99;
 
               if (bodyMinHeight < 0) {
                 bodyMinHeight = 0;
@@ -1360,9 +1221,8 @@ class _StudyListPageState extends State<StudyListPage> {
                 onRefresh: _refreshStudyList,
                 child: ListView(
                   keyboardDismissBehavior:
-                  ScrollViewKeyboardDismissBehavior.onDrag,
-                  physics:
-                  AlwaysScrollableScrollPhysics(),
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  physics: AlwaysScrollableScrollPhysics(),
                   padding: EdgeInsets.only(bottom: 100),
                   children: [
                     _buildStudySearchField(),
@@ -1376,92 +1236,71 @@ class _StudyListPageState extends State<StudyListPage> {
                     ),
                     SizedBox(height: 14),
                     ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: bodyMinHeight,
-                      ),
-                      child: StreamBuilder<
-                          QuerySnapshot<Map<String, dynamic>>>(
+                      constraints: BoxConstraints(minHeight: bodyMinHeight),
+                      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                         stream: _getStudyGroupStream(),
                         builder: (context, snapshot) {
                           if (snapshot.connectionState ==
                               ConnectionState.waiting) {
                             return AppLoadingView(
-                              message:
-                              '스터디 목록을 불러오는 중입니다.',
+                              message: '스터디 목록을 불러오는 중입니다.',
                             );
                           }
 
                           if (snapshot.hasError) {
                             debugPrint(
                               '스터디 목록 조회 오류: '
-                                  '${snapshot.error}',
+                              '${snapshot.error}',
                             );
 
-                            if (_isNetworkError(
-                              snapshot.error,
-                            )) {
+                            if (_isNetworkError(snapshot.error)) {
                               return AppNetworkErrorView(
-                                message:
-                                '인터넷 연결을 확인해 주세요.',
+                                message: '인터넷 연결을 확인해 주세요.',
                                 description:
-                                'Wi-Fi 또는 모바일 데이터를 확인한 뒤 다시 시도해 주세요.',
+                                    'Wi-Fi 또는 모바일 데이터를 확인한 뒤 다시 시도해 주세요.',
                                 retryButtonText: '다시 시도',
-                                onRetryPressed:
-                                _reloadStudyList,
+                                onRetryPressed: _reloadStudyList,
                               );
                             }
 
                             return AppErrorView(
-                              message:
-                              '스터디 목록을 불러오지 못했습니다.',
-                              description:
-                              '잠시 후 다시 시도해 주세요.',
+                              message: '스터디 목록을 불러오지 못했습니다.',
+                              description: '잠시 후 다시 시도해 주세요.',
                               retryButtonText: '다시 시도',
-                              onRetryPressed:
-                              _reloadStudyList,
+                              onRetryPressed: _reloadStudyList,
                             );
                           }
 
-                          List<QueryDocumentSnapshot<
-                              Map<String, dynamic>>>
+                          List<QueryDocumentSnapshot<Map<String, dynamic>>>
                           allStudyList = [];
 
                           if (snapshot.data != null) {
-                            allStudyList =
-                                snapshot.data!.docs.toList();
+                            allStudyList = snapshot.data!.docs.toList();
                           }
 
                           allStudyList.sort((a, b) {
-                            dynamic aCreatedAt =
-                            a.data()['createdAt'];
-                            dynamic bCreatedAt =
-                            b.data()['createdAt'];
+                            dynamic aCreatedAt = a.data()['createdAt'];
+                            dynamic bCreatedAt = b.data()['createdAt'];
 
                             int aTime = 0;
                             int bTime = 0;
 
                             if (aCreatedAt is Timestamp) {
-                              aTime = aCreatedAt
-                                  .millisecondsSinceEpoch;
+                              aTime = aCreatedAt.millisecondsSinceEpoch;
                             }
 
                             if (bCreatedAt is Timestamp) {
-                              bTime = bCreatedAt
-                                  .millisecondsSinceEpoch;
+                              bTime = bCreatedAt.millisecondsSinceEpoch;
                             }
 
                             return bTime.compareTo(aTime);
                           });
 
                           if (_selectedTab == '내 스터디') {
-                            return _buildMyStudyBody(
-                              allStudyList,
-                            );
+                            return _buildMyStudyBody(allStudyList);
                           }
 
-                          return _buildFindStudyBody(
-                            allStudyList,
-                          );
+                          return _buildFindStudyBody(allStudyList);
                         },
                       ),
                     ),
@@ -1475,18 +1314,16 @@ class _StudyListPageState extends State<StudyListPage> {
       floatingActionButton: isKeyboardOpen
           ? null
           : FloatingActionButton.extended(
-        heroTag: 'study_list_fab',
-        onPressed: _openCreatePage,
-        backgroundColor: _studyColors.pinkStart,
-        foregroundColor: Colors.white,
-        icon: Icon(Icons.add_rounded),
-        label: Text(
-          '스터디 만들기',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
+              heroTag: 'study_list_fab',
+              onPressed: _openCreatePage,
+              backgroundColor: _studyColors.pinkStart,
+              foregroundColor: Colors.white,
+              icon: Icon(Icons.add_rounded),
+              label: Text(
+                '스터디 만들기',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
     );
   }
 }

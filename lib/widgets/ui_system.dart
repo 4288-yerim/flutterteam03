@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_bottom_bar.dart';
@@ -7,10 +8,15 @@ import '../widgets/app_card.dart';
 /// 이 파일을 Android Studio에서 열고 우측 상단 ▶ 버튼(또는 main() 옆 초록 삼각형)을
 /// 누르면 이 페이지만 바로 실행됩니다. Firebase 연결 필요 없어요.
 void main() {
-  runApp(const MaterialApp(
-    debugShowCheckedModeBanner: false,
-    home: UiSystemPage(),
-  ));
+  runApp(
+    MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: lightTheme,
+      darkTheme: darkTheme,
+      themeMode: ThemeMode.system,
+      home: const UiSystemPage(),
+    ),
+  );
 }
 
 /// PASSMATE UI SYSTEM 스타일 가이드 페이지
@@ -27,6 +33,8 @@ class _UiSystemPageState extends State<UiSystemPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     return Scaffold(
       extendBody: true,
       bottomNavigationBar: AppBottomBar(
@@ -40,18 +48,18 @@ class _UiSystemPageState extends State<UiSystemPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 타이틀
-              const Text(
+              Text(
                 'PASSMATE UI SYSTEM',
                 style: TextStyle(
                   fontSize: 30,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF1A1A1A),
+                  color: colors.textPrimary,
                 ),
               ),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 '파스텔 핑크 기반 통합 디자인',
-                style: TextStyle(fontSize: 15, color: Color(0xFF9AA0AC)),
+                style: TextStyle(fontSize: 15, color: colors.textSecondary),
               ),
               const SizedBox(height: 32),
 
@@ -59,16 +67,16 @@ class _UiSystemPageState extends State<UiSystemPage> {
               _SectionTitle('Color'),
               const SizedBox(height: 16),
               Row(
-                children: const [
-                  _ColorSwatch(color: Color(0xFFF0788F), label: 'Primary'),
-                  SizedBox(width: 12),
-                  _ColorSwatch(color: Color(0xFFFCE1E8), label: 'Pink Soft'),
-                  SizedBox(width: 12),
-                  _ColorSwatch(color: Color(0xFFE6E1FB), label: 'Lavender'),
-                  SizedBox(width: 12),
-                  _ColorSwatch(color: Color(0xFFE1E9FB), label: 'Soft Blue'),
-                  SizedBox(width: 12),
-                  _ColorSwatch(color: Color(0xFFDFF5EA), label: 'Mint'),
+                children: [
+                  _ColorSwatch(color: colors.pinkDeep, label: 'Primary'),
+                  const SizedBox(width: 12),
+                  _ColorSwatch(color: colors.pinkSoft, label: 'Pink Soft'),
+                  const SizedBox(width: 12),
+                  _ColorSwatch(color: colors.lavender, label: 'Lavender'),
+                  const SizedBox(width: 12),
+                  _ColorSwatch(color: colors.softBlue, label: 'Soft Blue'),
+                  const SizedBox(width: 12),
+                  _ColorSwatch(color: colors.mint, label: 'Mint'),
                 ],
               ),
               const SizedBox(height: 32),
@@ -130,10 +138,10 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       title,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 22,
         fontWeight: FontWeight.w800,
-        color: Color(0xFF1A1A1A),
+        color: context.colors.textPrimary,
       ),
     );
   }
@@ -164,7 +172,7 @@ class _ColorSwatch extends StatelessWidget {
           Text(
             label,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF4A4A4A)),
+            style: TextStyle(fontSize: 12, color: context.colors.textSecondary),
           ),
         ],
       ),

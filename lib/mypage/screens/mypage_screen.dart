@@ -1,12 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../theme.dart';
 import '../../widgets/app_confirm_dialog.dart';
 import '../../auth/screens/welcome_screen.dart';
 import '../../auth/services/auth_service.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
+import '../../widgets/app_loading_dialog.dart';
 import '../../widgets/app_top_bar.dart';
 import 'profile_edit_screen.dart';
 import 'goal_certificate_screen.dart';
@@ -40,7 +42,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
   String _targetCertificateName = '등록된 목표 없음';
   String? _profileImageUrl;
   bool _isLoadingProfile = true;
-  int _weeklyStudyMinutes = 0;
+  int _weeklyStudySeconds = 0;
   int _joinedStudyCount = 0;
   int _postCount = 0;
   bool _isLoggingOut = false;
@@ -61,20 +63,20 @@ class _MyPageScreenState extends State<MyPageScreen> {
       }
 
       setState(() {
-        _weeklyStudyMinutes = 0;
+        _weeklyStudySeconds = 0;
         _joinedStudyCount = 0;
         _postCount = 0;
       });
       return;
     }
 
-    int weeklyStudyMinutes = _weeklyStudyMinutes;
+    int weeklyStudySeconds = _weeklyStudySeconds;
     int joinedStudyCount = _joinedStudyCount;
     int postCount = _postCount;
     bool hasLoadError = false;
 
     try {
-      weeklyStudyMinutes = await _loadWeeklyStudyMinutes(user.uid);
+      weeklyStudySeconds = await _loadWeeklyStudySeconds(user.uid);
     } catch (error) {
       hasLoadError = true;
     }
@@ -96,52 +98,39 @@ class _MyPageScreenState extends State<MyPageScreen> {
     }
 
     setState(() {
-      _weeklyStudyMinutes = weeklyStudyMinutes;
+      _weeklyStudySeconds = weeklyStudySeconds;
       _joinedStudyCount = joinedStudyCount;
       _postCount = postCount;
     });
 
     if (hasLoadError) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            '마이페이지 요약 정보를 일부 불러오지 못했습니다.',
-          ),
-        ),
+        const SnackBar(content: Text('마이페이지 요약 정보를 일부 불러오지 못했습니다.')),
       );
     }
   }
 
-  Future<int> _loadWeeklyStudyMinutes(String uid) async {
+  Future<int> _loadWeeklyStudySeconds(String uid) async {
     final DateTime now = DateTime.now();
-    final DateTime today = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    );
+    final DateTime today = DateTime(now.year, now.month, now.day);
 
     final DateTime monday = today.subtract(
       Duration(days: today.weekday - DateTime.monday),
     );
 
     int totalSeconds = 0;
-    final int elapsedDayCount =
-        today.weekday - DateTime.monday + 1;
+    final int elapsedDayCount = today.weekday - DateTime.monday + 1;
 
-    for (int dayIndex = 0;
-    dayIndex < elapsedDayCount;
-    dayIndex++) {
-      final DateTime date = monday.add(
-        Duration(days: dayIndex),
-      );
+    for (int dayIndex = 0; dayIndex < elapsedDayCount; dayIndex++) {
+      final DateTime date = monday.add(Duration(days: dayIndex));
 
       final DocumentSnapshot<Map<String, dynamic>> document =
-      await FirebaseFirestore.instance
-          .collection('userStudyLogs')
-          .doc(uid)
-          .collection('logs')
-          .doc(_formatDateId(date))
-          .get();
+          await FirebaseFirestore.instance
+              .collection('userStudyLogs')
+              .doc(uid)
+              .collection('logs')
+              .doc(_formatDateId(date))
+              .get();
 
       final Map<String, dynamic>? data = document.data();
 
@@ -149,8 +138,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
         continue;
       }
 
-      final int? savedTotalSeconds =
-      (data['totalSeconds'] as num?)?.toInt();
+      final int? savedTotalSeconds = (data['totalSeconds'] as num?)?.toInt();
 
       if (savedTotalSeconds != null) {
         totalSeconds += savedTotalSeconds;
@@ -161,33 +149,79 @@ class _MyPageScreenState extends State<MyPageScreen> {
       }
     }
 
-    return totalSeconds ~/ 60;
+    final QuerySnapshot<Map<String, dynamic>> groupSnapshot =
+        await FirebaseFirestore.instance.collection('studyGroups').get();
+
+    final DateTime nextMonday = monday.add(const Duration(days: 7));
+
+    for (final QueryDocumentSnapshot<Map<String, dynamic>> groupDocument
+        in groupSnapshot.docs) {
+      final QuerySnapshot<Map<String, dynamic>> recordSnapshot =
+          await groupDocument.reference
+              .collection('studyRecords')
+              .where('uid', isEqualTo: uid)
+              .get();
+
+      for (final QueryDocumentSnapshot<Map<String, dynamic>> recordDocument
+          in recordSnapshot.docs) {
+        final Map<String, dynamic> data = recordDocument.data();
+        final DateTime? studiedAt = _readStudyRecordDate(data);
+
+        if (studiedAt == null ||
+            studiedAt.isBefore(monday) ||
+            !studiedAt.isBefore(nextMonday)) {
+          continue;
+        }
+
+        totalSeconds += _readStudyRecordSeconds(data);
+      }
+    }
+
+    return totalSeconds;
+  }
+
+  int _readStudyRecordSeconds(Map<String, dynamic> data) {
+    for (final String fieldName in ['studySeconds', 'elapsedSeconds']) {
+      final dynamic value = data[fieldName];
+      if (value is num) {
+        return value.toInt();
+      }
+    }
+
+    return ((data['studyMinutes'] as num?)?.toInt() ?? 0) * 60;
+  }
+
+  DateTime? _readStudyRecordDate(Map<String, dynamic> data) {
+    for (final String fieldName in ['endedAt', 'startedAt', 'createdAt']) {
+      final dynamic value = data[fieldName];
+      if (value is Timestamp) {
+        return value.toDate();
+      }
+    }
+
+    final dynamic studyDate = data['studyDate'];
+    return studyDate is String ? DateTime.tryParse(studyDate) : null;
   }
 
   Future<int> _loadJoinedStudyCount(String uid) async {
     final QuerySnapshot<Map<String, dynamic>> groupSnapshot =
-    await FirebaseFirestore.instance
-        .collection('studyGroups')
-        .get();
+        await FirebaseFirestore.instance.collection('studyGroups').get();
 
     int joinedStudyCount = 0;
 
     for (final QueryDocumentSnapshot<Map<String, dynamic>> groupDocument
-    in groupSnapshot.docs) {
+        in groupSnapshot.docs) {
       final DocumentSnapshot<Map<String, dynamic>> memberDocument =
-      await groupDocument.reference
-          .collection('members')
-          .doc(uid)
-          .get();
+          await groupDocument.reference.collection('members').doc(uid).get();
 
       if (!memberDocument.exists) {
         continue;
       }
 
       final String memberStatus =
-      (memberDocument.data()?['status'] as String? ?? 'ACTIVE')
-          .trim()
-          .toUpperCase();
+          (memberDocument.data()?['status'] as String? ?? 'ACTIVE')
+              .trim()
+              .toUpperCase();
 
       if (memberStatus == 'ACTIVE') {
         joinedStudyCount++;
@@ -199,27 +233,22 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
   Future<int> _loadMyPostCount(String uid) async {
     final QuerySnapshot<Map<String, dynamic>> postSnapshot =
-    await FirebaseFirestore.instance
-        .collection('posts')
-        .where(
-      'writerUid',
-      isEqualTo: uid,
-    )
-        .get();
+        await FirebaseFirestore.instance
+            .collection('posts')
+            .where('writerUid', isEqualTo: uid)
+            .get();
 
     int postCount = 0;
 
     for (final QueryDocumentSnapshot<Map<String, dynamic>> document
-    in postSnapshot.docs) {
+        in postSnapshot.docs) {
       final Map<String, dynamic> data = document.data();
 
-      final String postStatus =
-      (data['postStatus'] as String? ?? 'NORMAL')
+      final String postStatus = (data['postStatus'] as String? ?? 'NORMAL')
           .trim()
           .toUpperCase();
 
-      final String visibility =
-      (data['visibility'] as String? ?? 'PUBLIC')
+      final String visibility = (data['visibility'] as String? ?? 'PUBLIC')
           .trim()
           .toUpperCase();
 
@@ -270,10 +299,10 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
     try {
       final DocumentSnapshot<Map<String, dynamic>> userDocument =
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
 
       final Map<String, dynamic>? userData = userDocument.data();
 
@@ -301,32 +330,24 @@ class _MyPageScreenState extends State<MyPageScreen> {
         }
 
         // isMainGoal이 true인 목표를 대표 목표로 표시합니다.
-        final QuerySnapshot<Map<String, dynamic>>
-        mainGoalSnapshot =
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .collection('goals')
-            .where(
-          'isMainGoal',
-          isEqualTo: true,
-        )
-            .limit(1)
-            .get();
+        final QuerySnapshot<Map<String, dynamic>> mainGoalSnapshot =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .collection('goals')
+                .where('isMainGoal', isEqualTo: true)
+                .limit(1)
+                .get();
 
         if (mainGoalSnapshot.docs.isNotEmpty) {
-          final Map<String, dynamic> mainGoalData =
-          mainGoalSnapshot.docs.first.data();
+          final Map<String, dynamic> mainGoalData = mainGoalSnapshot.docs.first
+              .data();
 
           final String mainCertificateName =
-          (mainGoalData['certificateName']
-          as String? ??
-              '')
-              .trim();
+              (mainGoalData['certificateName'] as String? ?? '').trim();
 
           if (mainCertificateName.isNotEmpty) {
-            targetCertificateName =
-                mainCertificateName;
+            targetCertificateName = mainCertificateName;
           }
         }
       }
@@ -355,20 +376,16 @@ class _MyPageScreenState extends State<MyPageScreen> {
         _isLoadingProfile = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('마이페이지 정보를 불러오지 못했습니다: $error'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('마이페이지 정보를 불러오지 못했습니다: $error')));
     }
   }
 
   Future<void> _openProfileEdit(BuildContext context) async {
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const ProfileEditScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const ProfileEditScreen()),
     );
 
     // 프로필 수정 화면에서 돌아오면 최신 정보를 다시 조회합니다.
@@ -378,9 +395,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
   Future<void> _openGoalCertificate(BuildContext context) async {
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const GoalCertificateScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const GoalCertificateScreen()),
     );
 
     // 대표 목표를 변경하고 돌아오면 마이페이지를 다시 조회
@@ -390,355 +405,325 @@ class _MyPageScreenState extends State<MyPageScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       // AppTopBar 뒤까지 배경이 이어지도록 설정
       extendBodyBehindAppBar: true,
 
-      appBar: AppTopBar(
-        title: '마이페이지',
-      ),
+      appBar: AppTopBar(title: '마이페이지'),
 
-      body: Stack(
-        children: [
-          AbsorbPointer(
-            absorbing: _isLoggingOut,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                16,
-                20,
-                110,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildProfileCard(context),
-                  const SizedBox(height: 16),
+      body: AppMainBackground(
+        child: Stack(
+          children: [
+            AbsorbPointer(
+              absorbing: _isLoggingOut,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 48),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildProfileCard(context),
+                    const SizedBox(height: 16),
 
-                  MyPageSummaryCard(
-                    studyMinutes: _weeklyStudyMinutes,
-                    studyGroupCount: _joinedStudyCount,
-                    postCount: _postCount,
-                    onStudyTap: () async {
-                      await _openPageAndRefreshSummary(
-                        context,
-                        const StudyRecordScreen(),
-                      );
-                    },
-                    onGroupTap: () async {
-                      await _openPageAndRefreshSummary(
-                        context,
-                        const JoinedStudyScreen(),
-                      );
-                    },
-                    onPostTap: () async {
-                      await _openPageAndRefreshSummary(
-                        context,
-                        const MyPostsScreen(),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 24),
-
-                  const _SectionTitle(title: '나의 학습'),
-                  const SizedBox(height: 12),
-
-                  AppCard(
-                    padding: EdgeInsets.zero,
-                    child: Column(
-                      children: [
-                        MyPageMenuTile(
-                          icon: Icons.flag_outlined,
-                          title: '목표 자격증 관리',
-                          subtitle: '준비 중인 자격증과 시험일을 관리합니다.',
-                          onTap: () {
-                            _openGoalCertificate(context);
-                          },
-                        ),
-                        const _MenuDivider(),
-                        MyPageMenuTile(
-                          icon: Icons.route_outlined,
-                          title: '나의 자격증 로드맵',
-                          subtitle: '저장한 AI 추천 자격증 취득 순서를 확인합니다.',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                const MyCertificateRoadmapScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                        const _MenuDivider(),
-                        MyPageMenuTile(
-                          icon: Icons.calendar_month_outlined,
-                          title: '캘린더',
-                          subtitle: '시험 일정과 학습 계획을 날짜별로 확인합니다.',
-                          onTap: () {
-                            _openPage(
-                              context,
-                              const MyPageCalendarScreen(),
-                            );
-                          },
-                        ),
-                        const _MenuDivider(),
-                        MyPageMenuTile(
-                          icon: Icons.bar_chart_outlined,
-                          title: '학습 기록',
-                          subtitle: '공부 시간과 학습 통계를 확인합니다.',
-                          onTap: () {
-                            _openPage(
-                              context,
-                              const StudyRecordScreen(),
-                            );
-                          },
-                        ),
-                        const _MenuDivider(),
-                        MyPageMenuTile(
-                          icon: Icons.checklist_outlined,
-                          title: '학습 계획',
-                          subtitle: 'AI 학습 계획과 오늘의 할 일을 확인합니다.',
-                          onTap: () {
-                            _openPage(
-                              context,
-                              const StudyPlanScreen(),
-                            );
-                          },
-                        ),
-                      ],
+                    MyPageSummaryCard(
+                      studySeconds: _weeklyStudySeconds,
+                      studyGroupCount: _joinedStudyCount,
+                      postCount: _postCount,
+                      onStudyTap: () async {
+                        await _openPageAndRefreshSummary(
+                          context,
+                          const StudyRecordScreen(),
+                        );
+                      },
+                      onGroupTap: () async {
+                        await _openPageAndRefreshSummary(
+                          context,
+                          const JoinedStudyScreen(),
+                        );
+                      },
+                      onPostTap: () async {
+                        await _openPageAndRefreshSummary(
+                          context,
+                          const MyPostsScreen(),
+                        );
+                      },
                     ),
-                  ),
+                    const SizedBox(height: 24),
 
-                  const SizedBox(height: 24),
-                  const _SectionTitle(title: '나의 활동'),
-                  const SizedBox(height: 12),
+                    const _SectionTitle(title: '나의 학습'),
+                    const SizedBox(height: 12),
 
-                  AppCard(
-                    padding: EdgeInsets.zero,
-                    child: Column(
-                      children: [
-                        MyPageMenuTile(
-                          icon: Icons.article_outlined,
-                          title: '내가 쓴 글',
-                          subtitle: '작성한 게시글을 확인합니다.',
-                          onTap: () async {
-                            await _openPageAndRefreshSummary(
-                              context,
-                              const MyPostsScreen(),
-                            );
-                          },
-                        ),
-                        const _MenuDivider(),
-                        MyPageMenuTile(
-                          icon: Icons.chat_bubble_outline,
-                          title: '내가 쓴 댓글',
-                          subtitle: '작성한 댓글을 확인합니다.',
-                          onTap: () {
-                            _openPage(
-                              context,
-                              const MyCommentsScreen(),
-                            );
-                          },
-                        ),
-                        const _MenuDivider(),
-                        MyPageMenuTile(
-                          icon: Icons.favorite_border,
-                          title: '좋아요한 콘텐츠',
-                          subtitle: '좋아요한 게시글과 댓글을 확인합니다.',
-                          onTap: () {
-                            _openPage(
-                              context,
-                              const LikedContentScreen(),
-                            );
-                          },
-                        ),
-                        const _MenuDivider(),
-                        MyPageMenuTile(
-                          icon: Icons.bookmark_border,
-                          title: '북마크',
-                          subtitle: '저장한 게시글을 확인합니다.',
-                          onTap: () {
-                            _openPage(
-                              context,
-                              const BookmarkScreen(),
-                            );
-                          },
-                        ),
-                        const _MenuDivider(),
-                        MyPageMenuTile(
-                          icon: Icons.people_outline,
-                          title: '친구',
-                          subtitle: '친구를 검색하고 친구 목록을 확인합니다.',
-                          onTap: () {
-                            _openPage(
-                              context,
-                              const FriendScreen(),
-                            );
-                          },
-                        ),
-                        const _MenuDivider(),
-                        MyPageMenuTile(
-                          icon: Icons.groups_outlined,
-                          title: '참여 중인 스터디',
-                          subtitle: '가입한 스터디 그룹을 확인합니다.',
-                          onTap: () {
-                            _openPage(
-                              context,
-                              const JoinedStudyScreen(),
-                            );
-                          },
-                        ),
-                      ],
+                    AppCard(
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        children: [
+                          MyPageMenuTile(
+                            icon: Icons.flag_outlined,
+                            title: '목표 자격증 관리',
+                            subtitle: '준비 중인 자격증과 시험일을 관리합니다.',
+                            onTap: () {
+                              _openGoalCertificate(context);
+                            },
+                          ),
+                          const _MenuDivider(),
+                          MyPageMenuTile(
+                            icon: Icons.route_outlined,
+                            title: '나의 자격증 로드맵',
+                            subtitle: '저장한 AI 추천 자격증 취득 순서를 확인합니다.',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const MyCertificateRoadmapScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          const _MenuDivider(),
+                          MyPageMenuTile(
+                            icon: Icons.calendar_month_outlined,
+                            title: '캘린더',
+                            subtitle: '시험 일정과 학습 계획을 날짜별로 확인합니다.',
+                            onTap: () {
+                              _openPage(context, const MyPageCalendarScreen());
+                            },
+                          ),
+                          const _MenuDivider(),
+                          MyPageMenuTile(
+                            icon: Icons.bar_chart_outlined,
+                            title: '학습 기록',
+                            subtitle: '공부 시간과 학습 통계를 확인합니다.',
+                            onTap: () {
+                              _openPage(context, const StudyRecordScreen());
+                            },
+                          ),
+                          const _MenuDivider(),
+                          MyPageMenuTile(
+                            icon: Icons.checklist_outlined,
+                            title: '학습 계획',
+                            subtitle: 'AI 학습 계획과 오늘의 할 일을 확인합니다.',
+                            onTap: () {
+                              _openPage(context, const StudyPlanScreen());
+                            },
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
 
-                  const SizedBox(height: 24),
-                  const _SectionTitle(title: '계정 및 설정'),
-                  const SizedBox(height: 12),
+                    const SizedBox(height: 24),
+                    const _SectionTitle(title: '나의 활동'),
+                    const SizedBox(height: 12),
 
-                  AppCard(
-                    padding: EdgeInsets.zero,
-                    child: Column(
-                      children: [
-                        MyPageMenuTile(
-                          icon: Icons.lock_outline,
-                          title: '비밀번호 변경',
-                          subtitle: '현재 비밀번호를 확인하고 변경합니다.',
-                          onTap: () {
-                            _openPage(
-                              context,
-                              const PasswordChangeScreen(),
-                            );
-                          },
-                        ),
-                        const _MenuDivider(),
-                        MyPageMenuTile(
-                          icon: Icons.settings_outlined,
-                          title: '설정',
-                          subtitle: '화면 표시와 알림 수신 여부를 설정합니다.',
-                          onTap: () {
-                            _openPage(
-                              context,
-                              const AppSettingScreen(),
-                            );
-                          },
-                        ),
-                        const _MenuDivider(),
-                        MyPageMenuTile(
-                          icon: Icons.help_outline,
-                          title: '문의 및 도움말',
-                          subtitle: '문의 내역과 자주 묻는 질문을 확인합니다.',
-                          onTap: () {
-                            _openPage(
-                              context,
-                              const HelpAndInquiryScreen(),
-                            );
-                          },
-                        ),
-                      ],
+                    AppCard(
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        children: [
+                          MyPageMenuTile(
+                            icon: Icons.article_outlined,
+                            title: '내가 쓴 글',
+                            subtitle: '작성한 게시글을 확인합니다.',
+                            onTap: () async {
+                              await _openPageAndRefreshSummary(
+                                context,
+                                const MyPostsScreen(),
+                              );
+                            },
+                          ),
+                          const _MenuDivider(),
+                          MyPageMenuTile(
+                            icon: Icons.chat_bubble_outline,
+                            title: '내가 쓴 댓글',
+                            subtitle: '작성한 댓글을 확인합니다.',
+                            onTap: () {
+                              _openPage(context, const MyCommentsScreen());
+                            },
+                          ),
+                          const _MenuDivider(),
+                          MyPageMenuTile(
+                            icon: Icons.favorite_border,
+                            title: '좋아요한 콘텐츠',
+                            subtitle: '좋아요한 게시글과 댓글을 확인합니다.',
+                            onTap: () {
+                              _openPage(context, const LikedContentScreen());
+                            },
+                          ),
+                          const _MenuDivider(),
+                          MyPageMenuTile(
+                            icon: Icons.bookmark_border,
+                            title: '북마크',
+                            subtitle: '저장한 게시글을 확인합니다.',
+                            onTap: () {
+                              _openPage(context, const BookmarkScreen());
+                            },
+                          ),
+                          const _MenuDivider(),
+                          MyPageMenuTile(
+                            icon: Icons.people_outline,
+                            title: '친구',
+                            subtitle: '친구를 검색하고 친구 목록을 확인합니다.',
+                            onTap: () {
+                              _openPage(context, const FriendScreen());
+                            },
+                          ),
+                          const _MenuDivider(),
+                          MyPageMenuTile(
+                            icon: Icons.groups_outlined,
+                            title: '참여 중인 스터디',
+                            subtitle: '가입한 스터디 그룹을 확인합니다.',
+                            onTap: () {
+                              _openPage(context, const JoinedStudyScreen());
+                            },
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
 
-                  const SizedBox(height: 24),
+                    const SizedBox(height: 24),
+                    const _SectionTitle(title: '계정 및 설정'),
+                    const SizedBox(height: 12),
 
-                  AppButton(
-                    text: '로그아웃',
-                    type: AppButtonType.outlinePink,
-                    onPressed: () {
-                      AppConfirmDialog.show(
-                        context,
-                        icon: Icons.logout_rounded,
-                        title: '로그아웃',
-                        description: '현재 계정에서 로그아웃하시겠습니까?',
-                        primaryLabel: '로그아웃',
-                        secondaryLabel: '취소',
-                        onSecondaryPressed: () => Navigator.of(context).pop(),
-                        onPrimaryPressed: () async {
-                          Navigator.of(context).pop();
+                    AppCard(
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        children: [
+                          MyPageMenuTile(
+                            icon: Icons.lock_outline,
+                            title: '비밀번호 변경',
+                            subtitle: '현재 비밀번호를 확인하고 변경합니다.',
+                            onTap: () {
+                              _openPage(context, const PasswordChangeScreen());
+                            },
+                          ),
+                          const _MenuDivider(),
+                          MyPageMenuTile(
+                            icon: Icons.settings_outlined,
+                            title: '설정',
+                            subtitle: '화면 표시와 알림 수신 여부를 설정합니다.',
+                            onTap: () {
+                              _openPage(context, const AppSettingScreen());
+                            },
+                          ),
+                          const _MenuDivider(),
+                          MyPageMenuTile(
+                            icon: Icons.help_outline,
+                            title: '문의 및 도움말',
+                            subtitle: '문의 내역과 자주 묻는 질문을 확인합니다.',
+                            onTap: () {
+                              _openPage(context, const HelpAndInquiryScreen());
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
 
-                          setState(() {
-                            _isLoggingOut = true;
-                          });
+                    const SizedBox(height: 24),
 
-                          try {
-                            await AuthService.signOut();
+                    AppButton(
+                      text: '로그아웃',
+                      type: AppButtonType.outlinePink,
+                      onPressed: () {
+                        AppConfirmDialog.show(
+                          context,
+                          icon: Icons.logout_rounded,
+                          title: '로그아웃',
+                          description: '현재 계정에서 로그아웃하시겠습니까?',
+                          primaryLabel: '로그아웃',
+                          secondaryLabel: '취소',
+                          onSecondaryPressed: () => Navigator.of(context).pop(),
+                          onPrimaryPressed: () async {
+                            Navigator.of(context).pop();
 
-                            if (!context.mounted) {
-                              return;
-                            }
-
-                            Navigator.of(context).pushAndRemoveUntil(
-                              MaterialPageRoute(
-                                builder: (_) => const WelcomeScreen(),
-                              ),
-                                  (route) => false,
-                            );
-                          } catch (error) {
-                            if (!context.mounted) {
-                              return;
-                            }
                             setState(() {
-                              _isLoggingOut = false;
+                              _isLoggingOut = true;
                             });
 
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('로그아웃에 실패했습니다. 잠시 후 다시 시도해 주세요.'),
-                              ),
+                            AppLoadingDialog.show(
+                              context,
+                              title: '로그아웃 중...',
+                              description: '잠시만 기다려 주세요.',
                             );
-                          }
-                        },
-                      );
-                    },
-                  ),
 
-                  const SizedBox(height: 12),
+                            try {
+                              await AuthService.signOut();
 
-                  TextButton(
-                    onPressed: () {
-                      _openPage(
-                        context,
-                        const AccountWithdrawalScreen(),
-                      );
-                    },
-                    child: const Text(
-                      '회원 탈퇴',
-                      style: TextStyle(
-                        color: Color(0xFF9AA0AC),
-                        decoration: TextDecoration.underline,
-                      ),
+                              if (!context.mounted) {
+                                return;
+                              }
+
+                              Navigator.of(
+                                context,
+                                rootNavigator: true,
+                              ).pushAndRemoveUntil(
+                                MaterialPageRoute(
+                                  builder: (_) => const WelcomeScreen(),
+                                ),
+                                (route) => false,
+                              );
+                            } catch (error) {
+                              if (!context.mounted) {
+                                return;
+                              }
+                              AppLoadingDialog.close(context);
+                              setState(() {
+                                _isLoggingOut = false;
+                              });
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    '로그아웃에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                        );
+                      },
                     ),
-                  ),
-                ],
-              ),
-          ),
-        ),
-          if (_isLoggingOut)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.25),
-                child: const Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(
-                        color: Color(0xFFF0788F),
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        '로그아웃 중...',
+
+                    const SizedBox(height: 12),
+
+                    TextButton(
+                      onPressed: () {
+                        _openPage(context, const AccountWithdrawalScreen());
+                      },
+                      child: const Text(
+                        '회원 탈퇴',
                         style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF9AA0AC),
+                          decoration: TextDecoration.underline,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
-        ],
+            if (_isLoggingOut)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  child: const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(color: Color(0xFFF0788F)),
+                        SizedBox(height: 16),
+                        Text(
+                          '로그아웃 중...',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -752,32 +737,19 @@ class _MyPageScreenState extends State<MyPageScreen> {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFFFFFFF),
-            Color(0xFFFFF8FA),
-            Color(0xFFFFF2F6),
-          ],
+          colors: [Color(0xFFFFFFFF), Color(0xFFFFF8FA), Color(0xFFFFF2F6)],
         ),
-        border: Border.all(
-          color: const Color(0xFFFFE8EE),
-        ),
+        border: Border.all(color: const Color(0xFFFFE8EE)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFF0788F).withValues(
-              alpha: 0.13,
-            ),
+            color: const Color(0xFFF0788F).withValues(alpha: 0.13),
             blurRadius: 24,
             offset: const Offset(0, 10),
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          24,
-          28,
-          24,
-          26,
-        ),
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 26),
         child: Column(
           children: [
             // 프로필 이미지
@@ -788,70 +760,55 @@ class _MyPageScreenState extends State<MyPageScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.white,
-                border: Border.all(
-                  color: const Color(0xFFFFDCE4),
-                  width: 2,
-                ),
+                border: Border.all(color: const Color(0xFFFFDCE4), width: 2),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFF0788F)
-                        .withValues(alpha: 0.18),
+                    color: const Color(0xFFF0788F).withValues(alpha: 0.18),
                     blurRadius: 18,
                     offset: const Offset(0, 7),
                   ),
                 ],
               ),
               child: ClipOval(
-                child: _profileImageUrl != null &&
-                    _profileImageUrl!.isNotEmpty
+                child: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
                     ? Image.network(
-                  _profileImageUrl!,
-                  width: 94,
-                  height: 94,
-                  fit: BoxFit.cover,
-                  errorBuilder: (
-                      context,
-                      error,
-                      stackTrace,
-                      ) {
-                    return Container(
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Color(0xFFFFE8EE),
-                            Color(0xFFFFF6F8),
-                          ],
+                        _profileImageUrl!,
+                        width: 94,
+                        height: 94,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFFFFE8EE), Color(0xFFFFF6F8)],
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.person,
+                              size: 58,
+                              color: Color(0xFFF0788F),
+                            ),
+                          );
+                        },
+                      )
+                    : Container(
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFFFFE8EE), Color(0xFFFFF6F8)],
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.person,
+                          size: 58,
+                          color: Color(0xFFF0788F),
                         ),
                       ),
-                      child: const Icon(
-                        Icons.person,
-                        size: 58,
-                        color: Color(0xFFF0788F),
-                      ),
-                    );
-                  },
-                )
-                    : Container(
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFFFFE8EE),
-                        Color(0xFFFFF6F8),
-                      ],
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.person,
-                    size: 58,
-                    color: Color(0xFFF0788F),
-                  ),
-                ),
               ),
             ),
 
@@ -872,9 +829,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
             // 현재 로그인한 사용자의 자기소개
             Text(
-              _isLoadingProfile
-                  ? ''
-                  : (_bio.isEmpty ? '자기소개가 없습니다.' : _bio),
+              _isLoadingProfile ? '' : (_bio.isEmpty ? '자기소개가 없습니다.' : _bio),
               textAlign: TextAlign.center,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
@@ -889,7 +844,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
             // 목표 자격증 칩
             GestureDetector(
-              onTap: (){
+              onTap: () {
                 _openGoalCertificate(context);
               },
               child: Container(
@@ -898,19 +853,12 @@ class _MyPageScreenState extends State<MyPageScreen> {
                   vertical: 11,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(
-                    alpha: 0.82,
-                  ),
+                  color: Colors.white.withValues(alpha: 0.82),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: const Color(0xFFFFD5DF),
-                  ),
+                  border: Border.all(color: const Color(0xFFFFD5DF)),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFF0788F)
-                          .withValues(
-                        alpha: 0.08,
-                      ),
+                      color: const Color(0xFFF0788F).withValues(alpha: 0.08),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -934,12 +882,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                       ),
                     ),
                     SizedBox(width: 5),
-                    Text(
-                      '·',
-                      style: TextStyle(
-                        color: Color(0xFFB5B7BE),
-                      ),
-                    ),
+                    Text('·', style: TextStyle(color: Color(0xFFB5B7BE))),
                     SizedBox(width: 5),
                     Flexible(
                       child: Text(
@@ -959,108 +902,53 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
             const SizedBox(height: 22),
 
-            // 입체적인 프로필 수정 버튼
-            GestureDetector(
-              onTap: () {
-                _openProfileEdit(context);
-              },
-              child: Container(
-                width: 230,
-                height: 54,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(28),
-                  gradient: const LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0xFFFF9BB0),
-                      Color(0xFFF76F8D),
-                      Color(0xFFF25778),
-                    ],
-                  ),
-                  border: Border.all(
-                    color: const Color(0xFFFFB4C3),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    // 버튼 아래쪽 진한 그림자
-                    BoxShadow(
-                      color: const Color(0xFFE5496B)
-                          .withValues(
-                        alpha: 0.42,
-                      ),
-                      blurRadius: 13,
-                      offset: const Offset(0, 8),
-                    ),
-
-                    // 주변에 퍼지는 연한 핑크 그림자
-                    BoxShadow(
-                      color: const Color(0xFFF0788F)
-                          .withValues(
-                        alpha: 0.20,
-                      ),
-                      blurRadius: 22,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
+            // 프로필 카드와 어울리는 부드러운 파스텔 버튼
+            Container(
+              width: 230,
+              height: 50,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [context.colors.surface, context.colors.pinkSoftAlt],
                 ),
-                child: Stack(
-                  children: [
-                    // 버튼 위쪽 빛 반사
-                    Positioned(
-                      top: 2,
-                      left: 18,
-                      right: 18,
-                      child: Container(
-                        height: 14,
-                        decoration: BoxDecoration(
-                          borderRadius:
-                          BorderRadius.circular(20),
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.white.withValues(
-                                alpha: 0.42,
-                              ),
-                              Colors.white.withValues(
-                                alpha: 0,
-                              ),
-                            ],
+                borderRadius: BorderRadius.circular(25),
+                border: Border.all(color: context.colors.pinkBorder),
+                boxShadow: [
+                  BoxShadow(
+                    color: context.colors.pinkDeep.withValues(alpha: 0.12),
+                    blurRadius: 14,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(25),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(25),
+                  onTap: () => _openProfileEdit(context),
+                  child: Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.edit_rounded,
+                          size: 18,
+                          color: context.colors.pinkDeep,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '프로필 수정',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: context.colors.pinkDeep,
                           ),
                         ),
-                      ),
+                      ],
                     ),
-
-                    const Center(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '프로필 수정',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              shadows: [
-                                Shadow(
-                                  color: Color(0x55000000),
-                                  offset: Offset(0, 1),
-                                  blurRadius: 2,
-                                ),
-                              ],
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Icon(
-                            Icons.edit_outlined,
-                            size: 18,
-                            color: Colors.white,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -1070,28 +958,15 @@ class _MyPageScreenState extends State<MyPageScreen> {
     );
   }
 
-  static void _openPage(
-      BuildContext context,
-      Widget page,
-      ) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => page,
-      ),
-    );
+  static void _openPage(BuildContext context, Widget page) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => page));
   }
 
   Future<void> _openPageAndRefreshSummary(
-      BuildContext context,
-      Widget page,
-      ) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => page,
-      ),
-    );
+    BuildContext context,
+    Widget page,
+  ) async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
 
     await _loadSummaryData();
   }
@@ -1114,9 +989,7 @@ class _MenuDivider extends StatelessWidget {
 class _SectionTitle extends StatelessWidget {
   final String title;
 
-  const _SectionTitle({
-    required this.title,
-  });
+  const _SectionTitle({required this.title});
 
   @override
   Widget build(BuildContext context) {

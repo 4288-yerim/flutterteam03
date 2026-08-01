@@ -39,19 +39,19 @@ class AppConfirmDialog extends StatelessWidget {
   /// [preventBack]이 true면 하드웨어 뒤로가기로 닫히지 않습니다.
   /// [isDestructive]가 true면 삭제 등 파괴적 액션에 맞는 레드 강조로 표시됩니다.
   static Future<T?> show<T>(
-      BuildContext context, {
-        required IconData icon,
-        required String title,
-        required String description,
-        required String primaryLabel,
-        required VoidCallback onPrimaryPressed,
-        String? secondaryLabel,
-        VoidCallback? onSecondaryPressed,
-        Widget? extra,
-        bool barrierDismissible = true,
-        bool preventBack = false,
-        bool isDestructive = false,
-      }) {
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String description,
+    required String primaryLabel,
+    required VoidCallback onPrimaryPressed,
+    String? secondaryLabel,
+    VoidCallback? onSecondaryPressed,
+    Widget? extra,
+    bool barrierDismissible = true,
+    bool preventBack = false,
+    bool isDestructive = false,
+  }) {
     final dialog = AppConfirmDialog(
       icon: icon,
       title: title,
@@ -67,7 +67,7 @@ class AppConfirmDialog extends StatelessWidget {
     return showDialog<T>(
       context: context,
       barrierDismissible: barrierDismissible,
-      barrierColor: Colors.black.withValues(alpha: 0.4),
+      barrierColor: context.colors.overlay,
       builder: (_) => Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 32),
@@ -85,9 +85,12 @@ class AppConfirmDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Gradient accentGradient =
-    isDestructive ? _dangerGradient : AppColors.pinkGradient;
-    final Color shadowColor = isDestructive ? _dangerShadowColor : AppColors.pink;
+    final Gradient accentGradient = isDestructive
+        ? _dangerGradient
+        : context.colors.themedPinkGradient;
+    final Color shadowColor = isDestructive
+        ? _dangerShadowColor
+        : context.colors.pinkDeep;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
@@ -113,7 +116,7 @@ class AppConfirmDialog extends StatelessWidget {
               shape: BoxShape.circle,
               gradient: accentGradient,
             ),
-            child: Icon(icon, color: Colors.white, size: 28),
+            child: Icon(icon, color: context.colors.onPrimary, size: 28),
           ),
           const SizedBox(height: 18),
           Text(
@@ -135,10 +138,7 @@ class AppConfirmDialog extends StatelessWidget {
               height: 1.5,
             ),
           ),
-          if (extra != null) ...[
-            const SizedBox(height: 14),
-            extra!,
-          ],
+          if (extra != null) ...[const SizedBox(height: 14), extra!],
           const SizedBox(height: 24),
           if (secondaryLabel == null || onSecondaryPressed == null)
             _PrimaryButton(
@@ -200,8 +200,8 @@ class _PrimaryButton extends StatelessWidget {
             child: Center(
               child: Text(
                 label,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: context.colors.onPrimary,
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
                 ),

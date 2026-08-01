@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
+import '../theme.dart';
+
 /// 앱 전체에서 재사용하는 배경 위젯
 ///
 /// 사용 예시:
@@ -32,11 +34,12 @@ class AppBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final colors = context.colors;
 
     return Container(
       width: double.infinity,
       height: double.infinity,
-      color: const Color(0xFFFFFDFC), // 이미지의 아주 옅은 화이트 배경
+      color: colors.background,
       child: Stack(
         children: [
           if (showBlobs) ...[
@@ -46,7 +49,7 @@ class AppBackground extends StatelessWidget {
               right: -size.width * 0.1,
               child: _BlurBlob(
                 diameter: size.width * 0.5,
-                color: const Color(0x66E8E4FB), // 연보라
+                color: colors.backgroundBlobLavender,
               ),
             ),
             // 좌측 하단 연분홍색 블러 원
@@ -55,7 +58,7 @@ class AppBackground extends StatelessWidget {
               left: -size.width * 0.1,
               child: _BlurBlob(
                 diameter: size.width * 0.5,
-                color: const Color(0x66FCE7EF), // 연분홍
+                color: colors.backgroundBlobPink,
               ),
             ),
           ],
@@ -72,10 +75,7 @@ class _BlurBlob extends StatelessWidget {
   final double diameter;
   final Color color;
 
-  const _BlurBlob({
-    required this.diameter,
-    required this.color,
-  });
+  const _BlurBlob({required this.diameter, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -84,10 +84,7 @@ class _BlurBlob extends StatelessWidget {
       child: Container(
         width: diameter,
         height: diameter,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: color,
-        ),
+        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
       ),
     );
   }
