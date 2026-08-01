@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
+
 import '../../community/community_post_detail.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
@@ -36,20 +38,14 @@ class _MyCommentsScreenState extends State<MyCommentsScreen> {
 
     // 삭제되지 않고 공개된 게시글만 먼저 조회합니다.
     final QuerySnapshot<Map<String, dynamic>> postSnapshot =
-    await FirebaseFirestore.instance
-        .collection('posts')
-        .where(
-      'postStatus',
-      isEqualTo: 'NORMAL',
-    )
-        .where(
-      'visibility',
-      isEqualTo: 'PUBLIC',
-    )
-        .get();
+        await FirebaseFirestore.instance
+            .collection('posts')
+            .where('postStatus', isEqualTo: 'NORMAL')
+            .where('visibility', isEqualTo: 'PUBLIC')
+            .get();
 
     for (final QueryDocumentSnapshot<Map<String, dynamic>> postDocument
-    in postSnapshot.docs) {
+        in postSnapshot.docs) {
       final Map<String, dynamic> postData = postDocument.data();
 
       if (postData['deletedAt'] != null) {
@@ -58,30 +54,25 @@ class _MyCommentsScreenState extends State<MyCommentsScreen> {
 
       // 각 게시글에서 현재 사용자가 작성한 댓글과 대댓글을 조회합니다.
       final QuerySnapshot<Map<String, dynamic>> commentSnapshot =
-      await postDocument.reference
-          .collection('comments')
-          .where(
-        'commentStatus',
-        isEqualTo: 'NORMAL',
-      )
-          .get();
+          await postDocument.reference
+              .collection('comments')
+              .where('commentStatus', isEqualTo: 'NORMAL')
+              .get();
 
-      for (final QueryDocumentSnapshot<Map<String, dynamic>>
-      commentDocument in commentSnapshot.docs) {
-        final Map<String, dynamic> commentData =
-        commentDocument.data();
+      for (final QueryDocumentSnapshot<Map<String, dynamic>> commentDocument
+          in commentSnapshot.docs) {
+        final Map<String, dynamic> commentData = commentDocument.data();
 
-        final String writerUid =
-            commentData['writerUid']?.toString() ?? '';
+        final String writerUid = commentData['writerUid']?.toString() ?? '';
 
         if (writerUid != user.uid) {
           continue;
         }
 
         final String commentStatus =
-        (commentData['commentStatus'] as String? ?? 'NORMAL')
-            .trim()
-            .toUpperCase();
+            (commentData['commentStatus'] as String? ?? 'NORMAL')
+                .trim()
+                .toUpperCase();
 
         if (commentStatus != 'NORMAL') {
           continue;
@@ -95,18 +86,11 @@ class _MyCommentsScreenState extends State<MyCommentsScreen> {
           _MyCommentItem(
             commentId: commentDocument.id,
             postId: postDocument.id,
-            postTitle:
-            postData['title']?.toString() ??
-                '제목 없는 게시글',
-            boardName: _boardLabel(
-              postData['boardType']?.toString() ?? 'FREE',
-            ),
-            content:
-            commentData['content']?.toString() ?? '',
-            parentCommentId:
-            commentData['parentCommentId']?.toString() ?? '',
-            likeCount:
-            (commentData['likeCount'] as num?)?.toInt() ?? 0,
+            postTitle: postData['title']?.toString() ?? '제목 없는 게시글',
+            boardName: _boardLabel(postData['boardType']?.toString() ?? 'FREE'),
+            content: commentData['content']?.toString() ?? '',
+            parentCommentId: commentData['parentCommentId']?.toString() ?? '',
+            likeCount: (commentData['likeCount'] as num?)?.toInt() ?? 0,
             createdAt: commentData['createdAt'],
           ),
         );
@@ -115,10 +99,8 @@ class _MyCommentsScreenState extends State<MyCommentsScreen> {
 
     // 최신 댓글이 위에 표시되도록 정렬합니다.
     items.sort((a, b) {
-      final DateTime aDate =
-          a.dateTime ?? DateTime(1970);
-      final DateTime bDate =
-          b.dateTime ?? DateTime(1970);
+      final DateTime aDate = a.dateTime ?? DateTime(1970);
+      final DateTime bDate = b.dateTime ?? DateTime(1970);
 
       return bDate.compareTo(aDate);
     });
@@ -153,9 +135,7 @@ class _MyCommentsScreenState extends State<MyCommentsScreen> {
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const AppLoadingView(
-                message: '작성한 댓글을 불러오는 중입니다.',
-              );
+              return const AppLoadingView(message: '작성한 댓글을 불러오는 중입니다.');
             }
 
             if (snapshot.hasError) {
@@ -167,8 +147,7 @@ class _MyCommentsScreenState extends State<MyCommentsScreen> {
             }
 
             final List<_MyCommentItem> allItems = snapshot.data ?? [];
-            final List<_MyCommentItem> visibleItems =
-            allItems.where((item) {
+            final List<_MyCommentItem> visibleItems = allItems.where((item) {
               if (_selectedType == 'COMMENT') {
                 return !item.isReply;
               }
@@ -197,30 +176,23 @@ class _MyCommentsScreenState extends State<MyCommentsScreen> {
                 Expanded(
                   child: visibleItems.isEmpty
                       ? AppEmptyView(
-                    message: _selectedType == 'ALL'
-                        ? '작성한 댓글이 없습니다.'
-                        : '해당 종류의 댓글이 없습니다.',
-                    description: '커뮤니티 게시글에 의견을 남겨보세요.',
-                  )
+                          message: _selectedType == 'ALL'
+                              ? '작성한 댓글이 없습니다.'
+                              : '해당 종류의 댓글이 없습니다.',
+                          description: '커뮤니티 게시글에 의견을 남겨보세요.',
+                        )
                       : RefreshIndicator(
-                    onRefresh: _refresh,
-                    child: ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(
-                        20,
-                        8,
-                        20,
-                        40,
-                      ),
-                      itemCount: visibleItems.length,
-                      separatorBuilder: (_, __) =>
-                      const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        return _buildCommentCard(
-                          visibleItems[index],
-                        );
-                      },
-                    ),
-                  ),
+                          onRefresh: _refresh,
+                          child: ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+                            itemCount: visibleItems.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              return _buildCommentCard(visibleItems[index]);
+                            },
+                          ),
+                        ),
                 ),
               ],
             );
@@ -242,15 +214,15 @@ class _MyCommentsScreenState extends State<MyCommentsScreen> {
         },
         style: OutlinedButton.styleFrom(
           backgroundColor: isSelected
-              ? const Color(0xFFFFE8EE)
-              : Colors.white,
+              ? context.colors.pinkSoft
+              : context.colors.surface,
           foregroundColor: isSelected
-              ? const Color(0xFFF0788F)
-              : const Color(0xFF777B84),
+              ? context.colors.pinkStart
+              : context.colors.textSecondary,
           side: BorderSide(
             color: isSelected
-                ? const Color(0xFFF0788F)
-                : const Color(0xFFE6E7EA),
+                ? context.colors.pinkStart
+                : context.colors.border,
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
@@ -278,8 +250,8 @@ class _MyCommentsScreenState extends State<MyCommentsScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: item.isReply
-                        ? const Color(0xFFEAF4FF)
-                        : const Color(0xFFFFE8EE),
+                        ? context.colors.infoSoft
+                        : context.colors.pinkSoft,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -288,25 +260,25 @@ class _MyCommentsScreenState extends State<MyCommentsScreen> {
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       color: item.isReply
-                          ? const Color(0xFF4F86C6)
-                          : const Color(0xFFF0788F),
+                          ? context.colors.info
+                          : context.colors.pinkStart,
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   item.boardName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF8B8F98),
+                    color: context.colors.textMuted,
                   ),
                 ),
                 const Spacer(),
                 Text(
                   _formatCommunityDate(item.createdAt),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
-                    color: Color(0xFFA0A3AA),
+                    color: context.colors.textMuted,
                   ),
                 ),
               ],
@@ -316,11 +288,11 @@ class _MyCommentsScreenState extends State<MyCommentsScreen> {
               item.content,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
                 height: 1.45,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF303238),
+                color: context.colors.textPrimary,
               ),
             ),
             const SizedBox(height: 12),
@@ -328,32 +300,29 @@ class _MyCommentsScreenState extends State<MyCommentsScreen> {
               '원문 · ${item.postTitle}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: Color(0xFF777B84),
+                color: context.colors.textSecondary,
               ),
             ),
             const SizedBox(height: 10),
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.favorite_border,
                   size: 16,
-                  color: Color(0xFFF0788F),
+                  color: context.colors.pinkStart,
                 ),
                 const SizedBox(width: 4),
                 Text(
                   '${item.likeCount}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF777B84),
+                    color: context.colors.textSecondary,
                   ),
                 ),
                 const Spacer(),
-                const Icon(
-                  Icons.chevron_right,
-                  color: Color(0xFFB0B3BA),
-                ),
+                Icon(Icons.chevron_right, color: context.colors.textMuted),
               ],
             ),
           ],
@@ -399,7 +368,6 @@ class _MyCommentItem {
   }
 }
 
-
 String _formatCommunityDate(dynamic value) {
   DateTime? dateTime;
 
@@ -440,4 +408,3 @@ String _boardLabel(String code) {
       return '자유';
   }
 }
-

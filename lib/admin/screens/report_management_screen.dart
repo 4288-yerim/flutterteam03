@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
+
 import '../services/admin_report_service.dart';
 
 class ReportManagementScreen extends StatefulWidget {
   const ReportManagementScreen({super.key});
 
   @override
-  State<ReportManagementScreen> createState() =>
-      _ReportManagementScreenState();
+  State<ReportManagementScreen> createState() => _ReportManagementScreenState();
 }
 
 class _ReportManagementScreenState extends State<ReportManagementScreen> {
@@ -26,8 +27,10 @@ class _ReportManagementScreenState extends State<ReportManagementScreen> {
           );
         }
         if (!snapshot.hasData) {
-          return const Center(
-            child: CircularProgressIndicator(color: Color(0xFF6C63FF)),
+          return Center(
+            child: CircularProgressIndicator(
+              color: context.colors.lavenderAccent,
+            ),
           );
         }
 
@@ -41,7 +44,9 @@ class _ReportManagementScreenState extends State<ReportManagementScreen> {
           children: [
             _ReportHeader(
               totalCount: allReports.length,
-              pendingCount: allReports.where((report) => report.isPending).length,
+              pendingCount: allReports
+                  .where((report) => report.isPending)
+                  .length,
               pendingOnly: _pendingOnly,
               onPendingOnlyChanged: (value) {
                 setState(() => _pendingOnly = value);
@@ -76,7 +81,7 @@ class _ReportManagementScreenState extends State<ReportManagementScreen> {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      backgroundColor: Colors.white,
+      backgroundColor: context.colors.surface,
       builder: (context) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
@@ -93,7 +98,10 @@ class _ReportManagementScreenState extends State<ReportManagementScreen> {
                 '· ${report.targetTitle.isEmpty ? report.targetNickname : report.targetTitle}',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Color(0xFF6E6A76), height: 1.4),
+                style: TextStyle(
+                  color: context.colors.textSecondary,
+                  height: 1.4,
+                ),
               ),
               const SizedBox(height: 20),
               Row(
@@ -116,10 +124,10 @@ class _ReportManagementScreenState extends State<ReportManagementScreen> {
                 ],
               ),
               const SizedBox(height: 10),
-              const Text(
+              Text(
                 '· 승인/반려 처리 기능은 아직 연결되지 않았습니다.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFF8A8692), fontSize: 12),
+                style: TextStyle(color: context.colors.textMuted, fontSize: 12),
               ),
             ],
           ),
@@ -147,9 +155,9 @@ class _ReportHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.94),
+        color: context.colors.surfaceTransparent,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE8E5EE)),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -161,15 +169,15 @@ class _ReportHeader extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             '전체 $totalCount건 · 미처리 $pendingCount건',
-            style: const TextStyle(color: Color(0xFF6E6A76)),
+            style: TextStyle(color: context.colors.textSecondary),
           ),
           const SizedBox(height: 12),
           FilterChip(
             selected: pendingOnly,
             label: const Text('미처리만 보기'),
             onSelected: onPendingOnlyChanged,
-            selectedColor: const Color(0xFFE9E7FF),
-            checkmarkColor: const Color(0xFF5D54D6),
+            selectedColor: context.colors.lavender,
+            checkmarkColor: context.colors.lavenderAccent,
           ),
         ],
       ),
@@ -194,9 +202,9 @@ class _ReportCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.94),
+        color: context.colors.surfaceTransparent,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE8E5EE)),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,7 +220,7 @@ class _ReportCard extends StatelessWidget {
               const Spacer(),
               Text(
                 _dateLabel(report.createdAt),
-                style: const TextStyle(color: Color(0xFF8A8692), fontSize: 12),
+                style: TextStyle(color: context.colors.textMuted, fontSize: 12),
               ),
             ],
           ),
@@ -226,7 +234,10 @@ class _ReportCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             '신고 사유: ${_reasonLabel(report.reasonType)}',
-            style: const TextStyle(color: Color(0xFF4E4B55), fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: context.colors.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           if (report.description.isNotEmpty) ...[
             const SizedBox(height: 6),
@@ -234,13 +245,16 @@ class _ReportCard extends StatelessWidget {
               report.description,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Color(0xFF6E6A76), height: 1.45),
+              style: TextStyle(
+                color: context.colors.textSecondary,
+                height: 1.45,
+              ),
             ),
           ],
           const SizedBox(height: 10),
           Text(
             '신고자: ${report.reporterNickname}',
-            style: const TextStyle(color: Color(0xFF8A8692), fontSize: 13),
+            style: TextStyle(color: context.colors.textMuted, fontSize: 13),
           ),
           if (report.isPending) ...[
             const SizedBox(height: 16),
@@ -251,7 +265,7 @@ class _ReportCard extends StatelessWidget {
                 icon: const Icon(Icons.gavel_rounded, size: 18),
                 label: const Text('신고 처리'),
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF5D54D6),
+                  backgroundColor: context.colors.lavenderAccent,
                   padding: const EdgeInsets.symmetric(vertical: 13),
                 ),
               ),
@@ -298,13 +312,17 @@ class _Badge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: highlighted ? const Color(0xFFFFECE8) : const Color(0xFFF1EFFF),
+        color: highlighted
+            ? context.colors.incorrectSoft
+            : context.colors.lavender,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: highlighted ? const Color(0xFFB23A2A) : const Color(0xFF5149B8),
+          color: highlighted
+              ? context.colors.incorrect
+              : context.colors.lavenderAccent,
           fontSize: 12,
           fontWeight: FontWeight.w800,
         ),
@@ -325,9 +343,9 @@ class _ReportMessage extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 46, color: const Color(0xFF8A8692)),
+          Icon(icon, size: 46, color: context.colors.textMuted),
           const SizedBox(height: 12),
-          Text(message, style: const TextStyle(color: Color(0xFF6E6A76))),
+          Text(message, style: TextStyle(color: context.colors.textSecondary)),
         ],
       ),
     );

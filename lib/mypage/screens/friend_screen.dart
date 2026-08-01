@@ -2,6 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../widgets/app_dialog.dart';
+
+import '../../theme.dart';
+
 import '../../profile/user_profile_screen.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
@@ -15,8 +19,7 @@ class FriendScreen extends StatefulWidget {
 }
 
 class _FriendScreenState extends State<FriendScreen> {
-  final TextEditingController _searchController =
-  TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
 
   List<FriendUserItem> _searchResults = [];
   List<FriendUserItem> _receivedRequests = [];
@@ -39,8 +42,7 @@ class _FriendScreenState extends State<FriendScreen> {
   }
 
   Future<void> _loadFriendData() async {
-    final String? currentUid =
-        FirebaseAuth.instance.currentUser?.uid;
+    final String? currentUid = FirebaseAuth.instance.currentUser?.uid;
 
     if (currentUid == null) {
       if (!mounted) {
@@ -61,26 +63,26 @@ class _FriendScreenState extends State<FriendScreen> {
 
     try {
       final QuerySnapshot<Map<String, dynamic>> receivedSnapshot =
-      await FirebaseFirestore.instance
-          .collection('friendRequests')
-          .where('receiverUid', isEqualTo: currentUid)
-          .get();
+          await FirebaseFirestore.instance
+              .collection('friendRequests')
+              .where('receiverUid', isEqualTo: currentUid)
+              .get();
 
       final QuerySnapshot<Map<String, dynamic>> sentSnapshot =
-      await FirebaseFirestore.instance
-          .collection('friendRequests')
-          .where('senderUid', isEqualTo: currentUid)
-          .get();
+          await FirebaseFirestore.instance
+              .collection('friendRequests')
+              .where('senderUid', isEqualTo: currentUid)
+              .get();
 
       final List<FriendUserItem> receivedRequests = [];
       final List<FriendUserItem> friends = [];
 
       for (final document in receivedSnapshot.docs) {
         final Map<String, dynamic> data = document.data();
-        final String status =
-        (data['status'] as String? ?? '').trim().toUpperCase();
-        final String senderUid =
-        (data['senderUid'] as String? ?? '').trim();
+        final String status = (data['status'] as String? ?? '')
+            .trim()
+            .toUpperCase();
+        final String senderUid = (data['senderUid'] as String? ?? '').trim();
 
         if (senderUid.isEmpty) {
           continue;
@@ -109,10 +111,11 @@ class _FriendScreenState extends State<FriendScreen> {
 
       for (final document in sentSnapshot.docs) {
         final Map<String, dynamic> data = document.data();
-        final String status =
-        (data['status'] as String? ?? '').trim().toUpperCase();
-        final String receiverUid =
-        (data['receiverUid'] as String? ?? '').trim();
+        final String status = (data['status'] as String? ?? '')
+            .trim()
+            .toUpperCase();
+        final String receiverUid = (data['receiverUid'] as String? ?? '')
+            .trim();
 
         if (receiverUid.isEmpty || status != 'ACCEPTED') {
           continue;
@@ -132,10 +135,10 @@ class _FriendScreenState extends State<FriendScreen> {
       }
 
       receivedRequests.sort(
-            (first, second) => first.nickname.compareTo(second.nickname),
+        (first, second) => first.nickname.compareTo(second.nickname),
       );
       friends.sort(
-            (first, second) => first.nickname.compareTo(second.nickname),
+        (first, second) => first.nickname.compareTo(second.nickname),
       );
 
       if (!mounted) {
@@ -158,11 +161,9 @@ class _FriendScreenState extends State<FriendScreen> {
         _isLoadingRelations = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('친구 정보를 불러오지 못했습니다.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('친구 정보를 불러오지 못했습니다.')));
     }
   }
 
@@ -171,10 +172,7 @@ class _FriendScreenState extends State<FriendScreen> {
     required String relationId,
   }) async {
     final DocumentSnapshot<Map<String, dynamic>> userDocument =
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userUid)
-        .get();
+        await FirebaseFirestore.instance.collection('users').doc(userUid).get();
 
     if (!userDocument.exists) {
       return null;
@@ -185,17 +183,15 @@ class _FriendScreenState extends State<FriendScreen> {
       return null;
     }
 
-    final String nickname =
-    (data['nickname'] as String? ?? '').trim();
+    final String nickname = (data['nickname'] as String? ?? '').trim();
     if (nickname.isEmpty) {
       return null;
     }
 
     final String bio = (data['bio'] as String? ?? '').trim();
-    final String? savedProfileImageUrl =
-    (data['profileImageUrl'] as String?)?.trim();
-    final String targetCertificate =
-    await _loadMainGoalCertificate(userUid);
+    final String? savedProfileImageUrl = (data['profileImageUrl'] as String?)
+        ?.trim();
+    final String targetCertificate = await _loadMainGoalCertificate(userUid);
 
     return FriendUserItem(
       uid: userUid,
@@ -203,7 +199,7 @@ class _FriendScreenState extends State<FriendScreen> {
       bio: bio,
       targetCertificate: targetCertificate,
       profileImageUrl:
-      savedProfileImageUrl != null && savedProfileImageUrl.isNotEmpty
+          savedProfileImageUrl != null && savedProfileImageUrl.isNotEmpty
           ? savedProfileImageUrl
           : null,
       relationId: relationId,
@@ -212,26 +208,21 @@ class _FriendScreenState extends State<FriendScreen> {
 
   Future<void> _searchUsers() async {
     final String keyword = _searchController.text.trim();
-    final String? currentUid =
-        FirebaseAuth.instance.currentUser?.uid;
+    final String? currentUid = FirebaseAuth.instance.currentUser?.uid;
 
     FocusManager.instance.primaryFocus?.unfocus();
 
     if (keyword.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('검색할 닉네임을 입력해주세요.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('검색할 닉네임을 입력해주세요.')));
       return;
     }
 
     if (currentUid == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('로그인이 필요합니다.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('로그인이 필요합니다.')));
       return;
     }
 
@@ -243,30 +234,25 @@ class _FriendScreenState extends State<FriendScreen> {
 
     try {
       final QuerySnapshot<Map<String, dynamic>> snapshot =
-      await FirebaseFirestore.instance
-          .collection('users')
-          .get();
+          await FirebaseFirestore.instance.collection('users').get();
 
       final List<FriendUserItem> results = [];
 
-      for (final QueryDocumentSnapshot<Map<String, dynamic>>
-      document in snapshot.docs) {
+      for (final QueryDocumentSnapshot<Map<String, dynamic>> document
+          in snapshot.docs) {
         if (document.id == currentUid) {
           continue;
         }
 
         final Map<String, dynamic> data = document.data();
 
-        final String nickname =
-        (data['nickname'] as String? ?? '').trim();
+        final String nickname = (data['nickname'] as String? ?? '').trim();
 
         if (nickname.isEmpty) {
           continue;
         }
 
-        if (!nickname.toLowerCase().contains(
-          keyword.toLowerCase(),
-        )) {
+        if (!nickname.toLowerCase().contains(keyword.toLowerCase())) {
           continue;
         }
 
@@ -283,14 +269,14 @@ class _FriendScreenState extends State<FriendScreen> {
           continue;
         }
 
-        final String bio =
-        (data['bio'] as String? ?? '').trim();
+        final String bio = (data['bio'] as String? ?? '').trim();
 
-        final String? profileImageUrl =
-        (data['profileImageUrl'] as String?)?.trim();
+        final String? profileImageUrl = (data['profileImageUrl'] as String?)
+            ?.trim();
 
-        final String targetCertificate =
-        await _loadMainGoalCertificate(document.id);
+        final String targetCertificate = await _loadMainGoalCertificate(
+          document.id,
+        );
 
         results.add(
           FriendUserItem(
@@ -299,8 +285,7 @@ class _FriendScreenState extends State<FriendScreen> {
             bio: bio,
             targetCertificate: targetCertificate,
             profileImageUrl:
-            profileImageUrl != null &&
-                profileImageUrl.isNotEmpty
+                profileImageUrl != null && profileImageUrl.isNotEmpty
                 ? profileImageUrl
                 : null,
             relationId: null,
@@ -309,8 +294,7 @@ class _FriendScreenState extends State<FriendScreen> {
       }
 
       results.sort(
-            (first, second) =>
-            first.nickname.compareTo(second.nickname),
+        (first, second) => first.nickname.compareTo(second.nickname),
       );
 
       if (!mounted) {
@@ -331,41 +315,30 @@ class _FriendScreenState extends State<FriendScreen> {
         _searchResults = [];
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            '사용자를 검색하지 못했습니다.',
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('사용자를 검색하지 못했습니다.')));
     }
   }
 
-  Future<String> _loadMainGoalCertificate(
-      String userUid,
-      ) async {
+  Future<String> _loadMainGoalCertificate(String userUid) async {
     try {
       final QuerySnapshot<Map<String, dynamic>> snapshot =
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userUid)
-          .collection('goals')
-          .where(
-        'isMainGoal',
-        isEqualTo: true,
-      )
-          .limit(1)
-          .get();
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userUid)
+              .collection('goals')
+              .where('isMainGoal', isEqualTo: true)
+              .limit(1)
+              .get();
 
       if (snapshot.docs.isEmpty) {
         return '등록된 목표 없음';
       }
 
       final String certificateName =
-      (snapshot.docs.first.data()['certificateName']
-      as String? ??
-          '')
-          .trim();
+          (snapshot.docs.first.data()['certificateName'] as String? ?? '')
+              .trim();
 
       if (certificateName.isEmpty) {
         return '등록된 목표 없음';
@@ -390,28 +363,27 @@ class _FriendScreenState extends State<FriendScreen> {
   }
 
   Future<bool> _hasBlockRelation(String otherUid) async {
-    final String? currentUid =
-        FirebaseAuth.instance.currentUser?.uid;
+    final String? currentUid = FirebaseAuth.instance.currentUser?.uid;
 
     if (currentUid == null || currentUid == otherUid) {
       return false;
     }
 
     final DocumentSnapshot<Map<String, dynamic>> blockedByMeDocument =
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(currentUid)
-        .collection('blockedUsers')
-        .doc(otherUid)
-        .get();
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUid)
+            .collection('blockedUsers')
+            .doc(otherUid)
+            .get();
 
     final DocumentSnapshot<Map<String, dynamic>> blockedByOtherDocument =
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(otherUid)
-        .collection('blockedUsers')
-        .doc(currentUid)
-        .get();
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(otherUid)
+            .collection('blockedUsers')
+            .doc(currentUid)
+            .get();
 
     return blockedByMeDocument.exists || blockedByOtherDocument.exists;
   }
@@ -425,8 +397,7 @@ class _FriendScreenState extends State<FriendScreen> {
     try {
       // 수락 버튼을 누른 시점에 차단 관계가 생겼을 수도 있으므로
       // 친구 관계로 변경하기 직전에 다시 확인합니다.
-      final bool hasBlockRelation =
-      await _hasBlockRelation(user.uid);
+      final bool hasBlockRelation = await _hasBlockRelation(user.uid);
 
       if (hasBlockRelation) {
         await FirebaseFirestore.instance
@@ -439,11 +410,7 @@ class _FriendScreenState extends State<FriendScreen> {
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              '차단 관계에 있는 사용자의 친구 요청은 수락할 수 없습니다.',
-            ),
-          ),
+          SnackBar(content: Text('차단 관계에 있는 사용자의 친구 요청은 수락할 수 없습니다.')),
         );
 
         await _loadFriendData();
@@ -454,26 +421,26 @@ class _FriendScreenState extends State<FriendScreen> {
           .collection('friendRequests')
           .doc(relationId)
           .update({
-        'status': 'ACCEPTED',
-        'acceptedAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+            'status': 'ACCEPTED',
+            'acceptedAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
 
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${user.nickname}님과 친구가 되었습니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${user.nickname}님과 친구가 되었습니다.')));
       await _loadFriendData();
     } catch (error) {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('친구 요청을 수락하지 못했습니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('친구 요청을 수락하지 못했습니다.')));
     }
   }
 
@@ -486,9 +453,8 @@ class _FriendScreenState extends State<FriendScreen> {
     final bool? shouldReject = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          title: const Text(
+        return AppAlertDialog(
+          title: Text(
             '친구 요청 거절',
             style: TextStyle(fontWeight: FontWeight.w700),
           ),
@@ -496,17 +462,17 @@ class _FriendScreenState extends State<FriendScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text(
+              child: Text(
                 '취소',
-                style: TextStyle(color: Color(0xFF9AA0AC)),
+                style: TextStyle(color: context.colors.textSecondary),
               ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text(
+              child: Text(
                 '거절',
                 style: TextStyle(
-                  color: Colors.redAccent,
+                  color: context.colors.incorrect,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -529,17 +495,17 @@ class _FriendScreenState extends State<FriendScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('친구 요청을 거절했습니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('친구 요청을 거절했습니다.')));
       await _loadFriendData();
     } catch (error) {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('친구 요청을 거절하지 못했습니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('친구 요청을 거절하지 못했습니다.')));
     }
   }
 
@@ -552,27 +518,23 @@ class _FriendScreenState extends State<FriendScreen> {
     final bool? shouldDelete = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          title: const Text(
-            '친구 삭제',
-            style: TextStyle(fontWeight: FontWeight.w700),
-          ),
+        return AppAlertDialog(
+          title: Text('친구 삭제', style: TextStyle(fontWeight: FontWeight.w700)),
           content: Text('${friend.nickname}님을 친구 목록에서 삭제하시겠습니까?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text(
+              child: Text(
                 '취소',
-                style: TextStyle(color: Color(0xFF9AA0AC)),
+                style: TextStyle(color: context.colors.textSecondary),
               ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text(
+              child: Text(
                 '삭제',
                 style: TextStyle(
-                  color: Colors.redAccent,
+                  color: context.colors.incorrect,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -603,18 +565,16 @@ class _FriendScreenState extends State<FriendScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('친구를 삭제하지 못했습니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('친구를 삭제하지 못했습니다.')));
     }
   }
 
   Future<void> _openUserProfile(FriendUserItem user) async {
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => UserProfileScreen(userUid: user.uid),
-      ),
+      MaterialPageRoute(builder: (_) => UserProfileScreen(userUid: user.uid)),
     );
 
     await _loadFriendData();
@@ -624,33 +584,26 @@ class _FriendScreenState extends State<FriendScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: const AppTopBar(
-        title: '친구',
-      ),
+      appBar: AppTopBar(title: '친구'),
       body: AppMainBackground(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            20,
-            16,
-            20,
-            40,
-          ),
+          padding: EdgeInsets.fromLTRB(20, 16, 20, 40),
           children: [
             _buildSearchCard(),
-            const SizedBox(height: 22),
+            SizedBox(height: 22),
 
             if (_hasSearched) ...[
               _buildSearchResultSection(),
-              const SizedBox(height: 26),
+              SizedBox(height: 26),
             ],
 
             if (_isLoadingRelations)
-              const AppCard(
+              AppCard(
                 child: Padding(
                   padding: EdgeInsets.symmetric(vertical: 28),
                   child: Center(
                     child: CircularProgressIndicator(
-                      color: Color(0xFFF0788F),
+                      color: context.colors.pinkStart,
                     ),
                   ),
                 ),
@@ -658,23 +611,23 @@ class _FriendScreenState extends State<FriendScreen> {
             else ...[
               if (_receivedRequests.isNotEmpty) ...[
                 _buildReceivedRequestHeader(),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 ..._receivedRequests.map(
-                      (requestUser) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
+                  (requestUser) => Padding(
+                    padding: EdgeInsets.only(bottom: 12),
                     child: _buildReceivedRequestCard(requestUser),
                   ),
                 ),
-                const SizedBox(height: 14),
+                SizedBox(height: 14),
               ],
               _buildFriendHeader(),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               if (_friends.isEmpty)
                 _buildEmptyFriendCard()
               else
                 ..._friends.map(
-                      (friend) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
+                  (friend) => Padding(
+                    padding: EdgeInsets.only(bottom: 12),
                     child: _buildFriendCard(friend),
                   ),
                 ),
@@ -690,11 +643,11 @@ class _FriendScreenState extends State<FriendScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(
                 Icons.person_search_outlined,
-                color: Color(0xFFF0788F),
+                color: context.colors.pinkStart,
               ),
               SizedBox(width: 8),
               Text(
@@ -702,21 +655,21 @@ class _FriendScreenState extends State<FriendScreen> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF1A1A1A),
+                  color: context.colors.textPrimary,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          const Text(
+          SizedBox(height: 8),
+          Text(
             '사용자 닉네임을 검색하고 프로필을 확인할 수 있습니다.',
             style: TextStyle(
               fontSize: 13,
               height: 1.4,
-              color: Color(0xFF9AA0AC),
+              color: context.colors.textSecondary,
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
 
           Row(
             children: [
@@ -728,82 +681,64 @@ class _FriendScreenState extends State<FriendScreen> {
                     _searchUsers();
                   },
                   onTapOutside: (_) {
-                    FocusManager.instance.primaryFocus
-                        ?.unfocus();
+                    FocusManager.instance.primaryFocus?.unfocus();
                   },
                   onChanged: (_) {
                     setState(() {});
                   },
                   decoration: InputDecoration(
                     hintText: '닉네임을 입력해주세요.',
-                    prefixIcon: const Icon(
-                      Icons.search_rounded,
-                    ),
-                    suffixIcon:
-                    _searchController.text.isEmpty
+                    prefixIcon: Icon(Icons.search_rounded),
+                    suffixIcon: _searchController.text.isEmpty
                         ? null
                         : IconButton(
-                      tooltip: '검색어 지우기',
-                      onPressed: _clearSearch,
-                      icon: const Icon(
-                        Icons.close_rounded,
-                      ),
-                    ),
+                            tooltip: '검색어 지우기',
+                            onPressed: _clearSearch,
+                            icon: Icon(Icons.close_rounded),
+                          ),
                     filled: true,
-                    fillColor: const Color(0xFFF8F6F7),
-                    contentPadding:
-                    const EdgeInsets.symmetric(
+                    fillColor: context.colors.surfaceMuted,
+                    contentPadding: EdgeInsets.symmetric(
                       horizontal: 14,
                       vertical: 14,
                     ),
                     border: OutlineInputBorder(
-                      borderRadius:
-                      BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(14),
                       borderSide: BorderSide.none,
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius:
-                      BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(14),
                       borderSide: BorderSide.none,
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius:
-                      BorderRadius.circular(14),
-                      borderSide: const BorderSide(
-                        color: Color(0xFFF0788F),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                        color: context.colors.pinkStart,
                         width: 1.5,
                       ),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              SizedBox(width: 10),
 
               SizedBox(
                 height: 50,
                 child: ElevatedButton(
-                  onPressed:
-                  _isSearching ? null : _searchUsers,
+                  onPressed: _isSearching ? null : _searchUsers,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                    const Color(0xFFF0788F),
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor:
-                    const Color(0xFFF5B8C5),
+                    backgroundColor: context.colors.pinkStart,
+                    foregroundColor: context.colors.onPrimary,
+                    disabledBackgroundColor: context.colors.pinkSoft,
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                    ),
+                    padding: EdgeInsets.symmetric(horizontal: 18),
                     shape: RoundedRectangleBorder(
-                      borderRadius:
-                      BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                   ),
                   child: Text(
                     _isSearching ? '검색 중' : '검색',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -820,37 +755,35 @@ class _FriendScreenState extends State<FriendScreen> {
       children: [
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
                 '검색 결과',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF1A1A1A),
+                  color: context.colors.textPrimary,
                 ),
               ),
             ),
             Text(
               '${_searchResults.length}명',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFFF0788F),
+                color: context.colors.pinkStart,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
 
         if (_isSearching)
-          const AppCard(
+          AppCard(
             child: Padding(
-              padding: EdgeInsets.symmetric(
-                vertical: 24,
-              ),
+              padding: EdgeInsets.symmetric(vertical: 24),
               child: Center(
                 child: CircularProgressIndicator(
-                  color: Color(0xFFF0788F),
+                  color: context.colors.pinkStart,
                 ),
               ),
             ),
@@ -858,23 +791,17 @@ class _FriendScreenState extends State<FriendScreen> {
         else if (_searchResults.isEmpty)
           _buildEmptySearchCard()
         else
-          ..._searchResults.map(
-                (user) {
-              return Padding(
-                padding: const EdgeInsets.only(
-                  bottom: 12,
-                ),
-                child: _buildSearchResultCard(user),
-              );
-            },
-          ),
+          ..._searchResults.map((user) {
+            return Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: _buildSearchResultCard(user),
+            );
+          }),
       ],
     );
   }
 
-  Widget _buildSearchResultCard(
-      FriendUserItem user,
-      ) {
+  Widget _buildSearchResultCard(FriendUserItem user) {
     return AppCard(
       padding: EdgeInsets.zero,
       child: InkWell(
@@ -883,26 +810,19 @@ class _FriendScreenState extends State<FriendScreen> {
           _openUserProfile(user);
         },
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            16,
-            15,
-            12,
-            15,
-          ),
+          padding: EdgeInsets.fromLTRB(16, 15, 12, 15),
           child: Row(
             children: [
               _buildProfileImage(user),
-              const SizedBox(width: 13),
+              SizedBox(width: 13),
 
-              Expanded(
-                child: _buildUserInformation(user),
-              ),
+              Expanded(child: _buildUserInformation(user)),
 
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
 
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
-                color: Color(0xFFB4B8C2),
+                color: context.colors.textMuted,
               ),
             ],
           ),
@@ -911,84 +831,70 @@ class _FriendScreenState extends State<FriendScreen> {
     );
   }
 
-  Widget _buildProfileImage(
-      FriendUserItem user,
-      ) {
+  Widget _buildProfileImage(FriendUserItem user) {
     return Container(
       width: 52,
       height: 52,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Color(0xFFFCE1E8),
+        color: context.colors.pinkSoft,
       ),
       clipBehavior: Clip.antiAlias,
       child: user.profileImageUrl != null
           ? Image.network(
-        user.profileImageUrl!,
-        fit: BoxFit.cover,
-        errorBuilder: (
-            context,
-            error,
-            stackTrace,
-            ) {
-          return _buildProfileInitial(
-            user.nickname,
-          );
-        },
-      )
+              user.profileImageUrl!,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return _buildProfileInitial(user.nickname);
+              },
+            )
           : _buildProfileInitial(user.nickname),
     );
   }
 
-  Widget _buildProfileInitial(
-      String nickname,
-      ) {
+  Widget _buildProfileInitial(String nickname) {
     return Center(
       child: Text(
-        nickname.isEmpty
-            ? '?'
-            : nickname.substring(0, 1),
-        style: const TextStyle(
+        nickname.isEmpty ? '?' : nickname.substring(0, 1),
+        style: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w800,
-          color: Color(0xFFF0788F),
+          color: context.colors.pinkStart,
         ),
       ),
     );
   }
 
-  Widget _buildUserInformation(
-      FriendUserItem user,
-      ) {
+  Widget _buildUserInformation(FriendUserItem user) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           user.nickname,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF1A1A1A),
+            color: context.colors.textPrimary,
           ),
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: 4),
 
         Row(
           children: [
-            const Icon(
+            Icon(
               Icons.workspace_premium_outlined,
               size: 15,
-              color: Color(0xFFF0788F),
+              color: context.colors.pinkStart,
             ),
-            const SizedBox(width: 4),
+            SizedBox(width: 4),
             Expanded(
               child: Text(
                 user.targetCertificate,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: Color(0xFF666A73),
+                  color: context.colors.textSecondary,
                 ),
               ),
             ),
@@ -996,15 +902,12 @@ class _FriendScreenState extends State<FriendScreen> {
         ),
 
         if (user.bio.isNotEmpty) ...[
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Text(
             user.bio,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF9AA0AC),
-            ),
+            style: TextStyle(fontSize: 12, color: context.colors.textSecondary),
           ),
         ],
       ],
@@ -1014,22 +917,22 @@ class _FriendScreenState extends State<FriendScreen> {
   Widget _buildReceivedRequestHeader() {
     return Row(
       children: [
-        const Expanded(
+        Expanded(
           child: Text(
             '받은 친구 요청',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1A1A1A),
+              color: context.colors.textPrimary,
             ),
           ),
         ),
         Text(
           '${_receivedRequests.length}명',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: Color(0xFFF0788F),
+            color: context.colors.pinkStart,
           ),
         ),
       ],
@@ -1040,14 +943,14 @@ class _FriendScreenState extends State<FriendScreen> {
     return AppCard(
       padding: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 15, 12, 15),
+        padding: EdgeInsets.fromLTRB(16, 15, 12, 15),
         child: Row(
           children: [
             GestureDetector(
               onTap: () => _openUserProfile(user),
               child: _buildProfileImage(user),
             ),
-            const SizedBox(width: 13),
+            SizedBox(width: 13),
             Expanded(
               child: GestureDetector(
                 onTap: () => _openUserProfile(user),
@@ -1055,7 +958,7 @@ class _FriendScreenState extends State<FriendScreen> {
                 child: _buildUserInformation(user),
               ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Column(
               children: [
                 SizedBox(
@@ -1063,28 +966,28 @@ class _FriendScreenState extends State<FriendScreen> {
                   child: ElevatedButton(
                     onPressed: () => _acceptFriendRequest(user),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF0788F),
-                      foregroundColor: Colors.white,
+                      backgroundColor: context.colors.pinkStart,
+                      foregroundColor: context.colors.onPrimary,
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      padding: EdgeInsets.symmetric(horizontal: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(11),
                       ),
                     ),
-                    child: const Text(
+                    child: Text(
                       '수락',
                       style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 SizedBox(
                   height: 34,
                   child: TextButton(
                     onPressed: () => _rejectFriendRequest(user),
-                    child: const Text(
+                    child: Text(
                       '거절',
-                      style: TextStyle(color: Color(0xFF9AA0AC)),
+                      style: TextStyle(color: context.colors.textSecondary),
                     ),
                   ),
                 ),
@@ -1099,22 +1002,22 @@ class _FriendScreenState extends State<FriendScreen> {
   Widget _buildFriendHeader() {
     return Row(
       children: [
-        const Expanded(
+        Expanded(
           child: Text(
             '친구 목록',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1A1A1A),
+              color: context.colors.textPrimary,
             ),
           ),
         ),
         Text(
           '${_friends.length}명',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: Color(0xFFF0788F),
+            color: context.colors.pinkStart,
           ),
         ),
       ],
@@ -1128,18 +1031,18 @@ class _FriendScreenState extends State<FriendScreen> {
         borderRadius: BorderRadius.circular(22),
         onTap: () => _openUserProfile(friend),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 15, 7, 15),
+          padding: EdgeInsets.fromLTRB(16, 15, 7, 15),
           child: Row(
             children: [
               _buildProfileImage(friend),
-              const SizedBox(width: 13),
+              SizedBox(width: 13),
               Expanded(child: _buildUserInformation(friend)),
               PopupMenuButton<String>(
                 tooltip: '친구 메뉴',
-                color: Colors.white,
-                icon: const Icon(
+                color: context.colors.surface,
+                icon: Icon(
                   Icons.more_vert_rounded,
-                  color: Color(0xFF9AA0AC),
+                  color: context.colors.textSecondary,
                 ),
                 onSelected: (value) {
                   if (value == 'profile') {
@@ -1150,7 +1053,7 @@ class _FriendScreenState extends State<FriendScreen> {
                   }
                 },
                 itemBuilder: (context) {
-                  return const [
+                  return [
                     PopupMenuItem<String>(
                       value: 'profile',
                       child: Row(
@@ -1158,7 +1061,7 @@ class _FriendScreenState extends State<FriendScreen> {
                           Icon(
                             Icons.person_outline,
                             size: 20,
-                            color: Color(0xFF666A73),
+                            color: context.colors.textSecondary,
                           ),
                           SizedBox(width: 10),
                           Text('프로필 보기'),
@@ -1172,7 +1075,7 @@ class _FriendScreenState extends State<FriendScreen> {
                           Icon(
                             Icons.person_remove_outlined,
                             size: 20,
-                            color: Colors.redAccent,
+                            color: context.colors.incorrect,
                           ),
                           SizedBox(width: 10),
                           Text('친구 삭제'),
@@ -1190,17 +1093,15 @@ class _FriendScreenState extends State<FriendScreen> {
   }
 
   Widget _buildEmptySearchCard() {
-    return const AppCard(
+    return AppCard(
       child: Padding(
-        padding: EdgeInsets.symmetric(
-          vertical: 26,
-        ),
+        padding: EdgeInsets.symmetric(vertical: 26),
         child: Column(
           children: [
             Icon(
               Icons.search_off_rounded,
               size: 42,
-              color: Color(0xFFB4B8C2),
+              color: context.colors.textMuted,
             ),
             SizedBox(height: 10),
             Text(
@@ -1208,7 +1109,7 @@ class _FriendScreenState extends State<FriendScreen> {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF1A1A1A),
+                color: context.colors.textPrimary,
               ),
             ),
             SizedBox(height: 5),
@@ -1216,7 +1117,7 @@ class _FriendScreenState extends State<FriendScreen> {
               '닉네임을 다시 확인해주세요.',
               style: TextStyle(
                 fontSize: 13,
-                color: Color(0xFF9AA0AC),
+                color: context.colors.textSecondary,
               ),
             ),
           ],
@@ -1226,17 +1127,15 @@ class _FriendScreenState extends State<FriendScreen> {
   }
 
   Widget _buildEmptyFriendCard() {
-    return const AppCard(
+    return AppCard(
       child: Padding(
-        padding: EdgeInsets.symmetric(
-          vertical: 30,
-        ),
+        padding: EdgeInsets.symmetric(vertical: 30),
         child: Column(
           children: [
             Icon(
               Icons.group_add_outlined,
               size: 44,
-              color: Color(0xFFB4B8C2),
+              color: context.colors.textMuted,
             ),
             SizedBox(height: 12),
             Text(
@@ -1244,7 +1143,7 @@ class _FriendScreenState extends State<FriendScreen> {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF1A1A1A),
+                color: context.colors.textPrimary,
               ),
             ),
             SizedBox(height: 6),
@@ -1254,7 +1153,7 @@ class _FriendScreenState extends State<FriendScreen> {
               style: TextStyle(
                 fontSize: 13,
                 height: 1.5,
-                color: Color(0xFF9AA0AC),
+                color: context.colors.textSecondary,
               ),
             ),
           ],
@@ -1272,7 +1171,7 @@ class FriendUserItem {
   final String? profileImageUrl;
   final String? relationId;
 
-  const FriendUserItem({
+  FriendUserItem({
     required this.uid,
     required this.nickname,
     required this.bio,

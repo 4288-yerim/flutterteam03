@@ -60,11 +60,14 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _fadeAnim = CurvedAnimation(parent: _entryController, curve: Curves.easeOut);
-    _slideAnim = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic));
+    _fadeAnim = CurvedAnimation(
+      parent: _entryController,
+      curve: Curves.easeOut,
+    );
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
+        );
     _iconScale = Tween<double>(begin: 0.6, end: 1.0).animate(
       CurvedAnimation(
         parent: _entryController,
@@ -136,16 +139,18 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
       await callable.call({'email': widget.email});
       _startCooldown();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('인증코드를 다시 보냈어요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('인증코드를 다시 보냈어요.')));
     } on FirebaseFunctionsException catch (e) {
       if (!mounted) return;
       String message = '재전송에 실패했어요. 잠시 후 다시 시도해주세요.';
       if (e.code == 'resource-exhausted') {
         message = e.message ?? message;
       }
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -170,10 +175,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
 
     try {
       final callable = FirebaseFunctions.instance.httpsCallable('verifyOtp');
-      final result = await callable.call({
-        'email': widget.email,
-        'code': code,
-      });
+      final result = await callable.call({'email': widget.email, 'code': code});
 
       final verificationToken = result.data['verificationToken'] as String;
 
@@ -186,28 +188,31 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
               Navigator.of(certContext).push(
                 MaterialPageRoute(
                   builder: (_) => ProfileSetupScreen(
-                    onNext: (profileContext,
-                        {required String nickname,
+                    onNext:
+                        (
+                          profileContext, {
+                          required String nickname,
                           String? bio,
-                          File? profileImageFile}) {
-                      Navigator.of(profileContext).push(
-                        MaterialPageRoute(
-                          builder: (_) => TermsAgreementScreen(
-                            onAgree: (termsContext, agreements) async {
-                              await _completeSignup(
-                                termsContext,
-                                verificationToken,
-                                agreements,
-                                goalCertificateId,
-                                nickname,
-                                bio,
-                                profileImageFile,
-                              );
-                            },
-                          ),
-                        ),
-                      );
-                    },
+                          File? profileImageFile,
+                        }) {
+                          Navigator.of(profileContext).push(
+                            MaterialPageRoute(
+                              builder: (_) => TermsAgreementScreen(
+                                onAgree: (termsContext, agreements) async {
+                                  await _completeSignup(
+                                    termsContext,
+                                    verificationToken,
+                                    agreements,
+                                    goalCertificateId,
+                                    nickname,
+                                    bio,
+                                    profileImageFile,
+                                  );
+                                },
+                              ),
+                            ),
+                          );
+                        },
                   ),
                 ),
               );
@@ -242,16 +247,18 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
   }
 
   Future<void> _completeSignup(
-      BuildContext termsContext,
-      String verificationToken,
-      Map<String, bool> agreements,
-      String? goalCertificateId,
-      String nickname,
-      String? bio,
-      File? profileImageFile,
-      ) async {
+    BuildContext termsContext,
+    String verificationToken,
+    Map<String, bool> agreements,
+    String? goalCertificateId,
+    String nickname,
+    String? bio,
+    File? profileImageFile,
+  ) async {
     try {
-      final callable = FirebaseFunctions.instance.httpsCallable('completeSignup');
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'completeSignup',
+      );
       final result = await callable.call({
         'email': widget.email,
         'password': widget.password,
@@ -276,10 +283,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
             await FirebaseFirestore.instance
                 .collection('users')
                 .doc(user.uid)
-                .update({
-              'profileImageUrl': url,
-              'profileImagePath': path,
-            });
+                .update({'profileImageUrl': url, 'profileImagePath': path});
           } catch (e) {
             debugPrint('PROFILE IMAGE UPLOAD FAILED: $e');
           }
@@ -288,7 +292,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
       if (!termsContext.mounted) return;
       Navigator.of(termsContext).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const MainPage(showTutorial: true)),
-            (route) => false,
+        (route) => false,
       );
     } on FirebaseFunctionsException catch (e) {
       debugPrint('COMPLETE_SIGNUP ERROR CODE: ${e.code}');
@@ -313,9 +317,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
           message = e.message ?? message;
           break;
       }
-      ScaffoldMessenger.of(termsContext).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.of(
+        termsContext,
+      ).showSnackBar(SnackBar(content: Text(message)));
       Navigator.of(termsContext).popUntil((route) => route.isFirst);
     } catch (e, st) {
       debugPrint('COMPLETE_SIGNUP UNEXPECTED ERROR: $e');
@@ -337,7 +341,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
       if (!termsContext.mounted) return false;
       Navigator.of(termsContext).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const MainPage()),
-            (route) => false,
+        (route) => false,
       );
       return true;
     } catch (e) {
@@ -398,7 +402,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
                       offset: const Offset(0, 10),
                     ),
                     BoxShadow(
-                      color: Colors.white.withOpacity(0.5),
+                      color: context.colors.onPrimary.withValues(alpha: 0.5),
                       blurRadius: 8,
                       offset: const Offset(-4, -4),
                     ),
@@ -417,7 +421,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
+                        color: context.colors.shadow,
                         blurRadius: 6,
                         offset: const Offset(0, 3),
                       ),
@@ -431,8 +435,11 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
                         shape: BoxShape.circle,
                         color: colors.pinkStart,
                       ),
-                      child: const Icon(Icons.check_rounded,
-                          color: Colors.white, size: 14),
+                      child: Icon(
+                        Icons.check_rounded,
+                        color: context.colors.onPrimary,
+                        size: 14,
+                      ),
                     ),
                   ),
                 ),
@@ -445,12 +452,12 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
               Positioned(
                 right: -4,
                 top: 2,
-                child: _dot(const Color(0xFFB9E4FA), 10),
+                child: _dot(context.colors.softBlueAccent, 10),
               ),
               Positioned(
                 left: 6,
                 bottom: -4,
-                child: _dot(const Color(0xFFB9E4FA), 6),
+                child: _dot(context.colors.softBlueAccent, 6),
               ),
             ],
           ),
@@ -519,7 +526,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
                         SizedBox(height: 16),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 18, vertical: 12),
+                            horizontal: 18,
+                            vertical: 12,
+                          ),
                           decoration: BoxDecoration(
                             color: colors.pinkStart.withOpacity(0.08),
                             borderRadius: BorderRadius.circular(14),
@@ -531,8 +540,11 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.mail_outline_rounded,
-                                  size: 16, color: colors.pinkStart),
+                              Icon(
+                                Icons.mail_outline_rounded,
+                                size: 16,
+                                color: colors.pinkStart,
+                              ),
                               SizedBox(width: 8),
                               Flexible(
                                 child: Text(
@@ -577,10 +589,13 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
                             suffixIcon: _codeController.text.isEmpty
                                 ? null
                                 : IconButton(
-                              icon: Icon(Icons.close,
-                                  color: colors.textSecondary, size: 18),
-                              onPressed: () => _codeController.clear(),
-                            ),
+                                    icon: Icon(
+                                      Icons.close,
+                                      color: colors.textSecondary,
+                                      size: 18,
+                                    ),
+                                    onPressed: () => _codeController.clear(),
+                                  ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
                               borderSide: BorderSide(
@@ -597,11 +612,17 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(color: colors.pinkStart, width: 2),
+                              borderSide: BorderSide(
+                                color: colors.pinkStart,
+                                width: 2,
+                              ),
                             ),
                             errorBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(color: errorColor, width: 1.2),
+                              borderSide: BorderSide(
+                                color: errorColor,
+                                width: 1.2,
+                              ),
                             ),
                           ),
                           onSubmitted: (_) {
@@ -623,7 +644,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
                           animation: _buttonPulseController,
                           builder: (context, child) {
                             final t = _buttonPulseController.value;
-                            final scale = 1.0 +
+                            final scale =
+                                1.0 +
                                 (Curves.easeOutBack.transform(t) *
                                     (t < 1 ? 0.05 : 0.0));
                             return Transform.scale(scale: scale, child: child);

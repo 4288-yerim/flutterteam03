@@ -10,19 +10,10 @@ import '../widgets/app_top_bar.dart';
 import 'community_models.dart';
 import 'community_service.dart';
 
-extension _CommunityAddColors on BuildContext {
-  AppColors get communityColors {
-    return Theme.of(this).extension<AppColors>() ?? AppColors.light;
-  }
-}
-
 class CommunityPostAddPage extends StatefulWidget {
   final CommunityService? service;
 
-  const CommunityPostAddPage({
-    super.key,
-    this.service,
-  });
+  const CommunityPostAddPage({super.key, this.service});
 
   @override
   State<CommunityPostAddPage> createState() {
@@ -30,8 +21,7 @@ class CommunityPostAddPage extends StatefulWidget {
   }
 }
 
-class _CommunityPostAddPageState
-    extends State<CommunityPostAddPage> {
+class _CommunityPostAddPageState extends State<CommunityPostAddPage> {
   static const int _maxImageCount = 5;
   static const int _maxFileCount = 3;
   static const int _maxImageBytes = 10 * 1024 * 1024;
@@ -40,12 +30,9 @@ class _CommunityPostAddPageState
   late final CommunityService _service;
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TextEditingController _titleController =
-  TextEditingController();
-  final TextEditingController _contentController =
-  TextEditingController();
-  final TextEditingController _certificateController =
-  TextEditingController();
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _contentController = TextEditingController();
+  final TextEditingController _certificateController = TextEditingController();
 
   final List<PlatformFile> _selectedImages = [];
   final List<PlatformFile> _selectedFiles = [];
@@ -79,8 +66,7 @@ class _CommunityPostAddPageState
       return;
     }
 
-    FilePickerResult? result =
-    await FilePicker.platform.pickFiles(
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.image,
       allowMultiple: true,
       withData: true,
@@ -135,8 +121,7 @@ class _CommunityPostAddPageState
       return;
     }
 
-    FilePickerResult? result =
-    await FilePicker.platform.pickFiles(
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const [
         'pdf',
@@ -192,21 +177,16 @@ class _CommunityPostAddPageState
     });
   }
 
-  bool _containsFile(
-      List<PlatformFile> files,
-      PlatformFile target,
-      ) {
+  bool _containsFile(List<PlatformFile> files, PlatformFile target) {
     return files.any((file) {
       return file.name == target.name && file.size == target.size;
     });
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _savePost() async {
@@ -238,17 +218,14 @@ class _CommunityPostAddPageState
     if (nickname.isEmpty) {
       String email = user.email?.trim() ?? '';
 
-      nickname = email.contains('@')
-          ? email.split('@').first
-          : '사용자';
+      nickname = email.contains('@') ? email.split('@').first : '사용자';
     }
 
     String postId = _service.createPostId();
     List<String> uploadedPaths = [];
 
     try {
-      _AttachmentUploadResult attachments =
-      await _uploadAttachments(
+      _AttachmentUploadResult attachments = await _uploadAttachments(
         postId: postId,
         userUid: user.uid,
         uploadedPaths: uploadedPaths,
@@ -287,16 +264,16 @@ class _CommunityPostAddPageState
       debugPrint('커뮤니티 게시글 저장 실패: $error');
       debugPrintStack(stackTrace: stackTrace);
 
-      String message =
-          '게시글을 저장하지 못했어요. 다시 시도해 주세요.';
+      String message = '게시글을 저장하지 못했어요. 다시 시도해 주세요.';
 
       if (error is FirebaseException) {
-        if (error.code == 'unauthorized' ||
-            error.code == 'permission-denied') {
-          message = '사진 또는 파일 업로드 권한이 없어요. '
+        if (error.code == 'unauthorized' || error.code == 'permission-denied') {
+          message =
+              '사진 또는 파일 업로드 권한이 없어요. '
               'Firebase 규칙을 확인해 주세요.';
         } else if (error.code == 'retry-limit-exceeded') {
-          message = '인터넷 연결이 불안정해요. '
+          message =
+              '인터넷 연결이 불안정해요. '
               '잠시 후 다시 시도해 주세요.';
         }
       }
@@ -315,9 +292,7 @@ class _CommunityPostAddPageState
         .toList();
 
     return names.map((name) {
-      String certificateId = name
-          .toLowerCase()
-          .replaceAll(RegExp(r'\s+'), '-');
+      String certificateId = name.toLowerCase().replaceAll(RegExp(r'\s+'), '-');
 
       return CommunityCertificateTag(
         certificateId: certificateId,
@@ -335,9 +310,7 @@ class _CommunityPostAddPageState
     List<Map<String, dynamic>> files = [];
     FirebaseStorage storage = FirebaseStorage.instance;
 
-    for (int index = 0;
-    index < _selectedImages.length;
-    index++) {
+    for (int index = 0; index < _selectedImages.length; index++) {
       PlatformFile file = _selectedImages[index];
       String path =
           'community/posts/$postId/images/'
@@ -350,23 +323,16 @@ class _CommunityPostAddPageState
         file.bytes!,
         SettableMetadata(
           contentType: _imageContentType(file.extension),
-          customMetadata: {
-            'uploaderUid': userUid,
-          },
+          customMetadata: {'uploaderUid': userUid},
         ),
       );
 
       uploadedPaths.add(path);
 
-      images.add({
-        'url': await reference.getDownloadURL(),
-        'path': path,
-      });
+      images.add({'url': await reference.getDownloadURL(), 'path': path});
     }
 
-    for (int index = 0;
-    index < _selectedFiles.length;
-    index++) {
+    for (int index = 0; index < _selectedFiles.length; index++) {
       PlatformFile file = _selectedFiles[index];
       String path =
           'community/posts/$postId/files/'
@@ -379,10 +345,7 @@ class _CommunityPostAddPageState
         file.bytes!,
         SettableMetadata(
           contentType: 'application/octet-stream',
-          customMetadata: {
-            'originalName': file.name,
-            'uploaderUid': userUid,
-          },
+          customMetadata: {'originalName': file.name, 'uploaderUid': userUid},
         ),
       );
 
@@ -395,15 +358,10 @@ class _CommunityPostAddPageState
       });
     }
 
-    return _AttachmentUploadResult(
-      images: images,
-      files: files,
-    );
+    return _AttachmentUploadResult(images: images, files: files);
   }
 
-  Future<void> _deleteUploadedFiles(
-      List<String> uploadedPaths,
-      ) async {
+  Future<void> _deleteUploadedFiles(List<String> uploadedPaths) async {
     for (String path in uploadedPaths) {
       try {
         await FirebaseStorage.instance.ref(path).delete();
@@ -414,10 +372,7 @@ class _CommunityPostAddPageState
   }
 
   String _safeFileName(String name) {
-    return name.replaceAll(
-      RegExp(r'[^a-zA-Z0-9가-힣._-]'),
-      '_',
-    );
+    return name.replaceAll(RegExp(r'[^a-zA-Z0-9가-힣._-]'), '_');
   }
 
   String _imageContentType(String? extension) {
@@ -440,19 +395,12 @@ class _CommunityPostAddPageState
     return PopScope(
       canPop: !_isSaving,
       child: Scaffold(
-        appBar: const AppTopBar(
-          title: '게시글 작성',
-        ),
+        appBar: const AppTopBar(title: '게시글 작성'),
         body: AppMainBackground(
           child: Form(
             key: _formKey,
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                4,
-                20,
-                40,
-              ),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
               children: [
                 _buildGuideCard(),
                 const SizedBox(height: 16),
@@ -472,22 +420,22 @@ class _CommunityPostAddPageState
   Widget _buildGuideCard() {
     return AppCard(
       padding: const EdgeInsets.all(16),
-      backgroundColor: context.communityColors.pinkSoft,
+      backgroundColor: context.colors.pinkSoft,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
             Icons.edit_note_rounded,
-            color: context.communityColors.pinkStart,
+            color: context.colors.pinkStart,
             size: 25,
           ),
           const SizedBox(width: 11),
           Expanded(
             child: Text(
               '자격증 태그와 학습 자료를 함께 올리면 '
-                  '필요한 사람에게 글이 더 잘 보여요.',
+              '필요한 사람에게 글이 더 잘 보여요.',
               style: TextStyle(
-                color: context.communityColors.textPrimary,
+                color: context.colors.textPrimary,
                 fontSize: 13,
                 height: 1.45,
               ),
@@ -509,39 +457,36 @@ class _CommunityPostAddPageState
           DropdownButtonFormField<CommunityBoardType>(
             value: _selectedBoard,
             isExpanded: true,
-            decoration: _inputDecoration(
-              hintText: '게시판을 선택해 주세요.',
-            ),
+            decoration: _inputDecoration(hintText: '게시판을 선택해 주세요.'),
             items: CommunityBoardType.values
                 .where((board) {
-              return board != CommunityBoardType.all;
-            }).map((board) {
-              return DropdownMenuItem<CommunityBoardType>(
-                value: board,
-                child: Text(board.label),
-              );
-            }).toList(),
+                  return board != CommunityBoardType.all;
+                })
+                .map((board) {
+                  return DropdownMenuItem<CommunityBoardType>(
+                    value: board,
+                    child: Text(board.label),
+                  );
+                })
+                .toList(),
             onChanged: _isSaving
                 ? null
                 : (board) {
-              if (board == null) {
-                return;
-              }
+                    if (board == null) {
+                      return;
+                    }
 
-              setState(() {
-                _selectedBoard = board;
-              });
-            },
+                    setState(() {
+                      _selectedBoard = board;
+                    });
+                  },
           ),
           const SizedBox(height: 20),
           _buildFieldTitle('관련 자격증 (선택)'),
           const SizedBox(height: 5),
           Text(
             '쉼표로 구분해 최대 3개까지 입력해 주세요.',
-            style: TextStyle(
-              color: context.communityColors.textSecondary,
-              fontSize: 11,
-            ),
+            style: TextStyle(color: context.colors.textSecondary, fontSize: 11),
           ),
           const SizedBox(height: 9),
           TextFormField(
@@ -642,7 +587,7 @@ class _CommunityPostAddPageState
           Text(
             '사진은 최대 5장·각 10MB, 파일은 최대 3개·각 20MB예요.',
             style: TextStyle(
-              color: context.communityColors.textSecondary,
+              color: context.colors.textSecondary,
               fontSize: 11,
               height: 1.4,
             ),
@@ -653,24 +598,16 @@ class _CommunityPostAddPageState
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: _isSaving ? null : _pickImages,
-                  icon: const Icon(
-                    Icons.add_photo_alternate_outlined,
-                  ),
-                  label: Text(
-                    '사진 ${_selectedImages.length}/$_maxImageCount',
-                  ),
+                  icon: const Icon(Icons.add_photo_alternate_outlined),
+                  label: Text('사진 ${_selectedImages.length}/$_maxImageCount'),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: _isSaving ? null : _pickFiles,
-                  icon: const Icon(
-                    Icons.attach_file_rounded,
-                  ),
-                  label: Text(
-                    '파일 ${_selectedFiles.length}/$_maxFileCount',
-                  ),
+                  icon: const Icon(Icons.attach_file_rounded),
+                  label: Text('파일 ${_selectedFiles.length}/$_maxFileCount'),
                 ),
               ),
             ],
@@ -719,10 +656,10 @@ class _CommunityPostAddPageState
                   onTap: _isSaving
                       ? null
                       : () {
-                    setState(() {
-                      _selectedImages.removeAt(index);
-                    });
-                  },
+                          setState(() {
+                            _selectedImages.removeAt(index);
+                          });
+                        },
                   borderRadius: BorderRadius.circular(20),
                   child: Container(
                     width: 25,
@@ -731,10 +668,10 @@ class _CommunityPostAddPageState
                       shape: BoxShape.circle,
                       color: Colors.black54,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.close_rounded,
                       size: 17,
-                      color: Colors.white,
+                      color: context.colors.onPrimary,
                     ),
                   ),
                 ),
@@ -748,76 +685,64 @@ class _CommunityPostAddPageState
 
   Widget _buildSelectedFiles() {
     return Column(
-      children: List.generate(
-        _selectedFiles.length,
-            (index) {
-          PlatformFile file = _selectedFiles[index];
+      children: List.generate(_selectedFiles.length, (index) {
+        PlatformFile file = _selectedFiles[index];
 
-          return Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.only(
-              left: 12,
-              top: 7,
-              bottom: 7,
-            ),
-            decoration: BoxDecoration(
-              color: context.communityColors.softBlue,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.insert_drive_file_outlined,
-                  size: 20,
-                  color: context.communityColors.pinkStart,
-                ),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        file.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color:
-                          context.communityColors.textPrimary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.only(left: 12, top: 7, bottom: 7),
+          decoration: BoxDecoration(
+            color: context.colors.softBlue,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.insert_drive_file_outlined,
+                size: 20,
+                color: context.colors.pinkStart,
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      file.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _formatFileSize(file.size),
-                        style: TextStyle(
-                          color:
-                          context.communityColors.textSecondary,
-                          fontSize: 10,
-                        ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _formatFileSize(file.size),
+                      style: TextStyle(
+                        color: context.colors.textSecondary,
+                        fontSize: 10,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                IconButton(
-                  tooltip: '첨부 삭제',
-                  onPressed: _isSaving
-                      ? null
-                      : () {
-                    setState(() {
-                      _selectedFiles.removeAt(index);
-                    });
-                  },
-                  icon: const Icon(
-                    Icons.close_rounded,
-                    size: 19,
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+              ),
+              IconButton(
+                tooltip: '첨부 삭제',
+                onPressed: _isSaving
+                    ? null
+                    : () {
+                        setState(() {
+                          _selectedFiles.removeAt(index);
+                        });
+                      },
+                icon: const Icon(Icons.close_rounded, size: 19),
+              ),
+            ],
+          ),
+        );
+      }),
     );
   }
 
@@ -833,7 +758,7 @@ class _CommunityPostAddPageState
     return Text(
       title,
       style: TextStyle(
-        color: context.communityColors.textPrimary,
+        color: context.colors.textPrimary,
         fontSize: 14,
         fontWeight: FontWeight.w700,
       ),
@@ -846,10 +771,7 @@ class _CommunityPostAddPageState
   }) {
     return InputDecoration(
       hintText: hintText,
-      hintStyle: TextStyle(
-        color: context.communityColors.textSecondary,
-        fontSize: 13,
-      ),
+      hintStyle: TextStyle(color: context.colors.textSecondary, fontSize: 13),
       filled: true,
       fillColor: Theme.of(context).colorScheme.surface,
       contentPadding: EdgeInsets.fromLTRB(
@@ -860,55 +782,40 @@ class _CommunityPostAddPageState
       ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(
-          color: context.communityColors.pinkSoft,
-        ),
+        borderSide: BorderSide(color: context.colors.pinkSoft),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(
-          color: context.communityColors.pinkSoft,
-        ),
+        borderSide: BorderSide(color: context.colors.pinkSoft),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(
-          color: context.communityColors.pinkStart,
-          width: 1.4,
-        ),
+        borderSide: BorderSide(color: context.colors.pinkStart, width: 1.4),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: Colors.redAccent,
-        ),
+        borderSide: BorderSide(color: context.colors.incorrect),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: Colors.redAccent,
-        ),
+        borderSide: BorderSide(color: context.colors.incorrect),
       ),
     );
   }
 
   Widget? _buildInsideCounter(
-      BuildContext context, {
-        required int currentLength,
-        required bool isFocused,
-        required int? maxLength,
-      }) {
+    BuildContext context, {
+    required int currentLength,
+    required bool isFocused,
+    required int? maxLength,
+  }) {
     return Transform.translate(
       offset: const Offset(0, -30),
       child: Padding(
         padding: const EdgeInsets.only(right: 3),
         child: Text(
           '$currentLength/${maxLength ?? 0}',
-          style: TextStyle(
-            color: context
-                .communityColors.textSecondary,
-            fontSize: 10,
-          ),
+          style: TextStyle(color: context.colors.textSecondary, fontSize: 10),
         ),
       ),
     );
@@ -920,37 +827,33 @@ class _CommunityPostAddPageState
       child: FilledButton(
         onPressed: _isSaving ? null : _savePost,
         style: FilledButton.styleFrom(
-          backgroundColor: context.communityColors.pinkStart,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor:
-          context.communityColors.textSecondary,
+          backgroundColor: context.colors.pinkStart,
+          foregroundColor: context.colors.onPrimary,
+          disabledBackgroundColor: context.colors.textSecondary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
           ),
         ),
         child: _isSaving
-            ? const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.2,
-                color: Colors.white,
-              ),
-            ),
-            SizedBox(width: 10),
-            Text('업로드 중'),
-          ],
-        )
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      color: context.colors.onPrimary,
+                    ),
+                  ),
+                  SizedBox(width: 10),
+                  Text('업로드 중'),
+                ],
+              )
             : const Text(
-          '게시글 등록',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+                '게시글 등록',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              ),
       ),
     );
   }
@@ -960,8 +863,5 @@ class _AttachmentUploadResult {
   final List<Map<String, dynamic>> images;
   final List<Map<String, dynamic>> files;
 
-  const _AttachmentUploadResult({
-    required this.images,
-    required this.files,
-  });
+  const _AttachmentUploadResult({required this.images, required this.files});
 }

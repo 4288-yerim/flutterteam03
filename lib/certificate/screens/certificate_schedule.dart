@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_state_views.dart';
 import '../../widgets/app_top_bar.dart';
 import '../services/certificate_schedule_service.dart';
-import '../widgets/certificate_common_widgets.dart';
 import '../widgets/certificate_schedule_widgets.dart';
 import 'certificate_search.dart';
 
@@ -18,7 +18,7 @@ class CertificateSchedulePage extends StatefulWidget {
 
 class _CertificateSchedulePageState extends State<CertificateSchedulePage> {
   final CertificateScheduleService _scheduleService =
-  CertificateScheduleService();
+      CertificateScheduleService();
 
   int _selectedTabIndex = 0;
   DateTime _focusedDay = DateTime.now();
@@ -82,8 +82,7 @@ class _CertificateSchedulePageState extends State<CertificateSchedulePage> {
     }).toList();
 
     schedules.sort((a, b) {
-      final typeCompare =
-      a.scheduleType.compareTo(b.scheduleType);
+      final typeCompare = a.scheduleType.compareTo(b.scheduleType);
 
       if (typeCompare != 0) {
         return typeCompare;
@@ -105,8 +104,7 @@ class _CertificateSchedulePageState extends State<CertificateSchedulePage> {
     }).toList();
 
     schedules.sort((a, b) {
-      final dateCompare =
-      a.startDate.compareTo(b.startDate);
+      final dateCompare = a.startDate.compareTo(b.startDate);
 
       if (dateCompare != 0) {
         return dateCompare;
@@ -119,11 +117,7 @@ class _CertificateSchedulePageState extends State<CertificateSchedulePage> {
   }
 
   void _moveMonth(int amount) {
-    final newMonth = DateTime(
-      _focusedDay.year,
-      _focusedDay.month + amount,
-      1,
-    );
+    final newMonth = DateTime(_focusedDay.year, _focusedDay.month + amount, 1);
 
     setState(() {
       _focusedDay = newMonth;
@@ -134,10 +128,7 @@ class _CertificateSchedulePageState extends State<CertificateSchedulePage> {
   void _openCertificateSearch() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) =>
-        const CertificateSearchPage(),
-      ),
+      MaterialPageRoute(builder: (context) => const CertificateSearchPage()),
     );
   }
 
@@ -151,35 +142,31 @@ class _CertificateSchedulePageState extends State<CertificateSchedulePage> {
         centerTitle: true,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: certificateDarkText,
+            color: context.colors.iconPrimary,
             size: 21,
           ),
         ),
         actions: [
           IconButton(
             onPressed: _openCertificateSearch,
-            icon: const Icon(
+            icon: Icon(
               Icons.search_rounded,
-              color: certificateDarkText,
+              color: context.colors.iconPrimary,
               size: 26,
             ),
           ),
           const SizedBox(width: 8),
         ],
       ),
-      body: AppMainBackground(
-        child: _buildBody(),
-      ),
+      body: AppMainBackground(child: _buildBody()),
     );
   }
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const AppLoadingView(
-        message: '자격증 일정을 불러오는 중입니다.',
-      );
+      return const AppLoadingView(message: '자격증 일정을 불러오는 중입니다.');
     }
 
     if (_loadError != null) {
@@ -206,10 +193,7 @@ class _CertificateSchedulePageState extends State<CertificateSchedulePage> {
         Expanded(
           child: IndexedStack(
             index: _selectedTabIndex,
-            children: [
-              _buildCalendarTab(),
-              _buildListTab(),
-            ],
+            children: [_buildCalendarTab(), _buildListTab()],
           ),
         ),
       ],
@@ -217,8 +201,7 @@ class _CertificateSchedulePageState extends State<CertificateSchedulePage> {
   }
 
   Widget _buildCalendarTab() {
-    final selectedSchedules =
-    _getSchedulesForDay(_selectedDay);
+    final selectedSchedules = _getSchedulesForDay(_selectedDay);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
@@ -243,11 +226,7 @@ class _CertificateSchedulePageState extends State<CertificateSchedulePage> {
             onPageChanged: (focusedDay) {
               setState(() {
                 _focusedDay = focusedDay;
-                _selectedDay = DateTime(
-                  focusedDay.year,
-                  focusedDay.month,
-                  1,
-                );
+                _selectedDay = DateTime(focusedDay.year, focusedDay.month, 1);
               });
             },
           ),
@@ -261,16 +240,12 @@ class _CertificateSchedulePageState extends State<CertificateSchedulePage> {
           ),
           const SizedBox(height: 15),
           if (selectedSchedules.isEmpty)
-            const EmptyCertificateScheduleCard(
-              message: '선택한 날짜에 자격증 일정이 없습니다.',
-            )
+            const EmptyCertificateScheduleCard(message: '선택한 날짜에 자격증 일정이 없습니다.')
           else
             ...selectedSchedules.map(
-                  (schedule) => Padding(
+              (schedule) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: CertificateScheduleCard(
-                  schedule: schedule,
-                ),
+                child: CertificateScheduleCard(schedule: schedule),
               ),
             ),
         ],
@@ -279,8 +254,7 @@ class _CertificateSchedulePageState extends State<CertificateSchedulePage> {
   }
 
   Widget _buildListTab() {
-    final monthlySchedules =
-    _getSchedulesForMonth(_focusedDay);
+    final monthlySchedules = _getSchedulesForMonth(_focusedDay);
 
     return Column(
       children: [
@@ -296,64 +270,51 @@ class _CertificateSchedulePageState extends State<CertificateSchedulePage> {
         Expanded(
           child: monthlySchedules.isEmpty
               ? const SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: 24),
-            child: EmptyCertificateScheduleCard(
-              message: '이번 달에 등록된 자격증 일정이 없습니다.',
-            ),
-          )
-              : ListView.builder(
-            padding: const EdgeInsets.fromLTRB(
-              24,
-              0,
-              24,
-              40,
-            ),
-            itemCount: monthlySchedules.length,
-            itemBuilder: (context, index) {
-              final schedule =
-              monthlySchedules[index];
-
-              final showDateHeader = index == 0 ||
-                  !_isSameScheduleStartDay(
-                    schedule,
-                    monthlySchedules[index - 1],
-                  );
-
-              return Column(
-                crossAxisAlignment:
-                CrossAxisAlignment.start,
-                children: [
-                  if (showDateHeader) ...[
-                    if (index != 0)
-                      const SizedBox(height: 18),
-                    CertificateScheduleListDateHeader(
-                      date: schedule.startDate,
-                    ),
-                    const SizedBox(height: 10),
-                  ],
-                  Padding(
-                    padding:
-                    const EdgeInsets.only(bottom: 12),
-                    child: CertificateScheduleCard(
-                      schedule: schedule,
-                    ),
+                  padding: EdgeInsets.symmetric(horizontal: 24),
+                  child: EmptyCertificateScheduleCard(
+                    message: '이번 달에 등록된 자격증 일정이 없습니다.',
                   ),
-                ],
-              );
-            },
-          ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
+                  itemCount: monthlySchedules.length,
+                  itemBuilder: (context, index) {
+                    final schedule = monthlySchedules[index];
+
+                    final showDateHeader =
+                        index == 0 ||
+                        !_isSameScheduleStartDay(
+                          schedule,
+                          monthlySchedules[index - 1],
+                        );
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (showDateHeader) ...[
+                          if (index != 0) const SizedBox(height: 18),
+                          CertificateScheduleListDateHeader(
+                            date: schedule.startDate,
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: CertificateScheduleCard(schedule: schedule),
+                        ),
+                      ],
+                    );
+                  },
+                ),
         ),
       ],
     );
   }
 
   bool _isSameScheduleStartDay(
-      CertificateSchedule first,
-      CertificateSchedule second,
-      ) {
-    return DateUtils.isSameDay(
-      first.startDate,
-      second.startDate,
-    );
+    CertificateSchedule first,
+    CertificateSchedule second,
+  ) {
+    return DateUtils.isSameDay(first.startDate, second.startDate);
   }
 }

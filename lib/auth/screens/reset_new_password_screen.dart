@@ -99,11 +99,14 @@ class _ResetNewPasswordScreenState extends State<ResetNewPasswordScreen>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _fadeAnim = CurvedAnimation(parent: _entryController, curve: Curves.easeOut);
-    _slideAnim = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic));
+    _fadeAnim = CurvedAnimation(
+      parent: _entryController,
+      curve: Curves.easeOut,
+    );
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
+        );
     _iconScale = Tween<double>(begin: 0.6, end: 1.0).animate(
       CurvedAnimation(
         parent: _entryController,
@@ -186,7 +189,8 @@ class _ResetNewPasswordScreenState extends State<ResetNewPasswordScreen>
     return null;
   }
 
-  String? get _passwordDisplayError => _passwordServerError ?? _passwordLengthError;
+  String? get _passwordDisplayError =>
+      _passwordServerError ?? _passwordLengthError;
 
   String? get _confirmError {
     final confirm = _passwordConfirmController.text;
@@ -203,8 +207,8 @@ class _ResetNewPasswordScreenState extends State<ResetNewPasswordScreen>
 
   bool get _isFormValid =>
       _isPasswordValid &&
-          _passwordConfirmController.text.isNotEmpty &&
-          _confirmError == null;
+      _passwordConfirmController.text.isNotEmpty &&
+      _confirmError == null;
 
   Future<void> _resetPassword() async {
     if (!_isFormValid) return;
@@ -215,7 +219,9 @@ class _ResetNewPasswordScreenState extends State<ResetNewPasswordScreen>
     });
 
     try {
-      final callable = FirebaseFunctions.instance.httpsCallable('resetPassword');
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'resetPassword',
+      );
       await callable.call({
         'email': widget.email,
         'code': widget.code,
@@ -438,9 +444,9 @@ class _ResetNewPasswordScreenState extends State<ResetNewPasswordScreen>
       suffixIcon: controller.text.isEmpty
           ? null
           : IconButton(
-        icon: Icon(Icons.close, color: colors.textSecondary, size: 18),
-        onPressed: () => controller.clear(),
-      ),
+              icon: Icon(Icons.close, color: colors.textSecondary, size: 18),
+              onPressed: () => controller.clear(),
+            ),
     );
   }
 
@@ -486,7 +492,9 @@ class _ResetNewPasswordScreenState extends State<ResetNewPasswordScreen>
                 margin: EdgeInsets.only(right: i < 2 ? 6 : 0),
                 height: 4,
                 decoration: BoxDecoration(
-                  color: i < filledBars ? activeColor : colors.textSecondary.withOpacity(0.15),
+                  color: i < filledBars
+                      ? activeColor
+                      : colors.textSecondary.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -494,7 +502,11 @@ class _ResetNewPasswordScreenState extends State<ResetNewPasswordScreen>
           SizedBox(width: 10),
           Text(
             label,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: activeColor),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: activeColor,
+            ),
           ),
         ],
       ),
@@ -561,7 +573,7 @@ class _ResetNewPasswordScreenState extends State<ResetNewPasswordScreen>
                       offset: const Offset(0, 10),
                     ),
                     BoxShadow(
-                      color: Colors.white.withOpacity(0.5),
+                      color: context.colors.onPrimary.withValues(alpha: 0.5),
                       blurRadius: 8,
                       offset: const Offset(-4, -4),
                     ),
@@ -580,7 +592,7 @@ class _ResetNewPasswordScreenState extends State<ResetNewPasswordScreen>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
+                        color: context.colors.shadow,
                         blurRadius: 6,
                         offset: const Offset(0, 3),
                       ),
@@ -594,8 +606,11 @@ class _ResetNewPasswordScreenState extends State<ResetNewPasswordScreen>
                         shape: BoxShape.circle,
                         color: colors.pinkStart,
                       ),
-                      child: const Icon(Icons.lock_rounded,
-                          color: Colors.white, size: 13),
+                      child: Icon(
+                        Icons.lock_rounded,
+                        color: context.colors.onPrimary,
+                        size: 13,
+                      ),
                     ),
                   ),
                 ),
@@ -608,12 +623,12 @@ class _ResetNewPasswordScreenState extends State<ResetNewPasswordScreen>
               Positioned(
                 right: -4,
                 top: 2,
-                child: _dot(const Color(0xFFB9E4FA), 10),
+                child: _dot(context.colors.softBlueAccent, 10),
               ),
               Positioned(
                 left: 6,
                 bottom: -4,
-                child: _dot(const Color(0xFFB9E4FA), 6),
+                child: _dot(context.colors.softBlueAccent, 6),
               ),
             ],
           ),
@@ -683,7 +698,9 @@ class _ResetNewPasswordScreenState extends State<ResetNewPasswordScreen>
                             textInputAction: TextInputAction.next,
                             onSubmitted: (_) {
                               if (_showConfirmStep) {
-                                FocusScope.of(context).requestFocus(_passwordConfirmFocus);
+                                FocusScope.of(
+                                  context,
+                                ).requestFocus(_passwordConfirmFocus);
                               }
                             },
                             decoration: _decoration(
@@ -723,7 +740,8 @@ class _ResetNewPasswordScreenState extends State<ResetNewPasswordScreen>
                                 obscuringCharacter: '●',
                                 textInputAction: TextInputAction.done,
                                 onSubmitted: (_) {
-                                  if (_isFormValid && !_isLoading) _resetPassword();
+                                  if (_isFormValid && !_isLoading)
+                                    _resetPassword();
                                 },
                                 decoration: _decoration(
                                   colors: colors,
@@ -740,21 +758,33 @@ class _ResetNewPasswordScreenState extends State<ResetNewPasswordScreen>
                                   alignment: Alignment.centerLeft,
                                   child: Text(
                                     _confirmError!,
-                                    style: TextStyle(color: errorColor, fontSize: 12),
+                                    style: TextStyle(
+                                      color: errorColor,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ),
-                              ] else if (_passwordConfirmController.text.isNotEmpty) ...[
+                              ] else if (_passwordConfirmController
+                                  .text
+                                  .isNotEmpty) ...[
                                 SizedBox(height: 6),
                                 Align(
                                   alignment: Alignment.centerLeft,
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.check_circle, size: 14, color: colors.pinkStart),
+                                      Icon(
+                                        Icons.check_circle,
+                                        size: 14,
+                                        color: colors.pinkStart,
+                                      ),
                                       SizedBox(width: 4),
                                       Text(
                                         '비밀번호가 일치해요',
-                                        style: TextStyle(color: colors.pinkStart, fontSize: 12),
+                                        style: TextStyle(
+                                          color: colors.pinkStart,
+                                          fontSize: 12,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -774,16 +804,23 @@ class _ResetNewPasswordScreenState extends State<ResetNewPasswordScreen>
                               animation: _buttonPulseController,
                               builder: (context, child) {
                                 final t = _buttonPulseController.value;
-                                final scale = 1.0 +
-                                    (Curves.easeOutBack.transform(t) * (t < 1 ? 0.05 : 0.0));
-                                return Transform.scale(scale: scale, child: child);
+                                final scale =
+                                    1.0 +
+                                    (Curves.easeOutBack.transform(t) *
+                                        (t < 1 ? 0.05 : 0.0));
+                                return Transform.scale(
+                                  scale: scale,
+                                  child: child,
+                                );
                               },
                               child: AppButton(
                                 text: '비밀번호 변경하기',
                                 type: _isFormValid
                                     ? AppButtonType.primaryPink
                                     : AppButtonType.gray,
-                                onPressed: (_isFormValid && !_isLoading) ? _resetPassword : null,
+                                onPressed: (_isFormValid && !_isLoading)
+                                    ? _resetPassword
+                                    : null,
                               ),
                             ),
                           ),

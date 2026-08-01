@@ -51,11 +51,14 @@ class _ResetPasswordOtpScreenState extends State<ResetPasswordOtpScreen>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _fadeAnim = CurvedAnimation(parent: _entryController, curve: Curves.easeOut);
-    _slideAnim = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic));
+    _fadeAnim = CurvedAnimation(
+      parent: _entryController,
+      curve: Curves.easeOut,
+    );
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
+        );
     _iconScale = Tween<double>(begin: 0.6, end: 1.0).animate(
       CurvedAnimation(
         parent: _entryController,
@@ -125,20 +128,24 @@ class _ResetPasswordOtpScreenState extends State<ResetPasswordOtpScreen>
   Future<void> _resendCode() async {
     setState(() => _isLoading = true);
     try {
-      final callable = FirebaseFunctions.instance.httpsCallable('sendPasswordResetOtp');
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'sendPasswordResetOtp',
+      );
       await callable.call({'email': widget.email});
       _startCooldown();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('인증코드를 다시 보냈어요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('인증코드를 다시 보냈어요.')));
     } on FirebaseFunctionsException catch (e) {
       if (!mounted) return;
       String message = '재전송에 실패했어요. 잠시 후 다시 시도해주세요.';
       if (e.code == 'resource-exhausted') {
         message = e.message ?? message;
       }
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -228,7 +235,7 @@ class _ResetPasswordOtpScreenState extends State<ResetPasswordOtpScreen>
                       offset: const Offset(0, 10),
                     ),
                     BoxShadow(
-                      color: Colors.white.withOpacity(0.5),
+                      color: context.colors.onPrimary.withValues(alpha: 0.5),
                       blurRadius: 8,
                       offset: const Offset(-4, -4),
                     ),
@@ -258,9 +265,9 @@ class _ResetPasswordOtpScreenState extends State<ResetPasswordOtpScreen>
                       ),
                     ],
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.verified_rounded,
-                    color: Colors.white,
+                    color: context.colors.onPrimary,
                     size: 16,
                   ),
                 ),
@@ -273,7 +280,7 @@ class _ResetPasswordOtpScreenState extends State<ResetPasswordOtpScreen>
               Positioned(
                 right: -4,
                 top: 2,
-                child: _dot(const Color(0xFFB9E4FA), 10),
+                child: _dot(context.colors.softBlueAccent, 10),
               ),
             ],
           ),
@@ -332,7 +339,10 @@ class _ResetPasswordOtpScreenState extends State<ResetPasswordOtpScreen>
                         ),
                         SizedBox(height: 16),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 12,
+                          ),
                           decoration: BoxDecoration(
                             color: colors.pinkStart.withOpacity(0.08),
                             borderRadius: BorderRadius.circular(14),
@@ -344,7 +354,11 @@ class _ResetPasswordOtpScreenState extends State<ResetPasswordOtpScreen>
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.mail_outline_rounded, size: 16, color: colors.pinkStart),
+                              Icon(
+                                Icons.mail_outline_rounded,
+                                size: 16,
+                                color: colors.pinkStart,
+                              ),
                               SizedBox(width: 8),
                               Flexible(
                                 child: Text(
@@ -371,10 +385,13 @@ class _ResetPasswordOtpScreenState extends State<ResetPasswordOtpScreen>
                             keyboardType: TextInputType.number,
                             textAlign: TextAlign.center,
                             maxLength: 6,
-                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
                             textInputAction: TextInputAction.done,
                             onSubmitted: (_) {
-                              if (_isFormValid && !_isLoading) _goToNewPassword();
+                              if (_isFormValid && !_isLoading)
+                                _goToNewPassword();
                             },
                             style: TextStyle(
                               fontSize: 26,
@@ -395,12 +412,23 @@ class _ResetPasswordOtpScreenState extends State<ResetPasswordOtpScreen>
                               suffixIcon: _codeController.text.isEmpty
                                   ? null
                                   : IconButton(
-                                icon: Icon(Icons.close, color: colors.textSecondary, size: 18),
-                                onPressed: () => _codeController.clear(),
+                                      icon: Icon(
+                                        Icons.close,
+                                        color: colors.textSecondary,
+                                        size: 18,
+                                      ),
+                                      onPressed: () => _codeController.clear(),
+                                    ),
+                              border: _border(
+                                colors.textSecondary.withOpacity(0.25),
                               ),
-                              border: _border(colors.textSecondary.withOpacity(0.25)),
-                              enabledBorder: _border(colors.textSecondary.withOpacity(0.25)),
-                              focusedBorder: _border(colors.pinkStart, width: 2),
+                              enabledBorder: _border(
+                                colors.textSecondary.withOpacity(0.25),
+                              ),
+                              focusedBorder: _border(
+                                colors.pinkStart,
+                                width: 2,
+                              ),
                               errorBorder: _border(errorColor),
                               focusedErrorBorder: _border(errorColor, width: 2),
                             ),
@@ -424,17 +452,23 @@ class _ResetPasswordOtpScreenState extends State<ResetPasswordOtpScreen>
                             animation: _buttonPulseController,
                             builder: (context, child) {
                               final t = _buttonPulseController.value;
-                              final scale = 1.0 +
-                                  (Curves.easeOutBack.transform(t) * (t < 1 ? 0.05 : 0.0));
-                              return Transform.scale(scale: scale, child: child);
+                              final scale =
+                                  1.0 +
+                                  (Curves.easeOutBack.transform(t) *
+                                      (t < 1 ? 0.05 : 0.0));
+                              return Transform.scale(
+                                scale: scale,
+                                child: child,
+                              );
                             },
                             child: AppButton(
                               text: '다음',
                               type: _isFormValid
                                   ? AppButtonType.primaryPink
                                   : AppButtonType.gray,
-                              onPressed:
-                              (_isFormValid && !_isLoading) ? _goToNewPassword : null,
+                              onPressed: (_isFormValid && !_isLoading)
+                                  ? _goToNewPassword
+                                  : null,
                             ),
                           ),
                         ),
@@ -447,10 +481,15 @@ class _ResetPasswordOtpScreenState extends State<ResetPasswordOtpScreen>
                           children: [
                             Text(
                               '메일이 오지 않았나요? ',
-                              style: TextStyle(fontSize: 13, color: colors.textSecondary),
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: colors.textSecondary,
+                              ),
                             ),
                             GestureDetector(
-                              onTap: (_isLoading || _resendCooldown > 0) ? null : _resendCode,
+                              onTap: (_isLoading || _resendCooldown > 0)
+                                  ? null
+                                  : _resendCode,
                               child: Text(
                                 _resendCooldown > 0
                                     ? '재전송 (${_resendCooldown}초 후 가능)'

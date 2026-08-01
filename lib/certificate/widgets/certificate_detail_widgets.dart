@@ -1,6 +1,8 @@
 import 'package:add_2_calendar/add_2_calendar.dart';
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
+
 import 'certificate_common_widgets.dart';
 
 class CertificateDetailHeader extends StatelessWidget {
@@ -20,17 +22,17 @@ class CertificateDetailHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final iconBackground = isTechnical
-        ? certificateSoftBlue
-        : certificateMint;
+        ? context.colors.softBlue
+        : context.colors.mint;
 
     final iconColor = isTechnical
-        ? const Color(0xFF7191D8)
-        : const Color(0xFF65AF91);
+        ? context.colors.info
+        : context.colors.correct;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: certificateCardDecoration(),
+      padding: EdgeInsets.all(22),
+      decoration: certificateCardDecoration(context: context),
       child: Column(
         children: [
           Container(
@@ -46,41 +48,35 @@ class CertificateDetailHeader extends StatelessWidget {
               size: 35,
             ),
           ),
-          const SizedBox(height: 17),
+          SizedBox(height: 17),
           Text(
             name,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: certificateDarkText,
+            style: TextStyle(
+              color: context.colors.textPrimary,
               fontSize: 23,
               fontWeight: FontWeight.w800,
               letterSpacing: -0.6,
             ),
           ),
-          const SizedBox(height: 11),
+          SizedBox(height: 11),
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 13,
-              vertical: 7,
-            ),
+            padding: EdgeInsets.symmetric(horizontal: 13, vertical: 7),
             decoration: BoxDecoration(
-              color: certificatePinkSoft,
+              color: context.colors.pinkSoft,
               borderRadius: BorderRadius.circular(30),
             ),
             child: Text(
               qualificationName,
-              style: const TextStyle(
-                color: certificatePrimaryPink,
+              style: TextStyle(
+                color: context.colors.pinkDeep,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ),
 
-          if (action != null) ...[
-            const SizedBox(height: 16),
-            action!,
-          ],
+          if (action != null) ...[SizedBox(height: 16), action!],
         ],
       ),
     );
@@ -90,74 +86,65 @@ class CertificateDetailHeader extends StatelessWidget {
 class CertificateInfoCard extends StatelessWidget {
   final List<CertificateInfoItem> items;
 
-  const CertificateInfoCard({
-    super.key,
-    required this.items,
-  });
+  const CertificateInfoCard({super.key, required this.items});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: certificateCardDecoration(),
+      padding: EdgeInsets.all(20),
+      decoration: certificateCardDecoration(context: context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             '자격 정보',
             style: TextStyle(
-              color: certificateDarkText,
+              color: context.colors.textPrimary,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 18),
-          ...List.generate(
-            items.length,
-                (index) {
-              final item = items[index];
+          SizedBox(height: 18),
+          ...List.generate(items.length, (index) {
+            final item = items[index];
 
-              return Column(
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 90,
-                        child: Text(
-                          item.label,
-                          style: const TextStyle(
-                            color: certificateGrayText,
-                            fontSize: 13,
-                          ),
+            return Column(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 90,
+                      child: Text(
+                        item.label,
+                        style: TextStyle(
+                          color: context.colors.textSecondary,
+                          fontSize: 13,
                         ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          item.value.isEmpty ? '-' : item.value,
-                          style: const TextStyle(
-                            color: certificateDarkText,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            height: 1.4,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (index != items.length - 1)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 15),
-                      child: Divider(
-                        height: 1,
-                        color: certificateBorderColor,
                       ),
                     ),
-                ],
-              );
-            },
-          ),
+                    Expanded(
+                      child: Text(
+                        item.value.isEmpty ? '-' : item.value,
+                        style: TextStyle(
+                          color: context.colors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (index != items.length - 1)
+                  Padding(
+                    padding: EdgeInsets.symmetric(vertical: 15),
+                    child: Divider(height: 1, color: context.colors.border),
+                  ),
+              ],
+            );
+          }),
         ],
       ),
     );
@@ -168,26 +155,20 @@ class CertificateInfoItem {
   final String label;
   final String value;
 
-  const CertificateInfoItem({
-    required this.label,
-    required this.value,
-  });
+  const CertificateInfoItem({required this.label, required this.value});
 }
 
 class CertificateDetailSectionTitle extends StatelessWidget {
   final String title;
 
-  const CertificateDetailSectionTitle({
-    super.key,
-    required this.title,
-  });
+  const CertificateDetailSectionTitle({super.key, required this.title});
 
   @override
   Widget build(BuildContext context) {
     return Text(
       title,
-      style: const TextStyle(
-        color: certificateDarkText,
+      style: TextStyle(
+        color: context.colors.textPrimary,
         fontSize: 20,
         fontWeight: FontWeight.w800,
         letterSpacing: -0.4,
@@ -196,7 +177,6 @@ class CertificateDetailSectionTitle extends StatelessWidget {
   }
 }
 
-
 class CertificateGoalOption {
   final String scheduleId;
   final String targetRound;
@@ -204,6 +184,7 @@ class CertificateGoalOption {
   final String examTypeName;
 
   final DateTime examDate;
+  final DateTime examStartDate;
   final DateTime? examEndDate;
 
   final DateTime? registrationStartDate;
@@ -218,12 +199,53 @@ class CertificateGoalOption {
     required this.examType,
     required this.examTypeName,
     required this.examDate,
+    required this.examStartDate,
     required this.examEndDate,
     required this.registrationStartDate,
     required this.registrationEndDate,
     required this.passAnnouncementDate,
     required this.passAnnouncementEndDate,
   });
+
+  CertificateGoalOption withExamDate(DateTime selectedDate) {
+    return CertificateGoalOption(
+      scheduleId: scheduleId,
+      targetRound: targetRound,
+      examType: examType,
+      examTypeName: examTypeName,
+      examDate: selectedDate,
+      examStartDate: examStartDate,
+      examEndDate: examEndDate,
+      registrationStartDate: registrationStartDate,
+      registrationEndDate: registrationEndDate,
+      passAnnouncementDate: passAnnouncementDate,
+      passAnnouncementEndDate: passAnnouncementEndDate,
+    );
+  }
+}
+
+Future<CertificateGoalOption?> selectCertificateGoalExamDate({
+  required BuildContext context,
+  required CertificateGoalOption option,
+}) async {
+  final firstDate = _certificateDateOnly(option.examStartDate);
+  final lastDate = _certificateDateOnly(option.examEndDate ?? firstDate);
+  if (!lastDate.isAfter(firstDate)) return option.withExamDate(firstDate);
+
+  final today = _certificateDateOnly(DateTime.now());
+  final selectableFirstDate = today.isAfter(firstDate) ? today : firstDate;
+  if (selectableFirstDate.isAfter(lastDate)) return null;
+
+  final selectedDate = await showDatePicker(
+    context: context,
+    initialDate: selectableFirstDate,
+    firstDate: selectableFirstDate,
+    lastDate: lastDate,
+    helpText: '시험 응시일 선택',
+    cancelText: '취소',
+    confirmText: '선택',
+  );
+  return selectedDate == null ? null : option.withExamDate(selectedDate);
 }
 
 Future<bool?> showCertificateCalendarLinkDialog({
@@ -235,17 +257,15 @@ Future<bool?> showCertificateCalendarLinkDialog({
     barrierDismissible: false,
     builder: (dialogContext) {
       return AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
-        ),
-        titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-        contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-        actionsPadding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-        title: const Row(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        titlePadding: EdgeInsets.fromLTRB(24, 24, 24, 0),
+        contentPadding: EdgeInsets.fromLTRB(24, 16, 24, 0),
+        actionsPadding: EdgeInsets.fromLTRB(20, 20, 20, 20),
+        title: Row(
           children: [
             Icon(
               Icons.event_available_outlined,
-              color: certificatePrimaryPink,
+              color: context.colors.pinkDeep,
               size: 24,
             ),
             SizedBox(width: 10),
@@ -253,7 +273,7 @@ Future<bool?> showCertificateCalendarLinkDialog({
               child: Text(
                 '캘린더에 추가할까요?',
                 style: TextStyle(
-                  color: certificateDarkText,
+                  color: context.colors.textPrimary,
                   fontSize: 19,
                   fontWeight: FontWeight.w800,
                 ),
@@ -263,14 +283,12 @@ Future<bool?> showCertificateCalendarLinkDialog({
         ),
         content: Text(
           '${option.targetRound} ${option.examTypeName} 시험이 '
-              '목표로 등록되었습니다.\n\n'
-              '시험일: ${formatCertificateGoalDateRange(
-            option.examDate,
-            option.examEndDate,
-          )}\n'
-              '휴대폰 캘린더에도 시험 일정을 추가하시겠습니까?',
-          style: const TextStyle(
-            color: certificateBodyText,
+          '목표로 등록되었습니다.\n\n'
+          '선택한 시험일: ${formatCertificateGoalDate(option.examDate)}\n'
+          '시험 기간: ${formatCertificateGoalDateRange(option.examStartDate, option.examEndDate)}\n'
+          '휴대폰 캘린더에도 시험 일정을 추가하시겠습니까?',
+          style: TextStyle(
+            color: context.colors.textSecondary,
             fontSize: 14,
             fontWeight: FontWeight.w500,
             height: 1.6,
@@ -281,10 +299,10 @@ Future<bool?> showCertificateCalendarLinkDialog({
             onPressed: () {
               Navigator.pop(dialogContext, false);
             },
-            child: const Text(
+            child: Text(
               '연동 안 함',
               style: TextStyle(
-                color: certificateGrayText,
+                color: context.colors.textSecondary,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -294,21 +312,16 @@ Future<bool?> showCertificateCalendarLinkDialog({
               Navigator.pop(dialogContext, true);
             },
             style: FilledButton.styleFrom(
-              backgroundColor: certificatePrimaryPink,
-              foregroundColor: Colors.white,
+              backgroundColor: context.colors.pinkDeep,
+              foregroundColor: context.colors.onPrimary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            icon: const Icon(
-              Icons.calendar_month_outlined,
-              size: 18,
-            ),
-            label: const Text(
+            icon: Icon(Icons.calendar_month_outlined, size: 18),
+            label: Text(
               '캘린더에 추가',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -336,7 +349,7 @@ Future<bool> addCertificateGoalToDeviceCalendar({
         '시험 회차: ${option.targetRound}\n'
         '시험 유형: ${option.examTypeName}',
     startDate: startDate,
-    endDate: startDate.add(const Duration(days: 1)),
+    endDate: startDate.add(Duration(days: 1)),
     allDay: true,
   );
 
@@ -353,10 +366,7 @@ String formatCertificateGoalDate(DateTime date) {
   return '$year.$month.$day';
 }
 
-String formatCertificateGoalDateRange(
-    DateTime startDate,
-    DateTime? endDate,
-    ) {
+String formatCertificateGoalDateRange(DateTime startDate, DateTime? endDate) {
   final start = _certificateDateOnly(startDate);
 
   if (endDate == null) {
@@ -374,25 +384,20 @@ String formatCertificateGoalDateRange(
       '${formatCertificateGoalDate(end)}';
 }
 
-CertificateRegistrationStatus?
-getCertificateRegistrationStatus({
+CertificateRegistrationStatus? getCertificateRegistrationStatus({
   required DateTime? registrationStartDate,
   required DateTime? registrationEndDate,
 }) {
-  if (registrationStartDate == null ||
-      registrationEndDate == null) {
+  if (registrationStartDate == null || registrationEndDate == null) {
     return null;
   }
 
   final today = _certificateDateOnly(DateTime.now());
-  final startDate =
-  _certificateDateOnly(registrationStartDate);
-  final endDate =
-  _certificateDateOnly(registrationEndDate);
+  final startDate = _certificateDateOnly(registrationStartDate);
+  final endDate = _certificateDateOnly(registrationEndDate);
 
   if (today.isBefore(startDate)) {
-    final remainingDays =
-        startDate.difference(today).inDays;
+    final remainingDays = startDate.difference(today).inDays;
 
     return CertificateRegistrationStatus(
       label: '원서접수 D-$remainingDays',
@@ -401,26 +406,16 @@ getCertificateRegistrationStatus({
   }
 
   if (!today.isAfter(endDate)) {
-    return const CertificateRegistrationStatus(
-      label: '원서접수 진행중',
-      isActive: true,
-    );
+    return CertificateRegistrationStatus(label: '원서접수 진행중', isActive: true);
   }
 
-  return const CertificateRegistrationStatus(
-    label: '원서접수 종료',
-    isActive: false,
-  );
+  return const CertificateRegistrationStatus(label: '원서접수 종료', isActive: false);
 }
 
 DateTime _certificateDateOnly(DateTime date) {
   final localDate = date.toLocal();
 
-  return DateTime(
-    localDate.year,
-    localDate.month,
-    localDate.day,
-  );
+  return DateTime(localDate.year, localDate.month, localDate.day);
 }
 
 class CertificateRegistrationStatus {
@@ -433,8 +428,7 @@ class CertificateRegistrationStatus {
   });
 }
 
-class CertificateScheduleStatusBadge
-    extends StatelessWidget {
+class CertificateScheduleStatusBadge extends StatelessWidget {
   final String label;
   final bool isActive;
 
@@ -447,22 +441,17 @@ class CertificateScheduleStatusBadge
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 5,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: isActive
-            ? certificatePinkSoft
-            : const Color(0xFFF2F3F6),
+        color: isActive ? context.colors.pinkSoft : context.colors.surfaceMuted,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         label,
         style: TextStyle(
           color: isActive
-              ? certificatePrimaryPink
-              : certificateGrayText,
+              ? context.colors.pinkDeep
+              : context.colors.textSecondary,
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),

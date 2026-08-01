@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
+
 class AdminMemberDetailSurface extends StatelessWidget {
   const AdminMemberDetailSurface({
     super.key,
@@ -18,9 +20,9 @@ class AdminMemberDetailSurface extends StatelessWidget {
       padding: padding,
       clipBehavior: clipBehavior,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.95),
+        color: context.colors.surfaceTransparent,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFECE9F0)),
+        border: Border.all(color: context.colors.border),
       ),
       child: child,
     );

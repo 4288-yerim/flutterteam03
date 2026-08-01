@@ -9,11 +9,12 @@ import '../widgets/step_indicator.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   final void Function(
-      BuildContext context, {
-      required String nickname,
-      String? bio,
-      File? profileImageFile,
-      }) onNext;
+    BuildContext context, {
+    required String nickname,
+    String? bio,
+    File? profileImageFile,
+  })
+  onNext;
 
   const ProfileSetupScreen({super.key, required this.onNext});
 
@@ -70,8 +71,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   }
 
   // 버튼 활성화 조건: 닉네임이 유효할 때만 (에러 텍스트 표시 여부와 별개로 실시간 판단)
-  bool get _canProceed =>
-      _validateNickname(_nicknameController.text) == null;
+  bool get _canProceed => _validateNickname(_nicknameController.text) == null;
 
   void _handleNext() {
     final nickname = _nicknameController.text.trim();
@@ -84,7 +84,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     widget.onNext(
       context,
       nickname: nickname,
-      bio: _bioController.text.trim().isEmpty ? null : _bioController.text.trim(),
+      bio: _bioController.text.trim().isEmpty
+          ? null
+          : _bioController.text.trim(),
       profileImageFile: _pickedImage,
     );
   }
@@ -143,10 +145,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       CircleAvatar(
                         radius: 48,
                         backgroundColor: colors.pinkStart.withOpacity(0.10),
-                        backgroundImage:
-                        _pickedImage != null ? FileImage(_pickedImage!) : null,
+                        backgroundImage: _pickedImage != null
+                            ? FileImage(_pickedImage!)
+                            : null,
                         child: _pickedImage == null
-                            ? Icon(Icons.person_rounded, size: 44, color: colors.pinkStart)
+                            ? Icon(
+                                Icons.person_rounded,
+                                size: 44,
+                                color: colors.pinkStart,
+                              )
                             : null,
                       ),
                       Positioned(
@@ -158,10 +165,16 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                           decoration: BoxDecoration(
                             color: colors.pinkStart,
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
+                            border: Border.all(
+                              color: context.colors.onPrimary,
+                              width: 2,
+                            ),
                           ),
-                          child: const Icon(Icons.camera_alt_rounded,
-                              size: 15, color: Colors.white),
+                          child: Icon(
+                            Icons.camera_alt_rounded,
+                            size: 15,
+                            color: context.colors.onPrimary,
+                          ),
                         ),
                       ),
                     ],
@@ -193,17 +206,23 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     errorText: _errorText,
                     filled: true,
                     fillColor: colors.background,
-                    contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: BorderSide(
-                          color: colors.textSecondary.withOpacity(0.2), width: 1.2),
+                        color: colors.textSecondary.withOpacity(0.2),
+                        width: 1.2,
+                      ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: BorderSide(
-                          color: colors.textSecondary.withOpacity(0.2), width: 1.2),
+                        color: colors.textSecondary.withOpacity(0.2),
+                        width: 1.2,
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -247,17 +266,23 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     ),
                     filled: true,
                     fillColor: colors.background,
-                    contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: BorderSide(
-                          color: colors.textSecondary.withOpacity(0.2), width: 1.2),
+                        color: colors.textSecondary.withOpacity(0.2),
+                        width: 1.2,
+                      ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: BorderSide(
-                          color: colors.textSecondary.withOpacity(0.2), width: 1.2),
+                        color: colors.textSecondary.withOpacity(0.2),
+                        width: 1.2,
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -268,7 +293,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 const SizedBox(height: 32),
                 AppButton(
                   text: '다음',
-                  type: _canProceed ? AppButtonType.primaryPink : AppButtonType.gray,
+                  type: _canProceed
+                      ? AppButtonType.primaryPink
+                      : AppButtonType.gray,
                   onPressed: _canProceed ? _handleNext : null,
                 ),
               ],

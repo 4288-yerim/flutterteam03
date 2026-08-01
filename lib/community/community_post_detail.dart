@@ -5,18 +5,13 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_main_background.dart';
+import '../widgets/app_report_bottom_sheet.dart';
 import '../widgets/app_state_views.dart';
 import '../widgets/app_top_bar.dart';
 import 'community_comment_models.dart';
 import 'community_models.dart';
 import 'community_post_edit.dart';
 import 'community_service.dart';
-
-extension _CommunityDetailColors on BuildContext {
-  AppColors get communityColors {
-    return Theme.of(this).extension<AppColors>() ?? AppColors.light;
-  }
-}
 
 class CommunityPostDetailPage extends StatefulWidget {
   final String postId;
@@ -34,14 +29,11 @@ class CommunityPostDetailPage extends StatefulWidget {
   }
 }
 
-class _CommunityPostDetailPageState
-    extends State<CommunityPostDetailPage> {
+class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
   late final CommunityService _service;
-  final TextEditingController _commentController =
-  TextEditingController();
+  final TextEditingController _commentController = TextEditingController();
   final FocusNode _commentFocusNode = FocusNode();
-  final Map<String, Future<Map<String, dynamic>>>
-  _profileFutures = {};
+  final Map<String, Future<Map<String, dynamic>>> _profileFutures = {};
 
   int _streamVersion = 0;
   bool _viewCountIncreased = false;
@@ -97,10 +89,7 @@ class _CommunityPostDetailPageState
       context,
       MaterialPageRoute(
         builder: (context) {
-          return CommunityPostEditPage(
-            post: post,
-            service: _service,
-          );
+          return CommunityPostEditPage(post: post, service: _service);
         },
       ),
     );
@@ -161,9 +150,7 @@ class _CommunityPostDetailPageState
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('게시글을 삭제하지 못했어요. 다시 시도해 주세요.'),
-        ),
+        const SnackBar(content: Text('게시글을 삭제하지 못했어요. 다시 시도해 주세요.')),
       );
     }
   }
@@ -186,9 +173,7 @@ class _CommunityPostDetailPageState
     User? user = FirebaseAuth.instance.currentUser;
     String targetUid = comment?.writerUid ?? post.writerUid;
 
-    if (user == null ||
-        user.uid == targetUid ||
-        _isReporting) {
+    if (user == null || user.uid == targetUid || _isReporting) {
       return;
     }
 
@@ -199,237 +184,25 @@ class _CommunityPostDetailPageState
       'FRAUD': '사기 또는 허위 정보',
       'ETC': '기타',
     };
-    TextEditingController descriptionController =
-        TextEditingController();
-    String selectedReason = 'SPAM';
-
-    bool? shouldReport = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (modalContext) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Container(
-              padding: EdgeInsets.fromLTRB(
-                22,
-                14,
-                22,
-                MediaQuery.of(context).viewInsets.bottom + 24,
-              ),
-              decoration: BoxDecoration(
-                color: AppColors.light.surface,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(26),
-                ),
-              ),
-              child: SafeArea(
-                top: false,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Center(
-                        child: Container(
-                          width: 42,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: AppColors.light.textSecondary
-                                .withOpacity(0.25),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: AppColors.light.incorrectSoft,
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Icon(
-                              Icons.report_outlined,
-                              color: AppColors.light.incorrect,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  comment == null ? '게시글 신고' : '댓글 신고',
-                                  style: TextStyle(
-                                    color: AppColors.light.textPrimary,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                const SizedBox(height: 3),
-                                Text(
-                                  '신고 사유를 선택해 주세요.',
-                                  style: TextStyle(
-                                    color: AppColors.light.textSecondary,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      ...reasons.entries.map((entry) {
-                        bool isSelected =
-                            selectedReason == entry.key;
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(14),
-                            onTap: () {
-                              setModalState(() {
-                                selectedReason = entry.key;
-                              });
-                            },
-                            child: AnimatedContainer(
-                              duration:
-                                  const Duration(milliseconds: 160),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? AppColors.light.incorrectSoft
-                                    : AppColors.light.pinkSoft
-                                        .withOpacity(0.35),
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? AppColors.light.incorrect
-                                      : Colors.transparent,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    isSelected
-                                        ? Icons.radio_button_checked
-                                        : Icons.radio_button_off,
-                                    color: isSelected
-                                        ? AppColors.light.incorrect
-                                        : AppColors.light.textSecondary,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Text(
-                                    entry.value,
-                                    style: TextStyle(
-                                      color: AppColors.light.textPrimary,
-                                      fontSize: 14,
-                                      fontWeight: isSelected
-                                          ? FontWeight.w700
-                                          : FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: descriptionController,
-                        maxLength: 500,
-                        maxLines: 4,
-                        style: TextStyle(
-                          color: AppColors.light.textPrimary,
-                        ),
-                        decoration: InputDecoration(
-                          labelText: '상세 내용 (선택)',
-                          hintText: '신고 내용을 자세히 알려주세요.',
-                          labelStyle: TextStyle(
-                            color: AppColors.light.textSecondary,
-                          ),
-                          hintStyle: TextStyle(
-                            color: AppColors.light.textSecondary,
-                          ),
-                          counterStyle: TextStyle(
-                            color: AppColors.light.textSecondary,
-                          ),
-                          alignLabelWithHint: true,
-                          filled: true,
-                          fillColor: AppColors.light.pinkSoft
-                              .withOpacity(0.3),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide.none,
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide(
-                              color: AppColors.light.incorrect,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: FilledButton.icon(
-                          onPressed: () {
-                            Navigator.pop(modalContext, true);
-                          },
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.light.incorrect,
-                            foregroundColor: AppColors.light.surface,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          icon: const Icon(Icons.report_outlined),
-                          label: const Text(
-                            '신고 접수하기',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
+    final result = await AppReportBottomSheet.show(
+      context,
+      title: comment == null ? '게시글 신고' : '댓글 신고',
+      reasons: reasons,
     );
 
-    String description = descriptionController.text.trim();
-    Future<void>.delayed(
-      const Duration(milliseconds: 400),
-      descriptionController.dispose,
-    );
-
-    if (shouldReport != true || !mounted) {
+    if (result == null || !mounted) {
       return;
     }
+
+    final selectedReason = result.reasonType;
+    final description = result.description;
 
     setState(() {
       _isReporting = true;
     });
 
     try {
-      Map<String, dynamic> reporterProfile =
-          await _loadWriterProfile(user);
+      Map<String, dynamic> reporterProfile = await _loadWriterProfile(user);
       String reporterNickname =
           reporterProfile['nickname']?.toString().trim() ?? '';
 
@@ -462,20 +235,16 @@ class _CommunityPostDetailPageState
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('신고가 접수되었어요. 확인 후 처리할게요.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('신고가 접수되었어요. 확인 후 처리할게요.')));
     } catch (error) {
       if (!mounted) {
         return;
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('신고를 접수하지 못했어요. 다시 시도해 주세요.'),
-        ),
+        const SnackBar(content: Text('신고를 접수하지 못했어요. 다시 시도해 주세요.')),
       );
     } finally {
       if (mounted) {
@@ -520,12 +289,9 @@ class _CommunityPostDetailPageState
     }
   }
 
-  Future<void> _changeRecruitStatus(
-      CommunityPost post,
-      ) async {
+  Future<void> _changeRecruitStatus(CommunityPost post) async {
     User? user = FirebaseAuth.instance.currentUser;
-    String? nextStatus =
-    _nextRecruitStatus(post.recruitStatus);
+    String? nextStatus = _nextRecruitStatus(post.recruitStatus);
 
     if (_isUpdatingRecruitStatus ||
         user == null ||
@@ -534,17 +300,14 @@ class _CommunityPostDetailPageState
       return;
     }
 
-    String actionLabel =
-    _recruitActionLabel(nextStatus);
+    String actionLabel = _recruitActionLabel(nextStatus);
 
     bool? shouldChange = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
           title: Text(actionLabel),
-          content: Text(
-            '$actionLabel 상태로 변경할까요?\n변경 후에는 이전 상태로 되돌릴 수 없어요.',
-          ),
+          content: Text('$actionLabel 상태로 변경할까요?\n변경 후에는 이전 상태로 되돌릴 수 없어요.'),
           actions: [
             TextButton(
               onPressed: () {
@@ -584,9 +347,7 @@ class _CommunityPostDetailPageState
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            '${_recruitStatusLabel(nextStatus)} 상태로 변경했어요.',
-          ),
+          content: Text('${_recruitStatusLabel(nextStatus)} 상태로 변경했어요.'),
         ),
       );
     } catch (error) {
@@ -595,11 +356,7 @@ class _CommunityPostDetailPageState
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            '모집 상태를 변경하지 못했어요. 다시 시도해 주세요.',
-          ),
-        ),
+        const SnackBar(content: Text('모집 상태를 변경하지 못했어요. 다시 시도해 주세요.')),
       );
     } finally {
       if (mounted) {
@@ -610,21 +367,16 @@ class _CommunityPostDetailPageState
     }
   }
 
-  Future<Map<String, dynamic>> _loadWriterProfile(
-      User user,
-      ) async {
+  Future<Map<String, dynamic>> _loadWriterProfile(User user) async {
     Map<String, dynamic> profile = {};
 
     try {
-      profile = await _service.getUserCommunityProfile(
-        user.uid,
-      );
+      profile = await _service.getUserCommunityProfile(user.uid);
     } catch (error) {
       // 프로필 조회 실패 시 Firebase 로그인 정보를 사용합니다.
     }
 
-    String nickname =
-        profile['nickname']?.toString().trim() ?? '';
+    String nickname = profile['nickname']?.toString().trim() ?? '';
 
     if (nickname.isEmpty || nickname == '사용자') {
       nickname = user.displayName?.trim() ?? '';
@@ -633,9 +385,7 @@ class _CommunityPostDetailPageState
     if (nickname.isEmpty) {
       String email = user.email?.trim() ?? '';
 
-      nickname = email.contains('@')
-          ? email.split('@').first
-          : '사용자';
+      nickname = email.contains('@') ? email.split('@').first : '사용자';
     }
 
     String profileImageUrl =
@@ -645,27 +395,17 @@ class _CommunityPostDetailPageState
       profileImageUrl = user.photoURL ?? '';
     }
 
-    return {
-      'nickname': nickname,
-      'profileImageUrl': profileImageUrl,
-    };
+    return {'nickname': nickname, 'profileImageUrl': profileImageUrl};
   }
 
-  Future<Map<String, dynamic>> _profileForUid(
-      String userUid,
-      ) {
+  Future<Map<String, dynamic>> _profileForUid(String userUid) {
     if (userUid.isEmpty) {
       return Future<Map<String, dynamic>>.value({});
     }
 
-    return _profileFutures.putIfAbsent(
-      userUid,
-          () {
-        return _service.getUserCommunityProfile(
-          userUid,
-        );
-      },
-    );
+    return _profileFutures.putIfAbsent(userUid, () {
+      return _service.getUserCommunityProfile(userUid);
+    });
   }
 
   Future<void> _submitComment() async {
@@ -676,22 +416,18 @@ class _CommunityPostDetailPageState
     String content = _commentController.text.trim();
 
     if (content.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('댓글 내용을 입력해 주세요.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('댓글 내용을 입력해 주세요.')));
       return;
     }
 
     User? user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('로그인 후 댓글을 작성할 수 있어요.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('로그인 후 댓글을 작성할 수 있어요.')));
       return;
     }
 
@@ -702,17 +438,14 @@ class _CommunityPostDetailPageState
     });
 
     try {
-      Map<String, dynamic> profile =
-      await _loadWriterProfile(user);
+      Map<String, dynamic> profile = await _loadWriterProfile(user);
 
       await _service.addComment(
         postId: widget.postId,
         content: content,
         writerUid: user.uid,
-        writerNickname:
-        profile['nickname']?.toString() ?? '사용자',
-        writerProfileImageUrl:
-        profile['profileImageUrl']?.toString() ?? '',
+        writerNickname: profile['nickname']?.toString() ?? '사용자',
+        writerProfileImageUrl: profile['profileImageUrl']?.toString() ?? '',
         parentCommentId: _replyToCommentId,
       );
 
@@ -737,33 +470,20 @@ class _CommunityPostDetailPageState
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('댓글을 등록하지 못했어요. 다시 시도해 주세요.'),
-        ),
+        const SnackBar(content: Text('댓글을 등록하지 못했어요. 다시 시도해 주세요.')),
       );
     }
   }
 
-  Future<void> _startReply(
-      CommunityComment comment,
-      ) async {
-    String nickname =
-    comment.writerNickname.trim();
+  Future<void> _startReply(CommunityComment comment) async {
+    String nickname = comment.writerNickname.trim();
 
     try {
-      Map<String, dynamic> profile =
-      await _profileForUid(
-        comment.writerUid,
-      );
+      Map<String, dynamic> profile = await _profileForUid(comment.writerUid);
 
-      String profileNickname =
-          profile['nickname']
-              ?.toString()
-              .trim() ??
-              '';
+      String profileNickname = profile['nickname']?.toString().trim() ?? '';
 
-      if (profileNickname.isNotEmpty &&
-          profileNickname != '사용자') {
+      if (profileNickname.isNotEmpty && profileNickname != '사용자') {
         nickname = profileNickname;
       }
     } catch (error) {
@@ -789,19 +509,16 @@ class _CommunityPostDetailPageState
     });
   }
 
-  Future<void> _editComment(
-      CommunityComment comment,
-      ) async {
-    String currentUid =
-        FirebaseAuth.instance.currentUser?.uid ?? '';
+  Future<void> _editComment(CommunityComment comment) async {
+    String currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
-    if (currentUid.isEmpty ||
-        currentUid != comment.writerUid) {
+    if (currentUid.isEmpty || currentUid != comment.writerUid) {
       return;
     }
 
-    TextEditingController editController =
-    TextEditingController(text: comment.content);
+    TextEditingController editController = TextEditingController(
+      text: comment.content,
+    );
 
     String? editedContent = await showDialog<String>(
       context: context,
@@ -828,8 +545,7 @@ class _CommunityPostDetailPageState
             ),
             FilledButton(
               onPressed: () {
-                String value =
-                editController.text.trim();
+                String value = editController.text.trim();
 
                 if (value.isEmpty) {
                   return;
@@ -864,27 +580,21 @@ class _CommunityPostDetailPageState
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('댓글을 수정했어요.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('댓글을 수정했어요.')));
     } catch (error) {
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('댓글을 수정하지 못했어요.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('댓글을 수정하지 못했어요.')));
     }
   }
 
-  Future<void> _confirmDeleteComment(
-      CommunityComment comment,
-      ) async {
+  Future<void> _confirmDeleteComment(CommunityComment comment) async {
     String currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     if (currentUid.isEmpty || currentUid != comment.writerUid) {
@@ -930,25 +640,19 @@ class _CommunityPostDetailPageState
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('댓글을 삭제하지 못했어요.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('댓글을 삭제하지 못했어요.')));
     }
   }
 
-  Future<void> _toggleCommentLike(
-      CommunityComment comment,
-      ) async {
+  Future<void> _toggleCommentLike(CommunityComment comment) async {
     User? user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('로그인 후 댓글에 좋아요를 누를 수 있어요.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('로그인 후 댓글에 좋아요를 누를 수 있어요.')));
       return;
     }
 
@@ -971,11 +675,9 @@ class _CommunityPostDetailPageState
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('댓글 좋아요를 처리하지 못했어요.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('댓글 좋아요를 처리하지 못했어요.')));
     } finally {
       if (mounted) {
         setState(() {
@@ -986,9 +688,9 @@ class _CommunityPostDetailPageState
   }
 
   Future<void> _acceptAnswer(
-      CommunityPost post,
-      CommunityComment comment,
-      ) async {
+    CommunityPost post,
+    CommunityComment comment,
+  ) async {
     if (!_isWriter(post) ||
         post.boardType != CommunityBoardType.question ||
         comment.isReply) {
@@ -996,30 +698,23 @@ class _CommunityPostDetailPageState
     }
 
     try {
-      await _service.acceptAnswer(
-        postId: post.id,
-        commentId: comment.id,
-      );
+      await _service.acceptAnswer(postId: post.id, commentId: comment.id);
 
       if (!mounted) {
         return;
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('답변을 채택했어요. 질문이 해결 완료로 바뀌었어요.'),
-        ),
+        const SnackBar(content: Text('답변을 채택했어요. 질문이 해결 완료로 바뀌었어요.')),
       );
     } catch (error) {
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('답변을 채택하지 못했어요.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('답변을 채택하지 못했어요.')));
     }
   }
 
@@ -1031,11 +726,9 @@ class _CommunityPostDetailPageState
     User? user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('로그인 후 좋아요를 누를 수 있어요.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('로그인 후 좋아요를 누를 수 있어요.')));
       return;
     }
 
@@ -1044,17 +737,12 @@ class _CommunityPostDetailPageState
     });
 
     try {
-      await _service.toggleLike(
-        postId: post.id,
-        userUid: user.uid,
-      );
+      await _service.toggleLike(postId: post.id, userUid: user.uid);
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('좋아요 처리에 실패했어요.'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('좋아요 처리에 실패했어요.')));
       }
     } finally {
       if (mounted) {
@@ -1073,11 +761,9 @@ class _CommunityPostDetailPageState
     User? user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('로그인 후 게시글을 저장할 수 있어요.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('로그인 후 게시글을 저장할 수 있어요.')));
       return;
     }
 
@@ -1086,17 +772,12 @@ class _CommunityPostDetailPageState
     });
 
     try {
-      await _service.toggleBookmark(
-        postId: post.id,
-        userUid: user.uid,
-      );
+      await _service.toggleBookmark(postId: post.id, userUid: user.uid);
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('게시글 저장 처리에 실패했어요.'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('게시글 저장 처리에 실패했어요.')));
       }
     } finally {
       if (mounted) {
@@ -1110,9 +791,7 @@ class _CommunityPostDetailPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const AppTopBar(
-        title: '게시글 상세',
-      ),
+      appBar: const AppTopBar(title: '게시글 상세'),
       body: AppMainBackground(
         child: StreamBuilder<CommunityPost?>(
           key: ValueKey(_streamVersion),
@@ -1121,8 +800,7 @@ class _CommunityPostDetailPageState
             if (snapshot.hasError) {
               return AppErrorView(
                 message: '게시글을 불러오지 못했어요.',
-                description:
-                '인터넷 연결과 Firestore 규칙을 확인해 주세요.',
+                description: '인터넷 연결과 Firestore 규칙을 확인해 주세요.',
                 onRetryPressed: () {
                   setState(() {
                     _streamVersion++;
@@ -1132,11 +810,8 @@ class _CommunityPostDetailPageState
             }
 
             if (!snapshot.hasData &&
-                snapshot.connectionState ==
-                    ConnectionState.waiting) {
-              return const AppLoadingView(
-                message: '게시글을 불러오는 중이에요.',
-              );
+                snapshot.connectionState == ConnectionState.waiting) {
+              return const AppLoadingView(message: '게시글을 불러오는 중이에요.');
             }
 
             CommunityPost? post = snapshot.data;
@@ -1144,8 +819,7 @@ class _CommunityPostDetailPageState
             if (post == null) {
               return AppEmptyView(
                 message: '게시글을 찾을 수 없어요.',
-                description:
-                '삭제되었거나 공개되지 않은 게시글이에요.',
+                description: '삭제되었거나 공개되지 않은 게시글이에요.',
                 buttonText: '돌아가기',
                 onButtonPressed: () {
                   Navigator.pop(context);
@@ -1162,12 +836,7 @@ class _CommunityPostDetailPageState
 
   Widget _buildContent(CommunityPost post) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        18,
-        20,
-        50,
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 50),
       children: [
         AppCard(
           padding: const EdgeInsets.all(18),
@@ -1179,7 +848,7 @@ class _CommunityPostDetailPageState
               Text(
                 post.title,
                 style: TextStyle(
-                  color: context.communityColors.textPrimary,
+                  color: context.colors.textPrimary,
                   fontSize: 22,
                   height: 1.35,
                   fontWeight: FontWeight.w700,
@@ -1188,15 +857,12 @@ class _CommunityPostDetailPageState
               const SizedBox(height: 15),
               _buildWriterArea(post),
               const SizedBox(height: 17),
-              Divider(
-                height: 1,
-                color: context.communityColors.pinkSoft,
-              ),
+              Divider(height: 1, color: context.colors.pinkSoft),
               const SizedBox(height: 20),
               Text(
                 post.content,
                 style: TextStyle(
-                  color: context.communityColors.textPrimary,
+                  color: context.colors.textPrimary,
                   fontSize: 15,
                   height: 1.7,
                 ),
@@ -1214,19 +880,12 @@ class _CommunityPostDetailPageState
                 _buildFiles(post.fileAttachments),
               ],
               const SizedBox(height: 22),
-              Divider(
-                height: 1,
-                color: context.communityColors.pinkSoft,
-              ),
+              Divider(height: 1, color: context.colors.pinkSoft),
               const SizedBox(height: 15),
               _buildPostCounts(post),
-              if (post.boardType ==
-                  CommunityBoardType.groupRecruit &&
+              if (post.boardType == CommunityBoardType.groupRecruit &&
                   _isWriter(post) &&
-                  _nextRecruitStatus(
-                    post.recruitStatus,
-                  ) !=
-                      null) ...[
+                  _nextRecruitStatus(post.recruitStatus) != null) ...[
                 const SizedBox(height: 18),
                 _buildRecruitStatusButton(post),
               ],
@@ -1239,11 +898,8 @@ class _CommunityPostDetailPageState
     );
   }
 
-  Widget _buildRecruitStatusButton(
-      CommunityPost post,
-      ) {
-    String? nextStatus =
-    _nextRecruitStatus(post.recruitStatus);
+  Widget _buildRecruitStatusButton(CommunityPost post) {
+    String? nextStatus = _nextRecruitStatus(post.recruitStatus);
 
     if (nextStatus == null) {
       return const SizedBox.shrink();
@@ -1256,35 +912,28 @@ class _CommunityPostDetailPageState
         onPressed: _isUpdatingRecruitStatus
             ? null
             : () {
-          _changeRecruitStatus(post);
-        },
+                _changeRecruitStatus(post);
+              },
         style: FilledButton.styleFrom(
-          backgroundColor:
-          context.communityColors.pinkStart,
-          foregroundColor: Colors.white,
+          backgroundColor: context.colors.pinkStart,
+          foregroundColor: context.colors.onPrimary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
         ),
         icon: _isUpdatingRecruitStatus
-            ? const SizedBox(
-          width: 18,
-          height: 18,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: Colors.white,
-          ),
-        )
-            : const Icon(
-          Icons.sync_alt_rounded,
-          size: 19,
-        ),
+            ? SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: context.colors.onPrimary,
+                ),
+              )
+            : const Icon(Icons.sync_alt_rounded, size: 19),
         label: Text(
           _recruitActionLabel(nextStatus),
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-          ),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
         ),
       ),
     );
@@ -1300,14 +949,14 @@ class _CommunityPostDetailPageState
             children: [
               Icon(
                 Icons.chat_bubble_outline_rounded,
-                color: context.communityColors.pinkStart,
+                color: context.colors.pinkStart,
                 size: 21,
               ),
               const SizedBox(width: 8),
               Text(
                 '댓글',
                 style: TextStyle(
-                  color: context.communityColors.textPrimary,
+                  color: context.colors.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1316,7 +965,7 @@ class _CommunityPostDetailPageState
               Text(
                 '${post.commentCount}',
                 style: TextStyle(
-                  color: context.communityColors.pinkStart,
+                  color: context.colors.pinkStart,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1324,10 +973,7 @@ class _CommunityPostDetailPageState
             ],
           ),
           const SizedBox(height: 15),
-          Divider(
-            height: 1,
-            color: context.communityColors.pinkSoft,
-          ),
+          Divider(height: 1, color: context.colors.pinkSoft),
           StreamBuilder<List<CommunityComment>>(
             stream: _service.watchComments(post.id),
             builder: (context, snapshot) {
@@ -1338,7 +984,7 @@ class _CommunityPostDetailPageState
                     child: Text(
                       '댓글을 불러오지 못했어요.',
                       style: TextStyle(
-                        color: context.communityColors.textSecondary,
+                        color: context.colors.textSecondary,
                         fontSize: 13,
                       ),
                     ),
@@ -1353,24 +999,16 @@ class _CommunityPostDetailPageState
                     child: SizedBox(
                       width: 22,
                       height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                      ),
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   ),
                 );
               }
 
-              return _buildCommentList(
-                post,
-                snapshot.data ?? [],
-              );
+              return _buildCommentList(post, snapshot.data ?? []);
             },
           ),
-          Divider(
-            height: 1,
-            color: context.communityColors.pinkSoft,
-          ),
+          Divider(height: 1, color: context.colors.pinkSoft),
           const SizedBox(height: 14),
           _buildCommentEditor(),
         ],
@@ -1379,9 +1017,9 @@ class _CommunityPostDetailPageState
   }
 
   Widget _buildCommentList(
-      CommunityPost post,
-      List<CommunityComment> comments,
-      ) {
+    CommunityPost post,
+    List<CommunityComment> comments,
+  ) {
     List<CommunityComment> rootComments = comments.where((comment) {
       return !comment.isReply;
     }).toList();
@@ -1395,13 +1033,13 @@ class _CommunityPostDetailPageState
               Icon(
                 Icons.forum_outlined,
                 size: 30,
-                color: context.communityColors.textSecondary,
+                color: context.colors.textSecondary,
               ),
               const SizedBox(height: 9),
               Text(
                 '아직 댓글이 없어요. 첫 댓글을 남겨보세요.',
                 style: TextStyle(
-                  color: context.communityColors.textSecondary,
+                  color: context.colors.textSecondary,
                   fontSize: 13,
                 ),
               ),
@@ -1421,11 +1059,7 @@ class _CommunityPostDetailPageState
 
           return Column(
             children: [
-              _buildCommentItem(
-                post: post,
-                comment: comment,
-                isReply: false,
-              ),
+              _buildCommentItem(post: post, comment: comment, isReply: false),
               ...replies.map((reply) {
                 return _buildCommentItem(
                   post: post,
@@ -1433,10 +1067,7 @@ class _CommunityPostDetailPageState
                   isReply: true,
                 );
               }),
-              Divider(
-                height: 1,
-                color: context.communityColors.pinkSoft,
-              ),
+              Divider(height: 1, color: context.colors.pinkSoft),
             ],
           );
         }).toList(),
@@ -1450,41 +1081,34 @@ class _CommunityPostDetailPageState
     required bool isReply,
   }) {
     String currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
-    bool canManage = currentUid.isNotEmpty &&
-        currentUid == comment.writerUid;
-    bool canAccept = post.boardType == CommunityBoardType.question &&
+    bool canManage = currentUid.isNotEmpty && currentUid == comment.writerUid;
+    bool canAccept =
+        post.boardType == CommunityBoardType.question &&
         _isWriter(post) &&
         !isReply &&
         !comment.isAccepted &&
         comment.writerUid != post.writerUid;
 
     return Container(
-      margin: EdgeInsets.only(
-        left: isReply ? 28 : 0,
-        top: 13,
-        bottom: 13,
-      ),
+      margin: EdgeInsets.only(left: isReply ? 28 : 0, top: 13, bottom: 13),
       padding: isReply
           ? const EdgeInsets.fromLTRB(12, 12, 10, 11)
           : EdgeInsets.zero,
       decoration: isReply
           ? BoxDecoration(
-        color: context.communityColors.pinkSoft.withOpacity(0.45),
-        borderRadius: BorderRadius.circular(12),
-      )
+              color: context.colors.pinkSoft.withOpacity(0.45),
+              borderRadius: BorderRadius.circular(12),
+            )
           : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildCommentWriterHeader(
-            post: post,
-            comment: comment,
-          ),
+          _buildCommentWriterHeader(post: post, comment: comment),
           const SizedBox(height: 10),
           Text(
             comment.content,
             style: TextStyle(
-              color: context.communityColors.textPrimary,
+              color: context.colors.textPrimary,
               fontSize: 14,
               height: 1.55,
             ),
@@ -1497,8 +1121,7 @@ class _CommunityPostDetailPageState
               _buildCommentLikeButton(comment),
               if (!isReply)
                 _buildCompactCommentAction(
-                  icon:
-                  Icons.subdirectory_arrow_right_rounded,
+                  icon: Icons.subdirectory_arrow_right_rounded,
                   label: '답글',
                   onPressed: () {
                     _startReply(comment);
@@ -1509,16 +1132,12 @@ class _CommunityPostDetailPageState
                   icon: Icons.report_outlined,
                   label: '신고',
                   onPressed: () {
-                    _showPostReportModal(
-                      post,
-                      comment: comment,
-                    );
+                    _showPostReportModal(post, comment: comment);
                   },
                 ),
               if (canAccept)
                 _buildCompactCommentAction(
-                  icon:
-                  Icons.check_circle_outline_rounded,
+                  icon: Icons.check_circle_outline_rounded,
                   label: '답변 채택',
                   onPressed: () {
                     _acceptAnswer(post, comment);
@@ -1553,8 +1172,7 @@ class _CommunityPostDetailPageState
     required VoidCallback? onPressed,
     Color? color,
   }) {
-    Color actionColor =
-        color ?? context.communityColors.textSecondary;
+    Color actionColor = color ?? context.colors.textSecondary;
 
     return InkWell(
       onTap: onPressed,
@@ -1562,18 +1180,11 @@ class _CommunityPostDetailPageState
       child: Opacity(
         opacity: onPressed == null ? 0.45 : 1,
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 1,
-            vertical: 4,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 4),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                icon,
-                size: 14,
-                color: actionColor,
-              ),
+              Icon(icon, size: 14, color: actionColor),
               const SizedBox(width: 3),
               Text(
                 label,
@@ -1599,24 +1210,18 @@ class _CommunityPostDetailPageState
     return FutureBuilder<Map<String, dynamic>>(
       future: _profileForUid(comment.writerUid),
       builder: (context, snapshot) {
-        Map<String, dynamic> profile =
-            snapshot.data ?? {};
+        Map<String, dynamic> profile = snapshot.data ?? {};
 
-        String nickname =
-            profile['nickname']?.toString().trim() ?? '';
+        String nickname = profile['nickname']?.toString().trim() ?? '';
         String profileImageUrl =
-            profile['profileImageUrl']
-                ?.toString()
-                .trim() ??
-                '';
+            profile['profileImageUrl']?.toString().trim() ?? '';
 
         if (nickname.isEmpty || nickname == '사용자') {
           nickname = comment.writerNickname;
         }
 
         if (profileImageUrl.isEmpty) {
-          profileImageUrl =
-              comment.writerProfileImageUrl;
+          profileImageUrl = comment.writerProfileImageUrl;
         }
 
         return Row(
@@ -1625,8 +1230,7 @@ class _CommunityPostDetailPageState
             const SizedBox(width: 9),
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
@@ -1636,29 +1240,24 @@ class _CommunityPostDetailPageState
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: context
-                                .communityColors
-                                .textPrimary,
+                            color: context.colors.textPrimary,
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
-                      if (comment.writerUid ==
-                          post.writerUid) ...[
+                      if (comment.writerUid == post.writerUid) ...[
                         const SizedBox(width: 6),
                         _DetailBadge(
                           label: '작성자',
-                          backgroundColor: context
-                              .communityColors.softBlue,
+                          backgroundColor: context.colors.softBlue,
                         ),
                       ],
                       if (comment.isAccepted) ...[
                         const SizedBox(width: 6),
                         _DetailBadge(
                           label: '채택 답변',
-                          backgroundColor: context
-                              .communityColors.mint,
+                          backgroundColor: context.colors.mint,
                         ),
                       ],
                     ],
@@ -1667,8 +1266,7 @@ class _CommunityPostDetailPageState
                   Text(
                     _formatCreatedAt(comment.createdAt),
                     style: TextStyle(
-                      color: context
-                          .communityColors.textSecondary,
+                      color: context.colors.textSecondary,
                       fontSize: 11,
                     ),
                   ),
@@ -1681,13 +1279,9 @@ class _CommunityPostDetailPageState
     );
   }
 
-  Widget _buildCommentLikeButton(
-      CommunityComment comment,
-      ) {
-    String currentUid =
-        FirebaseAuth.instance.currentUser?.uid ?? '';
-    bool isProcessing =
-    _togglingCommentLikeIds.contains(comment.id);
+  Widget _buildCommentLikeButton(CommunityComment comment) {
+    String currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    bool isProcessing = _togglingCommentLikeIds.contains(comment.id);
 
     if (currentUid.isEmpty) {
       return _buildCompactCommentAction(
@@ -1715,11 +1309,11 @@ class _CommunityPostDetailPageState
           onPressed: isProcessing
               ? null
               : () {
-            _toggleCommentLike(comment);
-          },
+                  _toggleCommentLike(comment);
+                },
           color: isLiked
-              ? context.communityColors.pinkStart
-              : context.communityColors.textSecondary,
+              ? context.colors.pinkStart
+              : context.colors.textSecondary,
         );
       },
     );
@@ -1731,29 +1325,29 @@ class _CommunityPostDetailPageState
       height: 34,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: context.communityColors.pinkSoft,
+        color: context.colors.pinkSoft,
       ),
       child: imageUrl.isEmpty
           ? Icon(
-        Icons.person_rounded,
-        size: 20,
-        color: context.communityColors.pinkStart,
-      )
-          : ClipOval(
-        child: Image.network(
-          imageUrl,
-          width: 34,
-          height: 34,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Icon(
               Icons.person_rounded,
               size: 20,
-              color: context.communityColors.pinkStart,
-            );
-          },
-        ),
-      ),
+              color: context.colors.pinkStart,
+            )
+          : ClipOval(
+              child: Image.network(
+                imageUrl,
+                width: 34,
+                height: 34,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Icon(
+                    Icons.person_rounded,
+                    size: 20,
+                    color: context.colors.pinkStart,
+                  );
+                },
+              ),
+            ),
     );
   }
 
@@ -1764,12 +1358,9 @@ class _CommunityPostDetailPageState
         if (_replyToCommentId.isNotEmpty) ...[
           Container(
             margin: const EdgeInsets.only(bottom: 9),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 7,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             decoration: BoxDecoration(
-              color: context.communityColors.softBlue,
+              color: context.colors.softBlue,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
@@ -1780,7 +1371,7 @@ class _CommunityPostDetailPageState
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: context.communityColors.textPrimary,
+                      color: context.colors.textPrimary,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1794,7 +1385,7 @@ class _CommunityPostDetailPageState
                     child: Icon(
                       Icons.close_rounded,
                       size: 17,
-                      color: context.communityColors.textSecondary,
+                      color: context.colors.textSecondary,
                     ),
                   ),
                 ),
@@ -1826,21 +1417,15 @@ class _CommunityPostDetailPageState
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(13),
-                    borderSide: BorderSide(
-                      color: context.communityColors.pinkSoft,
-                    ),
+                    borderSide: BorderSide(color: context.colors.pinkSoft),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(13),
-                    borderSide: BorderSide(
-                      color: context.communityColors.pinkSoft,
-                    ),
+                    borderSide: BorderSide(color: context.colors.pinkSoft),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(13),
-                    borderSide: BorderSide(
-                      color: context.communityColors.pinkStart,
-                    ),
+                    borderSide: BorderSide(color: context.colors.pinkStart),
                   ),
                 ),
               ),
@@ -1850,29 +1435,25 @@ class _CommunityPostDetailPageState
               width: 44,
               height: 44,
               child: FilledButton(
-                onPressed:
-                _isSubmittingComment ? null : _submitComment,
+                onPressed: _isSubmittingComment ? null : _submitComment,
                 style: FilledButton.styleFrom(
                   padding: EdgeInsets.zero,
-                  backgroundColor: context.communityColors.pinkStart,
-                  foregroundColor: Colors.white,
+                  backgroundColor: context.colors.pinkStart,
+                  foregroundColor: context.colors.onPrimary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(13),
                   ),
                 ),
                 child: _isSubmittingComment
-                    ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-                    : const Icon(
-                  Icons.send_rounded,
-                  size: 20,
-                ),
+                    ? SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: context.colors.onPrimary,
+                        ),
+                      )
+                    : const Icon(Icons.send_rounded, size: 20),
               ),
             ),
           ],
@@ -1886,20 +1467,20 @@ class _CommunityPostDetailPageState
       children: [
         _DetailBadge(
           label: post.boardType.label,
-          backgroundColor: context.communityColors.pinkSoft,
+          backgroundColor: context.colors.pinkSoft,
         ),
         if (post.boardType == CommunityBoardType.question) ...[
           const SizedBox(width: 7),
           _DetailBadge(
             label: _questionStatusLabel(post.questionStatus),
-            backgroundColor: context.communityColors.softBlue,
+            backgroundColor: context.colors.softBlue,
           ),
         ],
         if (post.boardType == CommunityBoardType.groupRecruit) ...[
           const SizedBox(width: 7),
           _DetailBadge(
             label: _recruitStatusLabel(post.recruitStatus),
-            backgroundColor: context.communityColors.mint,
+            backgroundColor: context.colors.mint,
           ),
         ],
         const Spacer(),
@@ -1907,7 +1488,7 @@ class _CommunityPostDetailPageState
           Icon(
             Icons.attach_file_rounded,
             size: 19,
-            color: context.communityColors.textSecondary,
+            color: context.colors.textSecondary,
           ),
         if (_isWriter(post))
           PopupMenuButton<String>(
@@ -1918,51 +1499,39 @@ class _CommunityPostDetailPageState
             },
             itemBuilder: (context) {
               return const [
-                PopupMenuItem<String>(
-                  value: 'EDIT',
-                  child: Text('수정'),
-                ),
-                PopupMenuItem<String>(
-                  value: 'DELETE',
-                  child: Text('삭제'),
-                ),
+                PopupMenuItem<String>(value: 'EDIT', child: Text('수정')),
+                PopupMenuItem<String>(value: 'DELETE', child: Text('삭제')),
               ];
             },
             icon: _isDeleting
-                ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-              ),
-            )
+                ? SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : Icon(
-              Icons.more_vert_rounded,
-              color: context.communityColors.textSecondary,
-            ),
+                    Icons.more_vert_rounded,
+                    color: context.colors.textSecondary,
+                  ),
           ),
-        if (!_isWriter(post) &&
-            FirebaseAuth.instance.currentUser != null)
+        if (!_isWriter(post) && FirebaseAuth.instance.currentUser != null)
           IconButton(
             tooltip: '게시글 신고',
             onPressed: _isReporting
                 ? null
                 : () {
-              _showPostReportModal(post);
-            },
+                    _showPostReportModal(post);
+                  },
             icon: _isReporting
-                ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.red,
-              ),
-            )
-                : const Icon(
-              Icons.report_outlined,
-              color: Colors.red,
-            ),
+                ? SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: context.colors.incorrect,
+                    ),
+                  )
+                : Icon(Icons.report_outlined, color: context.colors.incorrect),
           ),
       ],
     );
@@ -1972,24 +1541,18 @@ class _CommunityPostDetailPageState
     return FutureBuilder<Map<String, dynamic>>(
       future: _profileForUid(post.writerUid),
       builder: (context, snapshot) {
-        Map<String, dynamic> profile =
-            snapshot.data ?? {};
+        Map<String, dynamic> profile = snapshot.data ?? {};
 
-        String nickname =
-            profile['nickname']?.toString().trim() ?? '';
+        String nickname = profile['nickname']?.toString().trim() ?? '';
         String profileImageUrl =
-            profile['profileImageUrl']
-                ?.toString()
-                .trim() ??
-                '';
+            profile['profileImageUrl']?.toString().trim() ?? '';
 
         if (nickname.isEmpty || nickname == '사용자') {
           nickname = post.writerNickname;
         }
 
         if (profileImageUrl.isEmpty) {
-          profileImageUrl =
-              post.writerProfileImageUrl;
+          profileImageUrl = post.writerProfileImageUrl;
         }
 
         return Row(
@@ -1998,8 +1561,7 @@ class _CommunityPostDetailPageState
             const SizedBox(width: 11),
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
@@ -2009,9 +1571,7 @@ class _CommunityPostDetailPageState
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: context
-                                .communityColors
-                                .textPrimary,
+                            color: context.colors.textPrimary,
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
                           ),
@@ -2022,8 +1582,7 @@ class _CommunityPostDetailPageState
                         Icon(
                           Icons.verified_rounded,
                           size: 16,
-                          color: context
-                              .communityColors.pinkStart,
+                          color: context.colors.pinkStart,
                         ),
                       ],
                     ],
@@ -2032,8 +1591,7 @@ class _CommunityPostDetailPageState
                   Text(
                     _formatCreatedAt(post.createdAt),
                     style: TextStyle(
-                      color: context
-                          .communityColors.textSecondary,
+                      color: context.colors.textSecondary,
                       fontSize: 12,
                     ),
                   ),
@@ -2052,50 +1610,42 @@ class _CommunityPostDetailPageState
       height: 42,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: context.communityColors.pinkSoft,
+        color: context.colors.pinkSoft,
       ),
       child: imageUrl.isEmpty
-          ? Icon(
-        Icons.person_rounded,
-        color: context.communityColors.pinkStart,
-      )
+          ? Icon(Icons.person_rounded, color: context.colors.pinkStart)
           : ClipOval(
-        child: Image.network(
-          imageUrl,
-          width: 42,
-          height: 42,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Icon(
-              Icons.person_rounded,
-              color: context.communityColors.pinkStart,
-            );
-          },
-        ),
-      ),
+              child: Image.network(
+                imageUrl,
+                width: 42,
+                height: 42,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Icon(
+                    Icons.person_rounded,
+                    color: context.colors.pinkStart,
+                  );
+                },
+              ),
+            ),
     );
   }
 
-  Widget _buildCertificateTags(
-      List<CommunityCertificateTag> tags,
-      ) {
+  Widget _buildCertificateTags(List<CommunityCertificateTag> tags) {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: tags.map((tag) {
         return Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 7,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
           decoration: BoxDecoration(
-            color: context.communityColors.lavender,
+            color: context.colors.lavender,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
             '#${tag.certificateName}',
             style: TextStyle(
-              color: context.communityColors.textPrimary,
+              color: context.colors.textPrimary,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -2105,9 +1655,7 @@ class _CommunityPostDetailPageState
     );
   }
 
-  Widget _buildImages(
-      List<CommunityImageAttachment> images,
-      ) {
+  Widget _buildImages(List<CommunityImageAttachment> images) {
     return Column(
       children: images.map((image) {
         return Padding(
@@ -2124,10 +1672,10 @@ class _CommunityPostDetailPageState
                   width: double.infinity,
                   height: 180,
                   alignment: Alignment.center,
-                  color: context.communityColors.pinkSoft,
+                  color: context.colors.pinkSoft,
                   child: Icon(
                     Icons.image_not_supported_outlined,
-                    color: context.communityColors.textSecondary,
+                    color: context.colors.textSecondary,
                   ),
                 );
               },
@@ -2138,16 +1686,14 @@ class _CommunityPostDetailPageState
     );
   }
 
-  Widget _buildFiles(
-      List<CommunityFileAttachment> files,
-      ) {
+  Widget _buildFiles(List<CommunityFileAttachment> files) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           '첨부파일',
           style: TextStyle(
-            color: context.communityColors.textPrimary,
+            color: context.colors.textPrimary,
             fontSize: 14,
             fontWeight: FontWeight.w700,
           ),
@@ -2156,12 +1702,9 @@ class _CommunityPostDetailPageState
         ...files.map((file) {
           return Container(
             margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 13,
-              vertical: 12,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
             decoration: BoxDecoration(
-              color: context.communityColors.softBlue,
+              color: context.colors.softBlue,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -2169,7 +1712,7 @@ class _CommunityPostDetailPageState
                 Icon(
                   Icons.insert_drive_file_outlined,
                   size: 20,
-                  color: context.communityColors.pinkStart,
+                  color: context.colors.pinkStart,
                 ),
                 const SizedBox(width: 9),
                 Expanded(
@@ -2178,7 +1721,7 @@ class _CommunityPostDetailPageState
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: context.communityColors.textPrimary,
+                      color: context.colors.textPrimary,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -2214,68 +1757,68 @@ class _CommunityPostDetailPageState
         Expanded(
           child: currentUid.isEmpty
               ? _DetailCount(
-            icon: Icons.favorite_border_rounded,
-            label: '좋아요',
-            value: post.likeCount,
-            onTap: () {
-              _toggleLike(post);
-            },
-          )
+                  icon: Icons.favorite_border_rounded,
+                  label: '좋아요',
+                  value: post.likeCount,
+                  onTap: () {
+                    _toggleLike(post);
+                  },
+                )
               : StreamBuilder<bool>(
-            stream: _service.watchLikeStatus(
-              postId: post.id,
-              userUid: currentUid,
-            ),
-            builder: (context, snapshot) {
-              bool isLiked = snapshot.data ?? false;
+                  stream: _service.watchLikeStatus(
+                    postId: post.id,
+                    userUid: currentUid,
+                  ),
+                  builder: (context, snapshot) {
+                    bool isLiked = snapshot.data ?? false;
 
-              return _DetailCount(
-                icon: isLiked
-                    ? Icons.favorite_rounded
-                    : Icons.favorite_border_rounded,
-                label: '좋아요',
-                value: post.likeCount,
-                isActive: isLiked,
-                enabled: !_isTogglingLike,
-                onTap: () {
-                  _toggleLike(post);
-                },
-              );
-            },
-          ),
+                    return _DetailCount(
+                      icon: isLiked
+                          ? Icons.favorite_rounded
+                          : Icons.favorite_border_rounded,
+                      label: '좋아요',
+                      value: post.likeCount,
+                      isActive: isLiked,
+                      enabled: !_isTogglingLike,
+                      onTap: () {
+                        _toggleLike(post);
+                      },
+                    );
+                  },
+                ),
         ),
         Expanded(
           child: currentUid.isEmpty
               ? _DetailCount(
-            icon: Icons.bookmark_border_rounded,
-            label: '저장',
-            value: post.bookmarkCount,
-            onTap: () {
-              _toggleBookmark(post);
-            },
-          )
+                  icon: Icons.bookmark_border_rounded,
+                  label: '저장',
+                  value: post.bookmarkCount,
+                  onTap: () {
+                    _toggleBookmark(post);
+                  },
+                )
               : StreamBuilder<bool>(
-            stream: _service.watchBookmarkStatus(
-              postId: post.id,
-              userUid: currentUid,
-            ),
-            builder: (context, snapshot) {
-              bool isBookmarked = snapshot.data ?? false;
+                  stream: _service.watchBookmarkStatus(
+                    postId: post.id,
+                    userUid: currentUid,
+                  ),
+                  builder: (context, snapshot) {
+                    bool isBookmarked = snapshot.data ?? false;
 
-              return _DetailCount(
-                icon: isBookmarked
-                    ? Icons.bookmark_rounded
-                    : Icons.bookmark_border_rounded,
-                label: '저장',
-                value: post.bookmarkCount,
-                isActive: isBookmarked,
-                enabled: !_isTogglingBookmark,
-                onTap: () {
-                  _toggleBookmark(post);
-                },
-              );
-            },
-          ),
+                    return _DetailCount(
+                      icon: isBookmarked
+                          ? Icons.bookmark_rounded
+                          : Icons.bookmark_border_rounded,
+                      label: '저장',
+                      value: post.bookmarkCount,
+                      isActive: isBookmarked,
+                      enabled: !_isTogglingBookmark,
+                      onTap: () {
+                        _toggleBookmark(post);
+                      },
+                    );
+                  },
+                ),
         ),
       ],
     );
@@ -2286,18 +1829,12 @@ class _DetailBadge extends StatelessWidget {
   final String label;
   final Color backgroundColor;
 
-  const _DetailBadge({
-    required this.label,
-    required this.backgroundColor,
-  });
+  const _DetailBadge({required this.label, required this.backgroundColor});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(9),
@@ -2305,7 +1842,7 @@ class _DetailBadge extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          color: context.communityColors.textPrimary,
+          color: context.colors.textPrimary,
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
@@ -2334,8 +1871,8 @@ class _DetailCount extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color color = isActive
-        ? context.communityColors.pinkStart
-        : context.communityColors.textSecondary;
+        ? context.colors.pinkStart
+        : context.colors.textSecondary;
 
     return InkWell(
       onTap: enabled ? onTap : null,
@@ -2344,19 +1881,14 @@ class _DetailCount extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Column(
           children: [
-            Icon(
-              icon,
-              size: 19,
-              color: color,
-            ),
+            Icon(icon, size: 19, color: color),
             const SizedBox(height: 4),
             Text(
               '$label $value',
               style: TextStyle(
                 color: color,
                 fontSize: 11,
-                fontWeight:
-                isActive ? FontWeight.w700 : FontWeight.w400,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
               ),
             ),
           ],

@@ -36,36 +36,43 @@ class AppBackground extends StatelessWidget {
     final size = MediaQuery.of(context).size;
     final colors = context.colors;
 
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      color: colors.background,
-      child: Stack(
-        children: [
-          if (showBlobs) ...[
-            // 우측 상단 연보라색 블러 원
-            Positioned(
-              top: size.width * 0.1,
-              right: -size.width * 0.1,
-              child: _BlurBlob(
-                diameter: size.width * 0.5,
-                color: colors.backgroundBlobLavender,
-              ),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          top: 0,
+          left: 0,
+          width: size.width,
+          height: size.height,
+          child: Container(
+            color: colors.background,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                if (showBlobs) ...[
+                  Positioned(
+                    top: size.width * 0.1,
+                    right: -size.width * 0.1,
+                    child: _BlurBlob(
+                      diameter: size.width * 0.5,
+                      color: colors.backgroundBlobLavender,
+                    ),
+                  ),
+                  Positioned(
+                    bottom: size.width * 0.2,
+                    left: -size.width * 0.1,
+                    child: _BlurBlob(
+                      diameter: size.width * 0.5,
+                      color: colors.backgroundBlobPink,
+                    ),
+                  ),
+                ],
+              ],
             ),
-            // 좌측 하단 연분홍색 블러 원
-            Positioned(
-              bottom: size.width * 0.2,
-              left: -size.width * 0.1,
-              child: _BlurBlob(
-                diameter: size.width * 0.5,
-                color: colors.backgroundBlobPink,
-              ),
-            ),
-          ],
-          // 실제 화면 콘텐츠 (배경과 달리 상태바/앱바를 침범하지 않도록 SafeArea 적용)
-          applySafeArea ? SafeArea(child: child) : child,
-        ],
-      ),
+          ),
+        ),
+        Positioned.fill(child: applySafeArea ? SafeArea(child: child) : child),
+      ],
     );
   }
 }

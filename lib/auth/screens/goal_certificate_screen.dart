@@ -41,11 +41,14 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen>
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-    _fadeAnim = CurvedAnimation(parent: _entryController, curve: Curves.easeOut);
-    _slideAnim = Tween<Offset>(
-      begin: const Offset(0, 0.05),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic));
+    _fadeAnim = CurvedAnimation(
+      parent: _entryController,
+      curve: Curves.easeOut,
+    );
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
+        );
     _entryController.forward();
     _loadAll();
   }
@@ -69,7 +72,9 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen>
 
   void _onQueryChanged() {
     setState(() {
-      _results = CertificateApiService.filterCertifications(_searchController.text);
+      _results = CertificateApiService.filterCertifications(
+        _searchController.text,
+      );
     });
   }
 
@@ -91,7 +96,7 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen>
 
     final confirmed = await showDialog<bool>(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.45),
+      barrierColor: context.colors.overlay,
       builder: (dialogContext) => _AddCertificateDialog(query: query),
     );
     if (confirmed != true) return;
@@ -101,7 +106,7 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen>
     showDialog(
       context: context,
       barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.45),
+      barrierColor: context.colors.overlay,
       builder: (_) => _AiVerifyingDialog(query: query),
     );
 
@@ -130,9 +135,9 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen>
       _selectedId = id;
       _selectedName = name;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('자격증을 추가했어요.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('자격증을 추가했어요.')));
   }
 
   @override
@@ -161,49 +166,84 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        StepIndicator(currentStep: 1, label: '1단계 · 목표 자격증', colors: colors),
+                        StepIndicator(
+                          currentStep: 1,
+                          label: '1단계 · 목표 자격증',
+                          colors: colors,
+                        ),
                         const SizedBox(height: 20),
                         Text(
                           '목표 자격증이\n있으신가요?',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 24, fontWeight: FontWeight.w800, height: 1.35, color: colors.textPrimary,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            height: 1.35,
+                            color: colors.textPrimary,
                           ),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           '선택해주시면 맞춤 학습 캘린더를 준비해드려요.\n나중에 언제든 바꿀 수 있어요.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 13.5, height: 1.6, color: colors.textSecondary),
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            height: 1.6,
+                            color: colors.textSecondary,
+                          ),
                         ),
                         const SizedBox(height: 20),
                         TextField(
                           controller: _searchController,
                           enabled: !_isLoadingAll,
                           decoration: InputDecoration(
-                            hintText: _isLoadingAll ? '자격증 목록을 불러오는 중...' : '자격증 이름으로 검색해보세요',
-                            hintStyle: TextStyle(fontSize: 14, color: colors.textSecondary.withOpacity(0.7)),
+                            hintText: _isLoadingAll
+                                ? '자격증 목록을 불러오는 중...'
+                                : '자격증 이름으로 검색해보세요',
+                            hintStyle: TextStyle(
+                              fontSize: 14,
+                              color: colors.textSecondary.withOpacity(0.7),
+                            ),
                             filled: true,
                             fillColor: colors.background,
-                            prefixIcon: Icon(Icons.search_rounded, color: colors.textSecondary, size: 20),
+                            prefixIcon: Icon(
+                              Icons.search_rounded,
+                              color: colors.textSecondary,
+                              size: 20,
+                            ),
                             suffixIcon: _searchController.text.isEmpty
                                 ? null
                                 : IconButton(
-                              icon: Icon(Icons.close, color: colors.textSecondary, size: 18),
-                              onPressed: () => _searchController.clear(),
+                                    icon: Icon(
+                                      Icons.close,
+                                      color: colors.textSecondary,
+                                      size: 18,
+                                    ),
+                                    onPressed: () => _searchController.clear(),
+                                  ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 0,
                             ),
-                            contentPadding: const EdgeInsets.symmetric(vertical: 0),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(color: colors.textSecondary.withOpacity(0.2), width: 1.2),
+                              borderSide: BorderSide(
+                                color: colors.textSecondary.withOpacity(0.2),
+                                width: 1.2,
+                              ),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(color: colors.textSecondary.withOpacity(0.2), width: 1.2),
+                              borderSide: BorderSide(
+                                color: colors.textSecondary.withOpacity(0.2),
+                                width: 1.2,
+                              ),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(color: colors.pinkStart, width: 2),
+                              borderSide: BorderSide(
+                                color: colors.pinkStart,
+                                width: 2,
+                              ),
                             ),
                           ),
                         ),
@@ -259,7 +299,10 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen>
         final cert = _results[index];
         final id = cert['jmcd'] as String? ?? '';
         final name = cert['jmfldnm'] as String? ?? '';
-        final category = (cert['obligfldnm'] as String?) ?? (cert['qualgbnm'] as String?) ?? '기타';
+        final category =
+            (cert['obligfldnm'] as String?) ??
+            (cert['qualgbnm'] as String?) ??
+            '기타';
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: _CertificateCard(
@@ -297,7 +340,11 @@ class _EmptySearchState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.search_off_rounded, size: 40, color: colors.textSecondary.withOpacity(0.4)),
+            Icon(
+              Icons.search_off_rounded,
+              size: 40,
+              color: colors.textSecondary.withOpacity(0.4),
+            ),
             const SizedBox(height: 12),
             Text(
               '\'$query\'에 대한 검색 결과가 없어요',
@@ -309,18 +356,34 @@ class _EmptySearchState extends StatelessWidget {
               onPressed: isAdding ? null : onAdd,
               icon: isAdding
                   ? SizedBox(
-                width: 16, height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: colors.pinkStart),
-              )
-                  : Icon(Icons.auto_awesome_rounded, size: 18, color: colors.pinkStart),
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: colors.pinkStart,
+                      ),
+                    )
+                  : Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 18,
+                      color: colors.pinkStart,
+                    ),
               label: Text(
                 isAdding ? 'AI가 확인하는 중...' : 'AI로 확인 후 추가하기',
-                style: TextStyle(color: colors.pinkStart, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: colors.pinkStart,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: colors.pinkStart),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
             ),
           ],
@@ -356,14 +419,24 @@ class _CertificateCard extends StatelessWidget {
         curve: Curves.easeOut,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: isSelected ? colors.pinkStart.withOpacity(0.10) : colors.background,
+          color: isSelected
+              ? colors.pinkStart.withOpacity(0.10)
+              : colors.background,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: isSelected ? colors.pinkStart : colors.textSecondary.withOpacity(0.15),
+            color: isSelected
+                ? colors.pinkStart
+                : colors.textSecondary.withOpacity(0.15),
             width: isSelected ? 1.6 : 1,
           ),
           boxShadow: isSelected
-              ? [BoxShadow(color: colors.pinkStart.withOpacity(0.15), blurRadius: 12, offset: const Offset(0, 6))]
+              ? [
+                  BoxShadow(
+                    color: colors.pinkStart.withOpacity(0.15),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ]
               : [],
         ),
         child: Row(
@@ -373,12 +446,14 @@ class _CertificateCard extends StatelessWidget {
               height: 44,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
-                color: isSelected ? colors.pinkStart : colors.pinkStart.withOpacity(0.10),
+                color: isSelected
+                    ? colors.pinkStart
+                    : colors.pinkStart.withOpacity(0.10),
               ),
               child: Icon(
                 Icons.workspace_premium_rounded,
                 size: 22,
-                color: isSelected ? Colors.white : colors.pinkStart,
+                color: isSelected ? colors.onPrimary : colors.pinkStart,
               ),
             ),
             const SizedBox(width: 14),
@@ -386,9 +461,19 @@ class _CertificateCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(name, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                  Text(
+                    name,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: colors.textPrimary,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(category, style: TextStyle(fontSize: 12, color: colors.textSecondary)),
+                  Text(
+                    category,
+                    style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                  ),
                 ],
               ),
             ),
@@ -400,11 +485,15 @@ class _CertificateCard extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: isSelected ? colors.pinkStart : Colors.transparent,
                 border: Border.all(
-                  color: isSelected ? colors.pinkStart : colors.textSecondary.withOpacity(0.35),
+                  color: isSelected
+                      ? colors.pinkStart
+                      : colors.textSecondary.withOpacity(0.35),
                   width: 1.6,
                 ),
               ),
-              child: isSelected ? const Icon(Icons.check_rounded, size: 14, color: Colors.white) : null,
+              child: isSelected
+                  ? Icon(Icons.check_rounded, size: 14, color: colors.onPrimary)
+                  : null,
             ),
           ],
         ),
@@ -431,7 +520,7 @@ class _AddCertificateDialog extends StatelessWidget {
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.12),
+              color: context.colors.shadow,
               blurRadius: 30,
               offset: const Offset(0, 12),
             ),
@@ -458,9 +547,9 @@ class _AddCertificateDialog extends StatelessWidget {
                   ),
                 ],
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.auto_awesome_rounded,
-                color: Colors.white,
+                color: colors.onPrimary,
                 size: 28,
               ),
             ),
@@ -506,7 +595,9 @@ class _AddCertificateDialog extends StatelessWidget {
                     onPressed: () => Navigator.pop(context, false),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      side: BorderSide(color: colors.textSecondary.withOpacity(0.25)),
+                      side: BorderSide(
+                        color: colors.textSecondary.withOpacity(0.25),
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
@@ -527,7 +618,10 @@ class _AddCertificateDialog extends StatelessWidget {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(14),
                       gradient: LinearGradient(
-                        colors: [colors.pinkStart, colors.pinkStart.withOpacity(0.85)],
+                        colors: [
+                          colors.pinkStart,
+                          colors.pinkStart.withOpacity(0.85),
+                        ],
                       ),
                       boxShadow: [
                         BoxShadow(
@@ -542,13 +636,13 @@ class _AddCertificateDialog extends StatelessWidget {
                       child: InkWell(
                         borderRadius: BorderRadius.circular(14),
                         onTap: () => Navigator.pop(context, true),
-                        child: const Padding(
+                        child: Padding(
                           padding: EdgeInsets.symmetric(vertical: 14),
                           child: Center(
                             child: Text(
                               '확인',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: colors.onPrimary,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 14,
                               ),
@@ -613,7 +707,7 @@ class _AiVerifyingDialogState extends State<_AiVerifyingDialog> {
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.12),
+              color: context.colors.shadow,
               blurRadius: 30,
               offset: const Offset(0, 12),
             ),
@@ -642,7 +736,11 @@ class _AiVerifyingDialogState extends State<_AiVerifyingDialog> {
             Text(
               '\'${widget.query}\'가 실제 자격증인지\n잠시만 기다려주세요',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, height: 1.6, color: colors.textSecondary),
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.6,
+                color: colors.textSecondary,
+              ),
             ),
           ],
         ),

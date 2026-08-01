@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
+import '../../theme.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -15,22 +17,17 @@ class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({super.key});
 
   @override
-  State<ProfileEditScreen> createState() =>
-      _ProfileEditScreenState();
+  State<ProfileEditScreen> createState() => _ProfileEditScreenState();
 }
 
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
-  final GlobalKey<FormState> _formKey =
-  GlobalKey<FormState>();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  final TextEditingController _loginIdController =
-  TextEditingController();
+  final TextEditingController _loginIdController = TextEditingController();
 
-  final TextEditingController _nicknameController =
-  TextEditingController();
+  final TextEditingController _nicknameController = TextEditingController();
 
-  final TextEditingController _introductionController =
-  TextEditingController();
+  final TextEditingController _introductionController = TextEditingController();
 
   String? _profileImageUrl;
   bool _isLoading = true;
@@ -63,55 +60,44 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           onPressed: () {
             Navigator.pop(context);
           },
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new,
             size: 20,
-            color: Color(0xFF1A1A1A),
+            color: context.colors.textPrimary,
           ),
         ),
       ),
 
       body: AppMainBackground(
         child: _isLoading
-            ? const Center(
-          child: CircularProgressIndicator(),
-        )
+            ? const Center(child: CircularProgressIndicator())
             : Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(
-              20,
-              16,
-              20,
-              100,
-            ),
-            child: Column(
-              crossAxisAlignment:
-              CrossAxisAlignment.stretch,
-              children: [
-                _buildProfileImageSection(),
-                const SizedBox(height: 20),
+                key: _formKey,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildProfileImageSection(),
+                      const SizedBox(height: 20),
 
-                _buildAccountInfoCard(),
-                const SizedBox(height: 20),
+                      _buildAccountInfoCard(),
+                      const SizedBox(height: 20),
 
-                _buildIntroductionCard(),
-                const SizedBox(height: 28),
+                      _buildIntroductionCard(),
+                      const SizedBox(height: 28),
 
-                AppButton(
-                  text: _isSaving
-                      ? '저장 중...'
-                      : '변경사항 저장',
-                  type: _isSaving
-                      ? AppButtonType.gray
-                      : AppButtonType.primaryPink,
-                  onPressed:
-                  _isSaving ? null : _saveProfile,
+                      AppButton(
+                        text: _isSaving ? '저장 중...' : '변경사항 저장',
+                        type: _isSaving
+                            ? AppButtonType.gray
+                            : AppButtonType.primaryPink,
+                        onPressed: _isSaving ? null : _saveProfile,
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-          ),
-        ),
+              ),
       ),
     );
   }
@@ -128,22 +114,21 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 height: 100,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFFFCE1E8),
-                  image: _profileImageUrl != null &&
-                      _profileImageUrl!.isNotEmpty
+                  color: context.colors.pinkSoft,
+                  image:
+                      _profileImageUrl != null && _profileImageUrl!.isNotEmpty
                       ? DecorationImage(
-                    image: NetworkImage(_profileImageUrl!),
-                    fit: BoxFit.cover,
-                  )
+                          image: NetworkImage(_profileImageUrl!),
+                          fit: BoxFit.cover,
+                        )
                       : null,
                 ),
-                child: _profileImageUrl == null ||
-                    _profileImageUrl!.isEmpty
-                    ? const Icon(
-                  Icons.person,
-                  size: 56,
-                  color: Color(0xFFF0788F),
-                )
+                child: _profileImageUrl == null || _profileImageUrl!.isEmpty
+                    ? Icon(
+                        Icons.person,
+                        size: 56,
+                        color: context.colors.pinkStart,
+                      )
                     : null,
               ),
 
@@ -151,24 +136,22 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 right: 0,
                 bottom: 0,
                 child: GestureDetector(
-                  onTap: _isUploadingImage
-                      ? null
-                      : _changeProfileImage,
+                  onTap: _isUploadingImage ? null : _changeProfileImage,
                   child: Container(
                     width: 34,
                     height: 34,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: const Color(0xFFF0788F),
+                      color: context.colors.pinkStart,
                       border: Border.all(
-                        color: Colors.white,
+                        color: context.colors.onPrimary,
                         width: 3,
                       ),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.camera_alt_outlined,
                       size: 17,
-                      color: Colors.white,
+                      color: context.colors.onPrimary,
                     ),
                   ),
                 ),
@@ -177,15 +160,11 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           ),
           const SizedBox(height: 12),
           TextButton(
-            onPressed: _isUploadingImage
-                ? null
-                : _changeProfileImage,
+            onPressed: _isUploadingImage ? null : _changeProfileImage,
             child: Text(
-              _isUploadingImage
-                  ? '사진 변경 중...'
-                  : '프로필 사진 변경',
+              _isUploadingImage ? '사진 변경 중...' : '프로필 사진 변경',
               style: TextStyle(
-                color: Color(0xFFF0788F),
+                color: context.colors.pinkStart,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -198,15 +177,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   Widget _buildAccountInfoCard() {
     return AppCard(
       child: Column(
-        crossAxisAlignment:
-        CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             '계정 정보',
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1A1A1A),
+              color: context.colors.textPrimary,
             ),
           ),
           const SizedBox(height: 20),
@@ -234,8 +212,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               prefixIcon: Icons.badge_outlined,
             ),
             validator: (value) {
-              final String nickname =
-                  value?.trim() ?? '';
+              final String nickname = value?.trim() ?? '';
 
               if (nickname.isEmpty) {
                 return '닉네임을 입력해 주세요.';
@@ -256,35 +233,29 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   Widget _buildIntroductionCard() {
     return AppCard(
       child: Column(
-        crossAxisAlignment:
-        CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             '자기소개',
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1A1A1A),
+              color: context.colors.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             '다른 사용자에게 표시될 간단한 소개를 작성해 주세요.',
-            style: TextStyle(
-              fontSize: 13,
-              color: Color(0xFF9AA0AC),
-            ),
+            style: TextStyle(fontSize: 13, color: context.colors.textSecondary),
           ),
           const SizedBox(height: 16),
 
           TextFormField(
-            controller:
-            _introductionController,
+            controller: _introductionController,
             minLines: 4,
             maxLines: 6,
             maxLength: 100,
-            keyboardType:
-            TextInputType.multiline,
+            keyboardType: TextInputType.multiline,
             decoration: _inputDecoration(
               hintText: '자기소개를 입력해 주세요.',
               prefixIcon: null,
@@ -298,10 +269,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   Widget _buildLabel(String text) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w600,
-        color: Color(0xFF4A4A4A),
+        color: context.colors.textPrimary,
       ),
     );
   }
@@ -316,57 +287,32 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       hintText: hintText,
       filled: true,
       fillColor: isReadOnly
-          ? const Color(0xFFF5F5F7)
-          : Colors.white,
+          ? context.colors.surfaceMuted
+          : context.colors.surface,
       prefixIcon: prefixIcon == null
           ? null
-          : Icon(
-        prefixIcon,
-        color: const Color(0xFF9AA0AC),
-      ),
+          : Icon(prefixIcon, color: context.colors.textSecondary),
       suffixIcon: suffixIcon,
-      contentPadding:
-      const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 16,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
-        borderRadius:
-        BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: Color(0xFFE8E8EC),
-        ),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: context.colors.border),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius:
-        BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: Color(0xFFE8E8EC),
-        ),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: context.colors.border),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius:
-        BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: Color(0xFFF0788F),
-          width: 1.5,
-        ),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: context.colors.pinkStart, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius:
-        BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: Colors.red,
-        ),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: context.colors.incorrect),
       ),
-      focusedErrorBorder:
-      OutlineInputBorder(
-        borderRadius:
-        BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: Colors.red,
-          width: 1.5,
-        ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: context.colors.incorrect, width: 1.5),
       ),
     );
   }
@@ -374,42 +320,33 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   void _changeProfileImage() {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: context.colors.surfaceElevated,
       shape: const RoundedRectangleBorder(
-        borderRadius:
-        BorderRadius.vertical(
-          top: Radius.circular(24),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (bottomSheetContext) {
         return SafeArea(
           child: Padding(
-            padding:
-            const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(20),
             child: Column(
-              mainAxisSize:
-              MainAxisSize.min,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
                   width: 42,
                   height: 4,
                   decoration: BoxDecoration(
-                    color:
-                    const Color(0xFFE2E2E6),
-                    borderRadius:
-                    BorderRadius.circular(20),
+                    color: context.colors.border,
+                    borderRadius: BorderRadius.circular(20),
                   ),
                 ),
                 const SizedBox(height: 20),
 
                 ListTile(
-                  leading: const Icon(
+                  leading: Icon(
                     Icons.photo_library_outlined,
-                    color: Color(0xFFF0788F),
+                    color: context.colors.pinkStart,
                   ),
-                  title: const Text(
-                    '앨범에서 선택',
-                  ),
+                  title: const Text('앨범에서 선택'),
                   onTap: () {
                     Navigator.pop(bottomSheetContext);
                     _pickAndUploadProfileImage();
@@ -417,13 +354,11 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 ),
 
                 ListTile(
-                  leading: const Icon(
+                  leading: Icon(
                     Icons.delete_outline,
-                    color: Colors.red,
+                    color: context.colors.incorrect,
                   ),
-                  title: const Text(
-                    '기본 이미지로 변경',
-                  ),
+                  title: const Text('기본 이미지로 변경'),
                   onTap: () {
                     Navigator.pop(bottomSheetContext);
                     _resetProfileImage();
@@ -462,23 +397,22 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         });
       }
 
-      final String path =
-          'profile_images/${currentUser.uid}.jpg';
-      final Reference imageReference =
-      FirebaseStorage.instance.ref().child(path);
+      final String path = 'profile_images/${currentUser.uid}.jpg';
+      final Reference imageReference = FirebaseStorage.instance.ref().child(
+        path,
+      );
 
       await imageReference.putFile(File(pickedImage.path));
-      final String imageUrl =
-      await imageReference.getDownloadURL();
+      final String imageUrl = await imageReference.getDownloadURL();
 
       await FirebaseFirestore.instance
           .collection('users')
           .doc(currentUser.uid)
           .update({
-        'profileImageUrl': imageUrl,
-        'profileImagePath': path,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+            'profileImageUrl': imageUrl,
+            'profileImagePath': path,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
 
       if (!mounted) {
         return;
@@ -487,7 +421,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       setState(() {
         // 같은 Storage 경로에 덮어써도 캐시가 남지 않도록 값을 갱신합니다.
         _profileImageUrl =
-        '$imageUrl&updated=${DateTime.now().millisecondsSinceEpoch}';
+            '$imageUrl&updated=${DateTime.now().millisecondsSinceEpoch}';
       });
 
       _showMessage('프로필 사진이 변경되었습니다.');
@@ -498,8 +432,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
       String message = '프로필 사진 변경에 실패했습니다.';
 
-      if (error.code == 'permission-denied' ||
-          error.code == 'unauthorized') {
+      if (error.code == 'permission-denied' || error.code == 'unauthorized') {
         message = '프로필 사진을 변경할 권한이 없습니다.';
       }
 
@@ -533,20 +466,17 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       });
 
       final DocumentSnapshot<Map<String, dynamic>> userDocument =
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .get();
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUser.uid)
+              .get();
 
       final String? imagePath =
-      userDocument.data()?['profileImagePath'] as String?;
+          userDocument.data()?['profileImagePath'] as String?;
 
       if (imagePath != null && imagePath.isNotEmpty) {
         try {
-          await FirebaseStorage.instance
-              .ref()
-              .child(imagePath)
-              .delete();
+          await FirebaseStorage.instance.ref().child(imagePath).delete();
         } on FirebaseException catch (error) {
           // Storage에 이미 파일이 없어도 Firestore 필드는 정리합니다.
           if (error.code != 'object-not-found') {
@@ -559,10 +489,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           .collection('users')
           .doc(currentUser.uid)
           .update({
-        'profileImageUrl': FieldValue.delete(),
-        'profileImagePath': FieldValue.delete(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+            'profileImageUrl': FieldValue.delete(),
+            'profileImagePath': FieldValue.delete(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
 
       if (!mounted) {
         return;
@@ -580,8 +510,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
       String message = '기본 이미지 변경에 실패했습니다.';
 
-      if (error.code == 'permission-denied' ||
-          error.code == 'unauthorized') {
+      if (error.code == 'permission-denied' || error.code == 'unauthorized') {
         message = '프로필 사진을 변경할 권한이 없습니다.';
       }
 
@@ -602,8 +531,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   }
 
   Future<void> _loadProfile() async {
-    final User? currentUser =
-        FirebaseAuth.instance.currentUser;
+    final User? currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
       if (!mounted) {
@@ -614,46 +542,38 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         _isLoading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('로그인 정보를 확인할 수 없습니다.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('로그인 정보를 확인할 수 없습니다.')));
       return;
     }
 
     try {
       final DocumentSnapshot<Map<String, dynamic>> userDocument =
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .get();
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUser.uid)
+              .get();
 
-      final Map<String, dynamic>? userData =
-      userDocument.data();
+      final Map<String, dynamic>? userData = userDocument.data();
 
       if (!mounted) {
         return;
       }
 
-      final String? savedEmail =
-      userData?['email'] as String?;
+      final String? savedEmail = userData?['email'] as String?;
 
-      _loginIdController.text =
-      currentUser.email?.trim().isNotEmpty == true
+      _loginIdController.text = currentUser.email?.trim().isNotEmpty == true
           ? currentUser.email!
           : savedEmail?.trim().isNotEmpty == true
           ? savedEmail!
           : '등록된 이메일 없음';
 
-      _nicknameController.text =
-          (userData?['nickname'] as String?) ?? '';
+      _nicknameController.text = (userData?['nickname'] as String?) ?? '';
 
-      _introductionController.text =
-          (userData?['bio'] as String?) ?? '';
+      _introductionController.text = (userData?['bio'] as String?) ?? '';
 
-      _profileImageUrl =
-      userData?['profileImageUrl'] as String?;
+      _profileImageUrl = userData?['profileImageUrl'] as String?;
     } on FirebaseException catch (error) {
       if (!mounted) {
         return;
@@ -665,21 +585,17 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         message = '회원 정보를 조회할 권한이 없습니다.';
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } catch (error) {
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('회원 정보 조회 중 오류가 발생했습니다.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('회원 정보 조회 중 오류가 발생했습니다.')));
     } finally {
       if (mounted) {
         setState(() {
@@ -690,22 +606,18 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   }
 
   Future<void> _saveProfile() async {
-    final bool isValid =
-        _formKey.currentState?.validate() ?? false;
+    final bool isValid = _formKey.currentState?.validate() ?? false;
 
     if (!isValid) {
       return;
     }
 
-    final User? currentUser =
-        FirebaseAuth.instance.currentUser;
+    final User? currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('로그인 정보를 확인할 수 없습니다.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('로그인 정보를 확인할 수 없습니다.')));
       return;
     }
 
@@ -716,10 +628,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     try {
       final String uid = currentUser.uid;
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .update({
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
         'nickname': _nicknameController.text.trim(),
         'bio': _introductionController.text.trim(),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -729,11 +638,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('회원 정보가 저장되었습니다.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('회원 정보가 저장되었습니다.')));
 
       Navigator.pop(context, true);
     } on FirebaseException catch (error) {
@@ -749,21 +656,17 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         message = '회원 정보를 수정할 권한이 없습니다.';
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } catch (error) {
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('회원 정보 저장 중 오류가 발생했습니다.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('회원 정보 저장 중 오류가 발생했습니다.')));
     } finally {
       if (mounted) {
         setState(() {
@@ -773,14 +676,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     }
   }
 
-  void _showMessage(
-      String message,
-      ) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }

@@ -99,11 +99,14 @@ class _SignupScreenState extends State<SignupScreen>
       vsync: this,
       duration: const Duration(milliseconds: 700),
     );
-    _fadeAnim = CurvedAnimation(parent: _entryController, curve: Curves.easeOut);
-    _slideAnim = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic));
+    _fadeAnim = CurvedAnimation(
+      parent: _entryController,
+      curve: Curves.easeOut,
+    );
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
+        );
     _logoScale = Tween<double>(begin: 0.6, end: 1.0).animate(
       CurvedAnimation(
         parent: _entryController,
@@ -208,7 +211,8 @@ class _SignupScreenState extends State<SignupScreen>
     return null;
   }
 
-  String? get _passwordDisplayError => _passwordServerError ?? _passwordLengthError;
+  String? get _passwordDisplayError =>
+      _passwordServerError ?? _passwordLengthError;
   String? get _confirmError {
     final confirm = _passwordConfirmController.text;
     if (confirm.isEmpty) return null;
@@ -227,10 +231,10 @@ class _SignupScreenState extends State<SignupScreen>
 
   bool get _isFormValid =>
       _emailController.text.trim().isNotEmpty &&
-          _emailFormatError == null &&
-          _isPasswordValid &&
-          _passwordConfirmController.text.isNotEmpty &&
-          _confirmError == null;
+      _emailFormatError == null &&
+      _isPasswordValid &&
+      _passwordConfirmController.text.isNotEmpty &&
+      _confirmError == null;
 
   Future<void> _signup() async {
     print('===== SIGNUP BUTTON PRESSED =====');
@@ -246,10 +250,8 @@ class _SignupScreenState extends State<SignupScreen>
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => OtpVerificationScreen(
-            email: email,
-            password: password,
-          ),
+          builder: (_) =>
+              OtpVerificationScreen(email: email, password: password),
         ),
       );
     } on FirebaseFunctionsException catch (e) {
@@ -361,9 +363,9 @@ class _SignupScreenState extends State<SignupScreen>
       suffixIcon: controller.text.isEmpty
           ? null
           : IconButton(
-        icon: Icon(Icons.close, color: colors.textSecondary, size: 18),
-        onPressed: () => controller.clear(),
-      ),
+              icon: Icon(Icons.close, color: colors.textSecondary, size: 18),
+              onPressed: () => controller.clear(),
+            ),
     );
   }
 
@@ -409,7 +411,9 @@ class _SignupScreenState extends State<SignupScreen>
                 margin: EdgeInsets.only(right: i < 2 ? 6 : 0),
                 height: 4,
                 decoration: BoxDecoration(
-                  color: i < filledBars ? activeColor : colors.textSecondary.withOpacity(0.15),
+                  color: i < filledBars
+                      ? activeColor
+                      : colors.textSecondary.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -417,7 +421,11 @@ class _SignupScreenState extends State<SignupScreen>
           SizedBox(width: 10),
           Text(
             label,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: activeColor),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: activeColor,
+            ),
           ),
         ],
       ),
@@ -501,7 +509,9 @@ class _SignupScreenState extends State<SignupScreen>
                 return SingleChildScrollView(
                   padding: EdgeInsets.symmetric(horizontal: 24),
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
                     child: IntrinsicHeight(
                       child: FadeTransition(
                         opacity: _fadeAnim,
@@ -514,7 +524,9 @@ class _SignupScreenState extends State<SignupScreen>
                               _logoHeader(colors),
                               SizedBox(height: 8),
                               Image.asset(
-                                'assets/images/textLogo.png',
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? 'assets/images/textLogo_dark.png'
+                                    : 'assets/images/textLogo.png',
                                 height: 22,
                               ),
                               SizedBox(height: 20),
@@ -529,7 +541,10 @@ class _SignupScreenState extends State<SignupScreen>
                               SizedBox(height: 8),
                               Text(
                                 '이메일로 계정을 만들어보세요',
-                                style: TextStyle(fontSize: 14, color: colors.textSecondary),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: colors.textSecondary,
+                                ),
                               ),
                               SizedBox(height: 36),
 
@@ -541,7 +556,9 @@ class _SignupScreenState extends State<SignupScreen>
                                 textInputAction: TextInputAction.next,
                                 onSubmitted: (_) {
                                   if (_showPasswordStep) {
-                                    FocusScope.of(context).requestFocus(_passwordFocus);
+                                    FocusScope.of(
+                                      context,
+                                    ).requestFocus(_passwordFocus);
                                   }
                                 },
                                 decoration: _decoration(
@@ -559,7 +576,10 @@ class _SignupScreenState extends State<SignupScreen>
                                   alignment: Alignment.centerLeft,
                                   child: Text(
                                     _emailDisplayError!,
-                                    style: TextStyle(color: errorColor, fontSize: 12),
+                                    style: TextStyle(
+                                      color: errorColor,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ),
                               ] else if (_showPasswordStep) ...[
@@ -569,11 +589,18 @@ class _SignupScreenState extends State<SignupScreen>
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.check_circle, size: 14, color: colors.pinkStart),
+                                      Icon(
+                                        Icons.check_circle,
+                                        size: 14,
+                                        color: colors.pinkStart,
+                                      ),
                                       SizedBox(width: 4),
                                       Text(
                                         '좋은 이메일이에요',
-                                        style: TextStyle(color: colors.pinkStart, fontSize: 12),
+                                        style: TextStyle(
+                                          color: colors.pinkStart,
+                                          fontSize: 12,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -596,8 +623,9 @@ class _SignupScreenState extends State<SignupScreen>
                                       textInputAction: TextInputAction.next,
                                       onSubmitted: (_) {
                                         if (_showConfirmStep) {
-                                          FocusScope.of(context)
-                                              .requestFocus(_passwordConfirmFocus);
+                                          FocusScope.of(
+                                            context,
+                                          ).requestFocus(_passwordConfirmFocus);
                                         }
                                       },
                                       decoration: _decoration(
@@ -616,7 +644,10 @@ class _SignupScreenState extends State<SignupScreen>
                                         alignment: Alignment.centerLeft,
                                         child: Text(
                                           _passwordDisplayError!,
-                                          style: TextStyle(color: errorColor, fontSize: 12),
+                                          style: TextStyle(
+                                            color: errorColor,
+                                            fontSize: 12,
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -653,23 +684,33 @@ class _SignupScreenState extends State<SignupScreen>
                                         alignment: Alignment.centerLeft,
                                         child: Text(
                                           _confirmError!,
-                                          style: TextStyle(color: errorColor, fontSize: 12),
+                                          style: TextStyle(
+                                            color: errorColor,
+                                            fontSize: 12,
+                                          ),
                                         ),
                                       ),
-                                    ] else if (_passwordConfirmController.text.isNotEmpty) ...[
+                                    ] else if (_passwordConfirmController
+                                        .text
+                                        .isNotEmpty) ...[
                                       SizedBox(height: 6),
                                       Align(
                                         alignment: Alignment.centerLeft,
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Icon(Icons.check_circle,
-                                                size: 14, color: colors.pinkStart),
+                                            Icon(
+                                              Icons.check_circle,
+                                              size: 14,
+                                              color: colors.pinkStart,
+                                            ),
                                             SizedBox(width: 4),
                                             Text(
                                               '비밀번호가 일치해요',
                                               style: TextStyle(
-                                                  color: colors.pinkStart, fontSize: 12),
+                                                color: colors.pinkStart,
+                                                fontSize: 12,
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -690,18 +731,23 @@ class _SignupScreenState extends State<SignupScreen>
                                     builder: (context, child) {
                                       final t = _buttonPulseController.value;
                                       // 0 -> 1.06 -> 1.0 로 살짝 튀는 스케일
-                                      final scale = 1.0 +
+                                      final scale =
+                                          1.0 +
                                           (Curves.easeOutBack.transform(t) *
                                               (t < 1 ? 0.06 : 0.0));
-                                      return Transform.scale(scale: scale, child: child);
+                                      return Transform.scale(
+                                        scale: scale,
+                                        child: child,
+                                      );
                                     },
                                     child: AppButton(
                                       text: '회원가입',
                                       type: _isFormValid
                                           ? AppButtonType.primaryPink
                                           : AppButtonType.gray,
-                                      onPressed:
-                                      (_isFormValid && !_isLoading) ? _signup : null,
+                                      onPressed: (_isFormValid && !_isLoading)
+                                          ? _signup
+                                          : null,
                                     ),
                                   ),
                                 ),

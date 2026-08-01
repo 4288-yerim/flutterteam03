@@ -2,14 +2,16 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../theme.dart';
 
 import 'services/study_plan_ai_service.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
 
 class AiStudyPlanPage extends StatefulWidget {
-  const AiStudyPlanPage({super.key});
+  AiStudyPlanPage({super.key});
 
   @override
   State<AiStudyPlanPage> createState() => _AiStudyPlanPageState();
@@ -17,15 +19,7 @@ class AiStudyPlanPage extends StatefulWidget {
 
 class _AiStudyPlanPageState extends State<AiStudyPlanPage>
     with SingleTickerProviderStateMixin {
-  static const Color _textColor = Color(0xFF302C2E);
-  static const Color _subTextColor = Color(0xFF8E8589);
-  static const Color _pinkColor = Color(0xFFE8879C);
-  static const Color _pinkSoft = Color(0xFFF6E9EC);
-  static const Color _pinkAccent = Color(0xFFEDA0AE);
-  static const Color _purpleColor = Color(0xFFA48CDB);
-  static const Color _borderColor = Color(0xFFE8E1E4);
-
-  static const List<String> _genMessages = [
+  static List<String> _genMessages = [
     '입력하신 정보를 확인하고 있어요',
     '학습 가능 시간을 계산하고 있어요',
     '단계별 학습 강도를 배분하고 있어요',
@@ -33,7 +27,7 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
     '거의 다 됐어요',
     '이제 보여드릴게요',
   ];
-  static const List<int> _genDurations = [1000, 1200, 1400, 1200, 800, 500];
+  static List<int> _genDurations = [1000, 1200, 1400, 1200, 800, 500];
 
   final PageController _pageController = PageController();
   int _currentStep = 0; // 0: 자격증/회차, 1: 날짜/시간대/복습, 2: 결과
@@ -41,7 +35,7 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
   late final AnimationController _loadingController;
 
   final TextEditingController _certificateSearchController =
-  TextEditingController();
+      TextEditingController();
 
   final List<_CertificateOption> _certificateOptions = [];
   bool _isLoadingCertificates = true;
@@ -81,8 +75,9 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
 
   Future<void> _loadCertificates() async {
     try {
-      final snapshot =
-      await FirebaseFirestore.instance.collection('certifications').get();
+      final snapshot = await FirebaseFirestore.instance
+          .collection('certifications')
+          .get();
       if (!mounted) return;
       setState(() {
         _certificateOptions
@@ -97,7 +92,9 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
     }
   }
 
-  Future<void> _fetchRoundsForCertificate(_CertificateOption certificate) async {
+  Future<void> _fetchRoundsForCertificate(
+    _CertificateOption certificate,
+  ) async {
     setState(() {
       _isLoadingRounds = true;
       _availableRounds = [];
@@ -112,8 +109,9 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
           .orderBy('sortdate', descending: false)
           .get();
 
-      final roundField =
-      certificate.qualgbcd == 'T' ? 'implplannm' : 'description';
+      final roundField = certificate.qualgbcd == 'T'
+          ? 'implplannm'
+          : 'description';
 
       final now = Timestamp.now();
 
@@ -185,7 +183,7 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
     setState(() => _currentStep = step);
     _pageController.animateToPage(
       step,
-      duration: const Duration(milliseconds: 320),
+      duration: Duration(milliseconds: 320),
       curve: Curves.easeOutCubic,
     );
   }
@@ -258,7 +256,7 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const _AddTimeSlotSheet(),
+      builder: (context) => _AddTimeSlotSheet(),
     );
 
     if (result == null) return;
@@ -296,8 +294,10 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
 
   void _removeExcludedDate(DateTime date) {
     setState(() {
-      _excludedDates.removeWhere((d) =>
-      d.year == date.year && d.month == date.month && d.day == date.day);
+      _excludedDates.removeWhere(
+        (d) =>
+            d.year == date.year && d.month == date.month && d.day == date.day,
+      );
     });
   }
 
@@ -342,6 +342,7 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
       _examDateAutoFilled = false;
     });
   }
+
   void _removeTimeSlot(int index) {
     setState(() {
       _timeSlots.removeAt(index);
@@ -386,8 +387,9 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
     }
 
     final dailyHoursAvg = _averageDailyHours();
-    final difficulty =
-    StudyPlanAiService.difficultyForCertificate(_selectedCertificate!.name);
+    final difficulty = StudyPlanAiService.difficultyForCertificate(
+      _selectedCertificate!.name,
+    );
 
     final totalDays = studyDates.length;
 
@@ -405,8 +407,8 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
       final isReviewDay = original.dayLabel == '복습일';
       final label = date != null
           ? (isReviewDay
-          ? '${_formatDateWithWeekday(date)} · 복습'
-          : _formatDateWithWeekday(date))
+                ? '${_formatDateWithWeekday(date)} · 복습'
+                : _formatDateWithWeekday(date))
           : original.dayLabel;
 
       generatedDays.add(
@@ -475,20 +477,23 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
           .doc(uid)
           .collection('studyPlans')
           .add({
-        'certificateId': _selectedCertificate!.jmcd,
-        'certificateName': _selectedCertificate!.name,
-        'scheduleName': _selectedRound,
-        'examStartAt': _examDate != null ? Timestamp.fromDate(_examDate!) : null,
-        'recommendedStudyStartDate':
-        _studyStartDate != null ? _formatDateYmd(_studyStartDate!) : null,
-        'steps': steps,
-        'totalStepCount': steps.length,
-        'completedStepCount': 0,
-        'completionRate': 0,
-        'status': 'NOT_STARTED',
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+            'certificateId': _selectedCertificate!.jmcd,
+            'certificateName': _selectedCertificate!.name,
+            'scheduleName': _selectedRound,
+            'examStartAt': _examDate != null
+                ? Timestamp.fromDate(_examDate!)
+                : null,
+            'recommendedStudyStartDate': _studyStartDate != null
+                ? _formatDateYmd(_studyStartDate!)
+                : null,
+            'steps': steps,
+            'totalStepCount': steps.length,
+            'completedStepCount': 0,
+            'completionRate': 0,
+            'status': 'NOT_STARTED',
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
 
       if (!mounted) return;
       setState(() => _isSavingPlan = false);
@@ -506,7 +511,7 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const _ExitDuringGenerationSheet(),
+      builder: (context) => _ExitDuringGenerationSheet(),
     );
   }
 
@@ -515,7 +520,7 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const _RegeneratePlanSheet(),
+      builder: (context) => _RegeneratePlanSheet(),
     );
 
     if (choice == 'full') {
@@ -555,10 +560,11 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
     });
     _goToStep(1);
   }
+
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   String _formatDate(DateTime date) {
@@ -573,7 +579,7 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
     return '${date.year}-$month-$day';
   }
 
-  static const List<String> _weekdayShort = ['월', '화', '수', '목', '금', '토', '일'];
+  static List<String> _weekdayShort = ['월', '화', '수', '목', '금', '토', '일'];
 
   String _formatDateWithWeekday(DateTime date) {
     final wd = _weekdayShort[date.weekday - 1];
@@ -594,16 +600,24 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
     if (availableWeekdays.isEmpty) return [];
 
     final dates = <DateTime>[];
-    var cursor = DateTime(_studyStartDate!.year, _studyStartDate!.month, _studyStartDate!.day);
+    var cursor = DateTime(
+      _studyStartDate!.year,
+      _studyStartDate!.month,
+      _studyStartDate!.day,
+    );
     final end = DateTime(_examDate!.year, _examDate!.month, _examDate!.day);
 
     while (!cursor.isAfter(end)) {
-      final isExcluded = _excludedDates.any((d) =>
-      d.year == cursor.year && d.month == cursor.month && d.day == cursor.day);
+      final isExcluded = _excludedDates.any(
+        (d) =>
+            d.year == cursor.year &&
+            d.month == cursor.month &&
+            d.day == cursor.day,
+      );
       if (!isExcluded && availableWeekdays.contains(cursor.weekday)) {
         dates.add(cursor);
       }
-      cursor = cursor.add(const Duration(days: 1));
+      cursor = cursor.add(Duration(days: 1));
     }
     return dates;
   }
@@ -633,9 +647,9 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
           centerTitle: false,
           leading: (_currentStep == 1 && !_isGenerating)
               ? IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-            onPressed: () => _goToStep(0),
-          )
+                  icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+                  onPressed: () => _goToStep(0),
+                )
               : null,
         ),
         body: AppMainBackground(
@@ -644,13 +658,13 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
               SafeArea(
                 child: Column(
                   children: [
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     _StepProgressBar(currentStep: _currentStep),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     Expanded(
                       child: PageView(
                         controller: _pageController,
-                        physics: const NeverScrollableScrollPhysics(),
+                        physics: NeverScrollableScrollPhysics(),
                         children: [
                           _buildStep0(),
                           _buildStep1(),
@@ -664,11 +678,13 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
               if (_isGenerating)
                 Positioned.fill(
                   child: Container(
-                    color: Colors.white.withValues(alpha: 0.92),
+                    color: context.colors.surfaceTransparent.withValues(
+                      alpha: 0.92,
+                    ),
                     child: Align(
-                      alignment: const Alignment(0, -0.15),
+                      alignment: Alignment(0, -0.15),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        padding: EdgeInsets.symmetric(horizontal: 24),
                         child: _RotatingLoadingContent(
                           messages: _genMessages,
                           durations: _genDurations,
@@ -688,41 +704,41 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: EdgeInsets.symmetric(horizontal: 24),
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: constraints.maxHeight),
             child: Align(
-              alignment: const Alignment(0, -0.45),
+              alignment: Alignment(0, -0.45),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _FadeSlideIn(
-                    duration: const Duration(milliseconds: 600),
-                    child: const Center(child: _HeroBadge()),
+                    duration: Duration(milliseconds: 600),
+                    child: Center(child: _HeroBadge()),
                   ),
-                  const SizedBox(height: 14),
+                  SizedBox(height: 14),
                   _FadeSlideIn(
-                    delay: const Duration(milliseconds: 150),
-                    duration: const Duration(milliseconds: 700),
+                    delay: Duration(milliseconds: 150),
+                    duration: Duration(milliseconds: 700),
                     child: Column(
                       children: [
-                        const Text(
+                        Text(
                           '나에게 맞는 학습 계획을 만들어보세요.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: _textColor,
+                            color: context.colors.textPrimary,
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
                             letterSpacing: -0.4,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        const Text(
+                        SizedBox(height: 8),
+                        Text(
                           '시험 일정과 가능한 공부 시간을 기준으로 학습 계획을 생성합니다.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: _subTextColor,
+                            color: context.colors.textSecondary,
                             fontSize: 13.5,
                             height: 1.5,
                           ),
@@ -730,11 +746,11 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
                       ],
                     ),
                   ),
-                  const SizedBox(height: 22),
+                  SizedBox(height: 22),
                   _FadeSlideIn(
-                    delay: const Duration(milliseconds: 320),
-                    duration: const Duration(milliseconds: 700),
-                    child: const Align(
+                    delay: Duration(milliseconds: 320),
+                    duration: Duration(milliseconds: 700),
+                    child: Align(
                       alignment: Alignment.centerLeft,
                       child: _SectionTitle(
                         title: '응시할 자격증과 회차',
@@ -742,36 +758,41 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: 12),
                   _FadeSlideIn(
-                    delay: const Duration(milliseconds: 480),
-                    duration: const Duration(milliseconds: 700),
+                    delay: Duration(milliseconds: 480),
+                    duration: Duration(milliseconds: 700),
                     child: _buildCertificateSearch(),
                   ),
                   if (_selectedCertificate != null) ...[
-                    const SizedBox(height: 14),
+                    SizedBox(height: 14),
                     _buildSelectedCertificateCard(),
-                    const SizedBox(height: 14),
+                    SizedBox(height: 14),
                     _buildRoundSelector(),
                   ],
-                  const SizedBox(height: 34),
+                  SizedBox(height: 34),
                   _FadeSlideIn(
-                    delay: const Duration(milliseconds: 620),
-                    duration: const Duration(milliseconds: 700),
+                    delay: Duration(milliseconds: 620),
+                    duration: Duration(milliseconds: 700),
                     child: SizedBox(
                       width: double.infinity,
                       height: 56,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(18),
-                          gradient: const LinearGradient(
-                            colors: [_pinkColor, _pinkAccent],
+                          gradient: LinearGradient(
+                            colors: [
+                              context.colors.pinkStart,
+                              context.colors.pinkDeep,
+                            ],
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: _pinkColor.withValues(alpha: 0.35),
+                              color: context.colors.pinkStart.withValues(
+                                alpha: 0.35,
+                              ),
                               blurRadius: 20,
-                              offset: const Offset(0, 10),
+                              offset: Offset(0, 10),
                             ),
                           ],
                         ),
@@ -780,11 +801,11 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
                           child: InkWell(
                             borderRadius: BorderRadius.circular(18),
                             onTap: _onNextFromStep0,
-                            child: const Center(
+                            child: Center(
                               child: Text(
                                 '다음',
                                 style: TextStyle(
-                                  color: Colors.white,
+                                  color: context.colors.onPrimary,
                                   fontSize: 16,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -795,7 +816,7 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  SizedBox(height: 24),
                 ],
               ),
             ),
@@ -809,87 +830,85 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 4, 24, 40),
+          padding: EdgeInsets.fromLTRB(24, 4, 24, 40),
           child: _FadeSlideIn(
-            duration: const Duration(milliseconds: 600),
+            duration: Duration(milliseconds: 600),
             child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _SectionTitle(
-                      title: '시험 날짜',
-                      isRequired: true,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildExamDateSelector(),
-                    const SizedBox(height: 28),
-                    const _SectionTitle(
-                      title: '공부 시작 날짜',
-                      isRequired: true,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildDateSelector(),
-                    const SizedBox(height: 28),
-                    const _SectionTitle(
-                      title: '선호 공부 시간대',
-                      isRequired: true,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildTimeSlotArea(),
-                    const SizedBox(height: 28),
-                    const _SectionTitle(title: '복습 포함 여부'),
-                    const SizedBox(height: 12),
-                    _buildReviewSelector(),
-                    const SizedBox(height: 28),
-                    const _SectionTitle(title: '공부 제외 날짜'),
-                    const SizedBox(height: 12),
-                    _buildExcludedDatesArea(),
-                    const SizedBox(height: 34),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(18),
-                          gradient: const LinearGradient(
-                            colors: [_pinkColor, _pinkAccent],
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _SectionTitle(title: '시험 날짜', isRequired: true),
+                SizedBox(height: 12),
+                _buildExamDateSelector(),
+                SizedBox(height: 28),
+                _SectionTitle(title: '공부 시작 날짜', isRequired: true),
+                SizedBox(height: 12),
+                _buildDateSelector(),
+                SizedBox(height: 28),
+                _SectionTitle(title: '선호 공부 시간대', isRequired: true),
+                SizedBox(height: 12),
+                _buildTimeSlotArea(),
+                SizedBox(height: 28),
+                _SectionTitle(title: '복습 포함 여부'),
+                SizedBox(height: 12),
+                _buildReviewSelector(),
+                SizedBox(height: 28),
+                _SectionTitle(title: '공부 제외 날짜'),
+                SizedBox(height: 12),
+                _buildExcludedDatesArea(),
+                SizedBox(height: 34),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      gradient: LinearGradient(
+                        colors: [
+                          context.colors.pinkStart,
+                          context.colors.pinkDeep,
+                        ],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: context.colors.pinkStart.withValues(
+                            alpha: 0.35,
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: _pinkColor.withValues(alpha: 0.35),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
+                          blurRadius: 20,
+                          offset: Offset(0, 10),
                         ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(18),
-                            onTap: _isGenerating ? null : _generatePlan,
-                            child: const Center(
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.auto_awesome_rounded,
-                                      color: Colors.white),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'AI 학습 플랜 생성하기',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                ],
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(18),
+                        onTap: _isGenerating ? null : _generatePlan,
+                        child: Center(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.auto_awesome_rounded,
+                                color: context.colors.onPrimary,
                               ),
-                            ),
+                              SizedBox(width: 8),
+                              Text(
+                                'AI 학습 플랜 생성하기',
+                                style: TextStyle(
+                                  color: context.colors.onPrimary,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     ),
-                  ],
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -904,10 +923,10 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
       children: [
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: context.colors.surface,
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: _pinkSoft),
-            boxShadow: const [
+            border: Border.all(color: context.colors.pinkSoft),
+            boxShadow: [
               BoxShadow(
                 color: Color(0x14C98198),
                 blurRadius: 18,
@@ -926,53 +945,64 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
                 }
               });
             },
-            style: const TextStyle(
-              color: _textColor,
+            style: TextStyle(
+              color: context.colors.textPrimary,
               fontSize: 15.5,
               fontWeight: FontWeight.w700,
             ),
             decoration: InputDecoration(
               hintText: '예: 정보처리기사',
-              hintStyle: const TextStyle(color: Color(0xFFB7AFB1), fontSize: 15),
+              hintStyle: TextStyle(
+                color: context.colors.textMuted,
+                fontSize: 15,
+              ),
               prefixIcon: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(12),
                 child: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(colors: [_pinkColor, _pinkAccent]),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        context.colors.pinkStart,
+                        context.colors.pinkDeep,
+                      ],
+                    ),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.workspace_premium_outlined,
-                    color: Colors.white,
+                    color: context.colors.onPrimary,
                     size: 19,
                   ),
                 ),
               ),
-              prefixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-              contentPadding: const EdgeInsets.fromLTRB(6, 17, 6, 17),
+              prefixIconConstraints: BoxConstraints(
+                minWidth: 44,
+                minHeight: 44,
+              ),
+              contentPadding: EdgeInsets.fromLTRB(6, 17, 6, 17),
               border: InputBorder.none,
             ),
           ),
         ),
         if (_searchKeyword.trim().isNotEmpty &&
             _selectedCertificate == null) ...[
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           if (_isLoadingCertificates)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.colors.surface,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: _borderColor),
+                border: Border.all(color: context.colors.border),
               ),
-              child: const Center(
+              child: Center(
                 child: SizedBox(
                   width: 22,
                   height: 22,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.4,
-                    color: _purpleColor,
+                    color: context.colors.lavenderAccent,
                   ),
                 ),
               ),
@@ -982,28 +1012,28 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
           else
             Container(
               width: double.infinity,
-              constraints: const BoxConstraints(maxHeight: 250),
+              constraints: BoxConstraints(maxHeight: 250),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.colors.surface,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: _borderColor),
+                border: Border.all(color: context.colors.border),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 12,
-                    offset: const Offset(0, 5),
+                    offset: Offset(0, 5),
                   ),
                 ],
               ),
               child: ListView.separated(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: EdgeInsets.symmetric(vertical: 8),
                 shrinkWrap: true,
                 itemCount: filteredCertificates.length,
-                separatorBuilder: (context, index) => const Divider(
+                separatorBuilder: (context, index) => Divider(
                   height: 1,
                   indent: 16,
                   endIndent: 16,
-                  color: Color(0xFFF1ECEE),
+                  color: context.colors.divider,
                 ),
                 itemBuilder: (context, index) {
                   final certificate = filteredCertificates[index];
@@ -1012,34 +1042,34 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
                     leading: Container(
                       width: 42,
                       height: 42,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFEDE6FF),
+                      decoration: BoxDecoration(
+                        color: context.colors.lavender,
                         shape: BoxShape.circle,
                       ),
                       alignment: Alignment.center,
-                      child: const Icon(
+                      child: Icon(
                         Icons.workspace_premium_outlined,
-                        color: _purpleColor,
+                        color: context.colors.lavenderAccent,
                         size: 22,
                       ),
                     ),
                     title: Text(
                       certificate.name,
-                      style: const TextStyle(
-                        color: _textColor,
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     subtitle: Text(
                       certificate.qualgbcd == 'T' ? '국가기술자격' : '국가전문자격',
-                      style: const TextStyle(
-                        color: _subTextColor,
+                      style: TextStyle(
+                        color: context.colors.textSecondary,
                         fontSize: 12,
                       ),
                     ),
-                    trailing: const Icon(
+                    trailing: Icon(
                       Icons.chevron_right_rounded,
-                      color: _subTextColor,
+                      color: context.colors.textSecondary,
                     ),
                   );
                 },
@@ -1054,28 +1084,28 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
     final typedName = _certificateSearchController.text.trim();
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF7E8),
+        color: context.colors.warningSoft,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFFCE5AE)),
+        border: Border.all(color: context.colors.warningSoft),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.info_outline_rounded,
-                color: Color(0xFFCA9A2E),
+                color: context.colors.warning,
                 size: 20,
               ),
-              const SizedBox(width: 8),
-              const Expanded(
+              SizedBox(width: 8),
+              Expanded(
                 child: Text(
                   '목록에서 자격증을 찾지 못했어요.',
                   style: TextStyle(
-                    color: _textColor,
+                    color: context.colors.textPrimary,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1083,32 +1113,34 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          const Text(
+          SizedBox(height: 6),
+          Text(
             '자격증명을 다시 확인해보시거나, 그래도 이 이름으로 진행할 수 있어요. '
-                '이 경우 회차는 직접 입력해주셔야 해요.',
+            '이 경우 회차는 직접 입력해주셔야 해요.',
             style: TextStyle(
-              color: _subTextColor,
+              color: context.colors.textSecondary,
               fontSize: 12.5,
               height: 1.5,
             ),
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
             height: 44,
             child: OutlinedButton(
-              onPressed: typedName.isEmpty ? null : _continueWithManualCertificate,
+              onPressed: typedName.isEmpty
+                  ? null
+                  : _continueWithManualCertificate,
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFFCA9A2E),
-                side: const BorderSide(color: Color(0xFFE9C167)),
+                foregroundColor: context.colors.warning,
+                side: BorderSide(color: Color(0xFFE9C167)),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
               child: Text(
                 '"$typedName"(으)로 그래도 진행하기',
-                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -1121,9 +1153,9 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
   Widget _buildSelectedCertificateCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3EEFF),
+        color: context.colors.lavender,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -1131,49 +1163,51 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
           Container(
             width: 46,
             height: 46,
-            decoration: const BoxDecoration(
-              color: _purpleColor,
+            decoration: BoxDecoration(
+              color: context.colors.lavenderAccent,
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
-            child: const Icon(
+            child: Icon(
               Icons.check_rounded,
-              color: Colors.white,
+              color: context.colors.onPrimary,
               size: 24,
             ),
           ),
-          const SizedBox(width: 13),
+          SizedBox(width: 13),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    const Text(
+                    Text(
                       '선택한 자격증',
                       style: TextStyle(
-                        color: _subTextColor,
+                        color: context.colors.textSecondary,
                         fontSize: 11.5,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     if (!_isManualEntry) ...[
-                      const SizedBox(width: 6),
+                      SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(
+                        padding: EdgeInsets.symmetric(
                           horizontal: 7,
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.7),
+                          color: context.colors.surfaceTransparent.withValues(
+                            alpha: 0.7,
+                          ),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           _selectedCertificate!.qualgbcd == 'T'
                               ? '국가기술자격'
                               : '국가전문자격',
-                          style: const TextStyle(
-                            color: _purpleColor,
+                          style: TextStyle(
+                            color: context.colors.lavenderAccent,
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
                           ),
@@ -1181,21 +1215,21 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
                       ),
                     ],
                     if (_isManualEntry) ...[
-                      const SizedBox(width: 6),
+                      SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(
+                        padding: EdgeInsets.symmetric(
                           horizontal: 7,
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFFF7E8),
+                          color: context.colors.warningSoft,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFFCE5AE)),
+                          border: Border.all(color: context.colors.warningSoft),
                         ),
-                        child: const Text(
+                        child: Text(
                           '직접 입력',
                           style: TextStyle(
-                            color: Color(0xFFCA9A2E),
+                            color: context.colors.warning,
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
                           ),
@@ -1204,11 +1238,11 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
                     ],
                   ],
                 ),
-                const SizedBox(height: 5),
+                SizedBox(height: 5),
                 Text(
                   _selectedCertificate!.name,
-                  style: const TextStyle(
-                    color: _textColor,
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.3,
@@ -1220,32 +1254,42 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
           ),
           IconButton(
             onPressed: _removeSelectedCertificate,
-            icon: const Icon(Icons.close_rounded, color: _subTextColor),
+            icon: Icon(
+              Icons.close_rounded,
+              color: context.colors.textSecondary,
+            ),
           ),
         ],
       ),
     );
   }
+
   Widget _buildRoundSelector() {
     if (_isManualEntry) {
       return Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: _borderColor),
+          border: Border.all(color: context.colors.border),
         ),
         child: TextField(
           controller: _manualRoundController,
-          style: const TextStyle(
-            color: _textColor,
+          style: TextStyle(
+            color: context.colors.textPrimary,
             fontSize: 15,
             fontWeight: FontWeight.w700,
           ),
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: '시험 회차 (직접 입력)',
-            labelStyle: TextStyle(color: _subTextColor, fontSize: 13),
+            labelStyle: TextStyle(
+              color: context.colors.textSecondary,
+              fontSize: 13,
+            ),
             hintText: '예: 2026년 2회',
-            prefixIcon: Icon(Icons.event_available_outlined, color: _purpleColor),
+            prefixIcon: Icon(
+              Icons.event_available_outlined,
+              color: context.colors.lavenderAccent,
+            ),
             border: InputBorder.none,
             contentPadding: EdgeInsets.symmetric(vertical: 16),
           ),
@@ -1256,17 +1300,20 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
     if (_isLoadingRounds) {
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 18),
+        padding: EdgeInsets.symmetric(vertical: 18),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.88),
+          color: context.colors.surfaceTransparent.withValues(alpha: 0.88),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: _borderColor),
+          border: Border.all(color: context.colors.border),
         ),
-        child: const Center(
+        child: Center(
           child: SizedBox(
             width: 22,
             height: 22,
-            child: CircularProgressIndicator(strokeWidth: 2.4, color: _purpleColor),
+            child: CircularProgressIndicator(
+              strokeWidth: 2.4,
+              color: context.colors.lavenderAccent,
+            ),
           ),
         ),
       );
@@ -1275,41 +1322,50 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
     if (_availableRounds.isEmpty) {
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.88),
+          color: context.colors.surfaceTransparent.withValues(alpha: 0.88),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: _borderColor),
+          border: Border.all(color: context.colors.border),
         ),
-        child: const Text(
+        child: Text(
           '등록된 회차 정보가 없어요.',
-          style: TextStyle(color: _subTextColor, fontSize: 13),
+          style: TextStyle(color: context.colors.textSecondary, fontSize: 13),
         ),
       );
     }
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _borderColor),
+        border: Border.all(color: context.colors.border),
       ),
       child: DropdownButtonFormField<String>(
         value: _selectedRound,
         isExpanded: true,
-        icon: const Padding(
+        icon: Padding(
           padding: EdgeInsets.only(right: 6),
-          child: Icon(Icons.keyboard_arrow_down_rounded, color: _purpleColor),
+          child: Icon(
+            Icons.keyboard_arrow_down_rounded,
+            color: context.colors.lavenderAccent,
+          ),
         ),
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           labelText: '시험 회차',
-          labelStyle: TextStyle(color: _subTextColor, fontSize: 13),
-          prefixIcon: Icon(Icons.event_available_outlined, color: _purpleColor),
+          labelStyle: TextStyle(
+            color: context.colors.textSecondary,
+            fontSize: 13,
+          ),
+          prefixIcon: Icon(
+            Icons.event_available_outlined,
+            color: context.colors.lavenderAccent,
+          ),
           border: InputBorder.none,
           contentPadding: EdgeInsets.symmetric(vertical: 16),
         ),
-        style: const TextStyle(
-          color: _textColor,
+        style: TextStyle(
+          color: context.colors.textPrimary,
           fontSize: 15,
           fontWeight: FontWeight.w700,
         ),
@@ -1334,20 +1390,20 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
       borderRadius: BorderRadius.circular(18),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+        padding: EdgeInsets.symmetric(horizontal: 18, vertical: 18),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.88),
+          color: context.colors.surfaceTransparent.withValues(alpha: 0.88),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: _borderColor),
+          border: Border.all(color: context.colors.border),
         ),
         child: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.calendar_today_outlined,
-              color: _purpleColor,
+              color: context.colors.lavenderAccent,
               size: 22,
             ),
-            const SizedBox(width: 14),
+            SizedBox(width: 14),
             Expanded(
               child: Text(
                 _studyStartDate == null
@@ -1355,8 +1411,8 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
                     : _formatDate(_studyStartDate!),
                 style: TextStyle(
                   color: _studyStartDate == null
-                      ? const Color(0xFFB2A9AD)
-                      : _textColor,
+                      ? context.colors.textMuted
+                      : context.colors.textPrimary,
                   fontSize: 15,
                   fontWeight: _studyStartDate == null
                       ? FontWeight.w500
@@ -1364,7 +1420,10 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
                 ),
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: _subTextColor),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: context.colors.textSecondary,
+            ),
           ],
         ),
       ),
@@ -1380,45 +1439,66 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
           borderRadius: BorderRadius.circular(18),
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+            padding: EdgeInsets.symmetric(horizontal: 18, vertical: 18),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.88),
+              color: context.colors.surfaceTransparent.withValues(alpha: 0.88),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: _borderColor),
+              border: Border.all(color: context.colors.border),
             ),
             child: Row(
               children: [
-                const Icon(Icons.event_rounded, color: _purpleColor, size: 22),
-                const SizedBox(width: 14),
+                Icon(
+                  Icons.event_rounded,
+                  color: context.colors.lavenderAccent,
+                  size: 22,
+                ),
+                SizedBox(width: 14),
                 Expanded(
                   child: Text(
-                    _examDate == null ? '시험 날짜를 선택해주세요.' : _formatDate(_examDate!),
+                    _examDate == null
+                        ? '시험 날짜를 선택해주세요.'
+                        : _formatDate(_examDate!),
                     style: TextStyle(
-                      color: _examDate == null ? const Color(0xFFB2A9AD) : _textColor,
+                      color: _examDate == null
+                          ? context.colors.textMuted
+                          : context.colors.textPrimary,
                       fontSize: 15,
-                      fontWeight: _examDate == null ? FontWeight.w500 : FontWeight.w700,
+                      fontWeight: _examDate == null
+                          ? FontWeight.w500
+                          : FontWeight.w700,
                     ),
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded, color: _subTextColor),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: context.colors.textSecondary,
+                ),
               ],
             ),
           ),
         ),
         if (_examDateAutoFilled && _examDate != null) ...[
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(top: 1.5),
-                child: Icon(Icons.info_outline_rounded, size: 13, color: _purpleColor),
+                child: Icon(
+                  Icons.info_outline_rounded,
+                  size: 13,
+                  color: context.colors.lavenderAccent,
+                ),
               ),
-              const SizedBox(width: 5),
+              SizedBox(width: 5),
               Expanded(
                 child: Text(
                   '등록된 회차 정보로 자동 입력됐어요. 실제 시험일과 다르면 위를 눌러 수정해주세요.',
-                  style: TextStyle(color: _subTextColor, fontSize: 11.5, height: 1.4),
+                  style: TextStyle(
+                    color: context.colors.textSecondary,
+                    fontSize: 11.5,
+                    height: 1.4,
+                  ),
                 ),
               ),
             ],
@@ -1434,24 +1514,24 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
         if (_timeSlots.isEmpty)
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+            padding: EdgeInsets.symmetric(horizontal: 18, vertical: 24),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.75),
+              color: context.colors.surfaceTransparent.withValues(alpha: 0.75),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: _borderColor),
+              border: Border.all(color: context.colors.border),
             ),
-            child: const Column(
+            child: Column(
               children: [
                 Icon(
                   Icons.schedule_rounded,
-                  color: Color(0xFFB8ACB1),
+                  color: context.colors.textMuted,
                   size: 30,
                 ),
                 SizedBox(height: 10),
                 Text(
                   '등록된 공부 시간대가 없습니다.',
                   style: TextStyle(
-                    color: _subTextColor,
+                    color: context.colors.textSecondary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1460,56 +1540,58 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
           )
         else
           ListView.separated(
-            physics: const NeverScrollableScrollPhysics(),
+            physics: NeverScrollableScrollPhysics(),
             shrinkWrap: true,
             itemCount: _timeSlots.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 10),
+            separatorBuilder: (context, index) => SizedBox(height: 10),
             itemBuilder: (context, index) {
               final slot = _timeSlots[index];
               return Container(
-                padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+                padding: EdgeInsets.fromLTRB(16, 14, 8, 14),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.88),
+                  color: context.colors.surfaceTransparent.withValues(
+                    alpha: 0.88,
+                  ),
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: _borderColor),
+                  border: Border.all(color: context.colors.border),
                 ),
                 child: Row(
                   children: [
                     Container(
                       width: 44,
                       height: 44,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFFFE8EE),
+                      decoration: BoxDecoration(
+                        color: context.colors.pinkSoft,
                         shape: BoxShape.circle,
                       ),
                       alignment: Alignment.center,
                       child: Text(
                         '${index + 1}',
-                        style: const TextStyle(
-                          color: _pinkColor,
+                        style: TextStyle(
+                          color: context.colors.pinkStart,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 13),
+                    SizedBox(width: 13),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             slot.dayLabel,
-                            style: const TextStyle(
-                              color: _textColor,
+                            style: TextStyle(
+                              color: context.colors.textPrimary,
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
-                          const SizedBox(height: 5),
+                          SizedBox(height: 5),
                           Text(
                             '${slot.formatTime(slot.startTime)} ~ '
-                                '${slot.formatTime(slot.endTime)}',
-                            style: const TextStyle(
-                              color: _subTextColor,
+                            '${slot.formatTime(slot.endTime)}',
+                            style: TextStyle(
+                              color: context.colors.textSecondary,
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                             ),
@@ -1519,9 +1601,9 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
                     ),
                     IconButton(
                       onPressed: () => _removeTimeSlot(index),
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.close_rounded,
-                        color: _subTextColor,
+                        color: context.colors.textSecondary,
                       ),
                     ),
                   ],
@@ -1529,21 +1611,21 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
               );
             },
           ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
           height: 52,
           child: OutlinedButton.icon(
             onPressed: _openAddTimeSlotSheet,
             style: OutlinedButton.styleFrom(
-              foregroundColor: _purpleColor,
-              side: const BorderSide(color: Color(0xFFCFC1FF)),
+              foregroundColor: context.colors.lavenderAccent,
+              side: BorderSide(color: Color(0xFFCFC1FF)),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(18),
               ),
             ),
-            icon: const Icon(Icons.add_rounded),
-            label: const Text(
+            icon: Icon(Icons.add_rounded),
+            label: Text(
               '시간대 추가하기',
               style: TextStyle(fontWeight: FontWeight.w800),
             ),
@@ -1556,36 +1638,33 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
   Widget _buildReviewSelector() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 14, 12, 14),
+      padding: EdgeInsets.fromLTRB(18, 14, 12, 14),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.88),
+        color: context.colors.surfaceTransparent.withValues(alpha: 0.88),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _borderColor),
+        border: Border.all(color: context.colors.border),
       ),
       child: Row(
         children: [
           Container(
             width: 46,
             height: 46,
-            decoration: const BoxDecoration(
-              color: Color(0xFFE2F5F1),
+            decoration: BoxDecoration(
+              color: context.colors.mint,
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
-            child: const Icon(
-              Icons.replay_rounded,
-              color: Color(0xFF5BB8AB),
-            ),
+            child: Icon(Icons.replay_rounded, color: Color(0xFF5BB8AB)),
           ),
-          const SizedBox(width: 14),
-          const Expanded(
+          SizedBox(width: 14),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   '복습 일정 포함',
                   style: TextStyle(
-                    color: _textColor,
+                    color: context.colors.textPrimary,
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1594,7 +1673,7 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
                 Text(
                   '주간 복습과 시험 직전 총정리를 배정합니다.',
                   style: TextStyle(
-                    color: _subTextColor,
+                    color: context.colors.textSecondary,
                     fontSize: 12,
                     height: 1.4,
                   ),
@@ -1604,7 +1683,7 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
           ),
           Switch(
             value: _includeReview,
-            activeTrackColor: _pinkColor,
+            activeTrackColor: context.colors.pinkStart,
             onChanged: (value) {
               setState(() => _includeReview = value);
             },
@@ -1626,18 +1705,18 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
               return Chip(
                 label: Text(_formatDate(date)),
                 onDeleted: () => _removeExcludedDate(date),
-                backgroundColor: Colors.white,
-                side: const BorderSide(color: _borderColor),
-                labelStyle: const TextStyle(
-                  color: _textColor,
+                backgroundColor: context.colors.surface,
+                side: BorderSide(color: context.colors.border),
+                labelStyle: TextStyle(
+                  color: context.colors.textPrimary,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
-                deleteIconColor: _subTextColor,
+                deleteIconColor: context.colors.textSecondary,
               );
             }).toList(),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
         ],
         SizedBox(
           width: double.infinity,
@@ -1645,14 +1724,14 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
           child: OutlinedButton.icon(
             onPressed: _addExcludedDate,
             style: OutlinedButton.styleFrom(
-              foregroundColor: _purpleColor,
-              side: const BorderSide(color: Color(0xFFCFC1FF)),
+              foregroundColor: context.colors.lavenderAccent,
+              side: BorderSide(color: Color(0xFFCFC1FF)),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
-            icon: const Icon(Icons.event_busy_rounded, size: 18),
-            label: const Text(
+            icon: Icon(Icons.event_busy_rounded, size: 18),
+            label: Text(
               '제외할 날짜 추가',
               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
             ),
@@ -1664,20 +1743,20 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
 
   Widget _buildStep2Result() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 4, 24, 40),
+      padding: EdgeInsets.fromLTRB(24, 4, 24, 40),
       child: _FadeSlideIn(
-        duration: const Duration(milliseconds: 600),
+        duration: Duration(milliseconds: 600),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(22),
+              padding: EdgeInsets.all(22),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Color(0xFFFFE4ED), Color(0xFFF1E9FF)],
+                  colors: [context.colors.pinkSoft, context.colors.lavender],
                 ),
                 borderRadius: BorderRadius.circular(24),
               ),
@@ -1685,40 +1764,39 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 7,
-                    ),
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.7),
+                      color: context.colors.surfaceTransparent.withValues(
+                        alpha: 0.7,
+                      ),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Text(
+                    child: Text(
                       'AI 생성 완료',
                       style: TextStyle(
-                        color: _pinkColor,
+                        color: context.colors.pinkStart,
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  SizedBox(height: 14),
                   Text(
                     '${_selectedCertificate?.name ?? ''} 학습 플랜',
-                    style: const TextStyle(
-                      color: _textColor,
+                    style: TextStyle(
+                      color: context.colors.textPrimary,
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.4,
                     ),
                   ),
-                  const SizedBox(height: 9),
+                  SizedBox(height: 9),
                   Text(
                     '$_selectedRound · '
-                        '${_studyStartDate != null ? _formatDate(_studyStartDate!) : ''} 시작'
-                        '${_examDate != null ? ' · 시험일 ${_formatDate(_examDate!)}' : ''}',
-                    style: const TextStyle(
-                      color: _subTextColor,
+                    '${_studyStartDate != null ? _formatDate(_studyStartDate!) : ''} 시작'
+                    '${_examDate != null ? ' · 시험일 ${_formatDate(_examDate!)}' : ''}',
+                    style: TextStyle(
+                      color: context.colors.textSecondary,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1726,26 +1804,29 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
                 ],
               ),
             ),
-            const SizedBox(height: 26),
-            const Text(
+            SizedBox(height: 26),
+            Text(
               '일일 학습 계획',
               style: TextStyle(
-                color: _textColor,
+                color: context.colors.textPrimary,
                 fontSize: 21,
                 fontWeight: FontWeight.w800,
               ),
             ),
-            const SizedBox(height: 8),
-            const Text(
+            SizedBox(height: 8),
+            Text(
               'AI가 자동으로 배정한 학습 계획입니다.',
-              style: TextStyle(color: _subTextColor, fontSize: 13),
+              style: TextStyle(
+                color: context.colors.textSecondary,
+                fontSize: 13,
+              ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             ListView.separated(
-              physics: const NeverScrollableScrollPhysics(),
+              physics: NeverScrollableScrollPhysics(),
               shrinkWrap: true,
               itemCount: _generatedPlan.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
+              separatorBuilder: (context, index) => SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final result = _generatedPlan[index];
                 final item = _DailyPlanItem(
@@ -1757,51 +1838,51 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
                 return _PlanCard(item: item, index: index);
               },
             ),
-            const SizedBox(height: 30),
+            SizedBox(height: 30),
             SizedBox(
               width: double.infinity,
               height: 56,
               child: FilledButton.icon(
                 onPressed: _isSavingPlan ? null : _savePlan,
                 style: FilledButton.styleFrom(
-                  backgroundColor: _pinkColor,
-                  foregroundColor: Colors.white,
+                  backgroundColor: context.colors.pinkStart,
+                  foregroundColor: context.colors.onPrimary,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
                   ),
                 ),
                 icon: _isSavingPlan
-                    ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.2,
-                    color: Colors.white,
-                  ),
-                )
-                    : const Icon(Icons.bookmark_add_outlined),
+                    ? SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          color: context.colors.surface,
+                        ),
+                      )
+                    : Icon(Icons.bookmark_add_outlined),
                 label: Text(
                   _isSavingPlan ? '저장 중...' : '학습 플랜 저장하기',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               height: 54,
               child: OutlinedButton.icon(
                 onPressed: _showRegeneratePlanSheet,
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: _textColor,
-                  side: const BorderSide(color: _borderColor),
+                  foregroundColor: context.colors.textPrimary,
+                  side: BorderSide(color: context.colors.border),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
                   ),
                 ),
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text(
+                icon: Icon(Icons.refresh_rounded),
+                label: Text(
                   '다시 생성하기',
                   style: TextStyle(fontWeight: FontWeight.w800),
                 ),
@@ -1815,7 +1896,7 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
 }
 
 class _HeroBadge extends StatelessWidget {
-  const _HeroBadge();
+  _HeroBadge();
 
   @override
   Widget build(BuildContext context) {
@@ -1825,30 +1906,31 @@ class _HeroBadge extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          colors: [
-            _AiStudyPlanPageState._pinkColor,
-            _AiStudyPlanPageState._pinkAccent,
-          ],
+        gradient: LinearGradient(
+          colors: [context.colors.pinkStart, context.colors.pinkDeep],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         boxShadow: [
           BoxShadow(
-            color: _AiStudyPlanPageState._pinkColor.withValues(alpha: 0.35),
+            color: context.colors.pinkStart.withValues(alpha: 0.35),
             blurRadius: 24,
-            offset: const Offset(0, 12),
+            offset: Offset(0, 12),
           ),
         ],
       ),
-      child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 30),
+      child: Icon(
+        Icons.auto_awesome_rounded,
+        color: context.colors.onPrimary,
+        size: 30,
+      ),
     );
   }
 }
 
 class _StepProgressBar extends StatelessWidget {
   final int currentStep;
-  const _StepProgressBar({required this.currentStep});
+  _StepProgressBar({required this.currentStep});
 
   @override
   Widget build(BuildContext context) {
@@ -1858,21 +1940,19 @@ class _StepProgressBar extends StatelessWidget {
         final active = i == currentStep;
         final done = i < currentStep;
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 280),
+          duration: Duration(milliseconds: 280),
           curve: Curves.easeOut,
-          margin: const EdgeInsets.symmetric(horizontal: 4),
+          margin: EdgeInsets.symmetric(horizontal: 4),
           width: active ? 28 : 18,
           height: 5,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
             gradient: (active || done)
-                ? const LinearGradient(colors: [
-              _AiStudyPlanPageState._pinkColor,
-              _AiStudyPlanPageState._pinkAccent,
-            ])
+                ? LinearGradient(
+                    colors: [context.colors.pinkStart, context.colors.pinkDeep],
+                  )
                 : null,
-            color:
-            (active || done) ? null : _AiStudyPlanPageState._pinkSoft,
+            color: (active || done) ? null : context.colors.pinkSoft,
           ),
         );
       }),
@@ -1884,10 +1964,7 @@ class _SectionTitle extends StatelessWidget {
   final String title;
   final bool isRequired;
 
-  const _SectionTitle({
-    required this.title,
-    this.isRequired = false,
-  });
+  _SectionTitle({required this.title, this.isRequired = false});
 
   @override
   Widget build(BuildContext context) {
@@ -1895,18 +1972,18 @@ class _SectionTitle extends StatelessWidget {
       children: [
         Text(
           title,
-          style: const TextStyle(
-            color: _AiStudyPlanPageState._textColor,
+          style: TextStyle(
+            color: context.colors.textPrimary,
             fontSize: 18,
             fontWeight: FontWeight.w800,
           ),
         ),
         if (isRequired) ...[
-          const SizedBox(width: 4),
-          const Text(
+          SizedBox(width: 4),
+          Text(
             '*',
             style: TextStyle(
-              color: _AiStudyPlanPageState._pinkColor,
+              color: context.colors.pinkStart,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -1921,7 +1998,7 @@ class _FadeSlideIn extends StatefulWidget {
   final Widget child;
   final Duration delay;
   final Duration duration;
-  const _FadeSlideIn({
+  _FadeSlideIn({
     this.delay = Duration.zero,
     this.duration = const Duration(milliseconds: 380),
     required this.child,
@@ -1934,11 +2011,14 @@ class _FadeSlideIn extends StatefulWidget {
 class _FadeSlideInState extends State<_FadeSlideIn>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late final Animation<double> _fade =
-  CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
-  late final Animation<Offset> _slide =
-  Tween(begin: const Offset(0, 0.06), end: Offset.zero)
-      .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+  late final Animation<double> _fade = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOutCubic,
+  );
+  late final Animation<Offset> _slide = Tween(
+    begin: Offset(0, 0.06),
+    end: Offset.zero,
+  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
   @override
   void initState() {
@@ -1968,7 +2048,7 @@ class _WaveLoadingIndicator extends StatefulWidget {
   final double size;
   final double progress;
 
-  const _WaveLoadingIndicator({this.size = 72, required this.progress});
+  _WaveLoadingIndicator({this.size = 72, required this.progress});
 
   @override
   State<_WaveLoadingIndicator> createState() => _WaveLoadingIndicatorState();
@@ -1983,26 +2063,33 @@ class _WaveLoadingIndicatorState extends State<_WaveLoadingIndicator>
   @override
   void initState() {
     super.initState();
-    _levelController =
-        AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
-    _levelAnimation = Tween<double>(begin: 0, end: widget.progress).animate(
-      CurvedAnimation(parent: _levelController, curve: Curves.easeOut),
+    _levelController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 900),
     );
+    _levelAnimation = Tween<double>(
+      begin: 0,
+      end: widget.progress,
+    ).animate(CurvedAnimation(parent: _levelController, curve: Curves.easeOut));
     _levelController.forward();
 
-    _waveController =
-    AnimationController(vsync: this, duration: const Duration(milliseconds: 1100))
-      ..repeat();
+    _waveController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 1100),
+    )..repeat();
   }
 
   @override
   void didUpdateWidget(covariant _WaveLoadingIndicator oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.progress != widget.progress) {
-      _levelAnimation = Tween<double>(
-        begin: _levelAnimation.value,
-        end: widget.progress,
-      ).animate(CurvedAnimation(parent: _levelController, curve: Curves.easeOut));
+      _levelAnimation =
+          Tween<double>(
+            begin: _levelAnimation.value,
+            end: widget.progress,
+          ).animate(
+            CurvedAnimation(parent: _levelController, curve: Curves.easeOut),
+          );
       _levelController
         ..reset()
         ..forward();
@@ -2021,7 +2108,7 @@ class _WaveLoadingIndicatorState extends State<_WaveLoadingIndicator>
     return Container(
       width: widget.size,
       height: widget.size,
-      decoration: const BoxDecoration(shape: BoxShape.circle),
+      decoration: BoxDecoration(shape: BoxShape.circle),
       child: ClipOval(
         child: AnimatedBuilder(
           animation: Listenable.merge([_levelController, _waveController]),
@@ -2031,6 +2118,7 @@ class _WaveLoadingIndicatorState extends State<_WaveLoadingIndicator>
               painter: _WavePainter(
                 level: _levelAnimation.value,
                 wavePhase: _waveController.value,
+                backgroundColor: context.colors.pinkSoft,
               ),
             );
           },
@@ -2043,12 +2131,17 @@ class _WaveLoadingIndicatorState extends State<_WaveLoadingIndicator>
 class _WavePainter extends CustomPainter {
   final double level;
   final double wavePhase;
+  final Color backgroundColor;
 
-  const _WavePainter({required this.level, required this.wavePhase});
+  _WavePainter({
+    required this.level,
+    required this.wavePhase,
+    required this.backgroundColor,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final bgPaint = Paint()..color = const Color(0xFFFFF3F5);
+    final bgPaint = Paint()..color = backgroundColor;
     canvas.drawRect(Offset.zero & size, bgPaint);
 
     final baseY = size.height * (1 - level);
@@ -2056,7 +2149,8 @@ class _WavePainter extends CustomPainter {
 
     final path = Path()..moveTo(0, baseY);
     for (double x = 0; x <= size.width; x += 2) {
-      final y = baseY +
+      final y =
+          baseY +
           math.sin((x / size.width * 2 * math.pi) + wavePhase * 2 * math.pi) *
               waveHeight;
       path.lineTo(x, y);
@@ -2066,7 +2160,7 @@ class _WavePainter extends CustomPainter {
     path.close();
 
     final wavePaint = Paint()
-      ..shader = const LinearGradient(
+      ..shader = LinearGradient(
         colors: [Color(0xFFF4869D), Color(0xFFFF8FA3)],
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
@@ -2084,10 +2178,7 @@ class _RotatingLoadingContent extends StatefulWidget {
   final List<String> messages;
   final List<int> durations;
 
-  const _RotatingLoadingContent({
-    required this.messages,
-    required this.durations,
-  });
+  _RotatingLoadingContent({required this.messages, required this.durations});
 
   @override
   State<_RotatingLoadingContent> createState() =>
@@ -2107,7 +2198,7 @@ class _RotatingLoadingContentState extends State<_RotatingLoadingContent>
 
   void _scheduleNextMessage() {
     final duration =
-    widget.durations[_messageIndex.clamp(0, widget.durations.length - 1)];
+        widget.durations[_messageIndex.clamp(0, widget.durations.length - 1)];
     _messageTimer = Timer(Duration(milliseconds: duration), () {
       if (!mounted) return;
       if (_messageIndex < widget.messages.length - 1) {
@@ -2132,16 +2223,18 @@ class _RotatingLoadingContentState extends State<_RotatingLoadingContent>
           size: 72,
           progress: _messageIndex / (widget.messages.length - 1),
         ),
-        const SizedBox(height: 26),
+        SizedBox(height: 26),
         AnimatedSwitcher(
-          duration: const Duration(milliseconds: 350),
+          duration: Duration(milliseconds: 350),
           switchInCurve: Curves.easeOut,
           switchOutCurve: Curves.easeIn,
           transitionBuilder: (child, anim) => FadeTransition(
             opacity: anim,
             child: SlideTransition(
-              position:
-              Tween(begin: const Offset(0, 0.15), end: Offset.zero).animate(anim),
+              position: Tween(
+                begin: Offset(0, 0.15),
+                end: Offset.zero,
+              ).animate(anim),
               child: child,
             ),
           ),
@@ -2149,8 +2242,8 @@ class _RotatingLoadingContentState extends State<_RotatingLoadingContent>
             widget.messages[_messageIndex],
             key: ValueKey(_messageIndex),
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: _AiStudyPlanPageState._textColor,
+            style: TextStyle(
+              color: context.colors.textPrimary,
               fontSize: 15.5,
               fontWeight: FontWeight.w800,
             ),
@@ -2161,21 +2254,20 @@ class _RotatingLoadingContentState extends State<_RotatingLoadingContent>
   }
 }
 
-
 class _AddTimeSlotSheet extends StatefulWidget {
-  const _AddTimeSlotSheet();
+  _AddTimeSlotSheet();
 
   @override
   State<_AddTimeSlotSheet> createState() => _AddTimeSlotSheetState();
 }
 
 class _AddTimeSlotSheetState extends State<_AddTimeSlotSheet> {
-  static const List<String> _days = ['월', '화', '수', '목', '금', '토', '일'];
+  static List<String> _days = ['월', '화', '수', '목', '금', '토', '일'];
 
   final Set<String> _selectedDays = {};
 
-  TimeOfDay _startTime = const TimeOfDay(hour: 20, minute: 0);
-  TimeOfDay _endTime = const TimeOfDay(hour: 22, minute: 0);
+  TimeOfDay _startTime = TimeOfDay(hour: 20, minute: 0);
+  TimeOfDay _endTime = TimeOfDay(hour: 22, minute: 0);
 
   String? _errorMessage;
 
@@ -2214,8 +2306,9 @@ class _AddTimeSlotSheetState extends State<_AddTimeSlotSheet> {
       return;
     }
 
-    final orderedDays =
-    _days.where((day) => _selectedDays.contains(day)).toList();
+    final orderedDays = _days
+        .where((day) => _selectedDays.contains(day))
+        .toList();
 
     Navigator.pop(
       context,
@@ -2242,8 +2335,8 @@ class _AddTimeSlotSheetState extends State<_AddTimeSlotSheet> {
         24,
         MediaQuery.of(context).viewInsets.bottom + 28,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: context.colors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: SafeArea(
@@ -2254,11 +2347,11 @@ class _AddTimeSlotSheetState extends State<_AddTimeSlotSheet> {
           children: [
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
                     '공부 시간대 추가',
                     style: TextStyle(
-                      color: _AiStudyPlanPageState._textColor,
+                      color: context.colors.textPrimary,
                       fontSize: 21,
                       fontWeight: FontWeight.w800,
                     ),
@@ -2266,26 +2359,26 @@ class _AddTimeSlotSheetState extends State<_AddTimeSlotSheet> {
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded),
+                  icon: Icon(Icons.close_rounded),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-            const Text(
+            SizedBox(height: 20),
+            Text(
               '요일 선택',
               style: TextStyle(
-                color: _AiStudyPlanPageState._textColor,
+                color: context.colors.textPrimary,
                 fontSize: 15,
                 fontWeight: FontWeight.w800,
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Row(
               children: _days.map((day) {
                 final isSelected = _selectedDays.contains(day);
                 return Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    padding: EdgeInsets.symmetric(horizontal: 3),
                     child: GestureDetector(
                       onTap: () {
                         setState(() {
@@ -2302,21 +2395,21 @@ class _AddTimeSlotSheetState extends State<_AddTimeSlotSheet> {
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? const Color(0xFFEDE6FF)
-                              : const Color(0xFFF8F5F6),
+                              ? context.colors.lavender
+                              : context.colors.surfaceMuted,
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
                             color: isSelected
-                                ? _AiStudyPlanPageState._purpleColor
-                                : const Color(0xFFE8E1E4),
+                                ? context.colors.lavenderAccent
+                                : context.colors.border,
                           ),
                         ),
                         child: Text(
                           day,
                           style: TextStyle(
                             color: isSelected
-                                ? _AiStudyPlanPageState._purpleColor
-                                : _AiStudyPlanPageState._subTextColor,
+                                ? context.colors.lavenderAccent
+                                : context.colors.textSecondary,
                             fontWeight: FontWeight.w800,
                             fontSize: 14,
                           ),
@@ -2327,16 +2420,16 @@ class _AddTimeSlotSheetState extends State<_AddTimeSlotSheet> {
                 );
               }).toList(),
             ),
-            const SizedBox(height: 24),
-            const Text(
+            SizedBox(height: 24),
+            Text(
               '시간 선택',
               style: TextStyle(
-                color: _AiStudyPlanPageState._textColor,
+                color: context.colors.textPrimary,
                 fontSize: 15,
                 fontWeight: FontWeight.w800,
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
@@ -2346,12 +2439,12 @@ class _AddTimeSlotSheetState extends State<_AddTimeSlotSheet> {
                     onTap: () => _selectTime(isStart: true),
                   ),
                 ),
-                const Padding(
+                Padding(
                   padding: EdgeInsets.symmetric(horizontal: 10),
                   child: Text(
                     '~',
                     style: TextStyle(
-                      color: _AiStudyPlanPageState._subTextColor,
+                      color: context.colors.textSecondary,
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
                     ),
@@ -2367,25 +2460,28 @@ class _AddTimeSlotSheetState extends State<_AddTimeSlotSheet> {
               ],
             ),
             if (_errorMessage != null) ...[
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF0F0),
+                  color: context.colors.incorrectSoft,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFFFD3D3)),
+                  border: Border.all(color: context.colors.incorrectSoft),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.error_outline_rounded,
-                        color: Color(0xFFE0685E), size: 18),
-                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.error_outline_rounded,
+                      color: context.colors.incorrect,
+                      size: 18,
+                    ),
+                    SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         _errorMessage!,
-                        style: const TextStyle(
-                          color: Color(0xFFE0685E),
+                        style: TextStyle(
+                          color: context.colors.incorrect,
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),
@@ -2395,21 +2491,21 @@ class _AddTimeSlotSheetState extends State<_AddTimeSlotSheet> {
                 ),
               ),
             ],
-            const SizedBox(height: 26),
+            SizedBox(height: 26),
             SizedBox(
               width: double.infinity,
               height: 54,
               child: FilledButton(
                 onPressed: _addTimeSlot,
                 style: FilledButton.styleFrom(
-                  backgroundColor: _AiStudyPlanPageState._pinkColor,
-                  foregroundColor: Colors.white,
+                  backgroundColor: context.colors.pinkStart,
+                  foregroundColor: context.colors.onPrimary,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
                   ),
                 ),
-                child: const Text(
+                child: Text(
                   '추가하기',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
@@ -2427,7 +2523,7 @@ class _TimePickerBox extends StatelessWidget {
   final String time;
   final VoidCallback onTap;
 
-  const _TimePickerBox({
+  _TimePickerBox({
     required this.label,
     required this.time,
     required this.onTap,
@@ -2439,35 +2535,35 @@ class _TimePickerBox extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(15),
+        padding: EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: const Color(0xFFF9F6F7),
+          color: context.colors.surfaceMuted,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE8E1E4)),
+          border: Border.all(color: context.colors.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               label,
-              style: const TextStyle(
-                color: _AiStudyPlanPageState._subTextColor,
+              style: TextStyle(
+                color: context.colors.textSecondary,
                 fontSize: 12,
               ),
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.schedule_rounded,
-                  color: _AiStudyPlanPageState._purpleColor,
+                  color: context.colors.lavenderAccent,
                   size: 18,
                 ),
-                const SizedBox(width: 6),
+                SizedBox(width: 6),
                 Text(
                   time,
-                  style: const TextStyle(
-                    color: _AiStudyPlanPageState._textColor,
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
@@ -2487,7 +2583,7 @@ class _DatePickerSheet extends StatefulWidget {
   final DateTime lastDate;
   final String title;
 
-  const _DatePickerSheet({
+  _DatePickerSheet({
     required this.initialDate,
     required this.firstDate,
     required this.lastDate,
@@ -2499,7 +2595,7 @@ class _DatePickerSheet extends StatefulWidget {
 }
 
 class _DatePickerSheetState extends State<_DatePickerSheet> {
-  static const List<String> _weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+  static List<String> _weekdays = ['일', '월', '화', '수', '목', '금', '토'];
 
   late DateTime _displayedMonth;
   DateTime? _selectedDate;
@@ -2508,7 +2604,10 @@ class _DatePickerSheetState extends State<_DatePickerSheet> {
   void initState() {
     super.initState();
     _selectedDate = widget.initialDate;
-    _displayedMonth = DateTime(widget.initialDate.year, widget.initialDate.month);
+    _displayedMonth = DateTime(
+      widget.initialDate.year,
+      widget.initialDate.month,
+    );
   }
 
   bool _isSameDay(DateTime a, DateTime b) =>
@@ -2516,44 +2615,73 @@ class _DatePickerSheetState extends State<_DatePickerSheet> {
 
   bool _isSelectable(DateTime date) {
     final d = DateTime(date.year, date.month, date.day);
-    final first = DateTime(widget.firstDate.year, widget.firstDate.month, widget.firstDate.day);
-    final last = DateTime(widget.lastDate.year, widget.lastDate.month, widget.lastDate.day);
+    final first = DateTime(
+      widget.firstDate.year,
+      widget.firstDate.month,
+      widget.firstDate.day,
+    );
+    final last = DateTime(
+      widget.lastDate.year,
+      widget.lastDate.month,
+      widget.lastDate.day,
+    );
     return !d.isBefore(first) && !d.isAfter(last);
   }
 
   void _changeMonth(int delta) {
     setState(() {
-      _displayedMonth = DateTime(_displayedMonth.year, _displayedMonth.month + delta);
+      _displayedMonth = DateTime(
+        _displayedMonth.year,
+        _displayedMonth.month + delta,
+      );
     });
   }
 
   bool get _canGoPrev {
-    final prevMonthLastDay =
-    DateTime(_displayedMonth.year, _displayedMonth.month, 0);
+    final prevMonthLastDay = DateTime(
+      _displayedMonth.year,
+      _displayedMonth.month,
+      0,
+    );
     return !prevMonthLastDay.isBefore(
       DateTime(widget.firstDate.year, widget.firstDate.month, 1),
     );
   }
 
   bool get _canGoNext {
-    final nextMonthFirstDay =
-    DateTime(_displayedMonth.year, _displayedMonth.month + 1, 1);
+    final nextMonthFirstDay = DateTime(
+      _displayedMonth.year,
+      _displayedMonth.month + 1,
+      1,
+    );
     return !nextMonthFirstDay.isAfter(
-      DateTime(widget.lastDate.year, widget.lastDate.month, widget.lastDate.day),
+      DateTime(
+        widget.lastDate.year,
+        widget.lastDate.month,
+        widget.lastDate.day,
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final firstWeekday = DateTime(_displayedMonth.year, _displayedMonth.month, 1).weekday % 7;
-    final daysInMonth = DateTime(_displayedMonth.year, _displayedMonth.month + 1, 0).day;
+    final firstWeekday =
+        DateTime(_displayedMonth.year, _displayedMonth.month, 1).weekday % 7;
+    final daysInMonth = DateTime(
+      _displayedMonth.year,
+      _displayedMonth.month + 1,
+      0,
+    ).day;
 
     return Container(
       padding: EdgeInsets.fromLTRB(
-        24, 22, 24, MediaQuery.of(context).viewInsets.bottom + 20,
+        24,
+        22,
+        24,
+        MediaQuery.of(context).viewInsets.bottom + 20,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: context.colors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: SafeArea(
@@ -2567,8 +2695,8 @@ class _DatePickerSheetState extends State<_DatePickerSheet> {
                 Expanded(
                   child: Text(
                     widget.title,
-                    style: const TextStyle(
-                      color: _AiStudyPlanPageState._textColor,
+                    style: TextStyle(
+                      color: context.colors.textPrimary,
                       fontSize: 21,
                       fontWeight: FontWeight.w800,
                     ),
@@ -2576,18 +2704,18 @@ class _DatePickerSheetState extends State<_DatePickerSheet> {
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded),
+                  icon: Icon(Icons.close_rounded),
                 ),
               ],
             ),
-            const SizedBox(height: 18),
+            SizedBox(height: 18),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   '${_displayedMonth.year}년 ${_displayedMonth.month}월',
-                  style: const TextStyle(
-                    color: _AiStudyPlanPageState._textColor,
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                   ),
@@ -2599,7 +2727,7 @@ class _DatePickerSheetState extends State<_DatePickerSheet> {
                       enabled: _canGoPrev,
                       onTap: () => _changeMonth(-1),
                     ),
-                    const SizedBox(width: 6),
+                    SizedBox(width: 6),
                     _MonthNavButton(
                       icon: Icons.chevron_right_rounded,
                       enabled: _canGoNext,
@@ -2609,15 +2737,15 @@ class _DatePickerSheetState extends State<_DatePickerSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Row(
               children: _weekdays.map((w) {
                 return Expanded(
                   child: Center(
                     child: Text(
                       w,
-                      style: const TextStyle(
-                        color: _AiStudyPlanPageState._subTextColor,
+                      style: TextStyle(
+                        color: context.colors.textSecondary,
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,
                       ),
@@ -2626,21 +2754,25 @@ class _DatePickerSheetState extends State<_DatePickerSheet> {
                 );
               }).toList(),
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             GridView.builder(
               shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
+              physics: NeverScrollableScrollPhysics(),
               itemCount: firstWeekday + daysInMonth,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 7,
                 mainAxisSpacing: 4,
                 crossAxisSpacing: 4,
               ),
               itemBuilder: (context, index) {
-                if (index < firstWeekday) return const SizedBox.shrink();
+                if (index < firstWeekday) return SizedBox.shrink();
 
                 final day = index - firstWeekday + 1;
-                final date = DateTime(_displayedMonth.year, _displayedMonth.month, day);
+                final date = DateTime(
+                  _displayedMonth.year,
+                  _displayedMonth.month,
+                  day,
+                );
                 final selectable = _isSelectable(date);
                 final isSelected =
                     _selectedDate != null && _isSameDay(_selectedDate!, date);
@@ -2651,14 +2783,17 @@ class _DatePickerSheetState extends State<_DatePickerSheet> {
                       ? () => setState(() => _selectedDate = date)
                       : null,
                   child: Container(
-                    margin: const EdgeInsets.all(2),
+                    margin: EdgeInsets.all(2),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? _AiStudyPlanPageState._purpleColor
+                          ? context.colors.lavenderAccent
                           : Colors.transparent,
                       shape: BoxShape.circle,
                       border: (isToday && !isSelected)
-                          ? Border.all(color: _AiStudyPlanPageState._purpleColor, width: 1.4)
+                          ? Border.all(
+                              color: context.colors.lavenderAccent,
+                              width: 1.4,
+                            )
                           : null,
                     ),
                     alignment: Alignment.center,
@@ -2666,20 +2801,21 @@ class _DatePickerSheetState extends State<_DatePickerSheet> {
                       '$day',
                       style: TextStyle(
                         color: !selectable
-                            ? const Color(0xFFD9D2D5)
+                            ? Color(0xFFD9D2D5)
                             : isSelected
-                            ? Colors.white
-                            : _AiStudyPlanPageState._textColor,
+                            ? context.colors.onPrimary
+                            : context.colors.textPrimary,
                         fontSize: 14.5,
-                        fontWeight:
-                        isSelected || isToday ? FontWeight.w800 : FontWeight.w600,
+                        fontWeight: isSelected || isToday
+                            ? FontWeight.w800
+                            : FontWeight.w600,
                       ),
                     ),
                   ),
                 );
               },
             ),
-            const SizedBox(height: 22),
+            SizedBox(height: 22),
             SizedBox(
               width: double.infinity,
               height: 54,
@@ -2688,15 +2824,15 @@ class _DatePickerSheetState extends State<_DatePickerSheet> {
                     ? null
                     : () => Navigator.pop(context, _selectedDate),
                 style: FilledButton.styleFrom(
-                  backgroundColor: _AiStudyPlanPageState._purpleColor,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: const Color(0xFFE8E1E4),
+                  backgroundColor: context.colors.lavenderAccent,
+                  foregroundColor: context.colors.onPrimary,
+                  disabledBackgroundColor: context.colors.border,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
                   ),
                 ),
-                child: const Text(
+                child: Text(
                   '선택 완료',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
@@ -2710,16 +2846,19 @@ class _DatePickerSheetState extends State<_DatePickerSheet> {
 }
 
 class _RegeneratePlanSheet extends StatelessWidget {
-  const _RegeneratePlanSheet();
+  _RegeneratePlanSheet();
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.fromLTRB(
-        24, 22, 24, MediaQuery.of(context).viewInsets.bottom + 28,
+        24,
+        22,
+        24,
+        MediaQuery.of(context).viewInsets.bottom + 28,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: context.colors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: SafeArea(
@@ -2730,11 +2869,11 @@ class _RegeneratePlanSheet extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
                     '무엇을 다시 설정할까요?',
                     style: TextStyle(
-                      color: _AiStudyPlanPageState._textColor,
+                      color: context.colors.textPrimary,
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
                     ),
@@ -2742,32 +2881,32 @@ class _RegeneratePlanSheet extends StatelessWidget {
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded),
+                  icon: Icon(Icons.close_rounded),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
-            const Text(
+            SizedBox(height: 6),
+            Text(
               '전부 새로 고를지, 공부 일정만 바꿀지 선택해주세요.',
               style: TextStyle(
-                color: _AiStudyPlanPageState._subTextColor,
+                color: context.colors.textSecondary,
                 fontSize: 13,
               ),
             ),
-            const SizedBox(height: 22),
+            SizedBox(height: 22),
             _RegenerateOption(
               icon: Icons.workspace_premium_outlined,
-              iconBg: const Color(0xFFF3EEFF),
-              iconColor: _AiStudyPlanPageState._purpleColor,
+              iconBg: context.colors.lavender,
+              iconColor: context.colors.lavenderAccent,
               title: '자격증부터 다시 선택',
               description: '자격증, 회차, 시험 날짜, 공부 일정을 모두 새로 설정해요.',
               onTap: () => Navigator.pop(context, 'full'),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             _RegenerateOption(
               icon: Icons.schedule_rounded,
-              iconBg: const Color(0xFFFFE8EE),
-              iconColor: _AiStudyPlanPageState._pinkColor,
+              iconBg: context.colors.pinkSoft,
+              iconColor: context.colors.pinkStart,
               title: '공부 일정만 다시 설정',
               description: '선택한 자격증과 회차는 그대로 두고, 시작일·시간대만 바꿔요.',
               onTap: () => Navigator.pop(context, 'keep'),
@@ -2787,7 +2926,7 @@ class _RegenerateOption extends StatelessWidget {
   final String description;
   final VoidCallback onTap;
 
-  const _RegenerateOption({
+  _RegenerateOption({
     required this.icon,
     required this.iconBg,
     required this.iconColor,
@@ -2799,44 +2938,47 @@ class _RegenerateOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFFFAF8F8),
+      color: context.colors.background,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFE8E1E4)),
+            border: Border.all(color: context.colors.border),
           ),
           child: Row(
             children: [
               Container(
                 width: 46,
                 height: 46,
-                decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  shape: BoxShape.circle,
+                ),
                 alignment: Alignment.center,
                 child: Icon(icon, color: iconColor, size: 22),
               ),
-              const SizedBox(width: 14),
+              SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        color: _AiStudyPlanPageState._textColor,
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Text(
                       description,
-                      style: const TextStyle(
-                        color: _AiStudyPlanPageState._subTextColor,
+                      style: TextStyle(
+                        color: context.colors.textSecondary,
                         fontSize: 12,
                         height: 1.4,
                       ),
@@ -2844,8 +2986,10 @@ class _RegenerateOption extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded,
-                  color: _AiStudyPlanPageState._subTextColor),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: context.colors.textSecondary,
+              ),
             ],
           ),
         ),
@@ -2858,10 +3002,7 @@ class _TimePickerSheet extends StatefulWidget {
   final TimeOfDay initialTime;
   final String title;
 
-  const _TimePickerSheet({
-    required this.initialTime,
-    required this.title,
-  });
+  _TimePickerSheet({required this.initialTime, required this.title});
 
   @override
   State<_TimePickerSheet> createState() => _TimePickerSheetState();
@@ -2881,8 +3022,9 @@ class _TimePickerSheetState extends State<_TimePickerSheet> {
     _selectedMinute = (widget.initialTime.minute / 5).round() * 5 % 60;
 
     _hourController = FixedExtentScrollController(initialItem: _selectedHour);
-    _minuteController =
-        FixedExtentScrollController(initialItem: _selectedMinute ~/ 5);
+    _minuteController = FixedExtentScrollController(
+      initialItem: _selectedMinute ~/ 5,
+    );
   }
 
   @override
@@ -2909,7 +3051,7 @@ class _TimePickerSheetState extends State<_TimePickerSheet> {
           Container(
             height: 44,
             decoration: BoxDecoration(
-              color: const Color(0xFFF3EEFF),
+              color: context.colors.lavender,
               borderRadius: BorderRadius.circular(14),
             ),
           ),
@@ -2917,7 +3059,7 @@ class _TimePickerSheetState extends State<_TimePickerSheet> {
             controller: controller,
             itemExtent: 44,
             diameterRatio: 1.6,
-            physics: const FixedExtentScrollPhysics(),
+            physics: FixedExtentScrollPhysics(),
             onSelectedItemChanged: onChanged,
             childDelegate: ListWheelChildBuilderDelegate(
               childCount: itemCount,
@@ -2925,8 +3067,8 @@ class _TimePickerSheetState extends State<_TimePickerSheet> {
                 return Center(
                   child: Text(
                     labelBuilder(index),
-                    style: const TextStyle(
-                      color: _AiStudyPlanPageState._textColor,
+                    style: TextStyle(
+                      color: context.colors.textPrimary,
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
                     ),
@@ -2944,10 +3086,13 @@ class _TimePickerSheetState extends State<_TimePickerSheet> {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.fromLTRB(
-        24, 22, 24, MediaQuery.of(context).viewInsets.bottom + 20,
+        24,
+        22,
+        24,
+        MediaQuery.of(context).viewInsets.bottom + 20,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: context.colors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: SafeArea(
@@ -2961,8 +3106,8 @@ class _TimePickerSheetState extends State<_TimePickerSheet> {
                 Expanded(
                   child: Text(
                     widget.title,
-                    style: const TextStyle(
-                      color: _AiStudyPlanPageState._textColor,
+                    style: TextStyle(
+                      color: context.colors.textPrimary,
                       fontSize: 21,
                       fontWeight: FontWeight.w800,
                     ),
@@ -2970,11 +3115,11 @@ class _TimePickerSheetState extends State<_TimePickerSheet> {
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded),
+                  icon: Icon(Icons.close_rounded),
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -2984,12 +3129,12 @@ class _TimePickerSheetState extends State<_TimePickerSheet> {
                   labelBuilder: (i) => _pad(i),
                   onChanged: (i) => setState(() => _selectedHour = i),
                 ),
-                const Padding(
+                Padding(
                   padding: EdgeInsets.symmetric(horizontal: 6),
                   child: Text(
                     ':',
                     style: TextStyle(
-                      color: _AiStudyPlanPageState._textColor,
+                      color: context.colors.textPrimary,
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
                     ),
@@ -3003,7 +3148,7 @@ class _TimePickerSheetState extends State<_TimePickerSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 26),
+            SizedBox(height: 26),
             SizedBox(
               width: double.infinity,
               height: 54,
@@ -3013,14 +3158,14 @@ class _TimePickerSheetState extends State<_TimePickerSheet> {
                   TimeOfDay(hour: _selectedHour, minute: _selectedMinute),
                 ),
                 style: FilledButton.styleFrom(
-                  backgroundColor: _AiStudyPlanPageState._purpleColor,
-                  foregroundColor: Colors.white,
+                  backgroundColor: context.colors.lavenderAccent,
+                  foregroundColor: context.colors.onPrimary,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
                   ),
                 ),
-                child: const Text(
+                child: Text(
                   '선택 완료',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
@@ -3038,7 +3183,7 @@ class _MonthNavButton extends StatelessWidget {
   final bool enabled;
   final VoidCallback onTap;
 
-  const _MonthNavButton({
+  _MonthNavButton({
     required this.icon,
     required this.enabled,
     required this.onTap,
@@ -3047,19 +3192,19 @@ class _MonthNavButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: enabled ? const Color(0xFFF3EEFF) : const Color(0xFFF5F2F3),
-      shape: const CircleBorder(),
+      color: enabled ? context.colors.lavender : context.colors.surfaceMuted,
+      shape: CircleBorder(),
       child: InkWell(
-        customBorder: const CircleBorder(),
+        customBorder: CircleBorder(),
         onTap: enabled ? onTap : null,
         child: Padding(
-          padding: const EdgeInsets.all(6),
+          padding: EdgeInsets.all(6),
           child: Icon(
             icon,
             size: 20,
             color: enabled
-                ? _AiStudyPlanPageState._purpleColor
-                : const Color(0xFFCBC2C6),
+                ? context.colors.lavenderAccent
+                : context.colors.textDisabled,
           ),
         ),
       ),
@@ -3071,7 +3216,7 @@ class _PlanCard extends StatelessWidget {
   final _DailyPlanItem item;
   final int index;
 
-  const _PlanCard({required this.item, required this.index});
+  _PlanCard({required this.item, required this.index});
 
   @override
   Widget build(BuildContext context) {
@@ -3079,11 +3224,11 @@ class _PlanCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.88),
+        color: context.colors.surfaceTransparent.withValues(alpha: 0.88),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE8E1E4)),
+        border: Border.all(color: context.colors.border),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3092,9 +3237,7 @@ class _PlanCard extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: isEven
-                  ? const Color(0xFFEDE6FF)
-                  : const Color(0xFFFFE8EE),
+              color: isEven ? context.colors.lavender : context.colors.pinkSoft,
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
@@ -3102,56 +3245,56 @@ class _PlanCard extends StatelessWidget {
               '${index + 1}',
               style: TextStyle(
                 color: isEven
-                    ? _AiStudyPlanPageState._purpleColor
-                    : _AiStudyPlanPageState._pinkColor,
+                    ? context.colors.lavenderAccent
+                    : context.colors.pinkStart,
                 fontWeight: FontWeight.w800,
               ),
             ),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   item.day,
-                  style: const TextStyle(
-                    color: _AiStudyPlanPageState._subTextColor,
+                  style: TextStyle(
+                    color: context.colors.textSecondary,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   item.title,
-                  style: const TextStyle(
-                    color: _AiStudyPlanPageState._textColor,
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 7),
+                SizedBox(height: 7),
                 Text(
                   item.detail,
-                  style: const TextStyle(
-                    color: _AiStudyPlanPageState._subTextColor,
+                  style: TextStyle(
+                    color: context.colors.textSecondary,
                     fontSize: 13,
                     height: 1.45,
                   ),
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: 10),
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.schedule_rounded,
                       size: 16,
-                      color: _AiStudyPlanPageState._purpleColor,
+                      color: context.colors.lavenderAccent,
                     ),
-                    const SizedBox(width: 5),
+                    SizedBox(width: 5),
                     Text(
                       item.duration,
-                      style: const TextStyle(
-                        color: _AiStudyPlanPageState._purpleColor,
+                      style: TextStyle(
+                        color: context.colors.lavenderAccent,
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
                       ),
@@ -3173,14 +3316,16 @@ class _CertificateOption {
   final String qualgbcd; // T: 국가기술자격, S: 국가전문자격
   final bool isManual;
 
-  const _CertificateOption({
+  _CertificateOption({
     required this.jmcd,
     required this.name,
     required this.qualgbcd,
     this.isManual = false,
   });
 
-  factory _CertificateOption.fromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+  factory _CertificateOption.fromDoc(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
     final data = doc.data();
     return _CertificateOption(
       jmcd: data['jmcd'] as String? ?? doc.id,
@@ -3204,7 +3349,7 @@ class _StudyTimeSlot {
   final TimeOfDay startTime;
   final TimeOfDay endTime;
 
-  const _StudyTimeSlot({
+  _StudyTimeSlot({
     required this.days,
     required this.startTime,
     required this.endTime,
@@ -3225,7 +3370,7 @@ class _DailyPlanItem {
   final String detail;
   final String duration;
 
-  const _DailyPlanItem({
+  _DailyPlanItem({
     required this.day,
     required this.title,
     required this.detail,
@@ -3234,16 +3379,19 @@ class _DailyPlanItem {
 }
 
 class _ExitDuringGenerationSheet extends StatelessWidget {
-  const _ExitDuringGenerationSheet();
+  _ExitDuringGenerationSheet();
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.fromLTRB(
-        24, 26, 24, MediaQuery.of(context).viewInsets.bottom + 28,
+        24,
+        26,
+        24,
+        MediaQuery.of(context).viewInsets.bottom + 28,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: context.colors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: SafeArea(
@@ -3254,38 +3402,38 @@ class _ExitDuringGenerationSheet extends StatelessWidget {
             Container(
               width: 56,
               height: 56,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFF0F0),
+              decoration: BoxDecoration(
+                color: context.colors.incorrectSoft,
                 shape: BoxShape.circle,
               ),
               alignment: Alignment.center,
-              child: const Icon(
+              child: Icon(
                 Icons.error_outline_rounded,
-                color: Color(0xFFE0685E),
+                color: context.colors.incorrect,
                 size: 28,
               ),
             ),
-            const SizedBox(height: 18),
-            const Text(
+            SizedBox(height: 18),
+            Text(
               '학습 플랜 생성을 중단할까요?',
               style: TextStyle(
-                color: _AiStudyPlanPageState._textColor,
+                color: context.colors.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
-            const Text(
+            SizedBox(height: 8),
+            Text(
               '지금 나가면 생성 중인 학습 플랜이 저장되지 않아요.',
               style: TextStyle(
-                color: _AiStudyPlanPageState._subTextColor,
+                color: context.colors.textSecondary,
                 fontSize: 13,
                 height: 1.5,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
             Row(
               children: [
                 Expanded(
@@ -3294,38 +3442,42 @@ class _ExitDuringGenerationSheet extends StatelessWidget {
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(context, false),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: _AiStudyPlanPageState._textColor,
-                        side: const BorderSide(
-                          color: _AiStudyPlanPageState._borderColor,
-                        ),
+                        foregroundColor: context.colors.textPrimary,
+                        side: BorderSide(color: context.colors.border),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-                      child: const Text(
+                      child: Text(
                         '계속 생성하기',
-                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                SizedBox(width: 10),
                 Expanded(
                   child: SizedBox(
                     height: 52,
                     child: FilledButton(
                       onPressed: () => Navigator.pop(context, true),
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFE0685E),
-                        foregroundColor: Colors.white,
+                        backgroundColor: context.colors.incorrect,
+                        foregroundColor: context.colors.onPrimary,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-                      child: const Text(
+                      child: Text(
                         '나가기',
-                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ),
@@ -3338,13 +3490,14 @@ class _ExitDuringGenerationSheet extends StatelessWidget {
     );
   }
 }
+
 class _MultiDatePickerSheet extends StatefulWidget {
   final List<DateTime> initialSelectedDates;
   final DateTime firstDate;
   final DateTime lastDate;
   final String title;
 
-  const _MultiDatePickerSheet({
+  _MultiDatePickerSheet({
     required this.initialSelectedDates,
     required this.firstDate,
     required this.lastDate,
@@ -3356,7 +3509,7 @@ class _MultiDatePickerSheet extends StatefulWidget {
 }
 
 class _MultiDatePickerSheetState extends State<_MultiDatePickerSheet> {
-  static const List<String> _weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+  static List<String> _weekdays = ['일', '월', '화', '수', '목', '금', '토'];
 
   late DateTime _displayedMonth;
   late Set<DateTime> _selectedDates;
@@ -3367,25 +3520,33 @@ class _MultiDatePickerSheetState extends State<_MultiDatePickerSheet> {
     _selectedDates = widget.initialSelectedDates
         .map((d) => DateTime(d.year, d.month, d.day))
         .toSet();
-    final base =
-    _selectedDates.isNotEmpty ? _selectedDates.first : widget.firstDate;
+    final base = _selectedDates.isNotEmpty
+        ? _selectedDates.first
+        : widget.firstDate;
     _displayedMonth = DateTime(base.year, base.month);
   }
 
   bool _isSelectable(DateTime date) {
     final d = DateTime(date.year, date.month, date.day);
-    final first =
-    DateTime(widget.firstDate.year, widget.firstDate.month, widget.firstDate.day);
-    final last =
-    DateTime(widget.lastDate.year, widget.lastDate.month, widget.lastDate.day);
+    final first = DateTime(
+      widget.firstDate.year,
+      widget.firstDate.month,
+      widget.firstDate.day,
+    );
+    final last = DateTime(
+      widget.lastDate.year,
+      widget.lastDate.month,
+      widget.lastDate.day,
+    );
     return !d.isBefore(first) && !d.isAfter(last);
   }
 
   void _toggleDate(DateTime date) {
     final d = DateTime(date.year, date.month, date.day);
     setState(() {
-      final existing = _selectedDates.where((e) =>
-      e.year == d.year && e.month == d.month && e.day == d.day);
+      final existing = _selectedDates.where(
+        (e) => e.year == d.year && e.month == d.month && e.day == d.day,
+      );
       if (existing.isEmpty) {
         _selectedDates.add(d);
       } else {
@@ -3396,23 +3557,36 @@ class _MultiDatePickerSheetState extends State<_MultiDatePickerSheet> {
 
   void _changeMonth(int delta) {
     setState(() {
-      _displayedMonth = DateTime(_displayedMonth.year, _displayedMonth.month + delta);
+      _displayedMonth = DateTime(
+        _displayedMonth.year,
+        _displayedMonth.month + delta,
+      );
     });
   }
 
   bool get _canGoPrev {
-    final prevMonthLastDay =
-    DateTime(_displayedMonth.year, _displayedMonth.month, 0);
+    final prevMonthLastDay = DateTime(
+      _displayedMonth.year,
+      _displayedMonth.month,
+      0,
+    );
     return !prevMonthLastDay.isBefore(
       DateTime(widget.firstDate.year, widget.firstDate.month, 1),
     );
   }
 
   bool get _canGoNext {
-    final nextMonthFirstDay =
-    DateTime(_displayedMonth.year, _displayedMonth.month + 1, 1);
+    final nextMonthFirstDay = DateTime(
+      _displayedMonth.year,
+      _displayedMonth.month + 1,
+      1,
+    );
     return !nextMonthFirstDay.isAfter(
-      DateTime(widget.lastDate.year, widget.lastDate.month, widget.lastDate.day),
+      DateTime(
+        widget.lastDate.year,
+        widget.lastDate.month,
+        widget.lastDate.day,
+      ),
     );
   }
 
@@ -3420,16 +3594,22 @@ class _MultiDatePickerSheetState extends State<_MultiDatePickerSheet> {
   Widget build(BuildContext context) {
     final firstWeekday =
         DateTime(_displayedMonth.year, _displayedMonth.month, 1).weekday % 7;
-    final daysInMonth =
-        DateTime(_displayedMonth.year, _displayedMonth.month + 1, 0).day;
+    final daysInMonth = DateTime(
+      _displayedMonth.year,
+      _displayedMonth.month + 1,
+      0,
+    ).day;
     final now = DateTime.now();
 
     return Container(
       padding: EdgeInsets.fromLTRB(
-        24, 22, 24, MediaQuery.of(context).viewInsets.bottom + 20,
+        24,
+        22,
+        24,
+        MediaQuery.of(context).viewInsets.bottom + 20,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: context.colors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: SafeArea(
@@ -3443,8 +3623,8 @@ class _MultiDatePickerSheetState extends State<_MultiDatePickerSheet> {
                 Expanded(
                   child: Text(
                     widget.title,
-                    style: const TextStyle(
-                      color: _AiStudyPlanPageState._textColor,
+                    style: TextStyle(
+                      color: context.colors.textPrimary,
                       fontSize: 21,
                       fontWeight: FontWeight.w800,
                     ),
@@ -3452,27 +3632,27 @@ class _MultiDatePickerSheetState extends State<_MultiDatePickerSheet> {
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded),
+                  icon: Icon(Icons.close_rounded),
                 ),
               ],
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(
               '${_selectedDates.length}개 선택됨 · 여러 날짜를 탭해서 선택하세요',
-              style: const TextStyle(
-                color: _AiStudyPlanPageState._subTextColor,
+              style: TextStyle(
+                color: context.colors.textSecondary,
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 14),
+            SizedBox(height: 14),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   '${_displayedMonth.year}년 ${_displayedMonth.month}월',
-                  style: const TextStyle(
-                    color: _AiStudyPlanPageState._textColor,
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                   ),
@@ -3484,7 +3664,7 @@ class _MultiDatePickerSheetState extends State<_MultiDatePickerSheet> {
                       enabled: _canGoPrev,
                       onTap: () => _changeMonth(-1),
                     ),
-                    const SizedBox(width: 6),
+                    SizedBox(width: 6),
                     _MonthNavButton(
                       icon: Icons.chevron_right_rounded,
                       enabled: _canGoNext,
@@ -3494,15 +3674,15 @@ class _MultiDatePickerSheetState extends State<_MultiDatePickerSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Row(
               children: _weekdays.map((w) {
                 return Expanded(
                   child: Center(
                     child: Text(
                       w,
-                      style: const TextStyle(
-                        color: _AiStudyPlanPageState._subTextColor,
+                      style: TextStyle(
+                        color: context.colors.textSecondary,
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,
                       ),
@@ -3511,41 +3691,51 @@ class _MultiDatePickerSheetState extends State<_MultiDatePickerSheet> {
                 );
               }).toList(),
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             GridView.builder(
               shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
+              physics: NeverScrollableScrollPhysics(),
               itemCount: firstWeekday + daysInMonth,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 7,
                 mainAxisSpacing: 4,
                 crossAxisSpacing: 4,
               ),
               itemBuilder: (context, index) {
-                if (index < firstWeekday) return const SizedBox.shrink();
+                if (index < firstWeekday) return SizedBox.shrink();
 
                 final day = index - firstWeekday + 1;
-                final date =
-                DateTime(_displayedMonth.year, _displayedMonth.month, day);
+                final date = DateTime(
+                  _displayedMonth.year,
+                  _displayedMonth.month,
+                  day,
+                );
                 final selectable = _isSelectable(date);
-                final isSelected = _selectedDates.any((e) =>
-                e.year == date.year && e.month == date.month && e.day == date.day);
-                final isToday = date.year == now.year &&
+                final isSelected = _selectedDates.any(
+                  (e) =>
+                      e.year == date.year &&
+                      e.month == date.month &&
+                      e.day == date.day,
+                );
+                final isToday =
+                    date.year == now.year &&
                     date.month == now.month &&
                     date.day == now.day;
 
                 return GestureDetector(
                   onTap: selectable ? () => _toggleDate(date) : null,
                   child: Container(
-                    margin: const EdgeInsets.all(2),
+                    margin: EdgeInsets.all(2),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? _AiStudyPlanPageState._purpleColor
+                          ? context.colors.lavenderAccent
                           : Colors.transparent,
                       shape: BoxShape.circle,
                       border: (isToday && !isSelected)
                           ? Border.all(
-                          color: _AiStudyPlanPageState._purpleColor, width: 1.4)
+                              color: context.colors.lavenderAccent,
+                              width: 1.4,
+                            )
                           : null,
                     ),
                     alignment: Alignment.center,
@@ -3553,28 +3743,30 @@ class _MultiDatePickerSheetState extends State<_MultiDatePickerSheet> {
                       '$day',
                       style: TextStyle(
                         color: !selectable
-                            ? const Color(0xFFD9D2D5)
+                            ? Color(0xFFD9D2D5)
                             : isSelected
-                            ? Colors.white
-                            : _AiStudyPlanPageState._textColor,
+                            ? context.colors.onPrimary
+                            : context.colors.textPrimary,
                         fontSize: 14.5,
-                        fontWeight:
-                        isSelected || isToday ? FontWeight.w800 : FontWeight.w600,
+                        fontWeight: isSelected || isToday
+                            ? FontWeight.w800
+                            : FontWeight.w600,
                       ),
                     ),
                   ),
                 );
               },
             ),
-            const SizedBox(height: 22),
+            SizedBox(height: 22),
             SizedBox(
               width: double.infinity,
               height: 54,
               child: FilledButton(
-                onPressed: () => Navigator.pop(context, _selectedDates.toList()),
+                onPressed: () =>
+                    Navigator.pop(context, _selectedDates.toList()),
                 style: FilledButton.styleFrom(
-                  backgroundColor: _AiStudyPlanPageState._purpleColor,
-                  foregroundColor: Colors.white,
+                  backgroundColor: context.colors.lavenderAccent,
+                  foregroundColor: context.colors.onPrimary,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
@@ -3582,7 +3774,7 @@ class _MultiDatePickerSheetState extends State<_MultiDatePickerSheet> {
                 ),
                 child: Text(
                   '선택 완료 (${_selectedDates.length})',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
               ),
             ),

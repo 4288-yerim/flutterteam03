@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../mypage/screens/mypage_screen.dart';
@@ -13,17 +14,19 @@ class CertificateRoadmapResultPage extends StatefulWidget {
   final String job;
   final List<SuggestedCertificate> certificates;
 
-  const CertificateRoadmapResultPage({
+  CertificateRoadmapResultPage({
     super.key,
     required this.job,
     required this.certificates,
   });
 
   @override
-  State<CertificateRoadmapResultPage> createState() => _CertificateRoadmapResultPageState();
+  State<CertificateRoadmapResultPage> createState() =>
+      _CertificateRoadmapResultPageState();
 }
 
-class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultPage>
+class _CertificateRoadmapResultPageState
+    extends State<CertificateRoadmapResultPage>
     with SingleTickerProviderStateMixin {
   bool _isLoading = true;
   String? _error;
@@ -32,8 +35,10 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
   bool _isSaving = false;
   bool _isSaved = false;
 
-  late final AnimationController _loadingController =
-  AnimationController(vsync: this, duration: const Duration(seconds: 3));
+  late final AnimationController _loadingController = AnimationController(
+    vsync: this,
+    duration: Duration(seconds: 3),
+  );
 
   @override
   void initState() {
@@ -55,7 +60,7 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
     });
 
     _loadingController.value = 0;
-    _loadingController.duration = const Duration(milliseconds: 900);
+    _loadingController.duration = Duration(milliseconds: 900);
     _loadingController.animateTo(0.9, curve: Curves.easeOut);
 
     try {
@@ -66,11 +71,19 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
         final cert = widget.certificates[i];
 
         final dbInfo =
-        await CertificateApiService.fetchCertificateInfoFromFirestore(cert.name);
+            await CertificateApiService.fetchCertificateInfoFromFirestore(
+              cert.name,
+            );
 
-        final matched = CertificateApiService.findUpcoming(schedules, cert.name);
-        final detailInfo = await CertificateApiService.fetchCertificateDetailInfo(cert.name);
-        final examRounds = await CertificateApiService.fetchAllExamRounds(cert.name);
+        final matched = CertificateApiService.findUpcoming(
+          schedules,
+          cert.name,
+        );
+        final detailInfo =
+            await CertificateApiService.fetchCertificateDetailInfo(cert.name);
+        final examRounds = await CertificateApiService.fetchAllExamRounds(
+          cert.name,
+        );
 
         String? level = dbInfo?.level;
         String? registrationPeriod =
@@ -83,7 +96,9 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
 
         if (needsAiFill) {
           final aiInfo =
-          await CertificateApiService.estimateCertificateInfoWithAi(cert.name);
+              await CertificateApiService.estimateCertificateInfoWithAi(
+                cert.name,
+              );
           level ??= aiInfo.level;
           registrationPeriod ??= aiInfo.registrationPeriod;
           examDate ??= aiInfo.examDate;
@@ -92,21 +107,26 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
           }
         }
 
-        roadmap.add(_RoadmapCertificate(
-          order: i + 1,
-          name: cert.name,
-          description: cert.description,
-          level: level,
-          registrationPeriod: registrationPeriod ?? '주관 기관 홈페이지에서 확인해주세요',
-          examDate: examDate ?? '-',
-          isEstimated: isEstimated,
-          detailInfo: detailInfo,
-          examRounds: examRounds,
-        ));
+        roadmap.add(
+          _RoadmapCertificate(
+            order: i + 1,
+            name: cert.name,
+            description: cert.description,
+            level: level,
+            registrationPeriod: registrationPeriod ?? '주관 기관 홈페이지에서 확인해주세요',
+            examDate: examDate ?? '-',
+            isEstimated: isEstimated,
+            detailInfo: detailInfo,
+            examRounds: examRounds,
+          ),
+        );
       }
 
-      await _loadingController.animateTo(1.0, duration: const Duration(milliseconds: 200));
-      await Future.delayed(const Duration(milliseconds: 700));
+      await _loadingController.animateTo(
+        1.0,
+        duration: Duration(milliseconds: 200),
+      );
+      await Future.delayed(Duration(milliseconds: 700));
       if (!mounted) return;
 
       setState(() {
@@ -131,9 +151,12 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
   void _openCertificateDetail(_RoadmapCertificate certificate) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => _CertificateDetailPage(certificate: certificate)),
+      MaterialPageRoute(
+        builder: (_) => _CertificateDetailPage(certificate: certificate),
+      ),
     );
   }
+
   Future<void> _saveRoadmap() async {
     if (_isSaving) return;
 
@@ -144,9 +167,9 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('로그인 후 이용할 수 있어요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('로그인 후 이용할 수 있어요.')));
       return;
     }
 
@@ -157,19 +180,21 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
           .doc(user.uid)
           .collection('roadmaps')
           .add({
-        'job': widget.job,
-        'certificates': _roadmap
-            .map((c) => {
-          'order': c.order,
-          'name': c.name,
-          'description': c.description,
-          'registrationPeriod': c.registrationPeriod,
-          'examDate': c.examDate,
-          'isEstimated': c.isEstimated,
-        })
-            .toList(),
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+            'job': widget.job,
+            'certificates': _roadmap
+                .map(
+                  (c) => {
+                    'order': c.order,
+                    'name': c.name,
+                    'description': c.description,
+                    'registrationPeriod': c.registrationPeriod,
+                    'examDate': c.examDate,
+                    'isEstimated': c.isEstimated,
+                  },
+                )
+                .toList(),
+            'createdAt': FieldValue.serverTimestamp(),
+          });
 
       if (!mounted) return;
       setState(() => _isSaved = true);
@@ -177,9 +202,9 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
     } catch (e) {
       debugPrint('로드맵 저장 에러: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('저장에 실패했어요. 다시 시도해주세요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('저장에 실패했어요. 다시 시도해주세요.')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -194,14 +219,18 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
         final c = dialogContext.colors;
         return Dialog(
           backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 32),
+          insetPadding: EdgeInsets.symmetric(horizontal: 32),
           child: Container(
-            padding: const EdgeInsets.fromLTRB(26, 30, 26, 22),
+            padding: EdgeInsets.fromLTRB(26, 30, 26, 22),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.colors.surface,
               borderRadius: BorderRadius.circular(28),
-              boxShadow: const [
-                BoxShadow(color: Color(0x33000000), blurRadius: 30, offset: Offset(0, 14)),
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0x33000000),
+                  blurRadius: 30,
+                  offset: Offset(0, 14),
+                ),
               ],
             ),
             child: Column(
@@ -211,17 +240,36 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
                   width: 56,
                   height: 56,
                   alignment: Alignment.center,
-                  decoration: BoxDecoration(color: c.pinkSoft, shape: BoxShape.circle),
-                  child: Icon(Icons.bookmark_rounded, color: c.pinkStart, size: 27),
+                  decoration: BoxDecoration(
+                    color: c.pinkSoft,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.bookmark_rounded,
+                    color: c.pinkStart,
+                    size: 27,
+                  ),
                 ),
-                const SizedBox(height: 16),
-                Text('이미 저장된 로드맵이에요',
-                    style: TextStyle(color: c.textPrimary, fontSize: 16.5, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 8),
-                Text('마이페이지로 이동할까요?',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: c.textSecondary, fontSize: 13.5, height: 1.5)),
-                const SizedBox(height: 22),
+                SizedBox(height: 16),
+                Text(
+                  '이미 저장된 로드맵이에요',
+                  style: TextStyle(
+                    color: c.textPrimary,
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  '마이페이지로 이동할까요?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: c.textSecondary,
+                    fontSize: 13.5,
+                    height: 1.5,
+                  ),
+                ),
+                SizedBox(height: 22),
                 Row(
                   children: [
                     Expanded(
@@ -230,16 +278,24 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
                         style: OutlinedButton.styleFrom(
                           foregroundColor: c.textSecondary,
                           side: BorderSide(color: c.pinkSoft),
-                          padding: const EdgeInsets.symmetric(vertical: 13),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                          padding: EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
                         ),
-                        child: const Text('닫기', style: TextStyle(fontWeight: FontWeight.w700)),
+                        child: Text(
+                          '닫기',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    SizedBox(width: 10),
                     Expanded(
                       child: DecoratedBox(
-                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(15), color: c.pinkStart),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(15),
+                          color: c.pinkStart,
+                        ),
                         child: Material(
                           color: Colors.transparent,
                           child: InkWell(
@@ -248,10 +304,16 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
                               Navigator.pop(dialogContext);
                               _goToMyPage();
                             },
-                            child: const Padding(
+                            child: Padding(
                               padding: EdgeInsets.symmetric(vertical: 13),
                               child: Center(
-                                child: Text('이동하기', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                                child: Text(
+                                  '이동하기',
+                                  style: TextStyle(
+                                    color: context.colors.onPrimary,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -270,9 +332,9 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
 
   void _goToMyPage() {
     Navigator.of(context).popUntil((route) => route.isFirst);
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const MyPageScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => MyPageScreen()));
   }
 
   Future<void> _showSaveSuccessDialog() {
@@ -284,28 +346,47 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
         final c = dialogContext.colors;
         return Dialog(
           backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 32),
+          insetPadding: EdgeInsets.symmetric(horizontal: 32),
           child: Container(
-            padding: const EdgeInsets.fromLTRB(26, 32, 26, 22),
+            padding: EdgeInsets.fromLTRB(26, 32, 26, 22),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.colors.surface,
               borderRadius: BorderRadius.circular(28),
-              boxShadow: const [
-                BoxShadow(color: Color(0x33000000), blurRadius: 30, offset: Offset(0, 14)),
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0x33000000),
+                  blurRadius: 30,
+                  offset: Offset(0, 14),
+                ),
               ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _SaveSuccessBadge(colorStart: c.pinkStart, colorEnd: c.pinkDeep),
-                const SizedBox(height: 18),
-                Text('저장 완료!',
-                    style: TextStyle(color: c.textPrimary, fontSize: 17, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 8),
-                Text('로드맵을 컬렉션에 추가했어요.\n마이페이지에서 확인할 수 있어요.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: c.textSecondary, fontSize: 13.5, height: 1.5)),
-                const SizedBox(height: 24),
+                _SaveSuccessBadge(
+                  colorStart: c.pinkStart,
+                  colorEnd: c.pinkDeep,
+                ),
+                SizedBox(height: 18),
+                Text(
+                  '저장 완료!',
+                  style: TextStyle(
+                    color: c.textPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  '로드맵을 컬렉션에 추가했어요.\n마이페이지에서 확인할 수 있어요.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: c.textSecondary,
+                    fontSize: 13.5,
+                    height: 1.5,
+                  ),
+                ),
+                SizedBox(height: 24),
                 Row(
                   children: [
                     Expanded(
@@ -314,13 +395,18 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
                         style: OutlinedButton.styleFrom(
                           foregroundColor: c.textSecondary,
                           side: BorderSide(color: c.pinkSoft),
-                          padding: const EdgeInsets.symmetric(vertical: 13),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                          padding: EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
                         ),
-                        child: const Text('닫기', style: TextStyle(fontWeight: FontWeight.w700)),
+                        child: Text(
+                          '닫기',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    SizedBox(width: 10),
                     Expanded(
                       child: DecoratedBox(
                         decoration: BoxDecoration(
@@ -335,11 +421,17 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
                               Navigator.pop(dialogContext);
                               _goToMyPage();
                             },
-                            child: const Padding(
+                            child: Padding(
                               padding: EdgeInsets.symmetric(vertical: 13),
                               child: Center(
-                                child: Text('마이페이지로 이동',
-                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13.5)),
+                                child: Text(
+                                  '마이페이지로 이동',
+                                  style: TextStyle(
+                                    color: context.colors.onPrimary,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13.5,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -366,7 +458,12 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
       body: AppMainBackground(
         child: SafeArea(
           child: _isLoading
-              ? Center(child: _LoadingIndicator(progress: _loadingController, colors: colors))
+              ? Center(
+                  child: _LoadingIndicator(
+                    progress: _loadingController,
+                    colors: colors,
+                  ),
+                )
               : _error != null
               ? _buildErrorState(colors)
               : _buildResult(colors),
@@ -378,16 +475,26 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
   Widget _buildErrorState(AppColors colors) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(28),
+        padding: EdgeInsets.all(28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: colors.textSecondary, fontSize: 14)),
-            const SizedBox(height: 18),
+            Text(
+              _error!,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textSecondary, fontSize: 14),
+            ),
+            SizedBox(height: 18),
             TextButton.icon(
               onPressed: _generate,
               icon: Icon(Icons.refresh_rounded, color: colors.pinkDeep),
-              label: Text('다시 시도', style: TextStyle(color: colors.pinkDeep, fontWeight: FontWeight.w700)),
+              label: Text(
+                '다시 시도',
+                style: TextStyle(
+                  color: colors.pinkDeep,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
         ),
@@ -397,7 +504,7 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
 
   Widget _buildResult(AppColors colors) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(22, 20, 22, 44),
+      padding: EdgeInsets.fromLTRB(22, 20, 22, 44),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -406,28 +513,46 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text('추천 자격증 로드맵',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: colors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.6)),
-                const SizedBox(height: 6),
-                Text('취득 순서대로 정렬했어요. 카드를 누르면 상세 정보를 볼 수 있어요.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: colors.textSecondary, fontSize: 13.5)),
-                const SizedBox(height: 12),
+                Text(
+                  '추천 자격증 로드맵',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.6,
+                  ),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  '취득 순서대로 정렬했어요. 카드를 누르면 상세 정보를 볼 수 있어요.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.textSecondary, fontSize: 13.5),
+                ),
+                SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+                  padding: EdgeInsets.symmetric(horizontal: 13, vertical: 7),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [colors.pinkSoft, colors.lavender]),
+                    gradient: LinearGradient(
+                      colors: [colors.pinkSoft, colors.lavender],
+                    ),
                     borderRadius: BorderRadius.circular(30),
                   ),
-                  child: Text('${_roadmap.length}개', style: TextStyle(color: colors.pinkDeep, fontSize: 12, fontWeight: FontWeight.w800)),
+                  child: Text(
+                    '${_roadmap.length}개',
+                    style: TextStyle(
+                      color: colors.pinkDeep,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 28),
+          SizedBox(height: 28),
           _RoadmapTimeline(roadmap: _roadmap, onTap: _openCertificateDetail),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           Row(
             children: [
               Expanded(
@@ -435,25 +560,39 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
                   onPressed: () => Navigator.pop(context, 'restart'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: colors.textSecondary,
-                    backgroundColor: Colors.white,
+                    backgroundColor: context.colors.surface,
                     side: BorderSide(color: colors.pinkSoft, width: 1.5),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    padding: EdgeInsets.symmetric(vertical: 16),
                   ),
-                  icon: const Icon(Icons.restart_alt_rounded, size: 20),
-                  label: const Text('처음부터', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800)),
+                  icon: Icon(Icons.restart_alt_rounded, size: 20),
+                  label: Text(
+                    '처음부터',
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(width: 10),
+              SizedBox(width: 10),
               Expanded(
                 flex: 2,
                 child: SizedBox(
                   height: 56,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        color: colors.pinkStart,
-                        boxShadow: [BoxShadow(color: colors.pinkStart.withValues(alpha: 0.25), blurRadius: 16, offset: const Offset(0, 8))],
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      color: colors.pinkStart,
+                      boxShadow: [
+                        BoxShadow(
+                          color: colors.pinkStart.withValues(alpha: 0.25),
+                          blurRadius: 16,
+                          offset: Offset(0, 8),
+                        ),
+                      ],
                     ),
                     child: Material(
                       color: Colors.transparent,
@@ -465,22 +604,29 @@ class _CertificateRoadmapResultPageState extends State<CertificateRoadmapResultP
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               if (_isSaving)
-                                const SizedBox(
+                                SizedBox(
                                   width: 18,
                                   height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: context.colors.onPrimary,
+                                  ),
                                 )
                               else
                                 Icon(
-                                  _isSaved ? Icons.check_circle_rounded : Icons.bookmark_add_outlined,
+                                  _isSaved
+                                      ? Icons.check_circle_rounded
+                                      : Icons.bookmark_add_outlined,
                                   size: 21,
-                                  color: Colors.white,
+                                  color: context.colors.onPrimary,
                                 ),
-                              const SizedBox(width: 9),
+                              SizedBox(width: 9),
                               Text(
-                                _isSaving ? '저장 중...' : (_isSaved ? '저장됨' : '로드맵 저장하기'),
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                _isSaving
+                                    ? '저장 중...'
+                                    : (_isSaved ? '저장됨' : '로드맵 저장하기'),
+                                style: TextStyle(
+                                  color: context.colors.onPrimary,
                                   fontSize: 15.5,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -505,7 +651,7 @@ class _RoadmapTimeline extends StatelessWidget {
   final List<_RoadmapCertificate> roadmap;
   final ValueChanged<_RoadmapCertificate> onTap;
 
-  const _RoadmapTimeline({required this.roadmap, required this.onTap});
+  _RoadmapTimeline({required this.roadmap, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -526,7 +672,12 @@ class _RoadmapTimeline extends StatelessWidget {
             ),
           );
         }),
-        _TimelineFlag(colors: colors, icon: Icons.emoji_events_rounded, label: '목표 달성', isGoal: true),
+        _TimelineFlag(
+          colors: colors,
+          icon: Icons.emoji_events_rounded,
+          label: '목표 달성',
+          isGoal: true,
+        ),
       ],
     );
   }
@@ -538,7 +689,12 @@ class _TimelineFlag extends StatelessWidget {
   final String label;
   final bool isGoal;
 
-  const _TimelineFlag({required this.colors, required this.icon, required this.label, this.isGoal = false});
+  _TimelineFlag({
+    required this.colors,
+    required this.icon,
+    required this.label,
+    this.isGoal = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -554,29 +710,38 @@ class _TimelineFlag extends StatelessWidget {
                 height: 46,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [colors.pinkStart, colors.pinkDeep]),
+                  gradient: LinearGradient(
+                    colors: [colors.pinkStart, colors.pinkDeep],
+                  ),
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
+                  border: Border.all(color: context.colors.surface, width: 3),
                   boxShadow: [
                     BoxShadow(
                       color: colors.pinkStart.withValues(alpha: 0.35),
                       blurRadius: 14,
-                      offset: const Offset(0, 5),
+                      offset: Offset(0, 5),
                     ),
                   ],
                 ),
-                child: Icon(icon, color: Colors.white, size: 21),
+                child: Icon(icon, color: context.colors.onPrimary, size: 21),
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
+            padding: EdgeInsets.symmetric(horizontal: 13, vertical: 6),
             decoration: BoxDecoration(
               color: colors.pinkSoft,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Text(label, style: TextStyle(color: colors.pinkDeep, fontSize: 13.5, fontWeight: FontWeight.w800)),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: colors.pinkDeep,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
         ],
       ),
@@ -590,7 +755,7 @@ class _TimelineItem extends StatelessWidget {
   final bool isLast;
   final VoidCallback onPressed;
 
-  const _TimelineItem({
+  _TimelineItem({
     required this.certificate,
     required this.accentIndex,
     required this.isLast,
@@ -635,18 +800,33 @@ class _TimelineItem extends StatelessWidget {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(colors: tone.bg),
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 3),
-                    boxShadow: [BoxShadow(color: tone.fg.withValues(alpha: 0.25), blurRadius: 10, offset: const Offset(0, 4))],
+                    border: Border.all(color: context.colors.surface, width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: tone.fg.withValues(alpha: 0.25),
+                        blurRadius: 10,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  child: Text('${certificate.order}',
-                      style: TextStyle(color: tone.fg, fontSize: 15, fontWeight: FontWeight.w900)),
+                  child: Text(
+                    '${certificate.order}',
+                    style: TextStyle(
+                      color: tone.fg,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ),
                 Expanded(
                   child: Container(
                     width: 3,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [tone.fg, isLast ? colors.pinkStart : colors.pinkSoft],
+                        colors: [
+                          tone.fg,
+                          isLast ? colors.pinkStart : colors.pinkSoft,
+                        ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                       ),
@@ -657,11 +837,15 @@ class _TimelineItem extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 18, top: 2),
-              child: _TimelineCard(certificate: certificate, tone: tone, onPressed: onPressed),
+              padding: EdgeInsets.only(bottom: 18, top: 2),
+              child: _TimelineCard(
+                certificate: certificate,
+                tone: tone,
+                onPressed: onPressed,
+              ),
             ),
           ),
         ],
@@ -675,17 +859,27 @@ class _TimelineCard extends StatelessWidget {
   final ({List<Color> bg, Color fg}) tone;
   final VoidCallback onPressed;
 
-  const _TimelineCard({required this.certificate, required this.tone, required this.onPressed});
+  _TimelineCard({
+    required this.certificate,
+    required this.tone,
+    required this.onPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFF2E6EA)),
-        boxShadow: const [BoxShadow(color: Color(0x12C98198), blurRadius: 16, offset: Offset(0, 8))],
+        border: Border.all(color: context.colors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x12C98198),
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -694,7 +888,7 @@ class _TimelineCard extends StatelessWidget {
           onTap: onPressed,
           borderRadius: BorderRadius.circular(22),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 15, 12, 15),
+            padding: EdgeInsets.fromLTRB(16, 15, 12, 15),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -702,42 +896,99 @@ class _TimelineCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(certificate.name,
-                          style: TextStyle(
-                              color: colors.textPrimary, fontSize: 16.5, fontWeight: FontWeight.w800, letterSpacing: -0.2, height: 1.25)),
-                      if (certificate.level != null || certificate.isEstimated) ...[
-                        const SizedBox(height: 7),
+                      Text(
+                        certificate.name,
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 16.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.2,
+                          height: 1.25,
+                        ),
+                      ),
+                      if (certificate.level != null ||
+                          certificate.isEstimated) ...[
+                        SizedBox(height: 7),
                         Wrap(
                           spacing: 6,
                           runSpacing: 6,
                           children: [
                             if (certificate.level != null)
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                                decoration: BoxDecoration(color: tone.bg.first, borderRadius: BorderRadius.circular(20)),
-                                child: Text(certificate.level!, style: TextStyle(color: tone.fg, fontSize: 10, fontWeight: FontWeight.w800)),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: tone.bg.first,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  certificate.level!,
+                                  style: TextStyle(
+                                    color: tone.fg,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
                               ),
                             if (certificate.isEstimated)
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(color: const Color(0xFFF3F0F5), borderRadius: BorderRadius.circular(20)),
-                                child: const Text('주관사 확인 필요',
-                                    style: TextStyle(color: Color(0xFF897F82), fontSize: 10, fontWeight: FontWeight.w700)),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: context.colors.surfaceMuted,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  '주관사 확인 필요',
+                                  style: TextStyle(
+                                    color: Color(0xFF897F82),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                               ),
                           ],
                         ),
                       ],
-                      const SizedBox(height: 6),
-                      Text(certificate.description, style: TextStyle(color: colors.textSecondary, fontSize: 12.5, height: 1.45)),
-                      const SizedBox(height: 14),
-                      _DateInformation(icon: Icons.edit_calendar_outlined, label: '접수 기간', value: certificate.registrationPeriod, color: colors.softBlueAccent),
-                      const SizedBox(height: 7),
-                      _DateInformation(icon: Icons.event_available_outlined, label: '시험일', value: certificate.examDate, color: colors.pinkDeep),
+                      SizedBox(height: 6),
+                      Text(
+                        certificate.description,
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 12.5,
+                          height: 1.45,
+                        ),
+                      ),
+                      SizedBox(height: 14),
+                      _DateInformation(
+                        icon: Icons.edit_calendar_outlined,
+                        label: '접수 기간',
+                        value: certificate.registrationPeriod,
+                        color: colors.softBlueAccent,
+                      ),
+                      SizedBox(height: 7),
+                      _DateInformation(
+                        icon: Icons.event_available_outlined,
+                        label: '시험일',
+                        value: certificate.examDate,
+                        color: colors.pinkDeep,
+                      ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 4),
-                Padding(padding: const EdgeInsets.only(top: 6), child: Icon(Icons.chevron_right_rounded, color: tone.fg, size: 23)),
+                SizedBox(width: 4),
+                Padding(
+                  padding: EdgeInsets.only(top: 6),
+                  child: Icon(
+                    Icons.chevron_right_rounded,
+                    color: tone.fg,
+                    size: 23,
+                  ),
+                ),
               ],
             ),
           ),
@@ -753,7 +1004,12 @@ class _DateInformation extends StatelessWidget {
   final String value;
   final Color color;
 
-  const _DateInformation({required this.icon, required this.label, required this.value, required this.color});
+  _DateInformation({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -764,18 +1020,28 @@ class _DateInformation extends StatelessWidget {
         Container(
           width: 26,
           height: 26,
-          margin: const EdgeInsets.only(top: 1),
+          margin: EdgeInsets.only(top: 1),
           alignment: Alignment.center,
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+          ),
           child: Icon(icon, size: 14, color: color),
         ),
-        const SizedBox(width: 10),
+        SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: TextStyle(color: colors.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 3),
+              Text(
+                label,
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              SizedBox(height: 3),
               Text(
                 value,
                 style: TextStyle(
@@ -793,10 +1059,11 @@ class _DateInformation extends StatelessWidget {
     );
   }
 }
+
 class _LoadingIndicator extends StatelessWidget {
   final Animation<double> progress;
   final AppColors colors;
-  const _LoadingIndicator({required this.progress, required this.colors});
+  _LoadingIndicator({required this.progress, required this.colors});
 
   @override
   Widget build(BuildContext context) {
@@ -813,12 +1080,24 @@ class _LoadingIndicator extends StatelessWidget {
             waveColorEnd: colors.pinkDeep,
             useSmoothing: false,
           ),
-          const SizedBox(height: 16),
-          Text('${(progress.value * 100).toInt()}%',
-              style: TextStyle(color: colors.pinkDeep, fontSize: 13, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 10),
-          Text('로드맵을 만들고 있어요',
-              style: TextStyle(color: colors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+          SizedBox(height: 16),
+          Text(
+            '${(progress.value * 100).toInt()}%',
+            style: TextStyle(
+              color: colors.pinkDeep,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          SizedBox(height: 10),
+          Text(
+            '로드맵을 만들고 있어요',
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -836,7 +1115,7 @@ class _RoadmapCertificate {
   final CertificateDetailInfo? detailInfo;
   final List<CertificateExamRound> examRounds;
 
-  const _RoadmapCertificate({
+  _RoadmapCertificate({
     required this.order,
     required this.name,
     required this.description,
@@ -851,7 +1130,7 @@ class _RoadmapCertificate {
 
 class _CertificateDetailPage extends StatelessWidget {
   final _RoadmapCertificate certificate;
-  const _CertificateDetailPage({required this.certificate});
+  _CertificateDetailPage({required this.certificate});
 
   @override
   Widget build(BuildContext context) {
@@ -863,83 +1142,138 @@ class _CertificateDetailPage extends StatelessWidget {
       body: AppMainBackground(
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(22, 20, 22, 40),
+            padding: EdgeInsets.fromLTRB(22, 20, 22, 40),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _DetailHeader(certificate: certificate, colors: colors),
-                const SizedBox(height: 26),
-                Text('자격증 소개',
-                    style: TextStyle(color: colors.textPrimary, fontSize: 16.5, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 10),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFF2E6EA)),
-                  ),
-                  child: Text(
-                    certificate.description.isEmpty ? '등록된 소개 정보가 없어요.' : certificate.description,
-                    style: TextStyle(color: colors.textSecondary, fontSize: 13.5, height: 1.6),
+                SizedBox(height: 26),
+                Text(
+                  '자격증 소개',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 26),
-                Text('일정 정보',
-                    style: TextStyle(color: colors.textPrimary, fontSize: 16.5, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 10),
+                SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: context.colors.surface,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: context.colors.border),
+                  ),
+                  child: Text(
+                    certificate.description.isEmpty
+                        ? '등록된 소개 정보가 없어요.'
+                        : certificate.description,
+                    style: TextStyle(
+                      color: colors.textSecondary,
+                      fontSize: 13.5,
+                      height: 1.6,
+                    ),
+                  ),
+                ),
+                SizedBox(height: 26),
+                Text(
+                  '일정 정보',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(height: 10),
                 _ScheduleRoundsSection(
                   rounds: certificate.examRounds,
                   colors: colors,
                   fallbackRegPeriod: certificate.registrationPeriod,
                   fallbackExamDate: certificate.examDate,
                 ),
-                if (certificate.examRounds.isEmpty && certificate.isEstimated) ...[
-                  const SizedBox(height: 14),
+                if (certificate.examRounds.isEmpty &&
+                    certificate.isEstimated) ...[
+                  SizedBox(height: 14),
                   _NoticeBanner(colors: colors),
                 ],
 
                 if (certificate.detailInfo?.examFee != null) ...[
-                  const SizedBox(height: 26),
-                  Text('응시료', style: TextStyle(color: colors.textPrimary, fontSize: 16.5, fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 10),
+                  SizedBox(height: 26),
+                  Text(
+                    '응시료',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 16.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  SizedBox(height: 10),
                   _ExamFeeCard(raw: certificate.detailInfo!.examFee!),
                 ],
                 if (certificate.detailInfo?.examTrends != null) ...[
-                  const SizedBox(height: 26),
-                  Text('출제 경향', style: TextStyle(color: colors.textPrimary, fontSize: 16.5, fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 10),
+                  SizedBox(height: 26),
+                  Text(
+                    '출제 경향',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 16.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  SizedBox(height: 10),
                   _ExamTrendsCard(raw: certificate.detailInfo!.examTrends!),
                 ],
                 if (certificate.detailInfo?.howToObtain != null) ...[
-                  const SizedBox(height: 26),
-                  Text('취득 방법', style: TextStyle(color: colors.textPrimary, fontSize: 16.5, fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 10),
+                  SizedBox(height: 26),
+                  Text(
+                    '취득 방법',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 16.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  SizedBox(height: 10),
                   _HowToObtainCard(raw: certificate.detailInfo!.howToObtain!),
                 ],
-                const SizedBox(height: 30),
+                SizedBox(height: 30),
                 SizedBox(
                   width: double.infinity,
                   height: 54,
                   child: ElevatedButton.icon(
                     onPressed: () async {
-                      final url = Uri.parse(CertificateApiService.buildApplicationUrl(certificate.name));
+                      final url = Uri.parse(
+                        CertificateApiService.buildApplicationUrl(
+                          certificate.name,
+                        ),
+                      );
                       if (await canLaunchUrl(url)) {
-                        await launchUrl(url, mode: LaunchMode.externalApplication);
+                        await launchUrl(
+                          url,
+                          mode: LaunchMode.externalApplication,
+                        );
                       }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.pinkStart,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                      foregroundColor: context.colors.onPrimary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
                       elevation: 0,
                     ),
-                    icon: const Icon(Icons.open_in_new_rounded, size: 19),
-                    label: const Text('신청 홈페이지 바로가기', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800)),
+                    icon: Icon(Icons.open_in_new_rounded, size: 19),
+                    label: Text(
+                      '신청 홈페이지 바로가기',
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
 
                 SizedBox(
                   width: double.infinity,
@@ -948,12 +1282,20 @@ class _CertificateDetailPage extends StatelessWidget {
                     onPressed: () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: colors.textSecondary,
-                      backgroundColor: Colors.white,
+                      backgroundColor: context.colors.surface,
                       side: BorderSide(color: colors.pinkSoft, width: 1.5),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
                     ),
-                    icon: const Icon(Icons.arrow_back_rounded, size: 19),
-                    label: const Text('로드맵으로 돌아가기', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800)),
+                    icon: Icon(Icons.arrow_back_rounded, size: 19),
+                    label: Text(
+                      '로드맵으로 돌아가기',
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -968,13 +1310,13 @@ class _CertificateDetailPage extends StatelessWidget {
 class _DetailHeader extends StatelessWidget {
   final _RoadmapCertificate certificate;
   final AppColors colors;
-  const _DetailHeader({required this.certificate, required this.colors});
+  _DetailHeader({required this.certificate, required this.colors});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(22),
+      padding: EdgeInsets.all(22),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -991,34 +1333,68 @@ class _DetailHeader extends StatelessWidget {
             height: 56,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [colors.pinkStart, colors.pinkDeep]),
+              gradient: LinearGradient(
+                colors: [colors.pinkStart, colors.pinkDeep],
+              ),
               shape: BoxShape.circle,
               boxShadow: [
-                BoxShadow(color: colors.pinkStart.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 8)),
+                BoxShadow(
+                  color: colors.pinkStart.withValues(alpha: 0.3),
+                  blurRadius: 16,
+                  offset: Offset(0, 8),
+                ),
               ],
             ),
-            child: Text('${certificate.order}',
-                style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+            child: Text(
+              '${certificate.order}',
+              style: TextStyle(
+                color: context.colors.onPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${certificate.order}번째 취득 자격증',
-                    style: TextStyle(color: colors.pinkDeep, fontSize: 12, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 6),
-                Text(certificate.name,
-                    style: TextStyle(
-                        color: colors.textPrimary, fontSize: 19, fontWeight: FontWeight.w800, letterSpacing: -0.3)),
+                Text(
+                  '${certificate.order}번째 취득 자격증',
+                  style: TextStyle(
+                    color: colors.pinkDeep,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  certificate.name,
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                  ),
+                ),
                 if (certificate.level != null) ...[
-                  const SizedBox(height: 6),
+                  SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                    padding: EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                     decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(20)),
-                    child: Text(certificate.level!,
-                        style: TextStyle(color: colors.pinkDeep, fontSize: 11, fontWeight: FontWeight.w800)),
+                      color: context.colors.surfaceTransparent.withValues(
+                        alpha: 0.7,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      certificate.level!,
+                      style: TextStyle(
+                        color: colors.pinkDeep,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
                 ],
               ],
@@ -1037,7 +1413,7 @@ class _DetailInfoCard extends StatelessWidget {
   final Color color;
   final Color bg;
 
-  const _DetailInfoCard({
+  _DetailInfoCard({
     required this.icon,
     required this.label,
     required this.value,
@@ -1050,11 +1426,11 @@ class _DetailInfoCard extends StatelessWidget {
     final colors = context.colors;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFF2E6EA)),
+        border: Border.all(color: context.colors.border),
       ),
       child: Row(
         children: [
@@ -1065,14 +1441,28 @@ class _DetailInfoCard extends StatelessWidget {
             alignment: Alignment.center,
             child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: TextStyle(color: colors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 3),
-                Text(value, style: TextStyle(color: colors.textPrimary, fontSize: 14.5, fontWeight: FontWeight.w800)),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: 3),
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ],
             ),
           ),
@@ -1084,27 +1474,36 @@ class _DetailInfoCard extends StatelessWidget {
 
 class _NoticeBanner extends StatelessWidget {
   final AppColors colors;
-  const _NoticeBanner({required this.colors});
+  _NoticeBanner({required this.colors});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF7E8),
+        color: context.colors.warningSoft,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFFCE5AE)),
+        border: Border.all(color: context.colors.warningSoft),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.info_outline_rounded, color: Color(0xFFCA9A2E), size: 18),
-          const SizedBox(width: 8),
+          Icon(
+            Icons.info_outline_rounded,
+            color: context.colors.warning,
+            size: 18,
+          ),
+          SizedBox(width: 8),
           Expanded(
             child: Text(
               '정확한 일정은 등록된 정보가 없어 예상 값이에요. 주관 기관 홈페이지에서 다시 확인해주세요.',
-              style: TextStyle(color: colors.textSecondary, fontSize: 12, height: 1.5, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: colors.textSecondary,
+                fontSize: 12,
+                height: 1.5,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -1118,7 +1517,7 @@ class _ScheduleRoundsSection extends StatefulWidget {
   final AppColors colors;
   final String? fallbackRegPeriod;
   final String? fallbackExamDate;
-  const _ScheduleRoundsSection({
+  _ScheduleRoundsSection({
     required this.rounds,
     required this.colors,
     this.fallbackRegPeriod,
@@ -1136,18 +1535,20 @@ class _ScheduleRoundsSectionState extends State<_ScheduleRoundsSection> {
   Widget build(BuildContext context) {
     final colors = widget.colors;
     if (widget.rounds.isEmpty) {
-      final hasFallback = (widget.fallbackRegPeriod != null && widget.fallbackRegPeriod != '주관 기관 홈페이지에서 확인해주세요')
-          || (widget.fallbackExamDate != null && widget.fallbackExamDate != '-');
+      final hasFallback =
+          (widget.fallbackRegPeriod != null &&
+              widget.fallbackRegPeriod != '주관 기관 홈페이지에서 확인해주세요') ||
+          (widget.fallbackExamDate != null && widget.fallbackExamDate != '-');
       if (!hasFallback) {
         return _InfoTextCard(text: '등록된 일정 정보가 없어요. 주관 기관 홈페이지에서 확인해주세요.');
       }
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFF2E6EA)),
+          border: Border.all(color: context.colors.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1159,8 +1560,9 @@ class _ScheduleRoundsSectionState extends State<_ScheduleRoundsSection> {
                 value: widget.fallbackRegPeriod!,
                 color: colors.softBlueAccent,
               ),
-            if (widget.fallbackRegPeriod != null && widget.fallbackExamDate != null)
-              const SizedBox(height: 8),
+            if (widget.fallbackRegPeriod != null &&
+                widget.fallbackExamDate != null)
+              SizedBox(height: 8),
             if (widget.fallbackExamDate != null)
               _DateInformation(
                 icon: Icons.event_available_outlined,
@@ -1174,7 +1576,7 @@ class _ScheduleRoundsSectionState extends State<_ScheduleRoundsSection> {
     }
 
     final current = widget.rounds.firstWhere(
-          (r) => !r.isFullyClosed,
+      (r) => !r.isFullyClosed,
       orElse: () => widget.rounds.last,
     );
     final others = widget.rounds.where((r) => r != current).toList().reversed;
@@ -1184,27 +1586,40 @@ class _ScheduleRoundsSectionState extends State<_ScheduleRoundsSection> {
       children: [
         _RoundCard(round: current, highlighted: true, colors: colors),
         if (others.isNotEmpty) ...[
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           InkWell(
             onTap: () => setState(() => _expanded = !_expanded),
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: EdgeInsets.symmetric(vertical: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(_expanded ? '전체 회차 접기' : '전체 회차 보기',
-                      style: TextStyle(color: colors.pinkDeep, fontSize: 13, fontWeight: FontWeight.w700)),
-                  Icon(_expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-                      color: colors.pinkDeep, size: 18),
+                  Text(
+                    _expanded ? '전체 회차 접기' : '전체 회차 보기',
+                    style: TextStyle(
+                      color: colors.pinkDeep,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Icon(
+                    _expanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    color: colors.pinkDeep,
+                    size: 18,
+                  ),
                 ],
               ),
             ),
           ),
           if (_expanded)
-            ...others.map((r) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _RoundCard(round: r, highlighted: false, colors: colors),
-            )),
+            ...others.map(
+              (r) => Padding(
+                padding: EdgeInsets.only(bottom: 10),
+                child: _RoundCard(round: r, highlighted: false, colors: colors),
+              ),
+            ),
         ],
       ],
     );
@@ -1215,19 +1630,25 @@ class _RoundCard extends StatelessWidget {
   final CertificateExamRound round;
   final bool highlighted;
   final AppColors colors;
-  const _RoundCard({required this.round, required this.highlighted, required this.colors});
+  _RoundCard({
+    required this.round,
+    required this.highlighted,
+    required this.colors,
+  });
 
   @override
   Widget build(BuildContext context) {
     final closed = round.isFullyClosed;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: closed ? const Color(0xFFF7F5F6) : Colors.white,
+        color: closed ? context.colors.surfaceMuted : context.colors.surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: highlighted && !closed ? colors.pinkStart.withValues(alpha: 0.4) : const Color(0xFFF2E6EA),
+          color: highlighted && !closed
+              ? colors.pinkStart.withValues(alpha: 0.4)
+              : context.colors.border,
           width: highlighted && !closed ? 1.5 : 1,
         ),
       ),
@@ -1237,23 +1658,48 @@ class _RoundCard extends StatelessWidget {
           Row(
             children: [
               if (round.roundLabel.isNotEmpty)
-                Text('${round.roundLabel}회',
-                    style: TextStyle(color: closed ? colors.textSecondary : colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w800)),
-              const SizedBox(width: 8),
+                Text(
+                  '${round.roundLabel}회',
+                  style: TextStyle(
+                    color: closed ? colors.textSecondary : colors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(color: colors.pinkSoft, borderRadius: BorderRadius.circular(20)),
-                child: Text(round.examTypeLabel, style: TextStyle(color: colors.pinkDeep, fontSize: 10.5, fontWeight: FontWeight.w700)),
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: colors.pinkSoft,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  round.examTypeLabel,
+                  style: TextStyle(
+                    color: colors.pinkDeep,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
-              const Spacer(),
+              Spacer(),
               if (closed)
-                Text('종료', style: TextStyle(color: colors.textSecondary, fontSize: 11, fontWeight: FontWeight.w700)),
+                Text(
+                  '종료',
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
             ],
           ),
-          const SizedBox(height: 10),
-          if (round.hasWritten) _StageRow(label: '필기', stage: round.written, colors: colors),
-          if (round.hasWritten && round.hasPractical) const SizedBox(height: 8),
-          if (round.hasPractical) _StageRow(label: '실기', stage: round.practical, colors: colors),
+          SizedBox(height: 10),
+          if (round.hasWritten)
+            _StageRow(label: '필기', stage: round.written, colors: colors),
+          if (round.hasWritten && round.hasPractical) SizedBox(height: 8),
+          if (round.hasPractical)
+            _StageRow(label: '실기', stage: round.practical, colors: colors),
         ],
       ),
     );
@@ -1264,7 +1710,7 @@ class _StageRow extends StatelessWidget {
   final String label;
   final ScheduleStage stage;
   final AppColors colors;
-  const _StageRow({required this.label, required this.stage, required this.colors});
+  _StageRow({required this.label, required this.stage, required this.colors});
 
   static String _fmt(DateTime? d) {
     if (d == null) return '-';
@@ -1293,8 +1739,8 @@ class _StageRow extends StatelessWidget {
         badgeText = '접수예정';
         break;
       case ScheduleStageStatus.closed:
-        badgeColor = const Color(0xFF9AA0AC);
-        badgeBg = const Color(0xFFF0F0F0);
+        badgeColor = Color(0xFF9AA0AC);
+        badgeBg = context.colors.surfaceMuted;
         badgeText = '접수마감';
         break;
     }
@@ -1304,21 +1750,50 @@ class _StageRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 34, child: Text(label, style: TextStyle(color: colors.textSecondary, fontSize: 12, fontWeight: FontWeight.w700))),
+          SizedBox(
+            width: 34,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: colors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('접수 ${_fmt(stage.regStart)} ~ ${_fmt(stage.regEnd)}',
-                    style: TextStyle(color: colors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
-                Text('시험일 ${_fmt(stage.examDate)}', style: TextStyle(color: colors.textSecondary, fontSize: 11.5)),
+                Text(
+                  '접수 ${_fmt(stage.regStart)} ~ ${_fmt(stage.regEnd)}',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  '시험일 ${_fmt(stage.examDate)}',
+                  style: TextStyle(color: colors.textSecondary, fontSize: 11.5),
+                ),
               ],
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(color: badgeBg, borderRadius: BorderRadius.circular(20)),
-            child: Text(badgeText, style: TextStyle(color: badgeColor, fontSize: 10.5, fontWeight: FontWeight.w700)),
+            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: badgeBg,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              badgeText,
+              style: TextStyle(
+                color: badgeColor,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -1328,7 +1803,7 @@ class _StageRow extends StatelessWidget {
 
 class _InfoTextCard extends StatelessWidget {
   final String text;
-  const _InfoTextCard({required this.text});
+  _InfoTextCard({required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -1336,11 +1811,11 @@ class _InfoTextCard extends StatelessWidget {
     final lines = _splitContentIntoLines(text);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFF2E6EA)),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1348,16 +1823,27 @@ class _InfoTextCard extends StatelessWidget {
           final isHeader = line.startsWith('<') && line.endsWith('>');
           if (isHeader) {
             return Padding(
-              padding: const EdgeInsets.only(top: 4, bottom: 8),
+              padding: EdgeInsets.only(top: 4, bottom: 8),
               child: Text(
                 line.replaceAll('<', '').replaceAll('>', ''),
-                style: TextStyle(color: colors.pinkDeep, fontSize: 13.5, fontWeight: FontWeight.w800),
+                style: TextStyle(
+                  color: colors.pinkDeep,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             );
           }
           return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(line, style: TextStyle(color: colors.textSecondary, fontSize: 13, height: 1.6)),
+            padding: EdgeInsets.only(bottom: 8),
+            child: Text(
+              line,
+              style: TextStyle(
+                color: colors.textSecondary,
+                fontSize: 13,
+                height: 1.6,
+              ),
+            ),
           );
         }).toList(),
       ),
@@ -1367,7 +1853,7 @@ class _InfoTextCard extends StatelessWidget {
 
 class _ExamFeeCard extends StatelessWidget {
   final String raw;
-  const _ExamFeeCard({required this.raw});
+  _ExamFeeCard({required this.raw});
 
   @override
   Widget build(BuildContext context) {
@@ -1388,7 +1874,7 @@ class _ExamFeeCard extends StatelessWidget {
           child: Padding(
             padding: EdgeInsets.only(left: isFirst ? 0 : 8),
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 14),
+              padding: EdgeInsets.symmetric(vertical: 18, horizontal: 14),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
@@ -1404,18 +1890,27 @@ class _ExamFeeCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.payments_outlined,
-                          size: 15, color: isFirst ? colors.pinkDeep : colors.lavenderAccent),
-                      const SizedBox(width: 5),
-                      Text(fee.label,
-                          style: TextStyle(
-                            color: isFirst ? colors.pinkDeep : colors.lavenderAccent,
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                          )),
+                      Icon(
+                        Icons.payments_outlined,
+                        size: 15,
+                        color: isFirst
+                            ? colors.pinkDeep
+                            : colors.lavenderAccent,
+                      ),
+                      SizedBox(width: 5),
+                      Text(
+                        fee.label,
+                        style: TextStyle(
+                          color: isFirst
+                              ? colors.pinkDeep
+                              : colors.lavenderAccent,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10),
                   Text(
                     _formatWon(fee.amount),
                     style: TextStyle(
@@ -1437,7 +1932,7 @@ class _ExamFeeCard extends StatelessWidget {
 
 class _ExamTrendsCard extends StatelessWidget {
   final String raw;
-  const _ExamTrendsCard({required this.raw});
+  _ExamTrendsCard({required this.raw});
 
   @override
   Widget build(BuildContext context) {
@@ -1446,22 +1941,32 @@ class _ExamTrendsCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFF2E6EA)),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (data.header != null) ...[
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(color: colors.pinkSoft, borderRadius: BorderRadius.circular(20)),
-              child: Text(data.header!, style: TextStyle(color: colors.pinkDeep, fontSize: 12, fontWeight: FontWeight.w800)),
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: colors.pinkSoft,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                data.header!,
+                style: TextStyle(
+                  color: colors.pinkDeep,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
           ],
           if (data.topics.length > 1)
             Wrap(
@@ -1469,7 +1974,7 @@ class _ExamTrendsCard extends StatelessWidget {
               runSpacing: 8,
               children: data.topics.asMap().entries.map((e) {
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: colors.pinkSoft.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(14),
@@ -1481,13 +1986,29 @@ class _ExamTrendsCard extends StatelessWidget {
                         width: 18,
                         height: 18,
                         alignment: Alignment.center,
-                        decoration: BoxDecoration(color: colors.pinkStart, shape: BoxShape.circle),
-                        child: Text('${e.key + 1}',
-                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
+                        decoration: BoxDecoration(
+                          color: colors.pinkStart,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '${e.key + 1}',
+                          style: TextStyle(
+                            color: context.colors.onPrimary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                       ),
-                      const SizedBox(width: 6),
+                      SizedBox(width: 6),
                       Flexible(
-                        child: Text(e.value, style: TextStyle(color: colors.textPrimary, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                        child: Text(
+                          e.value,
+                          style: TextStyle(
+                            color: colors.textPrimary,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -1495,23 +2016,51 @@ class _ExamTrendsCard extends StatelessWidget {
               }).toList(),
             )
           else if (data.topics.isNotEmpty)
-            Text(data.topics.first, style: TextStyle(color: colors.textSecondary, fontSize: 13, height: 1.7)),
+            Text(
+              data.topics.first,
+              style: TextStyle(
+                color: colors.textSecondary,
+                fontSize: 13,
+                height: 1.7,
+              ),
+            ),
           if (data.detailNote != null && data.detailNote!.isNotEmpty) ...[
-            const SizedBox(height: 14),
+            SizedBox(height: 14),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: const Color(0xFFF9F5F6), borderRadius: BorderRadius.circular(14)),
-              child: Text(data.detailNote!, style: TextStyle(color: colors.textSecondary, fontSize: 12, height: 1.6)),
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: context.colors.surfaceMuted,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                data.detailNote!,
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 12,
+                  height: 1.6,
+                ),
+              ),
             ),
           ],
           if (data.refUrl != null) ...[
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             Row(
               children: [
-                Icon(Icons.link_rounded, size: 15, color: colors.softBlueAccent),
-                const SizedBox(width: 5),
-                Text(data.refUrl!, style: TextStyle(color: colors.softBlueAccent, fontSize: 12, fontWeight: FontWeight.w600)),
+                Icon(
+                  Icons.link_rounded,
+                  size: 15,
+                  color: colors.softBlueAccent,
+                ),
+                SizedBox(width: 5),
+                Text(
+                  data.refUrl!,
+                  style: TextStyle(
+                    color: colors.softBlueAccent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ],
@@ -1523,14 +2072,16 @@ class _ExamTrendsCard extends StatelessWidget {
 
 class _HowToObtainCard extends StatelessWidget {
   final String raw;
-  const _HowToObtainCard({required this.raw});
+  _HowToObtainCard({required this.raw});
 
   static IconData _iconFor(String label) {
     if (label.contains('시행')) return Icons.apartment_rounded;
     if (label.contains('학과')) return Icons.school_outlined;
     if (label.contains('과목')) return Icons.menu_book_outlined;
-    if (label.contains('검정') || label.contains('방법')) return Icons.quiz_outlined;
-    if (label.contains('합격') || label.contains('기준')) return Icons.emoji_events_outlined;
+    if (label.contains('검정') || label.contains('방법'))
+      return Icons.quiz_outlined;
+    if (label.contains('합격') || label.contains('기준'))
+      return Icons.emoji_events_outlined;
     return Icons.info_outline_rounded;
   }
 
@@ -1544,14 +2095,14 @@ class _HowToObtainCard extends StatelessWidget {
     return Column(
       children: items.map((item) {
         return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
+          padding: EdgeInsets.only(bottom: 10),
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(14),
+            padding: EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.colors.surface,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFF2E6EA)),
+              border: Border.all(color: context.colors.border),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1559,43 +2110,101 @@ class _HowToObtainCard extends StatelessWidget {
                 Container(
                   width: 36,
                   height: 36,
-                  decoration: BoxDecoration(color: colors.softBlue, shape: BoxShape.circle),
+                  decoration: BoxDecoration(
+                    color: colors.softBlue,
+                    shape: BoxShape.circle,
+                  ),
                   alignment: Alignment.center,
-                  child: Icon(_iconFor(item.label), size: 18, color: colors.softBlueAccent),
+                  child: Icon(
+                    _iconFor(item.label),
+                    size: 18,
+                    color: colors.softBlueAccent,
+                  ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(item.label, style: TextStyle(color: colors.textSecondary, fontSize: 12, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 6),
+                      Text(
+                        item.label,
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      SizedBox(height: 6),
 
                       if (item.writtenSubjects != null) ...[
-                        Text('필기', style: TextStyle(color: colors.pinkDeep, fontSize: 11, fontWeight: FontWeight.w800)),
-                        const SizedBox(height: 6),
+                        Text(
+                          '필기',
+                          style: TextStyle(
+                            color: colors.pinkDeep,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        SizedBox(height: 6),
                         Wrap(
                           spacing: 6,
                           runSpacing: 6,
-                          children: item.writtenSubjects!.map((s) => Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: colors.pinkSoft.withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(s, style: TextStyle(color: colors.textPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
-                          )).toList(),
+                          children: item.writtenSubjects!
+                              .map(
+                                (s) => Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: colors.pinkSoft.withValues(
+                                      alpha: 0.5,
+                                    ),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    s,
+                                    style: TextStyle(
+                                      color: colors.textPrimary,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(),
                         ),
-                        if (item.practicalSubjects != null && item.practicalSubjects!.isNotEmpty) ...[
-                          const SizedBox(height: 10),
-                          Text('실기', style: TextStyle(color: colors.pinkDeep, fontSize: 11, fontWeight: FontWeight.w800)),
-                          const SizedBox(height: 6),
-                          Text(item.practicalSubjects!,
-                              style: TextStyle(color: colors.textPrimary, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                        if (item.practicalSubjects != null &&
+                            item.practicalSubjects!.isNotEmpty) ...[
+                          SizedBox(height: 10),
+                          Text(
+                            '실기',
+                            style: TextStyle(
+                              color: colors.pinkDeep,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          SizedBox(height: 6),
+                          Text(
+                            item.practicalSubjects!,
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ],
                       ] else
-                        Text(item.value ?? '',
-                            style: TextStyle(color: colors.textPrimary, fontSize: 12.5, height: 1.55, fontWeight: FontWeight.w600)),
+                        Text(
+                          item.value ?? '',
+                          style: TextStyle(
+                            color: colors.textPrimary,
+                            fontSize: 12.5,
+                            height: 1.55,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -1611,21 +2220,30 @@ class _HowToObtainCard extends StatelessWidget {
 class _SaveSuccessBadge extends StatefulWidget {
   final Color colorStart;
   final Color colorEnd;
-  const _SaveSuccessBadge({required this.colorStart, required this.colorEnd});
+  _SaveSuccessBadge({required this.colorStart, required this.colorEnd});
 
   @override
   State<_SaveSuccessBadge> createState() => _SaveSuccessBadgeState();
 }
 
-class _SaveSuccessBadgeState extends State<_SaveSuccessBadge> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller =
-  AnimationController(vsync: this, duration: const Duration(milliseconds: 750));
-  late final Animation<double> _scale =
-  CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.55, curve: Curves.elasticOut));
-  late final Animation<double> _haloScale =
-  CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.8, curve: Curves.easeOut));
-  late final Animation<double> _check =
-  CurvedAnimation(parent: _controller, curve: const Interval(0.4, 1.0, curve: Curves.easeOutCubic));
+class _SaveSuccessBadgeState extends State<_SaveSuccessBadge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: Duration(milliseconds: 750),
+  );
+  late final Animation<double> _scale = CurvedAnimation(
+    parent: _controller,
+    curve: Interval(0.0, 0.55, curve: Curves.elasticOut),
+  );
+  late final Animation<double> _haloScale = CurvedAnimation(
+    parent: _controller,
+    curve: Interval(0.0, 0.8, curve: Curves.easeOut),
+  );
+  late final Animation<double> _check = CurvedAnimation(
+    parent: _controller,
+    curve: Interval(0.4, 1.0, curve: Curves.easeOutCubic),
+  );
 
   @override
   void initState() {
@@ -1657,7 +2275,9 @@ class _SaveSuccessBadgeState extends State<_SaveSuccessBadge> with SingleTickerP
                   height: 84,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: widget.colorStart.withValues(alpha: 0.14 * (1 - _haloScale.value * 0.3)),
+                    color: widget.colorStart.withValues(
+                      alpha: 0.14 * (1 - _haloScale.value * 0.3),
+                    ),
                   ),
                 ),
               ),
@@ -1675,11 +2295,15 @@ class _SaveSuccessBadgeState extends State<_SaveSuccessBadge> with SingleTickerP
                     ),
                     shape: BoxShape.circle,
                     boxShadow: [
-                      BoxShadow(color: widget.colorStart.withValues(alpha: 0.35), blurRadius: 18, offset: const Offset(0, 8)),
+                      BoxShadow(
+                        color: widget.colorStart.withValues(alpha: 0.35),
+                        blurRadius: 18,
+                        offset: Offset(0, 8),
+                      ),
                     ],
                   ),
                   child: CustomPaint(
-                    size: const Size(28, 28),
+                    size: Size(28, 28),
                     painter: _CheckmarkPainter(progress: _check.value),
                   ),
                 ),
@@ -1694,7 +2318,7 @@ class _SaveSuccessBadgeState extends State<_SaveSuccessBadge> with SingleTickerP
 
 class _CheckmarkPainter extends CustomPainter {
   final double progress;
-  const _CheckmarkPainter({required this.progress});
+  _CheckmarkPainter({required this.progress});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1711,29 +2335,41 @@ class _CheckmarkPainter extends CustomPainter {
       ..lineTo(size.width * 0.98, size.height * 0.16);
 
     final metric = path.computeMetrics().first;
-    final drawnPath = metric.extractPath(0, metric.length * progress.clamp(0.0, 1.0));
+    final drawnPath = metric.extractPath(
+      0,
+      metric.length * progress.clamp(0.0, 1.0),
+    );
     canvas.drawPath(drawnPath, paint);
   }
 
   @override
-  bool shouldRepaint(covariant _CheckmarkPainter oldDelegate) => oldDelegate.progress != progress;
+  bool shouldRepaint(covariant _CheckmarkPainter oldDelegate) =>
+      oldDelegate.progress != progress;
 }
 
 class _FadeSlideIn extends StatefulWidget {
   final Widget child;
   final Duration delay;
-  const _FadeSlideIn({super.key, required this.child, this.delay = Duration.zero});
+  _FadeSlideIn({super.key, required this.child, this.delay = Duration.zero});
 
   @override
   State<_FadeSlideIn> createState() => _FadeSlideInState();
 }
 
-class _FadeSlideInState extends State<_FadeSlideIn> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller =
-  AnimationController(vsync: this, duration: const Duration(milliseconds: 380));
-  late final Animation<double> _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
-  late final Animation<Offset> _slide = Tween(begin: const Offset(0, 0.06), end: Offset.zero)
-      .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+class _FadeSlideInState extends State<_FadeSlideIn>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: Duration(milliseconds: 380),
+  );
+  late final Animation<double> _fade = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOutCubic,
+  );
+  late final Animation<Offset> _slide = Tween(
+    begin: Offset(0, 0.06),
+    end: Offset.zero,
+  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
   @override
   void initState() {
@@ -1757,18 +2393,32 @@ class _FadeSlideInState extends State<_FadeSlideIn> with SingleTickerProviderSta
     );
   }
 }
+
 List<String> _splitContentIntoLines(String raw) {
   var text = raw;
-  text = text.replaceAllMapped(RegExp(r'(<[^>]+>)'), (m) => '\n${m.group(1)}\n');
-  text = text.replaceAllMapped(RegExp(r'(?<=\)|다|음|함)(\d{1,2}\.\s)'), (m) => '\n${m.group(1)}');
-  text = text.replaceAllMapped(RegExp(r'([①②③④⑤⑥⑦⑧⑨⑩])'), (m) => '\n${m.group(1)}');
-  return text.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
+  text = text.replaceAllMapped(
+    RegExp(r'(<[^>]+>)'),
+    (m) => '\n${m.group(1)}\n',
+  );
+  text = text.replaceAllMapped(
+    RegExp(r'(?<=\)|다|음|함)(\d{1,2}\.\s)'),
+    (m) => '\n${m.group(1)}',
+  );
+  text = text.replaceAllMapped(
+    RegExp(r'([①②③④⑤⑥⑦⑧⑨⑩])'),
+    (m) => '\n${m.group(1)}',
+  );
+  return text
+      .split('\n')
+      .map((l) => l.trim())
+      .where((l) => l.isNotEmpty)
+      .toList();
 }
 
 class _FeeItem {
   final String label;
   final int amount;
-  const _FeeItem({required this.label, required this.amount});
+  _FeeItem({required this.label, required this.amount});
 }
 
 List<_FeeItem> _parseExamFee(String raw) {
@@ -1790,7 +2440,12 @@ class _ObtainItem {
   final String? value;
   final List<String>? writtenSubjects;
   final String? practicalSubjects;
-  const _ObtainItem({required this.label, this.value, this.writtenSubjects, this.practicalSubjects});
+  _ObtainItem({
+    required this.label,
+    this.value,
+    this.writtenSubjects,
+    this.practicalSubjects,
+  });
 }
 
 List<_ObtainItem> _parseHowToObtain(String raw) {
@@ -1829,11 +2484,25 @@ List<_ObtainItem> _parseHowToObtain(String raw) {
             .trim();
       }
 
-      items.add(_ObtainItem(label: label, writtenSubjects: subjects, practicalSubjects: practical));
+      items.add(
+        _ObtainItem(
+          label: label,
+          writtenSubjects: subjects,
+          practicalSubjects: practical,
+        ),
+      );
     } else {
-      final match = RegExp(r'^([^:：]+)[:：]\s*(.*)$', dotAll: true).firstMatch(segment);
+      final match = RegExp(
+        r'^([^:：]+)[:：]\s*(.*)$',
+        dotAll: true,
+      ).firstMatch(segment);
       if (match != null) {
-        items.add(_ObtainItem(label: match.group(1)!.trim(), value: match.group(2)!.trim()));
+        items.add(
+          _ObtainItem(
+            label: match.group(1)!.trim(),
+            value: match.group(2)!.trim(),
+          ),
+        );
       } else {
         items.add(_ObtainItem(label: segment));
       }
@@ -1847,7 +2516,12 @@ class _ExamTrendsData {
   final List<String> topics;
   final String? detailNote;
   final String? refUrl;
-  const _ExamTrendsData({this.header, required this.topics, this.detailNote, this.refUrl});
+  _ExamTrendsData({
+    this.header,
+    required this.topics,
+    this.detailNote,
+    this.refUrl,
+  });
 }
 
 _ExamTrendsData _parseExamTrends(String raw) {
@@ -1856,11 +2530,16 @@ _ExamTrendsData _parseExamTrends(String raw) {
 
   String? detailNote;
   if (headerMatches.length > 1) {
-    detailNote = raw.substring(headerMatches[1].start).replaceAll(RegExp(r'<[^>]+>'), '').trim();
+    detailNote = raw
+        .substring(headerMatches[1].start)
+        .replaceAll(RegExp(r'<[^>]+>'), '')
+        .trim();
   }
 
   final topicsStart = headerMatches.isNotEmpty ? headerMatches.first.end : 0;
-  final topicsEnd = headerMatches.length > 1 ? headerMatches[1].start : raw.length;
+  final topicsEnd = headerMatches.length > 1
+      ? headerMatches[1].start
+      : raw.length;
   var body = raw.substring(topicsStart, topicsEnd).trim();
 
   String? refUrl;
@@ -1886,7 +2565,12 @@ _ExamTrendsData _parseExamTrends(String raw) {
 
   if (topics.isEmpty && body.isNotEmpty) topics = [body];
 
-  return _ExamTrendsData(header: header, topics: topics, detailNote: detailNote, refUrl: refUrl);
+  return _ExamTrendsData(
+    header: header,
+    topics: topics,
+    detailNote: detailNote,
+    refUrl: refUrl,
+  );
 }
 
 String _formatWon(int amount) {

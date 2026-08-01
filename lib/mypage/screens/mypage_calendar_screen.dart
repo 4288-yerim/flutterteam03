@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+
+import '../../widgets/app_dialog.dart';
+
+import '../../theme.dart';
 import 'package:add_2_calendar/add_2_calendar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -73,35 +77,34 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
 
     try {
       final List<QuerySnapshot<Map<String, dynamic>>> snapshots =
-      await Future.wait([
-        FirebaseFirestore.instance
-            .collection('users')
-            .doc(currentUser.uid)
-            .collection('calendarEvents')
-            .get(),
+          await Future.wait([
+            FirebaseFirestore.instance
+                .collection('users')
+                .doc(currentUser.uid)
+                .collection('calendarEvents')
+                .get(),
 
-        FirebaseFirestore.instance
-            .collection('users')
-            .doc(currentUser.uid)
-            .collection('studyPlans')
-            .get(),
-      ]);
+            FirebaseFirestore.instance
+                .collection('users')
+                .doc(currentUser.uid)
+                .collection('studyPlans')
+                .get(),
+          ]);
 
-      final QuerySnapshot<Map<String, dynamic>>
-      calendarEventSnapshot = snapshots[0];
+      final QuerySnapshot<Map<String, dynamic>> calendarEventSnapshot =
+          snapshots[0];
 
-      final QuerySnapshot<Map<String, dynamic>>
-      studyPlanSnapshot = snapshots[1];
+      final QuerySnapshot<Map<String, dynamic>> studyPlanSnapshot =
+          snapshots[1];
 
       final List<CalendarScheduleItem> loadedSchedules =
-      <CalendarScheduleItem>[];
+          <CalendarScheduleItem>[];
 
-      for (final QueryDocumentSnapshot<Map<String, dynamic>>
-      document in calendarEventSnapshot.docs) {
+      for (final QueryDocumentSnapshot<Map<String, dynamic>> document
+          in calendarEventSnapshot.docs) {
         final Map<String, dynamic> data = document.data();
 
-        final Timestamp? startTimestamp =
-        data['startAt'] as Timestamp?;
+        final Timestamp? startTimestamp = data['startAt'] as Timestamp?;
 
         if (startTimestamp == null) {
           continue;
@@ -109,25 +112,20 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
 
         final DateTime startAt = startTimestamp.toDate();
 
-        final Timestamp? endTimestamp =
-        data['endAt'] as Timestamp?;
+        final Timestamp? endTimestamp = data['endAt'] as Timestamp?;
 
         final DateTime? endAt = endTimestamp?.toDate();
 
-        final bool allDay =
-            data['allDay'] as bool? ?? false;
+        final bool allDay = data['allDay'] as bool? ?? false;
 
-        final String eventType =
-        ((data['eventType'] as String?) ?? 'CUSTOM')
+        final String eventType = ((data['eventType'] as String?) ?? 'CUSTOM')
             .trim()
             .toUpperCase();
 
         final String certificateName =
-        ((data['certificateName'] as String?) ?? '')
-            .trim();
+            ((data['certificateName'] as String?) ?? '').trim();
 
-        final String scheduleName =
-        ((data['scheduleName'] as String?) ?? '')
+        final String scheduleName = ((data['scheduleName'] as String?) ?? '')
             .trim();
 
         final String description = scheduleName.isNotEmpty
@@ -137,30 +135,22 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
         loadedSchedules.add(
           CalendarScheduleItem(
             id: document.id,
-            title:
-            (data['title'] as String?)
-                ?.trim()
-                .isNotEmpty ==
-                true
+            title: (data['title'] as String?)?.trim().isNotEmpty == true
                 ? (data['title'] as String).trim()
                 : '일정',
             description: description,
             date: _dateOnly(startAt),
-            startTime: allDay
-                ? null
-                : TimeOfDay.fromDateTime(startAt),
+            startTime: allDay ? null : TimeOfDay.fromDateTime(startAt),
             endTime: allDay || endAt == null
                 ? null
                 : TimeOfDay.fromDateTime(endAt),
-            type: _calendarTypeFromEventType(
-              eventType,
-            ),
+            type: _calendarTypeFromEventType(eventType),
           ),
         );
       }
 
-      for (final QueryDocumentSnapshot<Map<String, dynamic>>
-      document in studyPlanSnapshot.docs) {
+      for (final QueryDocumentSnapshot<Map<String, dynamic>> document
+          in studyPlanSnapshot.docs) {
         final Map<String, dynamic> data = document.data();
 
         final Object? rawSteps = data['steps'];
@@ -169,56 +159,39 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
           continue;
         }
 
-        final DateTime recommendedStartDate =
-        _readRecommendedStudyStartDate(
+        final DateTime recommendedStartDate = _readRecommendedStudyStartDate(
           data['recommendedStudyStartDate'],
         );
 
         final String certificateName =
-        ((data['certificateName'] as String?) ?? '')
-            .trim();
+            ((data['certificateName'] as String?) ?? '').trim();
 
-        for (int index = 0;
-        index < rawSteps.length;
-        index++) {
+        for (int index = 0; index < rawSteps.length; index++) {
           final Object? rawStep = rawSteps[index];
 
           if (rawStep is! Map) {
             continue;
           }
 
-          final Map<String, dynamic> step =
-          Map<String, dynamic>.from(rawStep);
+          final Map<String, dynamic> step = Map<String, dynamic>.from(rawStep);
 
-          final String dayLabel =
-          ((step['dayLabel'] as String?) ?? '')
-              .trim();
+          final String dayLabel = ((step['dayLabel'] as String?) ?? '').trim();
 
-          final DateTime scheduleDate =
-          _readAiPlanStepDate(
+          final DateTime scheduleDate = _readAiPlanStepDate(
             dayLabel: dayLabel,
-            recommendedStartDate:
-            recommendedStartDate,
+            recommendedStartDate: recommendedStartDate,
             fallbackIndex: index,
           );
 
-          final String title =
-          ((step['title'] as String?) ?? '')
-              .trim();
+          final String title = ((step['title'] as String?) ?? '').trim();
 
-          final String detail =
-          ((step['detail'] as String?) ?? '')
-              .trim();
+          final String detail = ((step['detail'] as String?) ?? '').trim();
 
           loadedSchedules.add(
             CalendarScheduleItem(
               id: '${document.id}_step_$index',
-              title: title.isNotEmpty
-                  ? title
-                  : '학습 계획',
-              description: detail.isNotEmpty
-                  ? detail
-                  : certificateName,
+              title: title.isNotEmpty ? title : '학습 계획',
+              description: detail.isNotEmpty ? detail : certificateName,
               date: scheduleDate,
               startTime: null,
               endTime: null,
@@ -249,61 +222,37 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
       setState(() {
         _schedules.clear();
         _isLoadingSchedules = false;
-        _scheduleLoadError =
-        '일정을 불러오지 못했습니다.';
+        _scheduleLoadError = '일정을 불러오지 못했습니다.';
       });
     }
   }
 
   DateTime _dateOnly(DateTime date) {
-    return DateTime(
-      date.year,
-      date.month,
-      date.day,
-    );
+    return DateTime(date.year, date.month, date.day);
   }
 
-  DateTime _readRecommendedStudyStartDate(
-      Object? value,
-      ) {
+  DateTime _readRecommendedStudyStartDate(Object? value) {
     if (value is Timestamp) {
       final DateTime date = value.toDate();
 
-      return DateTime(
-        date.year,
-        date.month,
-        date.day,
-      );
+      return DateTime(date.year, date.month, date.day);
     }
 
     if (value is DateTime) {
-      return DateTime(
-        value.year,
-        value.month,
-        value.day,
-      );
+      return DateTime(value.year, value.month, value.day);
     }
 
     if (value is String) {
-      final DateTime? parsedDate =
-      DateTime.tryParse(value.trim());
+      final DateTime? parsedDate = DateTime.tryParse(value.trim());
 
       if (parsedDate != null) {
-        return DateTime(
-          parsedDate.year,
-          parsedDate.month,
-          parsedDate.day,
-        );
+        return DateTime(parsedDate.year, parsedDate.month, parsedDate.day);
       }
     }
 
     final DateTime now = DateTime.now();
 
-    return DateTime(
-      now.year,
-      now.month,
-      now.day,
-    );
+    return DateTime(now.year, now.month, now.day);
   }
 
   DateTime _readAiPlanStepDate({
@@ -316,21 +265,15 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
     ).firstMatch(dayLabel);
 
     if (match == null) {
-      return recommendedStartDate.add(
-        Duration(days: fallbackIndex),
-      );
+      return recommendedStartDate.add(Duration(days: fallbackIndex));
     }
 
-    final int? month =
-    int.tryParse(match.group(1) ?? '');
+    final int? month = int.tryParse(match.group(1) ?? '');
 
-    final int? day =
-    int.tryParse(match.group(2) ?? '');
+    final int? day = int.tryParse(match.group(2) ?? '');
 
     if (month == null || day == null) {
-      return recommendedStartDate.add(
-        Duration(days: fallbackIndex),
-      );
+      return recommendedStartDate.add(Duration(days: fallbackIndex));
     }
 
     int year = recommendedStartDate.year;
@@ -339,19 +282,14 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
       year += 1;
     }
 
-    return DateTime(
-      year,
-      month,
-      day,
-    );
+    return DateTime(year, month, day);
   }
 
-  CalendarScheduleType _calendarTypeFromEventType(
-      String eventType,
-      ) {
+  CalendarScheduleType _calendarTypeFromEventType(String eventType) {
     switch (eventType) {
       case 'EXAM':
       case 'APPLICATION':
+      case 'RESULT':
         return CalendarScheduleType.certificate;
       case 'STUDY':
         return CalendarScheduleType.aiPlan;
@@ -385,31 +323,28 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: _buildTabSelector(),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             if (_isLoadingSchedules)
-              const LinearProgressIndicator(
+              LinearProgressIndicator(
                 minHeight: 2,
-                color: Color(0xFFF0788F),
-                backgroundColor: Color(0xFFFCEFF3),
+                color: context.colors.pinkStart,
+                backgroundColor: context.colors.pinkSoft,
               ),
             if (_scheduleLoadError != null)
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
                 child: Row(
                   children: [
                     Expanded(
                       child: Text(
                         _scheduleLoadError!,
-                        style: const TextStyle(color: Color(0xFF9AA0AC)),
+                        style: TextStyle(color: context.colors.textSecondary),
                       ),
                     ),
-                    TextButton(
-                      onPressed: _loadSchedules,
-                      child: const Text('다시 시도'),
-                    ),
+                    TextButton(onPressed: _loadSchedules, child: Text('다시 시도')),
                   ],
                 ),
               ),
@@ -428,21 +363,15 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
   Widget _buildTabSelector() {
     return Container(
       height: 52,
-      padding: const EdgeInsets.all(5),
+      padding: EdgeInsets.all(5),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFFFFF0F5),
-            Color(0xFFF7F2FF),
-          ],
+        gradient: LinearGradient(
+          colors: [context.colors.pinkSoftAlt, context.colors.lavender],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFFF8DCE5),
-          width: 1,
-        ),
+        border: Border.all(color: context.colors.pinkBorder, width: 1),
       ),
       child: Row(
         children: [
@@ -486,13 +415,10 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
       child: Container(
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
+          color: isSelected ? context.colors.surface : Colors.transparent,
           borderRadius: BorderRadius.circular(13),
           border: isSelected
-              ? Border.all(
-            color: const Color(0xFFF4C3D0),
-            width: 1,
-          )
+              ? Border.all(color: context.colors.pinkBorder, width: 1)
               : null,
         ),
         child: Row(
@@ -502,18 +428,18 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
               icon,
               size: 19,
               color: isSelected
-                  ? const Color(0xFFED6F8D)
-                  : const Color(0xFF837985),
+                  ? context.colors.pinkStart
+                  : context.colors.textSecondary,
             ),
-            const SizedBox(width: 7),
+            SizedBox(width: 7),
             Text(
               title,
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 color: isSelected
-                    ? const Color(0xFFED6F8D)
-                    : const Color(0xFF837985),
+                    ? context.colors.pinkStart
+                    : context.colors.textSecondary,
               ),
             ),
           ],
@@ -531,20 +457,20 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
       children: [
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _buildCalendarCard(),
-                const SizedBox(height: 20),
+                SizedBox(height: 20),
                 _buildSelectedDateHeader(),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 if (selectedSchedules.isEmpty)
                   _buildEmptyScheduleCard()
                 else
                   ...selectedSchedules.map(
-                        (schedule) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
+                    (schedule) => Padding(
+                      padding: EdgeInsets.only(bottom: 12),
                       child: _buildScheduleCard(schedule),
                     ),
                   ),
@@ -553,7 +479,7 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          padding: EdgeInsets.fromLTRB(20, 0, 20, 24),
           child: _buildAddScheduleButton(),
         ),
       ],
@@ -568,49 +494,49 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: EdgeInsets.symmetric(horizontal: 20),
           child: _buildListMonthHeader(),
         ),
-        const SizedBox(height: 14),
+        SizedBox(height: 14),
         Expanded(
           child: monthlySchedules.isEmpty
               ? SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-            child: _buildEmptyMonthlyScheduleCard(),
-          )
+                  padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  child: _buildEmptyMonthlyScheduleCard(),
+                )
               : ListView.builder(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-            itemCount: monthlySchedules.length,
-            itemBuilder: (context, index) {
-              final CalendarScheduleItem schedule =
-              monthlySchedules[index];
+                  padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  itemCount: monthlySchedules.length,
+                  itemBuilder: (context, index) {
+                    final CalendarScheduleItem schedule =
+                        monthlySchedules[index];
 
-              final bool showDateHeader =
-                  index == 0 ||
-                      !_isSameDate(
-                        schedule.date,
-                        monthlySchedules[index - 1].date,
-                      );
+                    final bool showDateHeader =
+                        index == 0 ||
+                        !_isSameDate(
+                          schedule.date,
+                          monthlySchedules[index - 1].date,
+                        );
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (showDateHeader) ...[
-                    if (index != 0) const SizedBox(height: 10),
-                    _buildListDateHeader(schedule.date),
-                    const SizedBox(height: 10),
-                  ],
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _buildScheduleCard(schedule),
-                  ),
-                ],
-              );
-            },
-          ),
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (showDateHeader) ...[
+                          if (index != 0) SizedBox(height: 10),
+                          _buildListDateHeader(schedule.date),
+                          SizedBox(height: 10),
+                        ],
+                        Padding(
+                          padding: EdgeInsets.only(bottom: 12),
+                          child: _buildScheduleCard(schedule),
+                        ),
+                      ],
+                    );
+                  },
+                ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          padding: EdgeInsets.fromLTRB(20, 0, 20, 24),
           child: _buildAddScheduleButton(),
         ),
       ],
@@ -623,31 +549,31 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
         IconButton(
           tooltip: '이전 달',
           onPressed: _moveToPreviousMonth,
-          icon: const Icon(
+          icon: Icon(
             Icons.chevron_left_rounded,
             size: 27,
-            color: Color(0xFF302C2E),
+            color: context.colors.iconPrimary,
           ),
         ),
         Expanded(
           child: Text(
             '${_focusedMonth.year}년 '
-                '${_focusedMonth.month}월',
+            '${_focusedMonth.month}월',
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 19,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF302C2E),
+              color: context.colors.iconPrimary,
             ),
           ),
         ),
         IconButton(
           tooltip: '다음 달',
           onPressed: _moveToNextMonth,
-          icon: const Icon(
+          icon: Icon(
             Icons.chevron_right_rounded,
             size: 27,
-            color: Color(0xFF302C2E),
+            color: context.colors.iconPrimary,
           ),
         ),
       ],
@@ -655,27 +581,27 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
   }
 
   Widget _buildListDateHeader(DateTime date) {
-    const List<String> weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+    List<String> weekdays = ['월', '화', '수', '목', '금', '토', '일'];
 
     return Padding(
-      padding: const EdgeInsets.only(left: 4),
+      padding: EdgeInsets.only(left: 4),
       child: Row(
         children: [
           Text(
             '${date.month}월 ${date.day}일',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF1A1A1A),
+              color: context.colors.textPrimary,
             ),
           ),
-          const SizedBox(width: 7),
+          SizedBox(width: 7),
           Text(
             '${weekdays[date.weekday - 1]}요일',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: Color(0xFF9AA0AC),
+              color: context.colors.textSecondary,
             ),
           ),
         ],
@@ -685,18 +611,22 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
 
   Widget _buildEmptyMonthlyScheduleCard() {
     return AppCard(
-      child: const Padding(
+      child: Padding(
         padding: EdgeInsets.symmetric(vertical: 34),
         child: Column(
           children: [
-            Icon(Icons.event_busy_outlined, size: 44, color: Color(0xFFB4B8C2)),
+            Icon(
+              Icons.event_busy_outlined,
+              size: 44,
+              color: context.colors.textMuted,
+            ),
             SizedBox(height: 12),
             Text(
               '이번 달에 등록된 일정이 없습니다.',
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF1A1A1A),
+                color: context.colors.textPrimary,
               ),
             ),
             SizedBox(height: 6),
@@ -706,7 +636,7 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
               style: TextStyle(
                 fontSize: 13,
                 height: 1.5,
-                color: Color(0xFF9AA0AC),
+                color: context.colors.textSecondary,
               ),
             ),
           ],
@@ -720,9 +650,9 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
       child: Column(
         children: [
           _buildMonthHeader(),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
           _buildWeekdayHeader(),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           _buildCalendarGrid(),
         ],
       ),
@@ -735,28 +665,28 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
         IconButton(
           tooltip: '이전 달',
           onPressed: _moveToPreviousMonth,
-          icon: const Icon(
+          icon: Icon(
             Icons.chevron_left_rounded,
-            color: Color(0xFF666A73),
+            color: context.colors.textSecondary,
           ),
         ),
         Expanded(
           child: Text(
             '${_focusedMonth.year}년 ${_focusedMonth.month}월',
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 19,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1A1A1A),
+              color: context.colors.textPrimary,
             ),
           ),
         ),
         IconButton(
           tooltip: '다음 달',
           onPressed: _moveToNextMonth,
-          icon: const Icon(
+          icon: Icon(
             Icons.chevron_right_rounded,
-            color: Color(0xFF666A73),
+            color: context.colors.textSecondary,
           ),
         ),
       ],
@@ -764,18 +694,18 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
   }
 
   Widget _buildWeekdayHeader() {
-    const List<String> weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+    List<String> weekdays = ['일', '월', '화', '수', '목', '금', '토'];
 
     return Row(
       children: List.generate(weekdays.length, (index) {
-        Color textColor = const Color(0xFF777B84);
+        Color textColor = context.colors.textSecondary;
 
         if (index == 0) {
-          textColor = const Color(0xFFF0788F);
+          textColor = context.colors.pinkStart;
         }
 
         if (index == 6) {
-          textColor = const Color(0xFF5D7FD3);
+          textColor = context.colors.info;
         }
 
         return Expanded(
@@ -812,8 +742,8 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
 
     return GridView.builder(
       shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      physics: NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 7,
         childAspectRatio: 0.82,
       ),
@@ -822,7 +752,7 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
         final int dayNumber = index - leadingEmptyCount + 1;
 
         if (dayNumber < 1 || dayNumber > daysInMonth) {
-          return const SizedBox.shrink();
+          return SizedBox.shrink();
         }
 
         final DateTime date = DateTime(
@@ -843,18 +773,18 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
 
     final List<CalendarScheduleItem> daySchedules = _getSchedulesForDate(date);
 
-    Color dayTextColor = const Color(0xFF1A1A1A);
+    Color dayTextColor = context.colors.textPrimary;
 
     if (date.weekday == DateTime.sunday) {
-      dayTextColor = const Color(0xFFF0788F);
+      dayTextColor = context.colors.pinkStart;
     }
 
     if (date.weekday == DateTime.saturday) {
-      dayTextColor = const Color(0xFF5D7FD3);
+      dayTextColor = context.colors.info;
     }
 
     if (isSelected) {
-      dayTextColor = Colors.white;
+      dayTextColor = context.colors.onPrimary;
     }
 
     return InkWell(
@@ -865,12 +795,12 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
         });
       },
       child: Container(
-        margin: const EdgeInsets.all(2),
+        margin: EdgeInsets.all(2),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFF0788F) : Colors.transparent,
+          color: isSelected ? context.colors.pinkStart : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
           border: isToday && !isSelected
-              ? Border.all(color: const Color(0xFFF0788F), width: 1.5)
+              ? Border.all(color: context.colors.pinkStart, width: 1.5)
               : null,
         ),
         child: Column(
@@ -886,7 +816,7 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
                 color: dayTextColor,
               ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             _buildScheduleDots(daySchedules, isSelected),
           ],
         ),
@@ -895,11 +825,11 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
   }
 
   Widget _buildScheduleDots(
-      List<CalendarScheduleItem> schedules,
-      bool isSelected,
-      ) {
+    List<CalendarScheduleItem> schedules,
+    bool isSelected,
+  ) {
     if (schedules.isEmpty) {
-      return const SizedBox(height: 6);
+      return SizedBox(height: 6);
     }
 
     final List<CalendarScheduleType> types = schedules
@@ -916,10 +846,12 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
           return Container(
             width: 5,
             height: 5,
-            margin: const EdgeInsets.symmetric(horizontal: 1),
+            margin: EdgeInsets.symmetric(horizontal: 1),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: isSelected ? Colors.white : _getScheduleColor(type),
+              color: isSelected
+                  ? context.colors.onPrimary
+                  : _getScheduleColor(type),
             ),
           );
         }).toList(),
@@ -933,19 +865,19 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
         Expanded(
           child: Text(
             _formatSelectedDate(_selectedDate),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1A1A1A),
+              color: context.colors.textPrimary,
             ),
           ),
         ),
         Text(
           '${_getSchedulesForDate(_selectedDate).length}개 일정',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: Color(0xFFF0788F),
+            color: context.colors.pinkStart,
           ),
         ),
       ],
@@ -968,7 +900,7 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
             ),
             child: Icon(style.icon, size: 22, color: style.foregroundColor),
           ),
-          const SizedBox(width: 13),
+          SizedBox(width: 13),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -976,10 +908,7 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: style.backgroundColor,
                         borderRadius: BorderRadius.circular(20),
@@ -994,24 +923,24 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
                       ),
                     ),
                     if (schedule.startTime != null) ...[
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Text(
                         _formatScheduleTime(schedule),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF9AA0AC),
+                          color: context.colors.textSecondary,
                         ),
                       ),
                     ],
                   ],
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Text(
                   schedule.title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1A1A1A),
+                    color: context.colors.textPrimary,
                   ),
                 ),
               ],
@@ -1019,8 +948,11 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
           ),
           PopupMenuButton<String>(
             tooltip: '일정 메뉴',
-            color: Colors.white,
-            icon: const Icon(Icons.more_vert_rounded, color: Color(0xFF9AA0AC)),
+            color: context.colors.surface,
+            icon: Icon(
+              Icons.more_vert_rounded,
+              color: context.colors.textSecondary,
+            ),
             onSelected: (String value) {
               if (value == 'calendar') {
                 _addScheduleToPhoneCalendar(schedule);
@@ -1036,14 +968,14 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
             },
             itemBuilder: (context) {
               return [
-                const PopupMenuItem<String>(
+                PopupMenuItem<String>(
                   value: 'calendar',
                   child: Row(
                     children: [
                       Icon(
                         Icons.calendar_month_outlined,
                         size: 20,
-                        color: Color(0xFFF0788F),
+                        color: context.colors.pinkStart,
                       ),
                       SizedBox(width: 10),
                       Text('휴대폰 캘린더에 추가'),
@@ -1053,28 +985,28 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
 
                 // 사용자 직접 일정에만 수정과 삭제 메뉴 표시
                 if (schedule.type == CalendarScheduleType.user) ...[
-                  const PopupMenuItem<String>(
+                  PopupMenuItem<String>(
                     value: 'edit',
                     child: Row(
                       children: [
                         Icon(
                           Icons.edit_outlined,
                           size: 20,
-                          color: Color(0xFF4A8F73),
+                          color: context.colors.mintAccent,
                         ),
                         SizedBox(width: 10),
                         Text('일정 수정'),
                       ],
                     ),
                   ),
-                  const PopupMenuItem<String>(
+                  PopupMenuItem<String>(
                     value: 'delete',
                     child: Row(
                       children: [
                         Icon(
                           Icons.delete_outline_rounded,
                           size: 20,
-                          color: Colors.redAccent,
+                          color: context.colors.incorrect,
                         ),
                         SizedBox(width: 10),
                         Text('일정 삭제'),
@@ -1092,14 +1024,14 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
 
   Widget _buildEmptyScheduleCard() {
     return AppCard(
-      child: const Padding(
+      child: Padding(
         padding: EdgeInsets.symmetric(vertical: 28),
         child: Column(
           children: [
             Icon(
               Icons.event_available_outlined,
               size: 44,
-              color: Color(0xFFB4B8C2),
+              color: context.colors.textMuted,
             ),
             SizedBox(height: 12),
             Text(
@@ -1107,7 +1039,7 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF1A1A1A),
+                color: context.colors.textPrimary,
               ),
             ),
             SizedBox(height: 6),
@@ -1117,7 +1049,7 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
               style: TextStyle(
                 fontSize: 13,
                 height: 1.5,
-                color: Color(0xFF9AA0AC),
+                color: context.colors.textSecondary,
               ),
             ),
           ],
@@ -1135,15 +1067,15 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
           _showAddScheduleDialog();
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFF0788F),
-          foregroundColor: Colors.white,
+          backgroundColor: context.colors.pinkStart,
+          foregroundColor: context.colors.onPrimary,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
         ),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text(
+        icon: Icon(Icons.add_rounded),
+        label: Text(
           '일정 추가',
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
         ),
@@ -1187,11 +1119,10 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
-              backgroundColor: Colors.white,
+            return AppAlertDialog(
               title: Text(
                 isEditing ? '일정 수정' : '일정 추가',
-                style: const TextStyle(fontWeight: FontWeight.w700),
+                style: TextStyle(fontWeight: FontWeight.w700),
               ),
               content: SingleChildScrollView(
                 child: Column(
@@ -1207,13 +1138,13 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
                         FocusManager.instance.primaryFocus?.unfocus();
                       },
 
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: '일정 이름',
                         hintText: '예: 스터디 모임',
                         border: OutlineInputBorder(),
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    SizedBox(height: 14),
                     _DialogSelectTile(
                       icon: Icons.calendar_month_outlined,
                       title: '날짜',
@@ -1233,7 +1164,7 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
                         }
                       },
                     ),
-                    const SizedBox(height: 10),
+                    SizedBox(height: 10),
                     _DialogSelectTile(
                       icon: Icons.schedule_outlined,
                       title: '시작 시간',
@@ -1253,7 +1184,7 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
                         }
                       },
                     ),
-                    const SizedBox(height: 10),
+                    SizedBox(height: 10),
                     _DialogSelectTile(
                       icon: Icons.schedule_send_outlined,
                       title: '종료 시간',
@@ -1284,26 +1215,24 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
 
                     Navigator.pop(dialogContext, false);
                   },
-                  child: const Text(
+                  child: Text(
                     '취소',
-                    style: TextStyle(color: Color(0xFF9AA0AC)),
+                    style: TextStyle(color: context.colors.textSecondary),
                   ),
                 ),
                 TextButton(
                   onPressed: () {
                     if (titleController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('일정 이름을 입력해주세요.')),
-                      );
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text('일정 이름을 입력해주세요.')));
 
                       return;
                     }
 
                     if (startTime == null && endTime != null) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('종료 시간을 선택하려면 시작 시간도 선택해주세요.'),
-                        ),
+                        SnackBar(content: Text('종료 시간을 선택하려면 시작 시간도 선택해주세요.')),
                       );
 
                       return;
@@ -1318,9 +1247,7 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
 
                       if (endMinutes <= startMinutes) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('종료 시간은 시작 시간보다 늦어야 합니다.'),
-                          ),
+                          SnackBar(content: Text('종료 시간은 시작 시간보다 늦어야 합니다.')),
                         );
 
                         return;
@@ -1333,8 +1260,8 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
                   },
                   child: Text(
                     isEditing ? '수정' : '추가',
-                    style: const TextStyle(
-                      color: Color(0xFFF0788F),
+                    style: TextStyle(
+                      color: context.colors.pinkStart,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -1360,7 +1287,7 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('로그인 정보를 확인할 수 없습니다.')));
+        ).showSnackBar(SnackBar(content: Text('로그인 정보를 확인할 수 없습니다.')));
       }
       return;
     }
@@ -1381,12 +1308,12 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
       final DateTime? endAt = endTime == null
           ? null
           : DateTime(
-        selectedDate.year,
-        selectedDate.month,
-        selectedDate.day,
-        endTime!.hour,
-        endTime!.minute,
-      );
+              selectedDate.year,
+              selectedDate.month,
+              selectedDate.day,
+              endTime!.hour,
+              endTime!.minute,
+            );
 
       final Map<String, dynamic> data = {
         'eventType': 'CUSTOM',
@@ -1437,8 +1364,8 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
   }
 
   Future<void> _addScheduleToPhoneCalendar(
-      CalendarScheduleItem schedule,
-      ) async {
+    CalendarScheduleItem schedule,
+  ) async {
     // 시작 시간이 없는 일정은 종일 일정으로 처리
     final bool isAllDay = schedule.startTime == null;
 
@@ -1454,7 +1381,7 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
       );
 
       // 종일 일정의 종료일은 다음 날 0시로 지정
-      endDate = startDate.add(const Duration(days: 1));
+      endDate = startDate.add(Duration(days: 1));
     } else {
       // 시작 시간이 있는 경우 날짜와 시간을 합침
       startDate = DateTime(
@@ -1476,7 +1403,7 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
         );
       } else {
         // 종료 시간이 없으면 시작 시간으로부터 1시간 뒤
-        endDate = startDate.add(const Duration(hours: 1));
+        endDate = startDate.add(Duration(hours: 1));
       }
     }
 
@@ -1497,11 +1424,11 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
     if (added) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('휴대폰 캘린더 등록 화면을 열었습니다.')));
+      ).showSnackBar(SnackBar(content: Text('휴대폰 캘린더 등록 화면을 열었습니다.')));
     } else {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('휴대폰 캘린더를 열지 못했습니다.')));
+      ).showSnackBar(SnackBar(content: Text('휴대폰 캘린더를 열지 못했습니다.')));
     }
   }
 
@@ -1509,31 +1436,27 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
     final bool? result = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          title: const Text(
-            '일정 삭제',
-            style: TextStyle(fontWeight: FontWeight.w700),
-          ),
+        return AppAlertDialog(
+          title: Text('일정 삭제', style: TextStyle(fontWeight: FontWeight.w700)),
           content: Text('${schedule.title} 일정을 삭제하시겠습니까?'),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(dialogContext, false);
               },
-              child: const Text(
+              child: Text(
                 '취소',
-                style: TextStyle(color: Color(0xFF9AA0AC)),
+                style: TextStyle(color: context.colors.textSecondary),
               ),
             ),
             TextButton(
               onPressed: () {
                 Navigator.pop(dialogContext, true);
               },
-              child: const Text(
+              child: Text(
                 '삭제',
                 style: TextStyle(
-                  color: Colors.redAccent,
+                  color: context.colors.incorrect,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1553,7 +1476,7 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('로그인 정보를 확인할 수 없습니다.')));
+        ).showSnackBar(SnackBar(content: Text('로그인 정보를 확인할 수 없습니다.')));
       }
       return;
     }
@@ -1568,7 +1491,7 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('일정이 삭제되었습니다.')));
+      ).showSnackBar(SnackBar(content: Text('일정이 삭제되었습니다.')));
     } catch (error) {
       if (!mounted) {
         return;
@@ -1576,7 +1499,7 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('일정을 삭제하지 못했습니다.')));
+      ).showSnackBar(SnackBar(content: Text('일정을 삭제하지 못했습니다.')));
     }
   }
 
@@ -1650,7 +1573,7 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
   }
 
   String _formatSelectedDate(DateTime date) {
-    const List<String> weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+    List<String> weekdays = ['월', '화', '수', '목', '금', '토', '일'];
 
     return '${date.month}월 ${date.day}일 '
         '${weekdays[date.weekday - 1]}요일';
@@ -1690,27 +1613,27 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
   CalendarTypeStyle _getTypeStyle(CalendarScheduleType type) {
     switch (type) {
       case CalendarScheduleType.certificate:
-        return const CalendarTypeStyle(
+        return CalendarTypeStyle(
           label: '자격증 일정',
           icon: Icons.workspace_premium_outlined,
-          foregroundColor: Color(0xFFF0788F),
-          backgroundColor: Color(0xFFFCEFF3),
+          foregroundColor: context.colors.pinkStart,
+          backgroundColor: context.colors.pinkSoft,
         );
 
       case CalendarScheduleType.aiPlan:
-        return const CalendarTypeStyle(
+        return CalendarTypeStyle(
           label: '학습 계획',
           icon: Icons.auto_awesome_outlined,
-          foregroundColor: Color(0xFF6F63C2),
-          backgroundColor: Color(0xFFF0EEFC),
+          foregroundColor: context.colors.lavenderAccent,
+          backgroundColor: context.colors.lavender,
         );
 
       case CalendarScheduleType.user:
-        return const CalendarTypeStyle(
+        return CalendarTypeStyle(
           label: '내 일정',
           icon: Icons.edit_calendar_outlined,
-          foregroundColor: Color(0xFF4A8F73),
-          backgroundColor: Color(0xFFEAF6F1),
+          foregroundColor: context.colors.mintAccent,
+          backgroundColor: context.colors.mint,
         );
     }
   }
@@ -1727,7 +1650,7 @@ class CalendarScheduleItem {
   final TimeOfDay? endTime;
   final CalendarScheduleType type;
 
-  const CalendarScheduleItem({
+  CalendarScheduleItem({
     required this.id,
     required this.title,
     required this.description,
@@ -1744,7 +1667,7 @@ class CalendarTypeStyle {
   final Color foregroundColor;
   final Color backgroundColor;
 
-  const CalendarTypeStyle({
+  CalendarTypeStyle({
     required this.label,
     required this.icon,
     required this.foregroundColor,
@@ -1771,42 +1694,42 @@ class _DialogSelectTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(13),
+        padding: EdgeInsets.all(13),
         decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFE2E2E6)),
+          border: Border.all(color: context.colors.border),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: const Color(0xFFF0788F)),
-            const SizedBox(width: 11),
+            Icon(icon, size: 20, color: context.colors.pinkStart),
+            SizedBox(width: 11),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF9AA0AC),
+                      color: context.colors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  SizedBox(height: 3),
                   Text(
                     value,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF1A1A1A),
+                      color: context.colors.textPrimary,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
               size: 20,
-              color: Color(0xFF9AA0AC),
+              color: context.colors.textSecondary,
             ),
           ],
         ),

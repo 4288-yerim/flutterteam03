@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum NotificationSection {
@@ -148,5 +150,93 @@ class NotificationService {
               )
               .toList(growable: false),
         );
+  }
+
+  Stream<bool> watchHasNewNotifications(String uid) {
+    late final StreamController<bool> controller;
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+    notificationSubscription;
+    StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+    settingsSubscription;
+    DateTime? latestNotificationAt;
+    DateTime? lastViewedAt;
+    bool hasNotificationSnapshot = false;
+    bool hasSettingsSnapshot = false;
+    bool? lastEmittedValue;
+
+    void emitStatus() {
+      if (!hasNotificationSnapshot || !hasSettingsSnapshot) {
+        return;
+      }
+
+      final latest = latestNotificationAt;
+      final hasNew =
+          latest != null &&
+          (lastViewedAt == null || latest.isAfter(lastViewedAt!));
+
+      if (!controller.isClosed && lastEmittedValue != hasNew) {
+        lastEmittedValue = hasNew;
+        controller.add(hasNew);
+      }
+    }
+
+    controller = StreamController<bool>.broadcast(
+      onListen: () {
+        hasNotificationSnapshot = false;
+        hasSettingsSnapshot = false;
+        lastEmittedValue = null;
+        notificationSubscription = _firestore
+            .collection('users')
+            .doc(uid)
+            .collection('notifications')
+            .orderBy('createdAt', descending: true)
+            .limit(1)
+            .snapshots()
+            .listen((snapshot) {
+              hasNotificationSnapshot = true;
+              latestNotificationAt = snapshot.docs.isEmpty
+                  ? null
+                  : _readTimestamp(snapshot.docs.first.data()['createdAt']);
+              emitStatus();
+            }, onError: controller.addError);
+
+        settingsSubscription = _firestore
+            .collection('users')
+            .doc(uid)
+            .collection('settings')
+            .doc('app')
+            .snapshots()
+            .listen((snapshot) {
+              hasSettingsSnapshot = true;
+              lastViewedAt = _readTimestamp(
+                snapshot.data()?['notificationLastViewedAt'],
+              );
+              emitStatus();
+            }, onError: controller.addError);
+      },
+      onCancel: () async {
+        await notificationSubscription?.cancel();
+        await settingsSubscription?.cancel();
+        notificationSubscription = null;
+        settingsSubscription = null;
+      },
+    );
+
+    return controller.stream;
+  }
+
+  Future<void> markNotificationsViewed(String uid) {
+    return _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('settings')
+        .doc('app')
+        .set({
+          'notificationLastViewedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+  }
+
+  DateTime? _readTimestamp(Object? value) {
+    return value is Timestamp ? value.toDate() : null;
   }
 }

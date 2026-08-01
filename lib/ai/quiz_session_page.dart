@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../theme.dart';
 
 import '../theme.dart';
 import '../widgets/app_main_background.dart';
@@ -18,7 +19,7 @@ class QuizSessionPage extends StatefulWidget {
   final AnswerCheckMode checkMode;
   final int generationDurationSeconds;
 
-  const QuizSessionPage({
+  QuizSessionPage({
     super.key,
     required this.sourceType,
     required this.certificationName,
@@ -52,7 +53,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
     super.initState();
     _userAnswers = List.filled(widget.questions.length, null, growable: false);
     _stopwatch = Stopwatch()..start();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+    _ticker = Timer.periodic(Duration(seconds: 1), (_) {
       if (mounted) setState(() => _elapsed = _stopwatch.elapsed);
     });
   }
@@ -100,18 +101,22 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
       final q = widget.questions[i];
       final userAnswer = _userAnswers[i];
       if (userAnswer != q.answer) {
-        wrongAnswers.add(WrongAnswer(
-          sourceType: widget.sourceType,
-          certificationName: widget.certificationName,
-          pdfFileName: widget.pdfFileName,
-          examType: widget.examType,
-          subject: widget.subject,
-          question: q.question,
-          options: q.options,
-          correctAnswer: q.answer,
-          userAnswer: (userAnswer == null || userAnswer.isEmpty) ? '(미응답)' : userAnswer,
-          explanation: q.explanation,
-        ));
+        wrongAnswers.add(
+          WrongAnswer(
+            sourceType: widget.sourceType,
+            certificationName: widget.certificationName,
+            pdfFileName: widget.pdfFileName,
+            examType: widget.examType,
+            subject: widget.subject,
+            question: q.question,
+            options: q.options,
+            correctAnswer: q.answer,
+            userAnswer: (userAnswer == null || userAnswer.isEmpty)
+                ? '(미응답)'
+                : userAnswer,
+            explanation: q.explanation,
+          ),
+        );
       }
     }
 
@@ -121,17 +126,19 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
       debugPrint('오답노트 저장 실패: $e');
     });
 
-    QuestionGenerationApiService.saveQuizSession(QuizSession(
-      sourceType: widget.sourceType,
-      certificationName: widget.certificationName,
-      pdfFileName: widget.pdfFileName,
-      examType: widget.examType,
-      subject: widget.subject,
-      totalCount: widget.questions.length,
-      correctCount: correctCount,
-      generationDurationSeconds: widget.generationDurationSeconds,
-      solvingDurationSeconds: _elapsed.inSeconds,
-    )).catchError((e) {
+    QuestionGenerationApiService.saveQuizSession(
+      QuizSession(
+        sourceType: widget.sourceType,
+        certificationName: widget.certificationName,
+        pdfFileName: widget.pdfFileName,
+        examType: widget.examType,
+        subject: widget.subject,
+        totalCount: widget.questions.length,
+        correctCount: correctCount,
+        generationDurationSeconds: widget.generationDurationSeconds,
+        solvingDurationSeconds: _elapsed.inSeconds,
+      ),
+    ).catchError((e) {
       debugPrint('퀴즈 세션 저장 실패: $e');
     });
 
@@ -157,17 +164,17 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
       barrierColor: Colors.black.withValues(alpha: 0.4),
       builder: (dialogContext) => Dialog(
         backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 32),
+        insetPadding: EdgeInsets.symmetric(horizontal: 32),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+          padding: EdgeInsets.fromLTRB(24, 28, 24, 20),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: context.colors.surface,
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
                 color: context.colors.pinkDeep.withValues(alpha: 0.18),
                 blurRadius: 30,
-                offset: const Offset(0, 16),
+                offset: Offset(0, 16),
               ),
             ],
           ),
@@ -182,13 +189,13 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                   shape: BoxShape.circle,
                   color: context.colors.pinkStart,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.close_rounded,
-                  color: Colors.white,
+                  color: context.colors.onPrimary,
                   size: 28,
                 ),
               ),
-              const SizedBox(height: 18),
+              SizedBox(height: 18),
               Text(
                 '퀴즈를 종료할까요?',
                 textAlign: TextAlign.center,
@@ -198,7 +205,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
               Text(
                 '지금까지 푼 문제는 저장되지 않아요.',
                 textAlign: TextAlign.center,
@@ -208,14 +215,14 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                   height: 1.5,
                 ),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
               Row(
                 children: [
                   Expanded(
                     child: SizedBox(
                       height: 50,
                       child: Material(
-                        color: const Color(0xFFF6F1F2),
+                        color: context.colors.surfaceMuted,
                         borderRadius: BorderRadius.circular(16),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(16),
@@ -234,7 +241,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10),
                   Expanded(
                     child: SizedBox(
                       height: 50,
@@ -247,11 +254,11 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                             Navigator.pop(dialogContext);
                             Navigator.pop(context);
                           },
-                          child: const Center(
+                          child: Center(
                             child: Text(
                               '종료',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: context.colors.onPrimary,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -284,19 +291,28 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
           title: '${_currentIndex + 1} / ${widget.questions.length}',
           centerTitle: true,
           leading: IconButton(
-            icon: const Icon(Icons.close_rounded),
+            icon: Icon(Icons.close_rounded),
             onPressed: _confirmExit,
           ),
           actions: [
             Padding(
-              padding: const EdgeInsets.only(right: 16),
+              padding: EdgeInsets.only(right: 16),
               child: Center(
                 child: Row(
                   children: [
-                    Icon(Icons.timer_outlined, size: 16, color: context.colors.textSecondary),
-                    const SizedBox(width: 4),
-                    Text(_elapsedLabel,
-                        style: TextStyle(color: context.colors.textSecondary, fontWeight: FontWeight.w700)),
+                    Icon(
+                      Icons.timer_outlined,
+                      size: 16,
+                      color: context.colors.textSecondary,
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      _elapsedLabel,
+                      style: TextStyle(
+                        color: context.colors.textSecondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -310,23 +326,23 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                 _buildProgressBar(),
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                    padding: EdgeInsets.fromLTRB(24, 20, 24, 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildQuestionCard(),
-                        const SizedBox(height: 20),
+                        SizedBox(height: 20),
                         if (_isMultipleChoice)
                           ..._current.options.asMap().entries.map(
-                                (e) => Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
+                            (e) => Padding(
+                              padding: EdgeInsets.only(bottom: 10),
                               child: _buildOption(e.value, e.key),
                             ),
                           )
                         else
                           _buildShortAnswerInput(),
                         if (_revealed) ...[
-                          const SizedBox(height: 16),
+                          SizedBox(height: 16),
                           _buildExplanationCard(),
                         ],
                       ],
@@ -345,7 +361,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   Widget _buildProgressBar() {
     final progress = (_currentIndex + 1) / widget.questions.length;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(10),
         child: LinearProgressIndicator(
@@ -361,26 +377,45 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   Widget _buildQuestionCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [BoxShadow(color: Color(0x14C98198), blurRadius: 18, offset: Offset(0, 8))],
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x14C98198),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(color: context.colors.pinkSoft, borderRadius: BorderRadius.circular(8)),
-            child: Text('Q${_currentIndex + 1}',
-                style: TextStyle(color: context.colors.pinkDeep, fontSize: 12, fontWeight: FontWeight.w800)),
+            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: context.colors.pinkSoft,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              'Q${_currentIndex + 1}',
+              style: TextStyle(
+                color: context.colors.pinkDeep,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Text(
             _current.question,
             style: TextStyle(
-                color: context.colors.textPrimary, fontSize: 16.5, fontWeight: FontWeight.w800, height: 1.5),
+              color: context.colors.textPrimary,
+              fontSize: 16.5,
+              fontWeight: FontWeight.w800,
+              height: 1.5,
+            ),
           ),
         ],
       ),
@@ -393,27 +428,27 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
     final isCorrectOption = option == _current.answer;
     final showResult = _revealed;
 
-    var borderColor = const Color(0xFFF1EBEE);
-    var fillColor = Colors.white;
+    var borderColor = context.colors.border;
+    var fillColor = context.colors.surface;
     var labelColor = context.colors.textSecondary;
-    var labelBg = const Color(0xFFF2EEF0);
+    var labelBg = context.colors.surfaceMuted;
 
     if (showResult) {
       if (isCorrectOption) {
         borderColor = context.colors.correct;
         fillColor = context.colors.correctSoft;
-        labelColor = Colors.white;
+        labelColor = context.colors.onPrimary;
         labelBg = context.colors.correct;
       } else if (isSelected) {
         borderColor = context.colors.incorrect;
         fillColor = context.colors.incorrectSoft;
-        labelColor = Colors.white;
+        labelColor = context.colors.onPrimary;
         labelBg = context.colors.incorrect;
       }
     } else if (isSelected) {
       borderColor = context.colors.pinkDeep;
       fillColor = context.colors.pinkSoft;
-      labelColor = Colors.white;
+      labelColor = context.colors.onPrimary;
       labelBg = context.colors.pinkDeep;
     }
 
@@ -424,7 +459,7 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
         borderRadius: BorderRadius.circular(16),
         onTap: showResult ? null : () => _selectOption(option),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: borderColor, width: 1.4),
@@ -435,20 +470,42 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
                 width: 26,
                 height: 26,
                 alignment: Alignment.center,
-                decoration: BoxDecoration(color: labelBg, shape: BoxShape.circle),
-                child:
-                Text(label, style: TextStyle(color: labelColor, fontSize: 12.5, fontWeight: FontWeight.w800)),
+                decoration: BoxDecoration(
+                  color: labelBg,
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: labelColor,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
-                child: Text(option,
-                    style: TextStyle(
-                        color: context.colors.textPrimary, fontSize: 14.5, fontWeight: FontWeight.w600)),
+                child: Text(
+                  option,
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
               if (showResult && isCorrectOption)
-                Icon(Icons.check_circle_rounded, color: context.colors.correct, size: 20)
+                Icon(
+                  Icons.check_circle_rounded,
+                  color: context.colors.correct,
+                  size: 20,
+                )
               else if (showResult && isSelected)
-                Icon(Icons.cancel_rounded, color: context.colors.incorrect, size: 20),
+                Icon(
+                  Icons.cancel_rounded,
+                  color: context.colors.incorrect,
+                  size: 20,
+                ),
             ],
           ),
         ),
@@ -463,9 +520,12 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
       decoration: InputDecoration(
         hintText: '답을 입력해주세요',
         filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        fillColor: context.colors.surface,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
     );
   }
@@ -473,16 +533,31 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   Widget _buildExplanationCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: const Color(0xFFF7F5F6), borderRadius: BorderRadius.circular(16)),
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.colors.surfaceMuted,
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('정답: ${_current.answer}',
-              style: TextStyle(color: context.colors.correct, fontSize: 14.5, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
-          Text(_current.explanation,
-              style: TextStyle(color: context.colors.textPrimary, fontSize: 13.5, height: 1.5)),
+          Text(
+            '정답: ${_current.answer}',
+            style: TextStyle(
+              color: context.colors.correct,
+              fontSize: 14.5,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            _current.explanation,
+            style: TextStyle(
+              color: context.colors.textPrimary,
+              fontSize: 13.5,
+              height: 1.5,
+            ),
+          ),
         ],
       ),
     );
@@ -491,11 +566,19 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
   Widget _buildBottomBar() {
     final answered = (_userAnswers[_currentIndex]?.trim().isNotEmpty ?? false);
 
-    if (widget.checkMode == AnswerCheckMode.immediate && !_isMultipleChoice && !_revealed) {
-      return _bottomButton(label: '정답 확인', enabled: answered, onPressed: _reveal);
+    if (widget.checkMode == AnswerCheckMode.immediate &&
+        !_isMultipleChoice &&
+        !_revealed) {
+      return _bottomButton(
+        label: '정답 확인',
+        enabled: answered,
+        onPressed: _reveal,
+      );
     }
 
-    final canProceed = widget.checkMode == AnswerCheckMode.immediate ? _revealed : answered;
+    final canProceed = widget.checkMode == AnswerCheckMode.immediate
+        ? _revealed
+        : answered;
     return _bottomButton(
       label: _isLast ? '결과 보기' : '다음 문제',
       enabled: canProceed,
@@ -503,9 +586,13 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
     );
   }
 
-  Widget _bottomButton({required String label, required bool enabled, required VoidCallback onPressed}) {
+  Widget _bottomButton({
+    required String label,
+    required bool enabled,
+    required VoidCallback onPressed,
+  }) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+      padding: EdgeInsets.fromLTRB(24, 8, 24, 20),
       child: SizedBox(
         width: double.infinity,
         height: 54,
@@ -513,11 +600,16 @@ class _QuizSessionPageState extends State<QuizSessionPage> {
           onPressed: enabled ? onPressed : null,
           style: FilledButton.styleFrom(
             backgroundColor: context.colors.pinkDeep,
-            foregroundColor: Colors.white,
+            foregroundColor: context.colors.onPrimary,
             elevation: 0,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
           ),
-          child: Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          ),
         ),
       ),
     );

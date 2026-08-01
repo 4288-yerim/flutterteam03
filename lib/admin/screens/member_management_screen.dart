@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
+
 import '../services/admin_member_service.dart';
 import '../widgets/member_management_widgets.dart';
 import 'member_detail_screen.dart';
@@ -39,8 +41,10 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
             );
           }
           if (!snapshot.hasData) {
-            return const Center(
-              child: CircularProgressIndicator(color: Color(0xFF6C63FF)),
+            return Center(
+              child: CircularProgressIndicator(
+                color: context.colors.lavenderAccent,
+              ),
             );
           }
 
@@ -70,7 +74,7 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
 
           if (members.isEmpty) {
             return RefreshIndicator(
-              color: const Color(0xFF6C63FF),
+              color: context.colors.lavenderAccent,
               onRefresh: service.refreshMembers,
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(18, 16, 18, 32),
@@ -88,7 +92,7 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
           }
 
           return RefreshIndicator(
-            color: const Color(0xFF6C63FF),
+            color: context.colors.lavenderAccent,
             onRefresh: service.refreshMembers,
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -98,8 +102,8 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
                 const SizedBox(height: 18),
                 Text(
                   '조회 회원 ${members.length}명',
-                  style: const TextStyle(
-                    color: Color(0xFF29292E),
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
                     fontSize: 17,
                     fontWeight: FontWeight.w900,
                   ),

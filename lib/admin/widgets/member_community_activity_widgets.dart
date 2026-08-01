@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
+
 import '../services/admin_member_service.dart';
 
 class AdminCommunityCategoryTabs extends StatelessWidget {
@@ -46,13 +48,15 @@ class AdminCommunityCategoryTabs extends StatelessWidget {
             showCheckmark: false,
             label: Text('${adminBoardLabel(board)}($count)'),
             labelStyle: TextStyle(
-              color: selected ? Colors.white : const Color(0xFF5D5962),
+              color: selected
+                  ? context.colors.onPrimary
+                  : context.colors.textSecondary,
               fontSize: 12,
               fontWeight: FontWeight.w800,
             ),
-            selectedColor: const Color(0xFF6C63FF),
-            backgroundColor: Colors.white,
-            side: const BorderSide(color: Color(0xFFE2DFE6)),
+            selectedColor: context.colors.lavenderAccent,
+            backgroundColor: context.colors.surface,
+            side: BorderSide(color: context.colors.border),
             onSelected: (_) => onSelected(board),
           );
         },
@@ -74,7 +78,7 @@ class AdminCommunityActivityTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withValues(alpha: 0.95),
+      color: context.colors.surfaceTransparent,
       borderRadius: BorderRadius.circular(17),
       child: InkWell(
         onTap: onTap,
@@ -91,8 +95,8 @@ class AdminCommunityActivityTile extends StatelessWidget {
                       activity.content,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF29292E),
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
                         fontSize: 14,
                         height: 1.35,
                         fontWeight: FontWeight.w700,
@@ -107,13 +111,13 @@ class AdminCommunityActivityTile extends StatelessWidget {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF0EDFF),
+                            color: context.colors.lavender,
                             borderRadius: BorderRadius.circular(99),
                           ),
                           child: Text(
                             adminBoardLabel(activity.boardType),
-                            style: const TextStyle(
-                              color: Color(0xFF5D54D6),
+                            style: TextStyle(
+                              color: context.colors.lavenderAccent,
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
                             ),
@@ -122,8 +126,8 @@ class AdminCommunityActivityTile extends StatelessWidget {
                         const SizedBox(width: 8),
                         Text(
                           adminActivityDate(activity.createdAt),
-                          style: const TextStyle(
-                            color: Color(0xFF99949E),
+                          style: TextStyle(
+                            color: context.colors.textMuted,
                             fontSize: 11,
                           ),
                         ),
@@ -132,7 +136,10 @@ class AdminCommunityActivityTile extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: Color(0xFF99949E)),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: context.colors.textMuted,
+              ),
             ],
           ),
         ),

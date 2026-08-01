@@ -8,21 +8,11 @@ import '../widgets/app_top_bar.dart';
 import 'community_models.dart';
 import 'community_service.dart';
 
-extension _CommunityEditColors on BuildContext {
-  AppColors get communityColors {
-    return Theme.of(this).extension<AppColors>() ?? AppColors.light;
-  }
-}
-
 class CommunityPostEditPage extends StatefulWidget {
   final CommunityPost post;
   final CommunityService? service;
 
-  const CommunityPostEditPage({
-    super.key,
-    required this.post,
-    this.service,
-  });
+  const CommunityPostEditPage({super.key, required this.post, this.service});
 
   @override
   State<CommunityPostEditPage> createState() {
@@ -30,8 +20,7 @@ class CommunityPostEditPage extends StatefulWidget {
   }
 }
 
-class _CommunityPostEditPageState
-    extends State<CommunityPostEditPage> {
+class _CommunityPostEditPageState extends State<CommunityPostEditPage> {
   late final CommunityService _service;
   late final TextEditingController _titleController;
   late final TextEditingController _contentController;
@@ -72,11 +61,9 @@ class _CommunityPostEditPageState
     User? user = FirebaseAuth.instance.currentUser;
 
     if (user == null || user.uid != widget.post.writerUid) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('작성자만 게시글을 수정할 수 있어요.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('작성자만 게시글을 수정할 수 있어요.')));
       return;
     }
 
@@ -109,9 +96,7 @@ class _CommunityPostEditPageState
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('게시글을 수정하지 못했어요. 다시 시도해 주세요.'),
-        ),
+        const SnackBar(content: Text('게시글을 수정하지 못했어요. 다시 시도해 주세요.')),
       );
     }
   }
@@ -120,9 +105,7 @@ class _CommunityPostEditPageState
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: const AppTopBar(
-        title: '게시글 수정',
-      ),
+      appBar: const AppTopBar(title: '게시글 수정'),
       body: AppMainBackground(
         child: Padding(
           padding: const EdgeInsets.only(top: kToolbarHeight),
@@ -147,21 +130,17 @@ class _CommunityPostEditPageState
   Widget _buildGuideCard() {
     return AppCard(
       padding: const EdgeInsets.all(16),
-      backgroundColor: context.communityColors.pinkSoft,
+      backgroundColor: context.colors.pinkSoft,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.edit_rounded,
-            color: context.communityColors.pinkStart,
-            size: 23,
-          ),
+          Icon(Icons.edit_rounded, color: context.colors.pinkStart, size: 23),
           const SizedBox(width: 11),
           Expanded(
             child: Text(
               '게시판, 제목, 내용을 수정할 수 있어요.',
               style: TextStyle(
-                color: context.communityColors.textPrimary,
+                color: context.colors.textPrimary,
                 fontSize: 13,
                 height: 1.45,
               ),
@@ -183,28 +162,27 @@ class _CommunityPostEditPageState
           DropdownButtonFormField<CommunityBoardType>(
             value: _selectedBoard,
             isExpanded: true,
-            decoration: _inputDecoration(
-              hintText: '게시판을 선택해 주세요.',
-            ),
+            decoration: _inputDecoration(hintText: '게시판을 선택해 주세요.'),
             items: CommunityBoardType.values
                 .where((board) => board != CommunityBoardType.all)
                 .map((board) {
-              return DropdownMenuItem<CommunityBoardType>(
-                value: board,
-                child: Text(board.label),
-              );
-            }).toList(),
+                  return DropdownMenuItem<CommunityBoardType>(
+                    value: board,
+                    child: Text(board.label),
+                  );
+                })
+                .toList(),
             onChanged: _isSaving
                 ? null
                 : (board) {
-              if (board == null) {
-                return;
-              }
+                    if (board == null) {
+                      return;
+                    }
 
-              setState(() {
-                _selectedBoard = board;
-              });
-            },
+                    setState(() {
+                      _selectedBoard = board;
+                    });
+                  },
           ),
           const SizedBox(height: 20),
           _buildFieldTitle('제목'),
@@ -214,9 +192,7 @@ class _CommunityPostEditPageState
             enabled: !_isSaving,
             maxLength: 60,
             textInputAction: TextInputAction.next,
-            decoration: _inputDecoration(
-              hintText: '제목을 입력해 주세요.',
-            ),
+            decoration: _inputDecoration(hintText: '제목을 입력해 주세요.'),
             validator: (value) {
               String title = value?.trim() ?? '';
 
@@ -242,9 +218,7 @@ class _CommunityPostEditPageState
             maxLength: 3000,
             keyboardType: TextInputType.multiline,
             textInputAction: TextInputAction.newline,
-            decoration: _inputDecoration(
-              hintText: '내용을 입력해 주세요.',
-            ),
+            decoration: _inputDecoration(hintText: '내용을 입력해 주세요.'),
             validator: (value) {
               String content = value?.trim() ?? '';
 
@@ -268,54 +242,39 @@ class _CommunityPostEditPageState
     return Text(
       title,
       style: TextStyle(
-        color: context.communityColors.textPrimary,
+        color: context.colors.textPrimary,
         fontSize: 14,
         fontWeight: FontWeight.w700,
       ),
     );
   }
 
-  InputDecoration _inputDecoration({
-    required String hintText,
-  }) {
+  InputDecoration _inputDecoration({required String hintText}) {
     return InputDecoration(
       hintText: hintText,
-      hintStyle: TextStyle(
-        color: context.communityColors.textSecondary,
-        fontSize: 13,
-      ),
+      hintStyle: TextStyle(color: context.colors.textSecondary, fontSize: 13),
       filled: true,
       fillColor: Theme.of(context).colorScheme.surface,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 14,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(
-          color: context.communityColors.pinkSoft,
-        ),
+        borderSide: BorderSide(color: context.colors.pinkSoft),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(
-          color: context.communityColors.pinkSoft,
-        ),
+        borderSide: BorderSide(color: context.colors.pinkSoft),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(
-          color: context.communityColors.pinkStart,
-          width: 1.4,
-        ),
+        borderSide: BorderSide(color: context.colors.pinkStart, width: 1.4),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Colors.redAccent),
+        borderSide: BorderSide(color: context.colors.incorrect),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Colors.redAccent),
+        borderSide: BorderSide(color: context.colors.incorrect),
       ),
     );
   }
@@ -326,29 +285,26 @@ class _CommunityPostEditPageState
       child: FilledButton(
         onPressed: _isSaving ? null : _savePost,
         style: FilledButton.styleFrom(
-          backgroundColor: context.communityColors.pinkStart,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: context.communityColors.textSecondary,
+          backgroundColor: context.colors.pinkStart,
+          foregroundColor: context.colors.onPrimary,
+          disabledBackgroundColor: context.colors.textSecondary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
           ),
         ),
         child: _isSaving
-            ? const SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.3,
-            color: Colors.white,
-          ),
-        )
+            ? SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.3,
+                  color: context.colors.onPrimary,
+                ),
+              )
             : const Text(
-          '수정 완료',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+                '수정 완료',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              ),
       ),
     );
   }

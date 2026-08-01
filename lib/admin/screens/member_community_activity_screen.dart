@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
+
 import '../../community/community_post_detail.dart';
 import '../../widgets/app_main_background.dart';
 import '../services/admin_member_service.dart';
@@ -66,7 +68,7 @@ class _MemberCommunityActivityScreenState
                   ? Center(
                       child: Text(
                         isPost ? '작성한 게시글이 없습니다.' : '작성한 댓글이 없습니다.',
-                        style: const TextStyle(color: Color(0xFF77747E)),
+                        style: TextStyle(color: context.colors.textSecondary),
                       ),
                     )
                   : ListView.separated(

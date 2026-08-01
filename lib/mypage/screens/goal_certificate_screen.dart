@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
+
 import '../../appwidgets/goal_schedule_app_widget.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_confirm_dialog.dart';
@@ -120,6 +122,10 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
             passAnnouncementEndDate: passAnnouncementEndTimestamp?.toDate(),
             isMainGoal: data['isMainGoal'] as bool? ?? false,
             calendarEventId: (data['calendarEventId'] as String? ?? '').trim(),
+            calendarEventIds: (data['calendarEventIds'] as List<dynamic>? ?? [])
+                .map((value) => value.toString().trim())
+                .where((value) => value.isNotEmpty)
+                .toList(),
           ),
         );
       }
@@ -301,7 +307,7 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다.')));
+      ).showSnackBar(SnackBar(content: Text('로그인이 필요합니다.')));
       return;
     }
 
@@ -318,15 +324,18 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
 
       batch.delete(goalDocument);
 
-      if (goal.calendarEventId.isNotEmpty) {
-        final DocumentReference<Map<String, dynamic>> calendarEventDocument =
-            firestore
-                .collection('users')
-                .doc(user.uid)
-                .collection('calendarEvents')
-                .doc(goal.calendarEventId);
-
-        batch.delete(calendarEventDocument);
+      final calendarEventIds = goal.calendarEventIds.isNotEmpty
+          ? goal.calendarEventIds
+          : <String>[goal.calendarEventId];
+      for (final calendarEventId in calendarEventIds) {
+        if (calendarEventId.isEmpty) continue;
+        batch.delete(
+          firestore
+              .collection('users')
+              .doc(user.uid)
+              .collection('calendarEvents')
+              .doc(calendarEventId),
+        );
       }
 
       await batch.commit();
@@ -373,44 +382,44 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
           onPressed: () {
             Navigator.pop(context);
           },
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new,
             size: 20,
-            color: Color(0xFF1A1A1A),
+            color: context.colors.textPrimary,
           ),
         ),
       ),
       body: AppMainBackground(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 110),
+          padding: EdgeInsets.fromLTRB(20, 16, 20, 110),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildGuideCard(),
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Text(
+                  Text(
                     '준비 중인 자격증',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF1A1A1A),
+                      color: context.colors.textPrimary,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Text(
                     '${_goals.length}개',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFFF0788F),
+                      color: context.colors.pinkStart,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               if (_isLoading)
                 _buildLoadingView()
               else if (_errorMessage != null)
@@ -421,8 +430,8 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
                 ListView.separated(
                   itemCount: _goals.length,
                   shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  separatorBuilder: (_, _) => const SizedBox(height: 14),
+                  physics: NeverScrollableScrollPhysics(),
+                  separatorBuilder: (_, _) => SizedBox(height: 14),
                   itemBuilder: (context, index) {
                     final GoalCertificateItem goal = _goals[index];
 
@@ -446,8 +455,8 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
 
   Widget _buildGuideCard() {
     return AppCard(
-      backgroundColor: Colors.white,
-      padding: const EdgeInsets.all(18),
+      backgroundColor: context.colors.surface,
+      padding: EdgeInsets.all(18),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -455,24 +464,24 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: const Color(0xFFFCEFF3),
+              color: context.colors.pinkSoft,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.lightbulb_outline,
               size: 21,
-              color: Color(0xFFF0788F),
+              color: context.colors.pinkStart,
             ),
           ),
-          const SizedBox(width: 12),
-          const Expanded(
+          SizedBox(width: 12),
+          Expanded(
             child: Text(
               '등록한 목표 자격증의 시험 회차와 '
               '필기·실기 시험일을 확인할 수 있습니다.',
               style: TextStyle(
                 fontSize: 13,
                 height: 1.5,
-                color: Color(0xFF666A73),
+                color: context.colors.textSecondary,
               ),
             ),
           ),
@@ -482,7 +491,7 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
   }
 
   Widget _buildLoadingView() {
-    return const AppLoadingView(message: '목표 자격증을 불러오는 중입니다.');
+    return AppLoadingView(message: '목표 자격증을 불러오는 중입니다.');
   }
 
   Widget _buildErrorView() {
@@ -501,7 +510,7 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen> {
   }
 
   Widget _buildEmptyView() {
-    return const AppEmptyView(
+    return AppEmptyView(
       message: '등록된 목표 자격증이 없습니다.',
       description: '자격증 상세보기에서 목표 자격증을 등록할 수 있습니다.',
     );
@@ -541,12 +550,12 @@ class GoalCertificateCard extends StatelessWidget {
     // D-day 임박도에 따라 색을 다르게 — 장식이 아니라 실제 정보 신호로 사용.
     // 7일 이내: 긴급(레드) / 30일 이내: 다가옴(핑크) / 그 이상: 여유(다크 뉴트럴) / 지남·미정: 무채색
     final Color dDayColor = dDay == null || dDay < 0
-        ? const Color(0xFF9AA0AC)
+        ? context.colors.textSecondary
         : dDay <= 7
-        ? const Color(0xFFE0483B)
+        ? context.colors.incorrect
         : dDay <= 30
-        ? const Color(0xFFF0788F)
-        : const Color(0xFF44474E);
+        ? context.colors.pinkStart
+        : context.colors.textPrimary;
 
     return AppCard(
       padding: EdgeInsets.zero,
@@ -557,14 +566,14 @@ class GoalCertificateCard extends StatelessWidget {
           if (goal.isMainGoal)
             Container(
               height: 4,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFFFFD98E), Color(0xFFFFC24B)],
+                  colors: [context.colors.warningSoft, context.colors.warning],
                 ),
               ),
             ),
           Padding(
-            padding: const EdgeInsets.all(18),
+            padding: EdgeInsets.all(18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -577,50 +586,50 @@ class GoalCertificateCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         // 대표 목표일 때만 골드 강조, 나머지는 무채색으로 정리
                         color: goal.isMainGoal
-                            ? const Color(0xFFFFF6DF)
-                            : const Color(0xFFF2F3F5),
+                            ? context.colors.warningSoft
+                            : context.colors.surfaceMuted,
                         borderRadius: BorderRadius.circular(15),
                       ),
                       child: Icon(
                         Icons.workspace_premium_outlined,
                         color: goal.isMainGoal
-                            ? const Color(0xFF9A6B00)
-                            : const Color(0xFF5B5F68),
+                            ? context.colors.warning
+                            : context.colors.textSecondary,
                       ),
                     ),
-                    const SizedBox(width: 14),
+                    SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             goal.certificateName,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF1A1A1A),
+                              color: context.colors.textPrimary,
                             ),
                           ),
-                          const SizedBox(height: 7),
+                          SizedBox(height: 7),
                           Wrap(
                             spacing: 7,
                             runSpacing: 7,
                             children: [
                               _GoalLabel(
                                 text: goal.targetRound,
-                                backgroundColor: const Color(0xFFF4F1FF),
-                                textColor: const Color(0xFF7665A7),
+                                backgroundColor: context.colors.lavender,
+                                textColor: context.colors.lavenderAccent,
                               ),
                               _GoalLabel(
                                 text: _formatExamType(goal.targetExamType),
-                                backgroundColor: const Color(0xFFFCEFF3),
-                                textColor: const Color(0xFFF0788F),
+                                backgroundColor: context.colors.pinkSoft,
+                                textColor: context.colors.pinkStart,
                               ),
                               if (goal.isMainGoal)
-                                const _GoalLabel(
+                                _GoalLabel(
                                   text: '대표 목표',
-                                  backgroundColor: Color(0xFFFFE8AE),
-                                  textColor: Color(0xFF9A6B00),
+                                  backgroundColor: context.colors.warningSoft,
+                                  textColor: context.colors.warning,
                                 ),
                             ],
                           ),
@@ -630,46 +639,49 @@ class GoalCertificateCard extends StatelessWidget {
                     IconButton(
                       tooltip: '목표 자격증 삭제',
                       onPressed: onDelete,
-                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      icon: Icon(
+                        Icons.delete_outline,
+                        color: context.colors.incorrect,
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 18),
+                SizedBox(height: 18),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(14),
+                  padding: EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8F8FA),
+                    color: context.colors.surfaceMuted,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.calendar_month_outlined,
                         size: 20,
-                        color: Color(0xFF6B7078),
+                        color: context.colors.textSecondary,
                       ),
-                      const SizedBox(width: 10),
+                      SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               '목표 시험일',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFF9AA0AC),
+                                color: context.colors.textSecondary,
                               ),
                             ),
-                            const SizedBox(height: 3),
+                            SizedBox(height: 3),
                             Text(
                               goal.targetExamDate == null
                                   ? '시험 일정 미선택'
                                   : _formatDate(goal.targetExamDate!),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF1A1A1A),
+                                color: context.colors.textPrimary,
                               ),
                             ),
                           ],
@@ -688,80 +700,80 @@ class GoalCertificateCard extends StatelessWidget {
                 ),
                 if (goal.registrationStartDate != null ||
                     goal.registrationEndDate != null) ...[
-                  const SizedBox(height: 12),
+                  SizedBox(height: 12),
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.edit_calendar_outlined,
                         size: 18,
-                        color: Color(0xFF9AA0AC),
+                        color: context.colors.textSecondary,
                       ),
-                      const SizedBox(width: 8),
-                      const Text(
+                      SizedBox(width: 8),
+                      Text(
                         '원서 접수',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Color(0xFF777B84),
+                          color: context.colors.textSecondary,
                         ),
                       ),
-                      const Spacer(),
+                      Spacer(),
                       Text(
                         _formatDateRange(
                           goal.registrationStartDate,
                           goal.registrationEndDate,
                         ),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF44474E),
+                          color: context.colors.textPrimary,
                         ),
                       ),
                     ],
                   ),
                 ],
                 if (goal.passAnnouncementDate != null) ...[
-                  const SizedBox(height: 12),
+                  SizedBox(height: 12),
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.campaign_outlined,
                         size: 18,
-                        color: Color(0xFF9AA0AC),
+                        color: context.colors.textSecondary,
                       ),
-                      const SizedBox(width: 8),
-                      const Text(
+                      SizedBox(width: 8),
+                      Text(
                         '합격 발표',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Color(0xFF777B84),
+                          color: context.colors.textSecondary,
                         ),
                       ),
-                      const Spacer(),
+                      Spacer(),
                       Text(
                         _formatPassAnnouncement(
                           goal.passAnnouncementDate!,
                           goal.passAnnouncementEndDate,
                         ),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF44474E),
+                          color: context.colors.textPrimary,
                         ),
                       ),
                     ],
                   ),
                 ],
                 if (!goal.isMainGoal) ...[
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: onSetMain,
-                      icon: const Icon(Icons.star_outline, size: 19),
-                      label: const Text('대표 목표로 설정'),
+                      icon: Icon(Icons.star_outline, size: 19),
+                      label: Text('대표 목표로 설정'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFF0788F),
-                        side: const BorderSide(color: Color(0xFFF0788F)),
+                        foregroundColor: context.colors.pinkStart,
+                        side: BorderSide(color: context.colors.pinkStart),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
@@ -864,7 +876,7 @@ class _GoalLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      padding: EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(12),
@@ -894,8 +906,9 @@ class GoalCertificateItem {
   final DateTime? passAnnouncementEndDate;
   final bool isMainGoal;
   final String calendarEventId;
+  final List<String> calendarEventIds;
 
-  const GoalCertificateItem({
+  GoalCertificateItem({
     required this.goalId,
     required this.certificateId,
     required this.certificateName,
@@ -908,6 +921,7 @@ class GoalCertificateItem {
     required this.passAnnouncementEndDate,
     required this.isMainGoal,
     required this.calendarEventId,
+    required this.calendarEventIds,
   });
 
   GoalCertificateItem copyWith({bool? isMainGoal}) {
@@ -924,6 +938,7 @@ class GoalCertificateItem {
       passAnnouncementEndDate: passAnnouncementEndDate,
       isMainGoal: isMainGoal ?? this.isMainGoal,
       calendarEventId: calendarEventId,
+      calendarEventIds: calendarEventIds,
     );
   }
 }

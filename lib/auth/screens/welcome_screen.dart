@@ -59,6 +59,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       });
     }
   }
+
   @override
   void dispose() {
     _entryController.dispose();
@@ -92,10 +93,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   }
 
   Future<void> _handleAuthResult(
-      BuildContext context,
-      AuthResult? result,
-      String provider,
-      ) async {
+    BuildContext context,
+    AuthResult? result,
+    String provider,
+  ) async {
     if (result == null || !context.mounted) return;
 
     if (result.isNewUser && result.signupTicket != null) {
@@ -107,42 +108,58 @@ class _WelcomeScreenState extends State<WelcomeScreen>
               Navigator.of(certContext).push(
                 MaterialPageRoute(
                   builder: (_) => ProfileSetupScreen(
-                    onNext: (profileContext, {required nickname, bio, profileImageFile}) {
-                      Navigator.of(profileContext).push(
-                        MaterialPageRoute(
-                          builder: (_) => TermsAgreementScreen(
-                            onAgree: (termsContext, agreements) async {
-                              final authResult = await AuthService.completeSocialSignup(
-                                ticket: ticket,
-                                agreements: agreements,
-                                goalCertificateId: goalCertificateId,
-                                nickname: nickname,
-                                bio: bio,
-                              );
-                              if (authResult?.user == null) {
-                                // 실패 처리 (스낵바 등)
-                                return;
-                              }
-                              // 이제 계정 생겼으니 이미지 업로드
-                              if (profileImageFile != null) {
-                                final path = 'profile_images/${authResult!.user!.uid}.jpg';
-                                final ref = FirebaseStorage.instance.ref().child(path);
-                                await ref.putFile(profileImageFile);
-                                final url = await ref.getDownloadURL();
-                                await FirebaseFirestore.instance
-                                    .collection('users').doc(authResult.user!.uid)
-                                    .update({'profileImageUrl': url, 'profileImagePath': path});
-                              }
-                              if (!termsContext.mounted) return;
-                              Navigator.of(termsContext).pushAndRemoveUntil(
-                                MaterialPageRoute(builder: (_) => const MainPage()),
+                    onNext:
+                        (
+                          profileContext, {
+                          required nickname,
+                          bio,
+                          profileImageFile,
+                        }) {
+                          Navigator.of(profileContext).push(
+                            MaterialPageRoute(
+                              builder: (_) => TermsAgreementScreen(
+                                onAgree: (termsContext, agreements) async {
+                                  final authResult =
+                                      await AuthService.completeSocialSignup(
+                                        ticket: ticket,
+                                        agreements: agreements,
+                                        goalCertificateId: goalCertificateId,
+                                        nickname: nickname,
+                                        bio: bio,
+                                      );
+                                  if (authResult?.user == null) {
+                                    // 실패 처리 (스낵바 등)
+                                    return;
+                                  }
+                                  // 이제 계정 생겼으니 이미지 업로드
+                                  if (profileImageFile != null) {
+                                    final path =
+                                        'profile_images/${authResult!.user!.uid}.jpg';
+                                    final ref = FirebaseStorage.instance
+                                        .ref()
+                                        .child(path);
+                                    await ref.putFile(profileImageFile);
+                                    final url = await ref.getDownloadURL();
+                                    await FirebaseFirestore.instance
+                                        .collection('users')
+                                        .doc(authResult.user!.uid)
+                                        .update({
+                                          'profileImageUrl': url,
+                                          'profileImagePath': path,
+                                        });
+                                  }
+                                  if (!termsContext.mounted) return;
+                                  Navigator.of(termsContext).pushAndRemoveUntil(
+                                    MaterialPageRoute(
+                                      builder: (_) => const MainPage(),
+                                    ),
                                     (route) => false,
-                              );
-                            },
-                          ),
-                        ),
-                      );
-                    },
+                                  );
+                                },
+                              ),
+                            ),
+                          );
+                        },
                   ),
                 ),
               );
@@ -155,9 +172,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       try {
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
-          await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-            'lastLoginAt': FieldValue.serverTimestamp(),
-          });
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .update({'lastLoginAt': FieldValue.serverTimestamp()});
         }
 
         final check = await AccountStatusService.checkCurrentUserStatus();
@@ -170,7 +188,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             context,
             icon: Icons.pause_circle_filled_rounded,
             title: '이용 정지 안내',
-            description: '이용이 정지된 계정입니다.\n정지 기간: $untilText\n\n정지 해제 문의는 DdaiT@naver.com으로 해주세요.',
+            description:
+                '이용이 정지된 계정입니다.\n정지 기간: $untilText\n\n정지 해제 문의는 DdaiT@naver.com으로 해주세요.',
             primaryLabel: '확인',
             onPrimaryPressed: () => Navigator.of(context).pop(),
             barrierDismissible: false,
@@ -181,7 +200,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         }
 
         final bool isWithdrawalPending =
-        await WithdrawalStatusService.isCurrentUserWithdrawalPending();
+            await WithdrawalStatusService.isCurrentUserWithdrawalPending();
 
         if (!context.mounted) return;
         Navigator.of(context).pushAndRemoveUntil(
@@ -190,26 +209,22 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 ? const WithdrawalPendingScreen()
                 : const MainPage(),
           ),
-              (route) => false,
+          (route) => false,
         );
       } catch (_) {
         await FirebaseAuth.instance.signOut();
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              '회원 상태를 확인하지 못했습니다. 잠시 후 다시 로그인해주세요.',
-            ),
-          ),
+          const SnackBar(content: Text('회원 상태를 확인하지 못했습니다. 잠시 후 다시 로그인해주세요.')),
         );
       }
     }
   }
 
   Future<void> _handleSocialLogin(
-      Future<AuthResult?> Function() signInFn,
-      String provider,
-      ) async {
+    Future<AuthResult?> Function() signInFn,
+    String provider,
+  ) async {
     setState(() => _isLoading = true);
     final result = await signInFn();
     if (!mounted) return;
@@ -252,14 +267,16 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                 child: _SocialButton(
                                   text: '카카오로 계속하기',
                                   backgroundColor: const Color(0xFFFEE500),
-                                  textColor: const Color(0xFF1A1A1A),
+                                  textColor: Colors.black,
                                   icon: Image.asset(
                                     'assets/icons/kakaoIcon.png',
                                     width: 22,
                                     height: 22,
                                   ),
                                   onPressed: () => _handleSocialLogin(
-                                      AuthService.signInWithKakao, 'KAKAO'),
+                                    AuthService.signInWithKakao,
+                                    'KAKAO',
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 12),
@@ -269,15 +286,17 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                 child: _SocialButton(
                                   text: 'Google로 계속하기',
                                   backgroundColor: Colors.white,
-                                  textColor: const Color(0xFF1A1A1A),
-                                  borderColor: const Color(0xFFE5E7EB),
+                                  textColor: Colors.black,
+                                  borderColor: context.colors.border,
                                   icon: Image.asset(
                                     'assets/icons/googleIcon.png',
                                     width: 22,
                                     height: 22,
                                   ),
                                   onPressed: () => _handleSocialLogin(
-                                      AuthService.signInWithGoogle, 'GOOGLE'),
+                                    AuthService.signInWithGoogle,
+                                    'GOOGLE',
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 12),
@@ -287,14 +306,16 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                 child: _SocialButton(
                                   text: '네이버로 계속하기',
                                   backgroundColor: const Color(0xFF03C75A),
-                                  textColor: Colors.white,
+                                  textColor: Colors.black,
                                   icon: _BadgeIcon(
                                     label: 'N',
-                                    backgroundColor: Colors.white,
+                                    backgroundColor: context.colors.onPrimary,
                                     textColor: const Color(0xFF03C75A),
                                   ),
                                   onPressed: () => _handleSocialLogin(
-                                      AuthService.signInWithNaver, 'NAVER'),
+                                    AuthService.signInWithNaver,
+                                    'NAVER',
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 24),
@@ -311,7 +332,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                   onTap: () {
                                     Navigator.of(context).push(
                                       MaterialPageRoute(
-                                          builder: (_) => SignupScreen()),
+                                        builder: (_) => SignupScreen(),
+                                      ),
                                     );
                                   },
                                   child: Container(
@@ -325,10 +347,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                       ),
                                     ),
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         Image.asset(
-                                          'assets/images/textLogo.png',
+                                          Theme.of(context).brightness ==
+                                                  Brightness.dark
+                                              ? 'assets/images/textLogo_dark.png'
+                                              : 'assets/images/textLogo.png',
                                           height: 20,
                                         ),
                                         const SizedBox(width: 2),
@@ -363,7 +389,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                       onTap: () {
                                         Navigator.of(context).push(
                                           MaterialPageRoute(
-                                              builder: (_) => LoginScreen()),
+                                            builder: (_) => LoginScreen(),
+                                          ),
                                         );
                                       },
                                       child: Text(
@@ -472,12 +499,12 @@ class _SocialButtonState extends State<_SocialButton> {
             boxShadow: widget.borderColor != null
                 ? []
                 : [
-              BoxShadow(
-                color: widget.backgroundColor.withOpacity(0.28),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-            ],
+                    BoxShadow(
+                      color: widget.backgroundColor.withOpacity(0.28),
+                      blurRadius: 14,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -521,7 +548,11 @@ class _BadgeIcon extends StatelessWidget {
       alignment: Alignment.center,
       child: Text(
         label,
-        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: textColor),
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w800,
+          color: textColor,
+        ),
       ),
     );
   }
@@ -532,6 +563,10 @@ class _HeroIllustration extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final imagePath = Theme.of(context).brightness == Brightness.dark
+        ? 'assets/images/welcome_dark.png'
+        : 'assets/images/welcome.png';
+
     return ShaderMask(
       shaderCallback: (bounds) {
         return const LinearGradient(
@@ -547,12 +582,7 @@ class _HeroIllustration extends StatelessWidget {
         ).createShader(bounds);
       },
       blendMode: BlendMode.dstIn,
-      child: SizedBox.expand(
-        child: Image.asset(
-          'assets/images/welcome.png',
-          fit: BoxFit.cover,
-        ),
-      ),
+      child: SizedBox.expand(child: Image.asset(imagePath, fit: BoxFit.cover)),
     );
   }
 }

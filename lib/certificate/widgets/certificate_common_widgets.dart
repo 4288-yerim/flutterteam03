@@ -1,31 +1,24 @@
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
 import '../../widgets/app_button.dart';
 
-const Color certificatePrimaryPink = Color(0xFFF0788F);
-const Color certificatePinkSoft = Color(0xFFFCE1E8);
-const Color certificateLavender = Color(0xFFE6E1FB);
-const Color certificateSoftBlue = Color(0xFFE1E9FB);
-const Color certificateMint = Color(0xFFDFF5EA);
-
-const Color certificateDarkText = Color(0xFF1A1A1A);
-const Color certificateBodyText = Color(0xFF4A4A4A);
-const Color certificateGrayText = Color(0xFF9AA0AC);
-const Color certificateBorderColor = Color(0xFFF0EDF0);
-
 BoxDecoration certificateCardDecoration({
-  Color backgroundColor = Colors.white,
-  Color borderColor = certificateBorderColor,
+  BuildContext? context,
+  Color? backgroundColor,
+  Color? borderColor,
   bool showBorder = false,
 }) {
   return BoxDecoration(
-    color: backgroundColor,
+    color:
+        backgroundColor ?? context?.colors.surface ?? AppColors.light.surface,
     borderRadius: BorderRadius.circular(22),
     border: showBorder
         ? Border.all(
-      color: borderColor,
-      width: 1,
-    )
+            color:
+                borderColor ?? context?.colors.border ?? AppColors.light.border,
+            width: 1,
+          )
         : null,
   );
 }
@@ -47,18 +40,18 @@ class CertificatePageHeader extends StatelessWidget {
       children: [
         Text(
           title,
-          style: const TextStyle(
-            color: certificateDarkText,
+          style: TextStyle(
+            color: context.colors.textPrimary,
             fontSize: 26,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.6,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Text(
           subtitle,
-          style: const TextStyle(
-            color: certificateGrayText,
+          style: TextStyle(
+            color: context.colors.textSecondary,
             fontSize: 14,
             height: 1.5,
           ),
@@ -90,8 +83,8 @@ class CertificateSectionTitle extends StatelessWidget {
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(
-                  color: certificateDarkText,
+                style: TextStyle(
+                  color: context.colors.textPrimary,
                   fontSize: 21,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.4,
@@ -100,18 +93,15 @@ class CertificateSectionTitle extends StatelessWidget {
             ),
             if (count != null)
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: certificatePinkSoft,
+                  color: context.colors.pinkSoft,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   '$count개',
-                  style: const TextStyle(
-                    color: certificatePrimaryPink,
+                  style: TextStyle(
+                    color: context.colors.pinkDeep,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -119,11 +109,11 @@ class CertificateSectionTitle extends StatelessWidget {
               ),
           ],
         ),
-        const SizedBox(height: 5),
+        SizedBox(height: 5),
         Text(
           subtitle,
-          style: const TextStyle(
-            color: certificateGrayText,
+          style: TextStyle(
+            color: context.colors.textSecondary,
             fontSize: 13,
             height: 1.4,
           ),
@@ -147,28 +137,26 @@ class CertificateLoadError extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+        padding: EdgeInsets.symmetric(horizontal: 24),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(24),
-          decoration: certificateCardDecoration(),
+          padding: EdgeInsets.all(24),
+          decoration: certificateCardDecoration(context: context),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const CertificateEmptyIcon(
-                icon: Icons.error_outline_rounded,
-              ),
-              const SizedBox(height: 16),
+              CertificateEmptyIcon(icon: Icons.error_outline_rounded),
+              SizedBox(height: 16),
               Text(
                 message,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: certificateBodyText,
+                style: TextStyle(
+                  color: context.colors.textSecondary,
                   fontSize: 14,
                   height: 1.5,
                 ),
               ),
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
               AppButton(
                 text: '다시 시도',
                 type: AppButtonType.primaryPink,
@@ -185,31 +173,23 @@ class CertificateLoadError extends StatelessWidget {
 class EmptyFilterResult extends StatelessWidget {
   final String message;
 
-  const EmptyFilterResult({
-    super.key,
-    required this.message,
-  });
+  const EmptyFilterResult({super.key, required this.message});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 20,
-        vertical: 30,
-      ),
-      decoration: certificateCardDecoration(),
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+      decoration: certificateCardDecoration(context: context),
       child: Column(
         children: [
-          const CertificateEmptyIcon(
-            icon: Icons.inbox_outlined,
-          ),
-          const SizedBox(height: 13),
+          CertificateEmptyIcon(icon: Icons.inbox_outlined),
+          SizedBox(height: 13),
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: certificateGrayText,
+            style: TextStyle(
+              color: context.colors.textSecondary,
               fontSize: 14,
               height: 1.4,
             ),
@@ -223,23 +203,17 @@ class EmptyFilterResult extends StatelessWidget {
 class EmptyInlineResult extends StatelessWidget {
   final String message;
 
-  const EmptyInlineResult({
-    super.key,
-    required this.message,
-  });
+  const EmptyInlineResult({super.key, required this.message});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 18),
+      padding: EdgeInsets.symmetric(vertical: 18),
       child: Center(
         child: Text(
           message,
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: certificateGrayText,
-            fontSize: 14,
-          ),
+          style: TextStyle(color: context.colors.textSecondary, fontSize: 14),
         ),
       ),
     );
@@ -249,10 +223,7 @@ class EmptyInlineResult extends StatelessWidget {
 class CertificateEmptyIcon extends StatelessWidget {
   final IconData icon;
 
-  const CertificateEmptyIcon({
-    super.key,
-    required this.icon,
-  });
+  const CertificateEmptyIcon({super.key, required this.icon});
 
   @override
   Widget build(BuildContext context) {
@@ -260,14 +231,10 @@ class CertificateEmptyIcon extends StatelessWidget {
       width: 52,
       height: 52,
       decoration: BoxDecoration(
-        color: certificatePinkSoft,
+        color: context.colors.pinkSoft,
         borderRadius: BorderRadius.circular(17),
       ),
-      child: Icon(
-        icon,
-        color: certificatePrimaryPink,
-        size: 27,
-      ),
+      child: Icon(icon, color: context.colors.pinkDeep, size: 27),
     );
   }
 }

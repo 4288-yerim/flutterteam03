@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
+
 import '../services/admin_home_service.dart';
 import '../widgets/admin_home_widgets.dart';
 
@@ -51,7 +53,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         final data = snapshot.data!;
 
         return RefreshIndicator(
-          color: const Color(0xFF6C63FF),
+          color: context.colors.lavenderAccent,
           onRefresh: _refresh,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -81,10 +83,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               const SizedBox(height: 12),
               AdminMetricGrid(metrics: data.metrics),
               const SizedBox(height: 26),
-              const AdminSectionTitle(
-                title: '최근 운영 현황',
-                subtitle: '최근 7일 기준',
-              ),
+              const AdminSectionTitle(title: '최근 운영 현황', subtitle: '최근 7일 기준'),
               const SizedBox(height: 12),
               AdminWeeklyStatusCard(statuses: data.weeklyStatuses),
             ],

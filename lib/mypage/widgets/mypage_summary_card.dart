@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
+
 import '../../widgets/app_card.dart';
 import '../utils/study_time_formatter.dart';
 
@@ -25,10 +27,7 @@ class MyPageSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 20,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 20),
       child: Row(
         children: [
           Expanded(
@@ -39,7 +38,7 @@ class MyPageSummaryCard extends StatelessWidget {
               onTap: onStudyTap,
             ),
           ),
-          const _VerticalSummaryDivider(),
+          _VerticalSummaryDivider(),
           Expanded(
             child: _SummaryItem(
               icon: Icons.groups_outlined,
@@ -48,7 +47,7 @@ class MyPageSummaryCard extends StatelessWidget {
               onTap: onGroupTap,
             ),
           ),
-          const _VerticalSummaryDivider(),
+          _VerticalSummaryDivider(),
           Expanded(
             child: _SummaryItem(
               icon: Icons.article_outlined,
@@ -82,32 +81,26 @@ class _SummaryItem extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          vertical: 4,
-        ),
+        padding: EdgeInsets.symmetric(vertical: 4),
         child: Column(
           children: [
-            Icon(
-              icon,
-              size: 22,
-              color: const Color(0xFFF0788F),
-            ),
-            const SizedBox(height: 8),
+            Icon(icon, size: 22, color: context.colors.pinkStart),
+            SizedBox(height: 8),
             Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A1A),
+                color: context.colors.textPrimary,
               ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
-                color: Color(0xFF9AA0AC),
+                color: context.colors.textSecondary,
               ),
             ),
           ],
@@ -118,14 +111,10 @@ class _SummaryItem extends StatelessWidget {
 }
 
 class _VerticalSummaryDivider extends StatelessWidget {
-  const _VerticalSummaryDivider();
+  _VerticalSummaryDivider();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 54,
-      color: const Color(0xFFF0F0F2),
-    );
+    return Container(width: 1, height: 54, color: context.colors.divider);
   }
 }

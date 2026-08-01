@@ -3,12 +3,14 @@ import 'package:showcaseview/showcaseview.dart';
 import '../../appwidgets/today_todo_app_widget.dart';
 import '../../certificate/screens/certificate_schedule.dart';
 import '../../mypage/screens/study_plan_screen.dart';
+import '../../theme.dart';
 import '../../widgets/app_main_background.dart';
+import '../../widgets/app_state_views.dart';
 import '../../widgets/app_top_bar.dart';
-import '../../widgets/loading_overlay.dart';
 import '../services/home_service.dart';
 import '../widgets/home_widgets.dart';
 import '../../notification/screens/notification.dart';
+import '../../notification/widgets/notification_bell_button.dart';
 import '../../widgets/tutorial_card.dart';
 
 class HomePage extends StatefulWidget {
@@ -60,9 +62,7 @@ class _HomePageState extends State<HomePage> {
   void _onNotificationPressed() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const NotificationPage(),
-      ),
+      MaterialPageRoute(builder: (_) => const NotificationPage()),
     );
   }
 
@@ -100,11 +100,7 @@ class _HomePageState extends State<HomePage> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(
-        SnackBar(
-          content: Text('홈 정보를 새로고침하지 못했습니다.\n$error'),
-        ),
-      );
+      ).showSnackBar(SnackBar(content: Text('홈 정보를 새로고침하지 못했습니다.\n$error')));
     } finally {
       if (mounted) {
         setState(() {
@@ -128,7 +124,7 @@ class _HomePageState extends State<HomePage> {
       key: key,
       targetBorderRadius: BorderRadius.circular(18),
       targetPadding: const EdgeInsets.all(14),
-      overlayColor: Colors.black,
+      overlayColor: context.colors.overlay,
       overlayOpacity: 0.65,
       tooltipPosition: TooltipPosition.bottom,
       container: TutorialCard(
@@ -166,12 +162,8 @@ class _HomePageState extends State<HomePage> {
                 title: '알림',
                 description: '새로운 소식을 여기서 확인하세요!',
                 arrowAlignX: 0.85,
-                child: IconButton(
+                child: NotificationBellButton(
                   onPressed: _onNotificationPressed,
-                  icon: const Icon(
-                    Icons.notifications_none_rounded,
-                    color: Color(0xFF302C2E),
-                  ),
                 ),
               ),
             ],
@@ -180,8 +172,8 @@ class _HomePageState extends State<HomePage> {
             children: [
               AppMainBackground(
                 child: RefreshIndicator(
-                  color: const Color(0xFFF06F91),
-                  backgroundColor: Colors.white,
+                  color: context.colors.pinkDeep,
+                  backgroundColor: context.colors.surface,
                   onRefresh: _refreshHome,
                   child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
@@ -247,131 +239,137 @@ class _HomePageState extends State<HomePage> {
                           );
                         },
                       ),
-                  const SizedBox(height: 28),
-                  _wrapShowcase(
-                    key: widget.todayTodoKey,
-                    icon: Icons.checklist_rounded,
-                    title: '오늘의 할 일',
-                    description: '오늘 해야 할 공부를 체크해보세요!',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        HomeSectionHeader(
-                          title: '오늘의 할 일',
-                          actionText: '전체보기',
-                          onActionPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const StudyPlanScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 14),
-                        StreamBuilder<List<HomeTodo>>(
-                          stream: _todayTodosStream,
-                          builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                                  ConnectionState.waiting &&
-                              !snapshot.hasData) {
-                            return Container(
-                              width: double.infinity,
-                              height: 120,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.92),
-                                borderRadius: BorderRadius.circular(28),
-                              ),
-                              child: const Center(
-                                child: SizedBox(
-                                  width: 26,
-                                  height: 26,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 3,
-                                    color: Color(0xFFF06F91),
+                      const SizedBox(height: 28),
+                      _wrapShowcase(
+                        key: widget.todayTodoKey,
+                        icon: Icons.checklist_rounded,
+                        title: '오늘의 할 일',
+                        description: '오늘 해야 할 공부를 체크해보세요!',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            HomeSectionHeader(
+                              title: '오늘의 할 일',
+                              actionText: '전체보기',
+                              onActionPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const StudyPlanScreen(),
                                   ),
-                                ),
-                              ),
-                            );
-                          }
-
-                          if (snapshot.hasError) {
-                            final message =
-                                snapshot.error is HomeServiceException
-                                ? (snapshot.error! as HomeServiceException)
-                                      .message
-                                : '오늘의 학습 계획을 불러오지 못했습니다.';
-
-                            return Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 26,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.92),
-                                borderRadius: BorderRadius.circular(28),
-                              ),
-                              child: Column(
-                                children: [
-                                  const Icon(
-                                    Icons.error_outline_rounded,
-                                    size: 34,
-                                    color: Color(0xFFF06F91),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  const Text(
-                                    '오늘의 학습 계획을 불러오지 못했습니다.',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: Color(0xFF302C2E),
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w700,
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 14),
+                            StreamBuilder<List<HomeTodo>>(
+                              stream: _todayTodosStream,
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                        ConnectionState.waiting &&
+                                    !snapshot.hasData) {
+                                  return Container(
+                                    width: double.infinity,
+                                    height: 120,
+                                    decoration: BoxDecoration(
+                                      color: context.colors.surfaceTransparent,
+                                      borderRadius: BorderRadius.circular(28),
                                     ),
-                                  ),
-                                  const SizedBox(height: 5),
-                                  Text(
-                                    message,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      color: Color(0xFF817B7D),
-                                      fontSize: 13,
+                                    child: Center(
+                                      child: SizedBox(
+                                        width: 26,
+                                        height: 26,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 3,
+                                          color: context.colors.pinkDeep,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }
-
-                          final todos = snapshot.data ?? const <HomeTodo>[];
-
-                          return HomeTodayTodoCard(
-                            todos: todos,
-                            onTodoPressed: (todo) async {
-                              try {
-                                await _homeService.toggleTodoStatus(todo);
-                                await TodayTodoAppWidget.sync();
-                              } on HomeServiceException catch (error) {
-                                if (!context.mounted) {
-                                  return;
+                                  );
                                 }
 
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(error.message)),
+                                if (snapshot.hasError) {
+                                  final message =
+                                      snapshot.error is HomeServiceException
+                                      ? (snapshot.error!
+                                                as HomeServiceException)
+                                            .message
+                                      : '오늘의 학습 계획을 불러오지 못했습니다.';
+
+                                  return Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 20,
+                                      vertical: 26,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: context.colors.surfaceTransparent,
+                                      borderRadius: BorderRadius.circular(28),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Icon(
+                                          Icons.error_outline_rounded,
+                                          size: 34,
+                                          color: context.colors.incorrect,
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Text(
+                                          '오늘의 학습 계획을 불러오지 못했습니다.',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: context.colors.textPrimary,
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 5),
+                                        Text(
+                                          message,
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: context.colors.textSecondary,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+
+                                final todos =
+                                    snapshot.data ?? const <HomeTodo>[];
+
+                                return HomeTodayTodoCard(
+                                  todos: todos,
+                                  onTodoPressed: (todo) async {
+                                    try {
+                                      await _homeService.toggleTodoStatus(todo);
+                                      await TodayTodoAppWidget.sync();
+                                    } on HomeServiceException catch (error) {
+                                      if (!context.mounted) {
+                                        return;
+                                      }
+
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(content: Text(error.message)),
+                                      );
+                                    }
+                                  },
                                 );
-                              }
-                            },
-                          );
-                          },
+                              },
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
                       const SizedBox(height: 32),
                       StreamBuilder<HomeTodayStudySummary>(
                         stream: _todayStudySummaryStream,
                         builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                          if (snapshot.connectionState ==
+                                  ConnectionState.waiting &&
+                              !snapshot.hasData) {
                             return _wrapShowcase(
                               key: widget.todayStudyKey,
                               icon: Icons.timer_rounded,
@@ -400,8 +398,11 @@ class _HomePageState extends State<HomePage> {
                                   const HomeSectionHeader(title: '오늘 공부 시간'),
                                   const SizedBox(height: 14),
                                   HomeTodayStudyErrorCard(
-                                    message: snapshot.error is HomeServiceException
-                                        ? (snapshot.error! as HomeServiceException).message
+                                    message:
+                                        snapshot.error is HomeServiceException
+                                        ? (snapshot.error!
+                                                  as HomeServiceException)
+                                              .message
                                         : '오늘 공부 기록을 불러오지 못했습니다.',
                                   ),
                                 ],
@@ -409,7 +410,9 @@ class _HomePageState extends State<HomePage> {
                             );
                           }
 
-                          final summary = snapshot.data ?? const HomeTodayStudySummary.empty();
+                          final summary =
+                              snapshot.data ??
+                              const HomeTodayStudySummary.empty();
 
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -431,7 +434,9 @@ class _HomePageState extends State<HomePage> {
                               const SizedBox(height: 32),
                               const HomeSectionHeader(title: '스터디 공부 시간'),
                               const SizedBox(height: 14),
-                              HomeStudyGroupStatusCard(studyGroups: summary.studyGroups),
+                              HomeStudyGroupStatusCard(
+                                studyGroups: summary.studyGroups,
+                              ),
                             ],
                           );
                         },
@@ -440,7 +445,14 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ),
-              if (_isRefreshing) const Positioned.fill(child: LoadingOverlay()),
+              if (_isRefreshing)
+                const Positioned.fill(
+                  child: AbsorbPointer(
+                    child: AppMainBackground(
+                      child: AppLoadingView(message: '홈 정보를 불러오는 중입니다.'),
+                    ),
+                  ),
+                ),
             ],
           ),
         );

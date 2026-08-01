@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import 'package:file_picker/file_picker.dart';
+import '../theme.dart';
 
 import 'dart:io';
 
@@ -14,7 +16,7 @@ import 'services/question_generation_api_service.dart';
 import 'dart:async';
 
 class MaterialSummaryPage extends StatefulWidget {
-  const MaterialSummaryPage({super.key});
+  MaterialSummaryPage({super.key});
 
   @override
   State<MaterialSummaryPage> createState() => _MaterialSummaryPageState();
@@ -22,20 +24,12 @@ class MaterialSummaryPage extends StatefulWidget {
 
 class _MaterialSummaryPageState extends State<MaterialSummaryPage>
     with SingleTickerProviderStateMixin {
-  static const Color _textColor = Color(0xFF302C2E);
-  static const Color _subTextColor = Color(0xFF8E8589);
-  static const Color _pinkColor = Color(0xFFF4869D);
-  static const Color _pinkSoft = Color(0xFFFFE4EA);
-  static const Color _pinkAccent = Color(0xFFFF8FA3);
-
-  static const int _maxFileCount = 5;
-
+  static int _maxFileCount = 5;
 
   final PageController _pageController = PageController();
   int _currentStep = 0;
 
-
-  static const List<String> _summaryMessages = [
+  static List<String> _summaryMessages = [
     '구름iT이 자료를 분석하고 있어요',
     '업로드한 자료를 읽고 있어요',
     '핵심 내용을 정리하고 있어요',
@@ -43,8 +37,7 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage>
     '거의 다 됐어요',
     '이제 보여드릴게요',
   ];
-  static const List<int> _summaryDurations = [2800, 3200, 3200, 3600, 2200, 900];
-
+  static List<int> _summaryDurations = [2800, 3200, 3200, 3600, 2200, 900];
 
   late final AnimationController _loadingController;
 
@@ -86,7 +79,7 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage>
     setState(() => _currentStep = step);
     _pageController.animateToPage(
       step,
-      duration: const Duration(milliseconds: 320),
+      duration: Duration(milliseconds: 320),
       curve: Curves.easeOutCubic,
     );
   }
@@ -109,18 +102,18 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage>
     });
 
     _loadingController.value = 0;
-    _loadingController.duration = const Duration(milliseconds: 1500);
+    _loadingController.duration = Duration(milliseconds: 1500);
     _loadingController.animateTo(0.9, curve: Curves.easeOut);
 
     try {
       final certification =
-      await QuestionGenerationApiService.fetchCertificateStructure(name);
+          await QuestionGenerationApiService.fetchCertificateStructure(name);
 
       await _loadingController.animateTo(
         1.0,
-        duration: const Duration(milliseconds: 200),
+        duration: Duration(milliseconds: 200),
       );
-      await Future.delayed(const Duration(milliseconds: 300));
+      await Future.delayed(Duration(milliseconds: 300));
       if (!mounted) return;
 
       setState(() {
@@ -170,8 +163,8 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage>
       final newFiles = result.files.where((newFile) {
         // 같은 이름과 같은 크기의 파일은 중복으로 추가하지 않음
         final alreadyExists = _selectedFiles.any(
-              (existingFile) =>
-          existingFile.name == newFile.name &&
+          (existingFile) =>
+              existingFile.name == newFile.name &&
               existingFile.size == newFile.size,
         );
 
@@ -203,9 +196,7 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage>
       });
 
       if (newFiles.length > remainingFileCount) {
-        _showMessage(
-          '파일은 최대 5개까지 등록할 수 있어 ${filesToAdd.length}개만 추가했습니다.',
-        );
+        _showMessage('파일은 최대 5개까지 등록할 수 있어 ${filesToAdd.length}개만 추가했습니다.');
       } else {
         _showMessage('${filesToAdd.length}개 파일을 추가했습니다.');
       }
@@ -290,9 +281,9 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage>
 
         final storageReference = FirebaseStorage.instance.ref().child(
           'material_summaries/'
-              '${user.uid}/'
-              '$uploadId/'
-              '$storageFileName',
+          '${user.uid}/'
+          '$uploadId/'
+          '$storageFileName',
         );
 
         final metadata = SettableMetadata(
@@ -342,7 +333,9 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage>
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _openSummaryResultPage() async {
@@ -368,10 +361,11 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage>
 
       // 업로드가 끝난 같은 로딩 화면 안에서 요약까지 미리 받아온다.
       // 결과 페이지에서 또 로딩이 뜨지 않도록, 완성된 데이터를 그대로 들고 이동한다.
-      final summaryResult = await QuestionGenerationApiService.summarizeMaterial(
-        fileUrls: uploadedPaths,
-        selectedCertificate: _selectedCertificate ?? '',
-      );
+      final summaryResult =
+          await QuestionGenerationApiService.summarizeMaterial(
+            fileUrls: uploadedPaths,
+            selectedCertificate: _selectedCertificate ?? '',
+          );
 
       debugPrint('summarizeMaterial 응답(업로드 화면): $summaryResult');
 
@@ -434,9 +428,9 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage>
         centerTitle: false,
         leading: _currentStep == 1
             ? IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-          onPressed: _isUploading ? null : () => _goToStep(0),
-        )
+                icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+                onPressed: _isUploading ? null : () => _goToStep(0),
+              )
             : null,
       ),
       body: AppMainBackground(
@@ -445,18 +439,15 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage>
             SafeArea(
               child: Column(
                 children: [
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   _StepProgressBar(currentStep: _currentStep),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8),
                   Expanded(
                     child: PageView(
                       controller: _pageController,
-                      physics: const NeverScrollableScrollPhysics(),
+                      physics: NeverScrollableScrollPhysics(),
                       onPageChanged: (i) => setState(() => _currentStep = i),
-                      children: [
-                        _buildStep1(),
-                        _buildStep2(),
-                      ],
+                      children: [_buildStep1(), _buildStep2()],
                     ),
                   ),
                 ],
@@ -465,11 +456,13 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage>
             if (_isUploading)
               Positioned.fill(
                 child: Container(
-                  color: Colors.white.withValues(alpha: 0.92),
+                  color: context.colors.surfaceTransparent.withValues(
+                    alpha: 0.92,
+                  ),
                   child: Align(
-                    alignment: const Alignment(0, -0.15),
+                    alignment: Alignment(0, -0.15),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      padding: EdgeInsets.symmetric(horizontal: 24),
                       child: _RotatingLoadingContent(
                         messages: _summaryMessages,
                         durations: _summaryDurations,
@@ -486,22 +479,24 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage>
 
   Widget _buildStep1() {
     return Align(
-      alignment: const Alignment(0, -0.15),
+      alignment: Alignment(0, -0.15),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+        padding: EdgeInsets.symmetric(horizontal: 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             AnimatedSwitcher(
-              duration: const Duration(milliseconds: 350),
+              duration: Duration(milliseconds: 350),
               switchInCurve: Curves.easeOut,
               switchOutCurve: Curves.easeIn,
               transitionBuilder: (child, anim) => FadeTransition(
                 opacity: anim,
                 child: SlideTransition(
-                  position: Tween(begin: const Offset(0, 0.03), end: Offset.zero)
-                      .animate(anim),
+                  position: Tween(
+                    begin: Offset(0, 0.03),
+                    end: Offset.zero,
+                  ).animate(anim),
                   child: child,
                 ),
               ),
@@ -524,20 +519,20 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage>
       children: [
         _FadeSlideIn(
           delay: Duration.zero,
-          duration: const Duration(milliseconds: 600),
-          child: const _SectionTitle(
+          duration: Duration(milliseconds: 600),
+          child: _SectionTitle(
             title: '어떤 자격증 자료인가요?',
             description: '요약할 자료의 자격증 이름을 입력하면 AI가 확인해드려요.',
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         _FadeSlideIn(
-          delay: const Duration(milliseconds: 300),
-          duration: const Duration(milliseconds: 700),
+          delay: Duration(milliseconds: 300),
+          duration: Duration(milliseconds: 700),
           child: _buildCertInput(),
         ),
         if (_certificateCheckError != null) ...[
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           _InlineMessage(text: _certificateCheckError!),
         ],
       ],
@@ -552,24 +547,24 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage>
         Text(
           'AI가 자격증을 확인하고 있어요',
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: _textColor,
+          style: TextStyle(
+            color: context.colors.textPrimary,
             fontSize: 21,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.5,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Text(
           '$name 자격증 정보를 확인하고 있어요.',
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: _subTextColor,
+          style: TextStyle(
+            color: context.colors.textSecondary,
             fontSize: 13.5,
             height: 1.5,
           ),
         ),
-        const SizedBox(height: 30),
+        SizedBox(height: 30),
         _LoadingIndicator(progress: _loadingController),
       ],
     );
@@ -578,14 +573,14 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage>
   Widget _buildCertInput() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: _certificateCheckError != null
-              ? const Color(0xFFE96B7A)
-              : _pinkSoft,
+              ? context.colors.incorrect
+              : context.colors.pinkSoft,
         ),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
             color: Color(0x14C98198),
             blurRadius: 18,
@@ -601,40 +596,44 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage>
             setState(() => _certificateCheckError = null);
           }
         },
-        style: const TextStyle(
-          color: _textColor,
+        style: TextStyle(
+          color: context.colors.textPrimary,
           fontSize: 15.5,
           fontWeight: FontWeight.w700,
         ),
         decoration: InputDecoration(
           hintText: '예: 정보처리기사, SQLD, ADsP',
-          hintStyle: const TextStyle(color: Color(0xFFB7AFB1), fontSize: 15),
+          hintStyle: TextStyle(color: context.colors.textMuted, fontSize: 15),
           prefixIcon: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(12),
             child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(colors: [_pinkColor, _pinkAccent]),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [context.colors.pinkStart, context.colors.pinkDeep],
+                ),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.workspace_premium_outlined,
-                color: Colors.white,
+                color: context.colors.onPrimary,
                 size: 19,
               ),
             ),
           ),
-          prefixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          prefixIconConstraints: BoxConstraints(minWidth: 44, minHeight: 44),
           suffixIcon: Padding(
-            padding: const EdgeInsets.only(right: 6),
+            padding: EdgeInsets.only(right: 6),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [_pinkColor, _pinkAccent]),
+                gradient: LinearGradient(
+                  colors: [context.colors.pinkStart, context.colors.pinkDeep],
+                ),
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
-                    color: _pinkColor.withValues(alpha: 0.35),
+                    color: context.colors.pinkStart.withValues(alpha: 0.35),
                     blurRadius: 12,
-                    offset: const Offset(0, 6),
+                    offset: Offset(0, 6),
                   ),
                 ],
               ),
@@ -645,30 +644,30 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage>
                   borderRadius: BorderRadius.circular(14),
                   onTap: _isCheckingCertificate ? null : _checkCertificate,
                   child: _isCheckingCertificate
-                      ? const Padding(
-                    padding: EdgeInsets.all(10),
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2.2,
-                      ),
-                    ),
-                  )
-                      : const Padding(
-                    padding: EdgeInsets.all(10),
-                    child: Icon(
-                      Icons.search_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
+                      ? Padding(
+                          padding: EdgeInsets.all(10),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: context.colors.surface,
+                              strokeWidth: 2.2,
+                            ),
+                          ),
+                        )
+                      : Padding(
+                          padding: EdgeInsets.all(10),
+                          child: Icon(
+                            Icons.search_rounded,
+                            color: context.colors.onPrimary,
+                            size: 20,
+                          ),
+                        ),
                 ),
               ),
             ),
           ),
-          contentPadding: const EdgeInsets.fromLTRB(6, 17, 6, 17),
+          contentPadding: EdgeInsets.fromLTRB(6, 17, 6, 17),
           border: InputBorder.none,
         ),
       ),
@@ -677,21 +676,23 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage>
 
   Widget _buildStep2() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 14, 24, 40),
+      padding: EdgeInsets.fromLTRB(24, 14, 24, 40),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (_selectedCertificate != null)
             _SelectedCertificateCard(
               certificateName: _selectedCertificate!,
-              onRemovePressed: _isUploading ? () {} : _removeSelectedCertificate,
+              onRemovePressed: _isUploading
+                  ? () {}
+                  : _removeSelectedCertificate,
             ),
-          const SizedBox(height: 28),
-          const _SectionTitle(
+          SizedBox(height: 28),
+          _SectionTitle(
             title: '요약할 자료를 올려주세요',
             description: 'JPG, PNG, PDF 파일만 업로드할 수 있어요.',
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           if (_selectedFileNames.isEmpty)
             _UploadArea(onPressed: _selectFiles)
           else
@@ -702,7 +703,7 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage>
               onRemovePressed: _removeFile,
               onRemoveAllPressed: _removeAllFiles,
             ),
-          const SizedBox(height: 24),
+          SizedBox(height: 24),
           _GenerateSummaryButton(
             isEnabled: _selectedFileNames.isNotEmpty && !_isUploading,
             isLoading: _isUploading,
@@ -716,7 +717,7 @@ class _MaterialSummaryPageState extends State<MaterialSummaryPage>
 
 class _StepProgressBar extends StatelessWidget {
   final int currentStep;
-  const _StepProgressBar({required this.currentStep});
+  _StepProgressBar({required this.currentStep});
 
   @override
   Widget build(BuildContext context) {
@@ -726,20 +727,19 @@ class _StepProgressBar extends StatelessWidget {
         final active = i == currentStep;
         final done = i < currentStep;
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 280),
+          duration: Duration(milliseconds: 280),
           curve: Curves.easeOut,
-          margin: const EdgeInsets.symmetric(horizontal: 4),
+          margin: EdgeInsets.symmetric(horizontal: 4),
           width: active ? 28 : 18,
           height: 5,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
             gradient: (active || done)
-                ? const LinearGradient(colors: [
-              _MaterialSummaryPageState._pinkColor,
-              _MaterialSummaryPageState._pinkAccent,
-            ])
+                ? LinearGradient(
+                    colors: [context.colors.pinkStart, context.colors.pinkDeep],
+                  )
                 : null,
-            color: (active || done) ? null : _MaterialSummaryPageState._pinkSoft,
+            color: (active || done) ? null : context.colors.pinkSoft,
           ),
         );
       }),
@@ -749,7 +749,7 @@ class _StepProgressBar extends StatelessWidget {
 
 class _LoadingIndicator extends StatelessWidget {
   final Animation<double> progress;
-  const _LoadingIndicator({required this.progress});
+  _LoadingIndicator({required this.progress});
 
   @override
   Widget build(BuildContext context) {
@@ -761,15 +761,15 @@ class _LoadingIndicator extends StatelessWidget {
           WaveLoadingIndicator(
             size: 72,
             progress: progress.value,
-            backgroundColor: const Color(0xFFFFF3F5),
-            waveColorStart: _MaterialSummaryPageState._pinkColor,
-            waveColorEnd: _MaterialSummaryPageState._pinkAccent,
+            backgroundColor: context.colors.pinkSoft,
+            waveColorStart: context.colors.pinkStart,
+            waveColorEnd: context.colors.pinkDeep,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Text(
             '${(progress.value * 100).toInt()}%',
-            style: const TextStyle(
-              color: _MaterialSummaryPageState._pinkColor,
+            style: TextStyle(
+              color: context.colors.pinkStart,
               fontSize: 13,
               fontWeight: FontWeight.w800,
             ),
@@ -782,23 +782,23 @@ class _LoadingIndicator extends StatelessWidget {
 
 class _InlineMessage extends StatelessWidget {
   final String text;
-  const _InlineMessage({required this.text});
+  _InlineMessage({required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: _MaterialSummaryPageState._pinkSoft,
+        color: context.colors.pinkSoft,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFBDDE3)),
+        border: Border.all(color: context.colors.pinkBorder),
       ),
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: const TextStyle(
-          color: _MaterialSummaryPageState._subTextColor,
+        style: TextStyle(
+          color: context.colors.textSecondary,
           fontSize: 13.5,
           fontWeight: FontWeight.w600,
         ),
@@ -811,7 +811,7 @@ class _SectionTitle extends StatelessWidget {
   final String title;
   final String? description;
 
-  const _SectionTitle({required this.title, this.description});
+  _SectionTitle({required this.title, this.description});
 
   @override
   Widget build(BuildContext context) {
@@ -821,20 +821,20 @@ class _SectionTitle extends StatelessWidget {
         Text(
           title,
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: _MaterialSummaryPageState._textColor,
+          style: TextStyle(
+            color: context.colors.textPrimary,
             fontSize: 21,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.5,
           ),
         ),
         if (description != null) ...[
-          const SizedBox(height: 7),
+          SizedBox(height: 7),
           Text(
             description!,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: _MaterialSummaryPageState._subTextColor,
+            style: TextStyle(
+              color: context.colors.textSecondary,
               fontSize: 14,
               height: 1.45,
             ),
@@ -848,51 +848,48 @@ class _SectionTitle extends StatelessWidget {
 class _UploadArea extends StatelessWidget {
   final VoidCallback onPressed;
 
-  const _UploadArea({required this.onPressed});
+  _UploadArea({required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withValues(alpha: 0.88),
+      color: context.colors.surfaceTransparent.withValues(alpha: 0.88),
       borderRadius: BorderRadius.circular(24),
       child: InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(24),
         child: Container(
           width: double.infinity,
-          constraints: const BoxConstraints(minHeight: 220),
-          padding: const EdgeInsets.all(24),
+          constraints: BoxConstraints(minHeight: 220),
+          padding: EdgeInsets.all(24),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: _MaterialSummaryPageState._pinkSoft,
-              width: 1.5,
-            ),
+            border: Border.all(color: context.colors.pinkSoft, width: 1.5),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const _UploadIcon(),
-              const SizedBox(height: 18),
-              const Text(
+              _UploadIcon(),
+              SizedBox(height: 18),
+              Text(
                 '사진 또는 파일 업로드',
                 style: TextStyle(
-                  color: _MaterialSummaryPageState._textColor,
+                  color: context.colors.textPrimary,
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 8),
-              const Text(
+              SizedBox(height: 8),
+              Text(
                 '눌러서 요약할 자료를 선택해주세요.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: _MaterialSummaryPageState._subTextColor,
+                  color: context.colors.textSecondary,
                   fontSize: 14,
                 ),
               ),
-              const SizedBox(height: 12),
-              const _AllowedFileBadge(),
+              SizedBox(height: 12),
+              _AllowedFileBadge(),
             ],
           ),
         ),
@@ -902,21 +899,21 @@ class _UploadArea extends StatelessWidget {
 }
 
 class _UploadIcon extends StatelessWidget {
-  const _UploadIcon();
+  _UploadIcon();
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: 72,
       height: 72,
-      decoration: const BoxDecoration(
-        color: _MaterialSummaryPageState._pinkSoft,
+      decoration: BoxDecoration(
+        color: context.colors.pinkSoft,
         shape: BoxShape.circle,
       ),
       alignment: Alignment.center,
-      child: const Icon(
+      child: Icon(
         Icons.cloud_upload_outlined,
-        color: _MaterialSummaryPageState._pinkColor,
+        color: context.colors.pinkStart,
         size: 36,
       ),
     );
@@ -924,20 +921,20 @@ class _UploadIcon extends StatelessWidget {
 }
 
 class _AllowedFileBadge extends StatelessWidget {
-  const _AllowedFileBadge();
+  _AllowedFileBadge();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+      padding: EdgeInsets.symmetric(horizontal: 13, vertical: 7),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF3F5),
+        color: context.colors.pinkSoft,
         borderRadius: BorderRadius.circular(30),
       ),
-      child: const Text(
+      child: Text(
         'JPG · PNG · PDF',
         style: TextStyle(
-          color: _MaterialSummaryPageState._pinkColor,
+          color: context.colors.pinkStart,
           fontSize: 12,
           fontWeight: FontWeight.w800,
         ),
@@ -953,7 +950,7 @@ class _SelectedFilesSection extends StatelessWidget {
   final ValueChanged<String> onRemovePressed;
   final VoidCallback onRemoveAllPressed;
 
-  const _SelectedFilesSection({
+  _SelectedFilesSection({
     required this.fileNames,
     required this.canAddFile,
     required this.onAddPressed,
@@ -965,21 +962,21 @@ class _SelectedFilesSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+      padding: EdgeInsets.fromLTRB(18, 18, 18, 16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.92),
+        color: context.colors.surfaceTransparent.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFF1DDE2)),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   '선택된 파일',
                   style: TextStyle(
-                    color: _MaterialSummaryPageState._textColor,
+                    color: context.colors.textPrimary,
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                   ),
@@ -987,19 +984,19 @@ class _SelectedFilesSection extends StatelessWidget {
               ),
               Text(
                 '${fileNames.length}개',
-                style: const TextStyle(
-                  color: _MaterialSummaryPageState._pinkColor,
+                style: TextStyle(
+                  color: context.colors.pinkStart,
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(width: 10),
+              SizedBox(width: 10),
               GestureDetector(
                 onTap: onRemoveAllPressed,
-                child: const Text(
+                child: Text(
                   '전체 삭제',
                   style: TextStyle(
-                    color: _MaterialSummaryPageState._subTextColor,
+                    color: context.colors.textSecondary,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1007,32 +1004,36 @@ class _SelectedFilesSection extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           ...List.generate(fileNames.length, (index) {
             final fileName = fileNames[index];
             return Padding(
-              padding: EdgeInsets.only(bottom: index == fileNames.length - 1 ? 0 : 10),
+              padding: EdgeInsets.only(
+                bottom: index == fileNames.length - 1 ? 0 : 10,
+              ),
               child: _SelectedFileItem(
                 fileName: fileName,
                 onRemovePressed: () => onRemovePressed(fileName),
               ),
             );
           }),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
             height: 46,
             child: OutlinedButton.icon(
               onPressed: canAddFile ? onAddPressed : null,
               style: OutlinedButton.styleFrom(
-                foregroundColor: _MaterialSummaryPageState._pinkColor,
-                side: const BorderSide(color: _MaterialSummaryPageState._pinkSoft),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                foregroundColor: context.colors.pinkStart,
+                side: BorderSide(color: context.colors.pinkSoft),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
-              icon: const Icon(Icons.add_rounded, size: 20),
+              icon: Icon(Icons.add_rounded, size: 20),
               label: Text(
                 canAddFile ? '파일 추가하기' : '최대 5개까지 등록 가능',
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
               ),
             ),
           ),
@@ -1046,7 +1047,7 @@ class _SelectedFileItem extends StatelessWidget {
   final String fileName;
   final VoidCallback onRemovePressed;
 
-  const _SelectedFileItem({required this.fileName, required this.onRemovePressed});
+  _SelectedFileItem({required this.fileName, required this.onRemovePressed});
 
   IconData _getFileIcon() {
     final lowerFileName = fileName.toLowerCase();
@@ -1068,9 +1069,9 @@ class _SelectedFileItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(12, 11, 8, 11),
+      padding: EdgeInsets.fromLTRB(12, 11, 8, 11),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF3F5),
+        color: context.colors.pinkSoft,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -1078,18 +1079,18 @@ class _SelectedFileItem extends StatelessWidget {
           Container(
             width: 43,
             height: 43,
-            decoration: const BoxDecoration(
-              color: _MaterialSummaryPageState._pinkSoft,
+            decoration: BoxDecoration(
+              color: context.colors.pinkSoft,
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
             child: Icon(
               _getFileIcon(),
-              color: _MaterialSummaryPageState._pinkColor,
+              color: context.colors.pinkStart,
               size: 23,
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1098,17 +1099,17 @@ class _SelectedFileItem extends StatelessWidget {
                   fileName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _MaterialSummaryPageState._textColor,
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   _getFileType(),
-                  style: const TextStyle(
-                    color: _MaterialSummaryPageState._subTextColor,
+                  style: TextStyle(
+                    color: context.colors.textSecondary,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1119,9 +1120,9 @@ class _SelectedFileItem extends StatelessWidget {
           IconButton(
             onPressed: onRemovePressed,
             visualDensity: VisualDensity.compact,
-            icon: const Icon(
+            icon: Icon(
               Icons.close_rounded,
-              color: _MaterialSummaryPageState._subTextColor,
+              color: context.colors.textSecondary,
               size: 20,
             ),
           ),
@@ -1136,7 +1137,7 @@ class _GenerateSummaryButton extends StatelessWidget {
   final bool isLoading;
   final VoidCallback onPressed;
 
-  const _GenerateSummaryButton({
+  _GenerateSummaryButton({
     required this.isEnabled,
     required this.isLoading,
     required this.onPressed,
@@ -1151,20 +1152,19 @@ class _GenerateSummaryButton extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
           gradient: isEnabled
-              ? const LinearGradient(colors: [
-            _MaterialSummaryPageState._pinkColor,
-            _MaterialSummaryPageState._pinkAccent,
-          ])
+              ? LinearGradient(
+                  colors: [context.colors.pinkStart, context.colors.pinkDeep],
+                )
               : null,
-          color: isEnabled ? null : const Color(0xFFE2DADD),
+          color: isEnabled ? null : context.colors.surfaceMuted,
           boxShadow: isEnabled
               ? [
-            BoxShadow(
-              color: _MaterialSummaryPageState._pinkColor.withValues(alpha: 0.35),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ]
+                  BoxShadow(
+                    color: context.colors.pinkStart.withValues(alpha: 0.35),
+                    blurRadius: 20,
+                    offset: Offset(0, 10),
+                  ),
+                ]
               : null,
         ),
         child: Material(
@@ -1174,39 +1174,50 @@ class _GenerateSummaryButton extends StatelessWidget {
             onTap: isEnabled ? onPressed : null,
             child: Center(
               child: isLoading
-                  ? const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.2),
-                  ),
-                  SizedBox(width: 10),
-                  Text(
-                    '준비 중...',
-                    style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800),
-                  ),
-                ],
-              )
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            color: context.colors.surface,
+                            strokeWidth: 2.2,
+                          ),
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          '준비 중...',
+                          style: TextStyle(
+                            color: context.colors.onPrimary,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    )
                   : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.auto_awesome_rounded,
-                    color: isEnabled ? Colors.white : _MaterialSummaryPageState._subTextColor,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '요약 생성하기',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      color: isEnabled ? Colors.white : _MaterialSummaryPageState._subTextColor,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.auto_awesome_rounded,
+                          color: isEnabled
+                              ? context.colors.onPrimary
+                              : context.colors.textSecondary,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          '요약 생성하기',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: isEnabled
+                                ? context.colors.onPrimary
+                                : context.colors.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
             ),
           ),
         ),
@@ -1219,7 +1230,7 @@ class _SelectedCertificateCard extends StatelessWidget {
   final String certificateName;
   final VoidCallback onRemovePressed;
 
-  const _SelectedCertificateCard({
+  _SelectedCertificateCard({
     required this.certificateName,
     required this.onRemovePressed,
   });
@@ -1228,36 +1239,36 @@ class _SelectedCertificateCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+      padding: EdgeInsets.fromLTRB(16, 14, 8, 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF3F5),
+        color: context.colors.pinkSoft,
         borderRadius: BorderRadius.circular(17),
       ),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.workspace_premium_outlined,
-            color: _MaterialSummaryPageState._pinkColor,
+            color: context.colors.pinkStart,
             size: 22,
           ),
-          const SizedBox(width: 11),
+          SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   '모든 자료에 적용할 자격증',
                   style: TextStyle(
-                    color: _MaterialSummaryPageState._subTextColor,
+                    color: context.colors.textSecondary,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   certificateName,
-                  style: const TextStyle(
-                    color: _MaterialSummaryPageState._textColor,
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1268,9 +1279,9 @@ class _SelectedCertificateCard extends StatelessWidget {
           IconButton(
             onPressed: onRemovePressed,
             tooltip: '자격증 다시 선택',
-            icon: const Icon(
+            icon: Icon(
               Icons.close_rounded,
-              color: _MaterialSummaryPageState._pinkColor,
+              color: context.colors.pinkStart,
               size: 21,
             ),
           ),
@@ -1284,7 +1295,7 @@ class _FadeSlideIn extends StatefulWidget {
   final Widget child;
   final Duration delay;
   final Duration duration;
-  const _FadeSlideIn({
+  _FadeSlideIn({
     this.delay = Duration.zero,
     this.duration = const Duration(milliseconds: 380),
     required this.child,
@@ -1297,11 +1308,14 @@ class _FadeSlideIn extends StatefulWidget {
 class _FadeSlideInState extends State<_FadeSlideIn>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late final Animation<double> _fade =
-  CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
-  late final Animation<Offset> _slide =
-  Tween(begin: const Offset(0, 0.06), end: Offset.zero)
-      .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+  late final Animation<double> _fade = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOutCubic,
+  );
+  late final Animation<Offset> _slide = Tween(
+    begin: Offset(0, 0.06),
+    end: Offset.zero,
+  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
   @override
   void initState() {
@@ -1327,18 +1341,15 @@ class _FadeSlideInState extends State<_FadeSlideIn>
   }
 }
 
-
 class _RotatingLoadingContent extends StatefulWidget {
   final List<String> messages;
   final List<int> durations;
 
-  const _RotatingLoadingContent({
-    required this.messages,
-    required this.durations,
-  });
+  _RotatingLoadingContent({required this.messages, required this.durations});
 
   @override
-  State<_RotatingLoadingContent> createState() => _RotatingLoadingContentState();
+  State<_RotatingLoadingContent> createState() =>
+      _RotatingLoadingContentState();
 }
 
 class _RotatingLoadingContentState extends State<_RotatingLoadingContent>
@@ -1350,15 +1361,16 @@ class _RotatingLoadingContentState extends State<_RotatingLoadingContent>
   @override
   void initState() {
     super.initState();
-    _rotationController =
-    AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))
-      ..repeat();
+    _rotationController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 1400),
+    )..repeat();
     _scheduleNextMessage();
   }
 
   void _scheduleNextMessage() {
     final duration =
-    widget.durations[_messageIndex.clamp(0, widget.durations.length - 1)];
+        widget.durations[_messageIndex.clamp(0, widget.durations.length - 1)];
     _messageTimer = Timer(Duration(milliseconds: duration), () {
       if (!mounted) return;
       if (_messageIndex < widget.messages.length - 1) {
@@ -1383,19 +1395,22 @@ class _RotatingLoadingContentState extends State<_RotatingLoadingContent>
         WaveLoadingIndicator(
           size: 72,
           progress: _messageIndex / (widget.messages.length - 1),
-          backgroundColor: const Color(0xFFFFF3F5),
-          waveColorStart: _MaterialSummaryPageState._pinkColor,
-          waveColorEnd: _MaterialSummaryPageState._pinkAccent,
+          backgroundColor: context.colors.pinkSoft,
+          waveColorStart: context.colors.pinkStart,
+          waveColorEnd: context.colors.pinkDeep,
         ),
-        const SizedBox(height: 26),
+        SizedBox(height: 26),
         AnimatedSwitcher(
-          duration: const Duration(milliseconds: 350),
+          duration: Duration(milliseconds: 350),
           switchInCurve: Curves.easeOut,
           switchOutCurve: Curves.easeIn,
           transitionBuilder: (child, anim) => FadeTransition(
             opacity: anim,
             child: SlideTransition(
-              position: Tween(begin: const Offset(0, 0.15), end: Offset.zero).animate(anim),
+              position: Tween(
+                begin: Offset(0, 0.15),
+                end: Offset.zero,
+              ).animate(anim),
               child: child,
             ),
           ),
@@ -1403,8 +1418,8 @@ class _RotatingLoadingContentState extends State<_RotatingLoadingContent>
             widget.messages[_messageIndex],
             key: ValueKey(_messageIndex),
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: _MaterialSummaryPageState._textColor,
+            style: TextStyle(
+              color: context.colors.textPrimary,
               fontSize: 15.5,
               fontWeight: FontWeight.w800,
             ),

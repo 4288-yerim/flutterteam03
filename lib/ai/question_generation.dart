@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../theme.dart';
+import '../theme.dart';
 import 'quiz_session_page.dart';
 import 'package:file_picker/file_picker.dart';
 import '../widgets/app_main_background.dart';
@@ -11,25 +13,19 @@ class QuestionGenerationPage extends StatefulWidget {
   final String? initialCertificate;
   final String? initialSubject;
 
-  const QuestionGenerationPage({
+  QuestionGenerationPage({
     super.key,
     this.initialCertificate,
     this.initialSubject,
   });
 
   @override
-  State<QuestionGenerationPage> createState() =>
-      _QuestionGenerationPageState();
+  State<QuestionGenerationPage> createState() => _QuestionGenerationPageState();
 }
+
 class _QuestionGenerationPageState extends State<QuestionGenerationPage>
     with SingleTickerProviderStateMixin {
-  static const Color _textColor = Color(0xFF302C2E);
-  static const Color _subTextColor = Color(0xFF8E8589);
-  static const Color _pinkColor = Color(0xFFF4869D);
-  static const Color _pinkSoft = Color(0xFFFFE4EA);
-  static const Color _pinkAccent = Color(0xFFFF8FA3);
-
-  static const List<String> _pdfMessages = [
+  static List<String> _pdfMessages = [
     '구름iT이 자료를 분석하고 있어요',
     'PDF 내용을 꼼꼼히 읽고 있어요',
     '핵심 내용을 정리하고 있어요',
@@ -37,9 +33,9 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
     '거의 다 됐어요',
     '이제 보여드릴게요',
   ];
-  static const List<int> _pdfDurations = [2800, 3200, 3200, 3600, 2200, 900];
+  static List<int> _pdfDurations = [2800, 3200, 3200, 3600, 2200, 900];
 
-  static const List<String> _genMessages = [
+  static List<String> _genMessages = [
     'AI가 자격증 정보를 분석하고 있어요',
     '출제 경향을 파악하고 있어요',
     '문제를 만들고 있어요',
@@ -47,9 +43,9 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
     '거의 다 됐어요',
     '이제 보여드릴게요',
   ];
-  static const List<int> _genDurations = [2800, 3200, 3600, 3200, 2200, 900];
+  static List<int> _genDurations = [2800, 3200, 3600, 3200, 2200, 900];
 
-  static const List<String> _wrongAnswerMessages = [
+  static List<String> _wrongAnswerMessages = [
     '오답 기록을 분석하고 있어요',
     '틀렸던 개념을 정리하고 있어요',
     '유사 문제를 만들고 있어요',
@@ -57,7 +53,7 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
     '거의 다 됐어요',
     '이제 보여드릴게요',
   ];
-  static const List<int> _wrongAnswerDurations = [2800, 3200, 3600, 3200, 2200, 900];
+  static List<int> _wrongAnswerDurations = [2800, 3200, 3600, 3200, 2200, 900];
 
   final PageController _pageController = PageController();
   int _currentStep = 0;
@@ -133,7 +129,7 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
     setState(() => _currentStep = step);
     _pageController.animateToPage(
       step,
-      duration: const Duration(milliseconds: 320),
+      duration: Duration(milliseconds: 320),
       curve: Curves.easeOutCubic,
     );
   }
@@ -159,18 +155,18 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
     });
 
     _loadingController.value = 0;
-    _loadingController.duration = const Duration(milliseconds: 1500);
+    _loadingController.duration = Duration(milliseconds: 1500);
     _loadingController.animateTo(0.9, curve: Curves.easeOut);
 
     try {
       final certification =
-      await QuestionGenerationApiService.fetchCertificateStructure(name);
+          await QuestionGenerationApiService.fetchCertificateStructure(name);
 
       await _loadingController.animateTo(
         1.0,
-        duration: const Duration(milliseconds: 200),
+        duration: Duration(milliseconds: 200),
       );
-      await Future.delayed(const Duration(milliseconds: 300));
+      await Future.delayed(Duration(milliseconds: 300));
       if (!mounted) return;
 
       setState(() {
@@ -207,6 +203,7 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
       });
     }
   }
+
   void _selectExamType(ExamType examType) {
     setState(() {
       _selectedExamType = examType;
@@ -246,11 +243,11 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
       if (_selectedGenerationType == QuestionGenerationType.wrongAnswer) {
         sourceType = QuizSourceType.wrongAnswerReview;
         examTypeLabel = '오답 기반';
-        questions = await QuestionGenerationApiService
-            .generateQuestionsFromWrongAnswers(
-          certificationName: certification.name,
-          count: 20,
-        );
+        questions =
+            await QuestionGenerationApiService.generateQuestionsFromWrongAnswers(
+              certificationName: certification.name,
+              count: 20,
+            );
         if (mounted) setState(() => _generatedCount = 20);
       } else {
         sourceType = QuizSourceType.certification;
@@ -271,7 +268,8 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
 
       stopwatch.stop();
 
-      final durations = _selectedGenerationType == QuestionGenerationType.wrongAnswer
+      final durations =
+          _selectedGenerationType == QuestionGenerationType.wrongAnswer
           ? _wrongAnswerDurations
           : _genDurations;
       final minDuration = _minLoadingDuration(durations);
@@ -308,15 +306,16 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
       if (mounted) setState(() => _isGenerating = false);
     }
   }
+
   Duration _minLoadingDuration(List<int> durations) {
     final sum = durations.fold<int>(0, (a, b) => a + b);
     return Duration(milliseconds: sum + 900 + 500);
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _showNoWrongAnswerDialog(String certificationName) {
@@ -325,17 +324,17 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
       barrierColor: Colors.black.withValues(alpha: 0.4),
       builder: (context) => Dialog(
         backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 32),
+        insetPadding: EdgeInsets.symmetric(horizontal: 32),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+          padding: EdgeInsets.fromLTRB(24, 28, 24, 20),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: context.colors.surface,
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: _pinkColor.withValues(alpha: 0.18),
+                color: context.colors.pinkStart.withValues(alpha: 0.18),
                 blurRadius: 30,
-                offset: const Offset(0, 16),
+                offset: Offset(0, 16),
               ),
             ],
           ),
@@ -346,56 +345,63 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
                 width: 56,
                 height: 56,
                 alignment: Alignment.center,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: LinearGradient(colors: [_pinkColor, _pinkAccent]),
+                  gradient: LinearGradient(
+                    colors: [context.colors.pinkStart, context.colors.pinkDeep],
+                  ),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.info_outline_rounded,
-                  color: Colors.white,
+                  color: context.colors.onPrimary,
                   size: 28,
                 ),
               ),
-              const SizedBox(height: 18),
-              const Text(
+              SizedBox(height: 18),
+              Text(
                 '아직 오답 기록이 없어요',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: _textColor,
+                  color: context.colors.textPrimary,
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
               Text(
                 '$certificationName에 대한 오답 기록이 아직 없어요.\n'
-                    '기본 문제를 먼저 풀어보면 오답 기반 문제를\n만들어드릴 수 있어요!',
+                '기본 문제를 먼저 풀어보면 오답 기반 문제를\n만들어드릴 수 있어요!',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: _subTextColor,
+                style: TextStyle(
+                  color: context.colors.textSecondary,
                   fontSize: 13.5,
                   height: 1.5,
                 ),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    gradient: const LinearGradient(colors: [_pinkColor, _pinkAccent]),
+                    gradient: LinearGradient(
+                      colors: [
+                        context.colors.pinkStart,
+                        context.colors.pinkDeep,
+                      ],
+                    ),
                   ),
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(16),
                       onTap: () => Navigator.pop(context),
-                      child: const Center(
+                      child: Center(
                         child: Text(
                           '확인',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: context.colors.onPrimary,
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
                           ),
@@ -411,6 +417,7 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
       ),
     );
   }
+
   Future<void> _onPdfShortcutPressed() async {
     if (_isPickingPdf || _isGenerating) return;
     await _pickAndProcessPdf();
@@ -439,13 +446,14 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
 
       final stopwatch = Stopwatch()..start();
 
-      final questions = await QuestionGenerationApiService.generateQuestionsFromDocument(
-        file: picked,
-        count: 20,
-        onProgress: (done, total) {
-          if (mounted) setState(() => _generatedCount = done);
-        },
-      );
+      final questions =
+          await QuestionGenerationApiService.generateQuestionsFromDocument(
+            file: picked,
+            count: 20,
+            onProgress: (done, total) {
+              if (mounted) setState(() => _generatedCount = done);
+            },
+          );
 
       stopwatch.stop();
 
@@ -494,17 +502,17 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
       barrierColor: Colors.black.withValues(alpha: 0.4),
       builder: (context) => Dialog(
         backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 32),
+        insetPadding: EdgeInsets.symmetric(horizontal: 32),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+          padding: EdgeInsets.fromLTRB(24, 28, 24, 20),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: context.colors.surface,
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: _pinkColor.withValues(alpha: 0.18),
+                color: context.colors.pinkStart.withValues(alpha: 0.18),
                 blurRadius: 30,
-                offset: const Offset(0, 16),
+                offset: Offset(0, 16),
               ),
             ],
           ),
@@ -515,53 +523,55 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
                 width: 56,
                 height: 56,
                 alignment: Alignment.center,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: LinearGradient(colors: [_pinkColor, _pinkAccent]),
+                  gradient: LinearGradient(
+                    colors: [context.colors.pinkStart, context.colors.pinkDeep],
+                  ),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.auto_awesome_rounded,
-                  color: Colors.white,
+                  color: context.colors.onPrimary,
                   size: 28,
                 ),
               ),
-              const SizedBox(height: 18),
-              const Text(
+              SizedBox(height: 18),
+              Text(
                 '문제를 생성 중이에요!',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: _textColor,
+                  color: context.colors.textPrimary,
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 10),
-              const Text(
+              SizedBox(height: 10),
+              Text(
                 '지금 나가면 생성 중인 문제가 취소돼요.\n그래도 나가시겠어요?',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: _subTextColor,
+                  color: context.colors.textSecondary,
                   fontSize: 13.5,
                   height: 1.5,
                 ),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
               Row(
                 children: [
                   Expanded(
                     child: SizedBox(
                       height: 50,
                       child: Material(
-                        color: const Color(0xFFF6F1F2),
+                        color: context.colors.surfaceMuted,
                         borderRadius: BorderRadius.circular(16),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(16),
                           onTap: () => Navigator.pop(context),
-                          child: const Center(
+                          child: Center(
                             child: Text(
                               '계속 생성',
                               style: TextStyle(
-                                color: _textColor,
+                                color: context.colors.textPrimary,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -571,14 +581,19 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10),
                   Expanded(
                     child: SizedBox(
                       height: 50,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
-                          gradient: const LinearGradient(colors: [_pinkColor, _pinkAccent]),
+                          gradient: LinearGradient(
+                            colors: [
+                              context.colors.pinkStart,
+                              context.colors.pinkDeep,
+                            ],
+                          ),
                         ),
                         child: Material(
                           color: Colors.transparent,
@@ -592,11 +607,11 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
                               Navigator.pop(context); // 다이얼로그 닫기
                               Navigator.pop(context); // 실제 뒤로가기
                             },
-                            child: const Center(
+                            child: Center(
                               child: Text(
                                 '나가기',
                                 style: TextStyle(
-                                  color: Colors.white,
+                                  color: context.colors.onPrimary,
                                   fontSize: 15,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -632,9 +647,9 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
           centerTitle: false,
           leading: _currentStep == 1
               ? IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-            onPressed: _isGenerating ? null : () => _goToStep(0),
-          )
+                  icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+                  onPressed: _isGenerating ? null : () => _goToStep(0),
+                )
               : null,
         ),
         body: AppMainBackground(
@@ -643,18 +658,15 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
               SafeArea(
                 child: Column(
                   children: [
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     _StepProgressBar(currentStep: _currentStep),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     Expanded(
                       child: PageView(
                         controller: _pageController,
-                        physics: const NeverScrollableScrollPhysics(),
+                        physics: NeverScrollableScrollPhysics(),
                         onPageChanged: (i) => setState(() => _currentStep = i),
-                        children: [
-                          _buildStep1(),
-                          _buildStep2(),
-                        ],
+                        children: [_buildStep1(), _buildStep2()],
                       ),
                     ),
                   ],
@@ -664,18 +676,22 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
                   _selectedGenerationType != QuestionGenerationType.document)
                 Positioned.fill(
                   child: Container(
-                    color: Colors.white.withValues(alpha: 0.92),
+                    color: context.colors.surfaceTransparent.withValues(
+                      alpha: 0.92,
+                    ),
                     child: Align(
-                      alignment: const Alignment(0, -0.15),
+                      alignment: Alignment(0, -0.15),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        padding: EdgeInsets.symmetric(horizontal: 24),
                         child: _RotatingLoadingContent(
-                          messages: _selectedGenerationType ==
-                              QuestionGenerationType.wrongAnswer
+                          messages:
+                              _selectedGenerationType ==
+                                  QuestionGenerationType.wrongAnswer
                               ? _wrongAnswerMessages
                               : _genMessages,
-                          durations: _selectedGenerationType ==
-                              QuestionGenerationType.wrongAnswer
+                          durations:
+                              _selectedGenerationType ==
+                                  QuestionGenerationType.wrongAnswer
                               ? _wrongAnswerDurations
                               : _genDurations,
                         ),
@@ -690,36 +706,43 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
     );
   }
 
-
   Widget _buildStep1() {
     return Align(
-      alignment: const Alignment(0, -0.15),
+      alignment: Alignment(0, -0.15),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+        padding: EdgeInsets.symmetric(horizontal: 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             AnimatedSwitcher(
-              duration: const Duration(milliseconds: 350),
+              duration: Duration(milliseconds: 350),
               switchInCurve: Curves.easeOut,
               switchOutCurve: Curves.easeIn,
               transitionBuilder: (child, anim) => FadeTransition(
                 opacity: anim,
                 child: SlideTransition(
-                  position: Tween(begin: const Offset(0, 0.03), end: Offset.zero)
-                      .animate(anim),
+                  position: Tween(
+                    begin: Offset(0, 0.03),
+                    end: Offset.zero,
+                  ).animate(anim),
                   child: child,
                 ),
               ),
               child: KeyedSubtree(
-                key: ValueKey(_isProcessingPdf ? 'pdf' : (_isLoadingStructure ? 'loading' : 'idle')),
+                key: ValueKey(
+                  _isProcessingPdf
+                      ? 'pdf'
+                      : (_isLoadingStructure ? 'loading' : 'idle'),
+                ),
                 child: _isProcessingPdf
-                    ? const _RotatingLoadingContent(
-                  messages: _pdfMessages,
-                  durations: _pdfDurations,
-                )
-                    : (_isLoadingStructure ? _buildLoadingContent() : _buildIdleContent()),
+                    ? _RotatingLoadingContent(
+                        messages: _pdfMessages,
+                        durations: _pdfDurations,
+                      )
+                    : (_isLoadingStructure
+                          ? _buildLoadingContent()
+                          : _buildIdleContent()),
               ),
             ),
           ],
@@ -734,31 +757,31 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
       children: [
         _FadeSlideIn(
           delay: Duration.zero,
-          duration: const Duration(milliseconds: 600),
+          duration: Duration(milliseconds: 600),
           child: _HeroBadge(),
         ),
-        const SizedBox(height: 18),
+        SizedBox(height: 18),
         _FadeSlideIn(
-          delay: const Duration(milliseconds: 200),
-          duration: const Duration(milliseconds: 700),
+          delay: Duration(milliseconds: 200),
+          duration: Duration(milliseconds: 700),
           child: Column(
             children: [
               Text(
                 '조회할 자격증 이름을 입력해주세요',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: _textColor,
+                  color: context.colors.textPrimary,
                   fontSize: 21,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Text(
                 '자격증 이름을 알려주시면 AI가 필기·실기 구조와\n과목을 분석해드려요.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: _subTextColor,
+                  color: context.colors.textSecondary,
                   fontSize: 13.5,
                   height: 1.5,
                 ),
@@ -766,20 +789,20 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
             ],
           ),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         _FadeSlideIn(
-          delay: const Duration(milliseconds: 400),
-          duration: const Duration(milliseconds: 900),
+          delay: Duration(milliseconds: 400),
+          duration: Duration(milliseconds: 900),
           child: _buildCertInput(),
         ),
         if (_structureError != null) ...[
-          const SizedBox(height: 18),
+          SizedBox(height: 18),
           _InlineMessage(text: _structureError!),
         ],
-        const SizedBox(height: 14),
+        SizedBox(height: 14),
         _FadeSlideIn(
-          delay: const Duration(milliseconds: 500),
-          duration: const Duration(milliseconds: 900),
+          delay: Duration(milliseconds: 500),
+          duration: Duration(milliseconds: 900),
           child: _buildPdfShortcutButton(),
         ),
       ],
@@ -793,25 +816,39 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
         borderRadius: BorderRadius.circular(30),
         onTap: _isPickingPdf ? null : _onPdfShortcutPressed,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+          padding: EdgeInsets.symmetric(horizontal: 18, vertical: 11),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(30),
-            gradient: const LinearGradient(colors: [_pinkSoft, Color(0xFFFFF1F4)]),
-            border: Border.all(color: const Color(0xFFFBD9E1)),
+            gradient: LinearGradient(
+              colors: [context.colors.pinkSoft, context.colors.surface],
+            ),
+            border: Border.all(color: context.colors.pinkBorder),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               _isPickingPdf
-                  ? const SizedBox(
-                width: 15, height: 15,
-                child: CircularProgressIndicator(strokeWidth: 2, color: _pinkColor),
-              )
-                  : const Icon(Icons.picture_as_pdf_rounded, size: 17, color: _pinkColor),
-              const SizedBox(width: 8),
-              const Text(
+                  ? SizedBox(
+                      width: 15,
+                      height: 15,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: context.colors.pinkStart,
+                      ),
+                    )
+                  : Icon(
+                      Icons.picture_as_pdf_rounded,
+                      size: 17,
+                      color: context.colors.pinkStart,
+                    ),
+              SizedBox(width: 8),
+              Text(
                 'PDF로 바로 문제 생성',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: _pinkColor),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: context.colors.pinkStart,
+                ),
               ),
             ],
           ),
@@ -829,23 +866,23 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
           'AI가 자격증을 분석하고 있어요',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: _textColor,
+            color: context.colors.textPrimary,
             fontSize: 21,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.5,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Text(
           '$name의 시험 구조를 확인하고 있어요.',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: _subTextColor,
+            color: context.colors.textSecondary,
             fontSize: 13.5,
             height: 1.5,
           ),
         ),
-        const SizedBox(height: 30),
+        SizedBox(height: 30),
         _LoadingIndicator(progress: _loadingController),
       ],
     );
@@ -854,14 +891,14 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
   Widget _buildCertInput() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: _structureError != null
-              ? const Color(0xFFE96B7A)
-              : _pinkSoft,
+              ? context.colors.incorrect
+              : context.colors.pinkSoft,
         ),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
             color: Color(0x14C98198),
             blurRadius: 18,
@@ -877,40 +914,44 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
             setState(() => _structureError = null);
           }
         },
-        style: const TextStyle(
-          color: _textColor,
+        style: TextStyle(
+          color: context.colors.textPrimary,
           fontSize: 15.5,
           fontWeight: FontWeight.w700,
         ),
         decoration: InputDecoration(
           hintText: '예: 정보처리기사, SQLD, 한국사능력검정시험',
-          hintStyle: const TextStyle(color: Color(0xFFB7AFB1), fontSize: 15),
+          hintStyle: TextStyle(color: context.colors.textMuted, fontSize: 15),
           prefixIcon: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(12),
             child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(colors: [_pinkColor, _pinkAccent]),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [context.colors.pinkStart, context.colors.pinkDeep],
+                ),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.badge_outlined,
-                color: Colors.white,
+                color: context.colors.onPrimary,
                 size: 19,
               ),
             ),
           ),
-          prefixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          prefixIconConstraints: BoxConstraints(minWidth: 44, minHeight: 44),
           suffixIcon: Padding(
-            padding: const EdgeInsets.only(right: 6),
+            padding: EdgeInsets.only(right: 6),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [_pinkColor, _pinkAccent]),
+                gradient: LinearGradient(
+                  colors: [context.colors.pinkStart, context.colors.pinkDeep],
+                ),
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
-                    color: _pinkColor.withValues(alpha: 0.35),
+                    color: context.colors.pinkStart.withValues(alpha: 0.35),
                     blurRadius: 12,
-                    offset: const Offset(0, 6),
+                    offset: Offset(0, 6),
                   ),
                 ],
               ),
@@ -919,37 +960,40 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
                 borderRadius: BorderRadius.circular(14),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(14),
-                  onTap: _isLoadingStructure ? null : _fetchCertificateStructure,
+                  onTap: _isLoadingStructure
+                      ? null
+                      : _fetchCertificateStructure,
                   child: _isLoadingStructure
-                      ? const Padding(
-                    padding: EdgeInsets.all(10),
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2.2,
-                      ),
-                    ),
-                  )
-                      : const Padding(
-                    padding: EdgeInsets.all(10),
-                    child: Icon(
-                      Icons.search_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
+                      ? Padding(
+                          padding: EdgeInsets.all(10),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: context.colors.surface,
+                              strokeWidth: 2.2,
+                            ),
+                          ),
+                        )
+                      : Padding(
+                          padding: EdgeInsets.all(10),
+                          child: Icon(
+                            Icons.search_rounded,
+                            color: context.colors.onPrimary,
+                            size: 20,
+                          ),
+                        ),
                 ),
               ),
             ),
           ),
-          contentPadding: const EdgeInsets.fromLTRB(6, 17, 6, 17),
+          contentPadding: EdgeInsets.fromLTRB(6, 17, 6, 17),
           border: InputBorder.none,
         ),
       ),
     );
   }
+
   Widget _buildStep2() {
     final certification = _certification;
     final subjects = _currentSubjects;
@@ -957,22 +1001,25 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 4, 24, 40),
+          padding: EdgeInsets.fromLTRB(24, 4, 24, 40),
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: constraints.maxHeight - 36),
             child: _FadeSlideIn(
-              delay: const Duration(milliseconds: 200),
-              duration: const Duration(milliseconds: 700),
+              delay: Duration(milliseconds: 200),
+              duration: Duration(milliseconds: 700),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (certification != null) ...[
                     Container(
-                      padding: const EdgeInsets.all(14),
+                      padding: EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(20),
-                        gradient: const LinearGradient(
-                          colors: [_pinkSoft, Color(0xFFFFF3F5)],
+                        gradient: LinearGradient(
+                          colors: [
+                            context.colors.pinkSoft,
+                            context.colors.pinkSoft,
+                          ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
@@ -983,22 +1030,27 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
                             width: 44,
                             height: 44,
                             alignment: Alignment.center,
-                            decoration: const BoxDecoration(
-                              gradient: LinearGradient(colors: [_pinkColor, _pinkAccent]),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  context.colors.pinkStart,
+                                  context.colors.pinkDeep,
+                                ],
+                              ),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.badge_rounded,
-                              color: Colors.white,
+                              color: context.colors.onPrimary,
                               size: 21,
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          SizedBox(width: 12),
                           Expanded(
                             child: Text(
                               certification.name,
-                              style: const TextStyle(
-                                color: _textColor,
+                              style: TextStyle(
+                                color: context.colors.textPrimary,
                                 fontSize: 19,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -1007,14 +1059,11 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
                         ],
                       ),
                     ),
-                    const SizedBox(height: 26),
+                    SizedBox(height: 26),
 
-                    const _SectionTitle(
-                      title: '시험 유형',
-                      isRequired: true,
-                    ),
+                    _SectionTitle(title: '시험 유형', isRequired: true),
 
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
 
                     _ExamTypeSection(
                       certification: certification,
@@ -1024,19 +1073,17 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
                   ],
 
                   if (subjects.isNotEmpty) ...[
-                    const SizedBox(height: 28),
+                    SizedBox(height: 28),
 
-                    const _SectionTitle(
-                      title: '과목 선택',
-                    ),
+                    _SectionTitle(title: '과목 선택'),
 
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
 
                     _SelectionCard(
                       child: DropdownButtonFormField<String>(
                         value: _selectedSubject,
                         isExpanded: true,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           hintText: '문제를 생성할 과목을 선택해주세요.',
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.symmetric(
@@ -1044,9 +1091,9 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
                             vertical: 6,
                           ),
                         ),
-                        icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                        icon: Icon(Icons.keyboard_arrow_down_rounded),
                         items: [
-                          const DropdownMenuItem<String>(
+                          DropdownMenuItem<String>(
                             value: '전체',
                             child: Text('전체'),
                           ),
@@ -1064,11 +1111,11 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
                     ),
                   ],
 
-                  const SizedBox(height: 28),
+                  SizedBox(height: 28),
 
-                  const _SectionTitle(title: '생성 방식'),
+                  _SectionTitle(title: '생성 방식'),
 
-                  const SizedBox(height: 12),
+                  SizedBox(height: 12),
 
                   _GenerationTypeCard(
                     selectedType: _selectedGenerationType,
@@ -1077,11 +1124,11 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
                     },
                   ),
 
-                  const SizedBox(height: 28),
+                  SizedBox(height: 28),
 
-                  const _SectionTitle(title: '정답 확인 방식'),
+                  _SectionTitle(title: '정답 확인 방식'),
 
-                  const SizedBox(height: 12),
+                  SizedBox(height: 12),
 
                   Row(
                     children: [
@@ -1091,25 +1138,27 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
                           description: '문제마다 정답을 즉시 확인해요',
                           icon: Icons.flash_on_rounded,
                           isSelected: _checkMode == AnswerCheckMode.immediate,
-                          onPressed: () =>
-                              setState(() => _checkMode = AnswerCheckMode.immediate),
+                          onPressed: () => setState(
+                            () => _checkMode = AnswerCheckMode.immediate,
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      SizedBox(width: 10),
                       Expanded(
                         child: _ExamTypeButton(
                           label: '한번에 확인',
                           description: '20문제를 다 풀고 결과를 봐요',
                           icon: Icons.checklist_rounded,
                           isSelected: _checkMode == AnswerCheckMode.afterAll,
-                          onPressed: () =>
-                              setState(() => _checkMode = AnswerCheckMode.afterAll),
+                          onPressed: () => setState(
+                            () => _checkMode = AnswerCheckMode.afterAll,
+                          ),
                         ),
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: 40),
+                  SizedBox(height: 40),
 
                   SizedBox(
                     width: double.infinity,
@@ -1117,12 +1166,19 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(18),
-                        gradient: const LinearGradient(colors: [_pinkColor, _pinkAccent]),
+                        gradient: LinearGradient(
+                          colors: [
+                            context.colors.pinkStart,
+                            context.colors.pinkDeep,
+                          ],
+                        ),
                         boxShadow: [
                           BoxShadow(
-                            color: _pinkColor.withValues(alpha: 0.35),
+                            color: context.colors.pinkStart.withValues(
+                              alpha: 0.35,
+                            ),
                             blurRadius: 20,
-                            offset: const Offset(0, 10),
+                            offset: Offset(0, 10),
                           ),
                         ],
                       ),
@@ -1133,29 +1189,46 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
                           onTap: _isGenerating ? null : _onGeneratePressed,
                           child: Center(
                             child: _isGenerating
-                                ? const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                SizedBox(
-                                  width: 18, height: 18,
-                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.2),
-                                ),
-                                SizedBox(width: 10),
-                                Text(
-                                  '생성 중...',
-                                  style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800),
-                                ),
-                              ],
-                            )
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          color: context.colors.surface,
+                                          strokeWidth: 2.2,
+                                        ),
+                                      ),
+                                      SizedBox(width: 10),
+                                      Text(
+                                        '생성 중...',
+                                        style: TextStyle(
+                                          color: context.colors.onPrimary,
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ],
+                                  )
                                 : Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: const [
-                                Icon(Icons.auto_awesome_rounded, color: Colors.white),
-                                SizedBox(width: 8),
-                                Text('AI 문제 생성하기',
-                                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Colors.white)),
-                              ],
-                            ),
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.auto_awesome_rounded,
+                                        color: context.colors.onPrimary,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'AI 문제 생성하기',
+                                        style: TextStyle(
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w800,
+                                          color: context.colors.onPrimary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                           ),
                         ),
                       ),
@@ -1170,6 +1243,7 @@ class _QuestionGenerationPageState extends State<QuestionGenerationPage>
     );
   }
 }
+
 String _stripPdfExtension(String fileName) {
   final lower = fileName.toLowerCase();
   if (lower.endsWith('.pdf')) {
@@ -1188,15 +1262,12 @@ enum ExamType {
   const ExamType(this.label);
 }
 
-enum QuestionGenerationType {
-  general,
-  wrongAnswer,
-  document,
-}
+enum QuestionGenerationType { general, wrongAnswer, document }
+
 enum AnswerCheckMode { immediate, afterAll }
 
 class _HeroBadge extends StatelessWidget {
-  const _HeroBadge();
+  _HeroBadge();
 
   @override
   Widget build(BuildContext context) {
@@ -1206,30 +1277,31 @@ class _HeroBadge extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          colors: [
-            _QuestionGenerationPageState._pinkColor,
-            _QuestionGenerationPageState._pinkAccent,
-          ],
+        gradient: LinearGradient(
+          colors: [context.colors.pinkStart, context.colors.pinkDeep],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         boxShadow: [
           BoxShadow(
-            color: _QuestionGenerationPageState._pinkColor.withValues(alpha: 0.35),
+            color: context.colors.pinkStart.withValues(alpha: 0.35),
             blurRadius: 24,
-            offset: const Offset(0, 12),
+            offset: Offset(0, 12),
           ),
         ],
       ),
-      child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 30),
+      child: Icon(
+        Icons.auto_awesome_rounded,
+        color: context.colors.onPrimary,
+        size: 30,
+      ),
     );
   }
 }
 
 class _StepProgressBar extends StatelessWidget {
   final int currentStep;
-  const _StepProgressBar({required this.currentStep});
+  _StepProgressBar({required this.currentStep});
 
   @override
   Widget build(BuildContext context) {
@@ -1239,20 +1311,19 @@ class _StepProgressBar extends StatelessWidget {
         final active = i == currentStep;
         final done = i < currentStep;
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 280),
+          duration: Duration(milliseconds: 280),
           curve: Curves.easeOut,
-          margin: const EdgeInsets.symmetric(horizontal: 4),
+          margin: EdgeInsets.symmetric(horizontal: 4),
           width: active ? 28 : 18,
           height: 5,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
             gradient: (active || done)
-                ? const LinearGradient(colors: [
-              _QuestionGenerationPageState._pinkColor,
-              _QuestionGenerationPageState._pinkAccent,
-            ])
+                ? LinearGradient(
+                    colors: [context.colors.pinkStart, context.colors.pinkDeep],
+                  )
                 : null,
-            color: (active || done) ? null : _QuestionGenerationPageState._pinkSoft,
+            color: (active || done) ? null : context.colors.pinkSoft,
           ),
         );
       }),
@@ -1262,7 +1333,7 @@ class _StepProgressBar extends StatelessWidget {
 
 class _LoadingIndicator extends StatelessWidget {
   final Animation<double> progress;
-  const _LoadingIndicator({required this.progress});
+  _LoadingIndicator({required this.progress});
 
   @override
   Widget build(BuildContext context) {
@@ -1274,15 +1345,15 @@ class _LoadingIndicator extends StatelessWidget {
           WaveLoadingIndicator(
             size: 72,
             progress: progress.value,
-            backgroundColor: const Color(0xFFFFF3F5),
-            waveColorStart: _QuestionGenerationPageState._pinkColor,
-            waveColorEnd: _QuestionGenerationPageState._pinkAccent,
+            backgroundColor: context.colors.pinkSoft,
+            waveColorStart: context.colors.pinkStart,
+            waveColorEnd: context.colors.pinkDeep,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Text(
             '${(progress.value * 100).toInt()}%',
-            style: const TextStyle(
-              color: _QuestionGenerationPageState._pinkColor,
+            style: TextStyle(
+              color: context.colors.pinkStart,
               fontSize: 13,
               fontWeight: FontWeight.w800,
             ),
@@ -1295,23 +1366,23 @@ class _LoadingIndicator extends StatelessWidget {
 
 class _InlineMessage extends StatelessWidget {
   final String text;
-  const _InlineMessage({required this.text});
+  _InlineMessage({required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: _QuestionGenerationPageState._pinkSoft,
+        color: context.colors.pinkSoft,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFBDDE3)),
+        border: Border.all(color: context.colors.pinkBorder),
       ),
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: const TextStyle(
-          color: _QuestionGenerationPageState._subTextColor,
+        style: TextStyle(
+          color: context.colors.textSecondary,
           fontSize: 13.5,
           fontWeight: FontWeight.w600,
         ),
@@ -1324,10 +1395,7 @@ class _SectionTitle extends StatelessWidget {
   final String title;
   final bool isRequired;
 
-  const _SectionTitle({
-    required this.title,
-    this.isRequired = false,
-  });
+  _SectionTitle({required this.title, this.isRequired = false});
 
   @override
   Widget build(BuildContext context) {
@@ -1335,18 +1403,18 @@ class _SectionTitle extends StatelessWidget {
       children: [
         Text(
           title,
-          style: const TextStyle(
-            color: _QuestionGenerationPageState._textColor,
+          style: TextStyle(
+            color: context.colors.textPrimary,
             fontSize: 18,
             fontWeight: FontWeight.w800,
           ),
         ),
         if (isRequired) ...[
-          const SizedBox(width: 4),
-          const Text(
+          SizedBox(width: 4),
+          Text(
             '*',
             style: TextStyle(
-              color: _QuestionGenerationPageState._pinkColor,
+              color: context.colors.pinkStart,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -1360,20 +1428,16 @@ class _SectionTitle extends StatelessWidget {
 class _SelectionCard extends StatelessWidget {
   final Widget child;
 
-  const _SelectionCard({
-    required this.child,
-  });
+  _SelectionCard({required this.child});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.85),
+        color: context.colors.surfaceTransparent.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFFF1EBEE),
-        ),
+        border: Border.all(color: context.colors.border),
       ),
       child: child,
     );
@@ -1385,7 +1449,7 @@ class _ExamTypeSection extends StatelessWidget {
   final ExamType? selectedExamType;
   final ValueChanged<ExamType> onSelected;
 
-  const _ExamTypeSection({
+  _ExamTypeSection({
     required this.certification,
     required this.selectedExamType,
     required this.onSelected,
@@ -1425,9 +1489,7 @@ class _ExamTypeSection extends StatelessWidget {
     }
 
     if (certification.hasWritten && certification.hasPractical) {
-      examTypes.add(
-        const SizedBox(width: 10),
-      );
+      examTypes.add(SizedBox(width: 10));
     }
 
     if (certification.hasPractical) {
@@ -1446,9 +1508,7 @@ class _ExamTypeSection extends StatelessWidget {
       );
     }
 
-    return Row(
-      children: examTypes,
-    );
+    return Row(children: examTypes);
   }
 }
 
@@ -1459,7 +1519,7 @@ class _ExamTypeButton extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onPressed;
 
-  const _ExamTypeButton({
+  _ExamTypeButton({
     required this.label,
     required this.description,
     required this.icon,
@@ -1476,37 +1536,34 @@ class _ExamTypeButton extends StatelessWidget {
         onTap: onPressed,
         borderRadius: BorderRadius.circular(18),
         child: Container(
-          constraints: const BoxConstraints(
-            minHeight: 105,
-          ),
-          padding: const EdgeInsets.all(15),
+          constraints: BoxConstraints(minHeight: 105),
+          padding: EdgeInsets.all(15),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             gradient: isSelected
-                ? const LinearGradient(
-              colors: [
-                _QuestionGenerationPageState._pinkSoft,
-                Color(0xFFFFF3F5),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            )
+                ? LinearGradient(
+                    colors: [context.colors.pinkSoft, context.colors.pinkSoft],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
                 : null,
-            color: isSelected ? null : Colors.white.withValues(alpha: 0.85),
+            color: isSelected
+                ? null
+                : context.colors.surfaceTransparent.withValues(alpha: 0.85),
             border: Border.all(
               color: isSelected
-                  ? _QuestionGenerationPageState._pinkColor
-                  : const Color(0xFFF1EBEE),
+                  ? context.colors.pinkStart
+                  : context.colors.border,
               width: isSelected ? 1.5 : 1,
             ),
             boxShadow: isSelected
                 ? [
-              BoxShadow(
-                color: _QuestionGenerationPageState._pinkColor.withValues(alpha: 0.18),
-                blurRadius: 14,
-                offset: const Offset(0, 8),
-              ),
-            ]
+                    BoxShadow(
+                      color: context.colors.pinkStart.withValues(alpha: 0.18),
+                      blurRadius: 14,
+                      offset: Offset(0, 8),
+                    ),
+                  ]
                 : null,
           ),
           child: Column(
@@ -1519,39 +1576,41 @@ class _ExamTypeButton extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: isSelected
-                      ? const LinearGradient(colors: [
-                    _QuestionGenerationPageState._pinkColor,
-                    _QuestionGenerationPageState._pinkAccent,
-                  ])
+                      ? LinearGradient(
+                          colors: [
+                            context.colors.pinkStart,
+                            context.colors.pinkDeep,
+                          ],
+                        )
                       : null,
-                  color: isSelected ? null : const Color(0xFFF2EEF0),
+                  color: isSelected ? null : context.colors.surfaceMuted,
                 ),
                 child: Icon(
                   icon,
                   size: 16,
                   color: isSelected
-                      ? Colors.white
-                      : _QuestionGenerationPageState._subTextColor,
+                      ? context.colors.onPrimary
+                      : context.colors.textSecondary,
                 ),
               ),
 
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
 
               Text(
                 label,
-                style: const TextStyle(
-                  color: _QuestionGenerationPageState._textColor,
+                style: TextStyle(
+                  color: context.colors.textPrimary,
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
                 ),
               ),
 
-              const SizedBox(height: 5),
+              SizedBox(height: 5),
 
               Text(
                 description,
-                style: const TextStyle(
-                  color: _QuestionGenerationPageState._subTextColor,
+                style: TextStyle(
+                  color: context.colors.textSecondary,
                   fontSize: 11,
                   height: 1.3,
                 ),
@@ -1568,10 +1627,7 @@ class _GenerationTypeCard extends StatelessWidget {
   final QuestionGenerationType selectedType;
   final ValueChanged<QuestionGenerationType> onChanged;
 
-  const _GenerationTypeCard({
-    required this.selectedType,
-    required this.onChanged,
-  });
+  _GenerationTypeCard({required this.selectedType, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -1586,7 +1642,7 @@ class _GenerationTypeCard extends StatelessWidget {
           onChanged: onChanged,
         ),
 
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
 
         _GenerationTypeItem(
           icon: Icons.refresh_rounded,
@@ -1609,7 +1665,7 @@ class _GenerationTypeItem extends StatelessWidget {
   final QuestionGenerationType groupValue;
   final ValueChanged<QuestionGenerationType> onChanged;
 
-  const _GenerationTypeItem({
+  _GenerationTypeItem({
     required this.icon,
     required this.title,
     required this.description,
@@ -1629,34 +1685,33 @@ class _GenerationTypeItem extends StatelessWidget {
         onTap: () => onChanged(value),
         borderRadius: BorderRadius.circular(18),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             gradient: isSelected
-                ? const LinearGradient(
-              colors: [
-                _QuestionGenerationPageState._pinkSoft,
-                Color(0xFFFFF3F5),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            )
+                ? LinearGradient(
+                    colors: [context.colors.pinkSoft, context.colors.pinkSoft],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
                 : null,
-            color: isSelected ? null : Colors.white.withValues(alpha: 0.85),
+            color: isSelected
+                ? null
+                : context.colors.surfaceTransparent.withValues(alpha: 0.85),
             border: Border.all(
               color: isSelected
-                  ? _QuestionGenerationPageState._pinkColor
-                  : const Color(0xFFF1EBEE),
+                  ? context.colors.pinkStart
+                  : context.colors.border,
               width: isSelected ? 1.5 : 1,
             ),
             boxShadow: isSelected
                 ? [
-              BoxShadow(
-                color: _QuestionGenerationPageState._pinkColor.withValues(alpha: 0.16),
-                blurRadius: 14,
-                offset: const Offset(0, 8),
-              ),
-            ]
+                    BoxShadow(
+                      color: context.colors.pinkStart.withValues(alpha: 0.16),
+                      blurRadius: 14,
+                      offset: Offset(0, 8),
+                    ),
+                  ]
                 : null,
           ),
           child: Row(
@@ -1667,22 +1722,26 @@ class _GenerationTypeItem extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: isSelected
-                      ? const LinearGradient(colors: [
-                    _QuestionGenerationPageState._pinkColor,
-                    _QuestionGenerationPageState._pinkAccent,
-                  ])
+                      ? LinearGradient(
+                          colors: [
+                            context.colors.pinkStart,
+                            context.colors.pinkDeep,
+                          ],
+                        )
                       : null,
-                  color: isSelected ? null : const Color(0xFFFFE4EA),
+                  color: isSelected ? null : context.colors.pinkSoft,
                 ),
                 alignment: Alignment.center,
                 child: Icon(
                   icon,
-                  color: isSelected ? Colors.white : _QuestionGenerationPageState._pinkColor,
+                  color: isSelected
+                      ? context.colors.onPrimary
+                      : context.colors.pinkStart,
                   size: 24,
                 ),
               ),
 
-              const SizedBox(width: 14),
+              SizedBox(width: 14),
 
               Expanded(
                 child: Column(
@@ -1690,17 +1749,17 @@ class _GenerationTypeItem extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        color: _QuestionGenerationPageState._textColor,
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    SizedBox(height: 6),
                     Text(
                       description,
-                      style: const TextStyle(
-                        color: _QuestionGenerationPageState._subTextColor,
+                      style: TextStyle(
+                        color: context.colors.textSecondary,
                         fontSize: 12,
                         height: 1.4,
                       ),
@@ -1709,15 +1768,15 @@ class _GenerationTypeItem extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
 
               Icon(
                 isSelected
                     ? Icons.radio_button_checked_rounded
                     : Icons.radio_button_off_rounded,
                 color: isSelected
-                    ? _QuestionGenerationPageState._pinkColor
-                    : const Color(0xFFCFC6CA),
+                    ? context.colors.pinkStart
+                    : Color(0xFFCFC6CA),
               ),
             ],
           ),
@@ -1731,7 +1790,7 @@ class _FadeSlideIn extends StatefulWidget {
   final Widget child;
   final Duration delay;
   final Duration duration;
-  const _FadeSlideIn({
+  _FadeSlideIn({
     super.key,
     required this.child,
     this.delay = Duration.zero,
@@ -1745,11 +1804,14 @@ class _FadeSlideIn extends StatefulWidget {
 class _FadeSlideInState extends State<_FadeSlideIn>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late final Animation<double> _fade =
-  CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
-  late final Animation<Offset> _slide =
-  Tween(begin: const Offset(0, 0.06), end: Offset.zero)
-      .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+  late final Animation<double> _fade = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOutCubic,
+  );
+  late final Animation<Offset> _slide = Tween(
+    begin: Offset(0, 0.06),
+    end: Offset.zero,
+  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
   @override
   void initState() {
@@ -1775,18 +1837,15 @@ class _FadeSlideInState extends State<_FadeSlideIn>
   }
 }
 
-
 class _RotatingLoadingContent extends StatefulWidget {
   final List<String> messages;
   final List<int> durations;
 
-  const _RotatingLoadingContent({
-    required this.messages,
-    required this.durations,
-  });
+  _RotatingLoadingContent({required this.messages, required this.durations});
 
   @override
-  State<_RotatingLoadingContent> createState() => _RotatingLoadingContentState();
+  State<_RotatingLoadingContent> createState() =>
+      _RotatingLoadingContentState();
 }
 
 class _RotatingLoadingContentState extends State<_RotatingLoadingContent>
@@ -1798,15 +1857,16 @@ class _RotatingLoadingContentState extends State<_RotatingLoadingContent>
   @override
   void initState() {
     super.initState();
-    _rotationController =
-    AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))
-      ..repeat();
+    _rotationController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 1400),
+    )..repeat();
     _scheduleNextMessage();
   }
 
   void _scheduleNextMessage() {
     final duration =
-    widget.durations[_messageIndex.clamp(0, widget.durations.length - 1)];
+        widget.durations[_messageIndex.clamp(0, widget.durations.length - 1)];
     _messageTimer = Timer(Duration(milliseconds: duration), () {
       if (!mounted) return;
       if (_messageIndex < widget.messages.length - 1) {
@@ -1831,19 +1891,22 @@ class _RotatingLoadingContentState extends State<_RotatingLoadingContent>
         WaveLoadingIndicator(
           size: 72,
           progress: _messageIndex / (widget.messages.length - 1),
-          backgroundColor: const Color(0xFFFFF3F5),
-          waveColorStart: _QuestionGenerationPageState._pinkColor,
-          waveColorEnd: _QuestionGenerationPageState._pinkAccent,
+          backgroundColor: context.colors.pinkSoft,
+          waveColorStart: context.colors.pinkStart,
+          waveColorEnd: context.colors.pinkDeep,
         ),
-        const SizedBox(height: 26),
+        SizedBox(height: 26),
         AnimatedSwitcher(
-          duration: const Duration(milliseconds: 350),
+          duration: Duration(milliseconds: 350),
           switchInCurve: Curves.easeOut,
           switchOutCurve: Curves.easeIn,
           transitionBuilder: (child, anim) => FadeTransition(
             opacity: anim,
             child: SlideTransition(
-              position: Tween(begin: const Offset(0, 0.15), end: Offset.zero).animate(anim),
+              position: Tween(
+                begin: Offset(0, 0.15),
+                end: Offset.zero,
+              ).animate(anim),
               child: child,
             ),
           ),
@@ -1851,8 +1914,8 @@ class _RotatingLoadingContentState extends State<_RotatingLoadingContent>
             widget.messages[_messageIndex],
             key: ValueKey(_messageIndex),
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: _QuestionGenerationPageState._textColor,
+            style: TextStyle(
+              color: context.colors.textPrimary,
               fontSize: 15.5,
               fontWeight: FontWeight.w800,
             ),

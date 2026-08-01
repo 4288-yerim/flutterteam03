@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
+
 import '../../services/theme_mode_service.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
@@ -228,7 +230,7 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
       });
 
       _savingOverlayTimer?.cancel();
-      _savingOverlayTimer = Timer(const Duration(milliseconds: 300), () {
+      _savingOverlayTimer = Timer(Duration(milliseconds: 300), () {
         if (mounted && _isSavingSettings) {
           setState(() {
             _showSavingOverlay = true;
@@ -301,26 +303,25 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
               appBar: AppTopBar(title: '설정'),
               body: AppMainBackground(
                 child: _isLoadingSettings
-                    ? const Center(
+                    ? Center(
                         child: CircularProgressIndicator(
-                          color: Color(0xFFF0788F),
+                          color: context.colors.pinkStart,
                         ),
                       )
                     : ListView(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+                        padding: EdgeInsets.fromLTRB(20, 16, 20, 40),
                         children: [
                           _buildScreenSettingSection(),
-                          const SizedBox(height: 26),
+                          SizedBox(height: 26),
                           _buildNotificationSettingSection(),
-                          const SizedBox(height: 26),
+                          SizedBox(height: 26),
                           _buildPrivacySettingSection(),
                         ],
                       ),
               ),
             ),
           ),
-          if (_showSavingOverlay)
-            const Positioned.fill(child: LoadingOverlay()),
+          if (_showSavingOverlay) Positioned.fill(child: LoadingOverlay()),
         ],
       ),
     );
@@ -330,18 +331,18 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _SettingSectionTitle(
+        _SettingSectionTitle(
           icon: Icons.palette_outlined,
           title: '개인 설정',
           description: '테마와 프로필 활동 공개 범위를 설정합니다.',
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         AppCard(
           padding: EdgeInsets.zero,
           child: Column(
             children: [
               _buildThemeModeTile(),
-              const _SettingDivider(),
+              _SettingDivider(),
               _SettingSwitchTile(
                 icon: Icons.visibility_outlined,
                 title: '프로필 활동 공개',
@@ -363,12 +364,12 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
 
   Widget _buildThemeModeTile() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      padding: EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Row(
         children: [
-          const _SettingIcon(icon: Icons.brightness_6_outlined),
-          const SizedBox(width: 14),
-          const Expanded(
+          _SettingIcon(icon: Icons.brightness_6_outlined),
+          SizedBox(width: 14),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -377,24 +378,29 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1A1A1A),
+                    color: context.colors.textPrimary,
                   ),
                 ),
                 SizedBox(height: 4),
                 Text(
                   '앱의 밝기 모드를 설정합니다.',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF9AA0AC)),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: context.colors.textSecondary,
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: _themeMode,
-              dropdownColor: Colors.white,
+              dropdownColor: context.colors.surfaceElevated,
+              style: TextStyle(color: context.colors.textPrimary),
+              iconEnabledColor: context.colors.iconSecondary,
               borderRadius: BorderRadius.circular(14),
-              items: const [
+              items: [
                 DropdownMenuItem<String>(value: 'SYSTEM', child: Text('시스템')),
                 DropdownMenuItem<String>(value: 'LIGHT', child: Text('라이트')),
                 DropdownMenuItem<String>(value: 'DARK', child: Text('다크')),
@@ -422,12 +428,12 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _SettingSectionTitle(
+        _SettingSectionTitle(
           icon: Icons.notifications_outlined,
           title: '알림 설정',
           description: '받고 싶은 알림 종류를 설정합니다.',
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
 
         AppCard(
           padding: EdgeInsets.zero,
@@ -447,16 +453,16 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
           ),
         ),
 
-        const SizedBox(height: 14),
+        SizedBox(height: 14),
         _buildCertificateAlertCard(),
 
-        const SizedBox(height: 14),
+        SizedBox(height: 14),
         _buildStudyAlertCard(),
 
-        const SizedBox(height: 14),
+        SizedBox(height: 14),
         _buildCommunityAlertCard(),
 
-        const SizedBox(height: 14),
+        SizedBox(height: 14),
         _buildOtherAlertCard(),
       ],
     );
@@ -467,11 +473,11 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
       padding: EdgeInsets.zero,
       child: Column(
         children: [
-          const _NotificationGroupHeader(
+          _NotificationGroupHeader(
             icon: Icons.workspace_premium_outlined,
             title: '자격증 알림',
           ),
-          const _SettingDivider(),
+          _SettingDivider(),
 
           _SettingSwitchTile(
             title: '자격증 일정 알림',
@@ -487,7 +493,7 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
             },
           ),
 
-          const _SettingDivider(),
+          _SettingDivider(),
 
           _SettingSwitchTile(
             title: '접수 시작',
@@ -504,7 +510,7 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
             },
           ),
 
-          const _SettingDivider(),
+          _SettingDivider(),
 
           _SettingSwitchTile(
             title: '접수 마감 전날',
@@ -521,7 +527,7 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
             },
           ),
 
-          const _SettingDivider(),
+          _SettingDivider(),
 
           _SettingSwitchTile(
             title: '시험 D-7',
@@ -538,7 +544,7 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
             },
           ),
 
-          const _SettingDivider(),
+          _SettingDivider(),
 
           _SettingSwitchTile(
             title: '시험 전날',
@@ -555,7 +561,7 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
             },
           ),
 
-          const _SettingDivider(),
+          _SettingDivider(),
 
           _SettingSwitchTile(
             title: '시험 당일',
@@ -572,7 +578,7 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
             },
           ),
 
-          const _SettingDivider(),
+          _SettingDivider(),
 
           _SettingSwitchTile(
             title: '합격 발표',
@@ -598,11 +604,11 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
       padding: EdgeInsets.zero,
       child: Column(
         children: [
-          const _NotificationGroupHeader(
+          _NotificationGroupHeader(
             icon: Icons.menu_book_outlined,
             title: '학습 알림',
           ),
-          const _SettingDivider(),
+          _SettingDivider(),
 
           _SettingSwitchTile(
             title: '공부 알림',
@@ -618,7 +624,7 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
             },
           ),
 
-          const _SettingDivider(),
+          _SettingDivider(),
 
           _SettingSwitchTile(
             title: '오늘의 학습 계획',
@@ -635,7 +641,7 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
             },
           ),
 
-          const _SettingDivider(),
+          _SettingDivider(),
 
           _SettingSwitchTile(
             title: '공부 시작 시간',
@@ -652,7 +658,7 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
             },
           ),
 
-          const _SettingDivider(),
+          _SettingDivider(),
 
           _SettingSwitchTile(
             title: '미완료 계획',
@@ -669,7 +675,7 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
             },
           ),
 
-          const _SettingDivider(),
+          _SettingDivider(),
 
           _SettingSwitchTile(
             title: '스터디 알림',
@@ -685,7 +691,7 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
             },
           ),
 
-          const _SettingDivider(),
+          _SettingDivider(),
 
           _SettingSwitchTile(
             title: '스터디 공지',
@@ -702,7 +708,7 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
             },
           ),
 
-          const _SettingDivider(),
+          _SettingDivider(),
 
           _SettingSwitchTile(
             title: '가입 승인',
@@ -719,7 +725,7 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
             },
           ),
 
-          const _SettingDivider(),
+          _SettingDivider(),
 
           _SettingSwitchTile(
             title: '새 멤버',
@@ -736,7 +742,7 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
             },
           ),
 
-          const _SettingDivider(),
+          _SettingDivider(),
 
           _SettingSwitchTile(
             title: '스터디 채팅',
@@ -762,11 +768,11 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
       padding: EdgeInsets.zero,
       child: Column(
         children: [
-          const _NotificationGroupHeader(
+          _NotificationGroupHeader(
             icon: Icons.forum_outlined,
             title: '커뮤니티 및 친구 알림',
           ),
-          const _SettingDivider(),
+          _SettingDivider(),
 
           _SettingSwitchTile(
             title: '커뮤니티 알림',
@@ -782,7 +788,7 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
             },
           ),
 
-          const _SettingDivider(),
+          _SettingDivider(),
 
           _SettingSwitchTile(
             title: '친구 알림',
@@ -798,7 +804,7 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
             },
           ),
 
-          const _SettingDivider(),
+          _SettingDivider(),
 
           _SettingSwitchTile(
             title: '채팅 알림',
@@ -823,11 +829,11 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
       padding: EdgeInsets.zero,
       child: Column(
         children: [
-          const _NotificationGroupHeader(
+          _NotificationGroupHeader(
             icon: Icons.campaign_outlined,
             title: '기타 알림',
           ),
-          const _SettingDivider(),
+          _SettingDivider(),
 
           _SettingSwitchTile(
             title: '마케팅 알림',
@@ -851,12 +857,12 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _SettingSectionTitle(
+        _SettingSectionTitle(
           icon: Icons.shield_outlined,
           title: '차단 사용자 관리',
           description: '차단한 사용자를 확인하고 관리합니다.',
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         AppCard(
           padding: EdgeInsets.zero,
           child: InkWell(
@@ -864,10 +870,10 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const BlockedUserScreen()),
+                MaterialPageRoute(builder: (_) => BlockedUserScreen()),
               );
             },
-            child: const Padding(
+            child: Padding(
               padding: EdgeInsets.fromLTRB(16, 14, 14, 14),
               child: Row(
                 children: [
@@ -882,7 +888,7 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF1A1A1A),
+                            color: context.colors.textPrimary,
                           ),
                         ),
                         SizedBox(height: 4),
@@ -890,14 +896,17 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
                           '차단 목록을 확인하고 차단을 해제합니다.',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF9AA0AC),
+                            color: context.colors.textSecondary,
                           ),
                         ),
                       ],
                     ),
                   ),
                   SizedBox(width: 8),
-                  Icon(Icons.chevron_right_rounded, color: Color(0xFFB4B8C2)),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: context.colors.textMuted,
+                  ),
                 ],
               ),
             ),
@@ -938,28 +947,31 @@ class _SettingSectionTitle extends StatelessWidget {
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            color: const Color(0xFFFCEFF3),
+            color: context.colors.pinkSoft,
             borderRadius: BorderRadius.circular(13),
           ),
-          child: Icon(icon, size: 22, color: const Color(0xFFF0788F)),
+          child: Icon(icon, size: 22, color: context.colors.pinkStart),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF1A1A1A),
+                  color: context.colors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 3),
+              SizedBox(height: 3),
               Text(
                 description,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF9AA0AC)),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: context.colors.textSecondary,
+                ),
               ),
             ],
           ),
@@ -978,17 +990,17 @@ class _NotificationGroupHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+      padding: EdgeInsets.fromLTRB(16, 16, 16, 14),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: const Color(0xFFF0788F)),
-          const SizedBox(width: 8),
+          Icon(icon, size: 20, color: context.colors.pinkStart),
+          SizedBox(width: 8),
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF1A1A1A),
+              color: context.colors.textPrimary,
             ),
           ),
         ],
@@ -1021,12 +1033,12 @@ class _SettingSwitchTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color titleColor = enabled
-        ? const Color(0xFF1A1A1A)
-        : const Color(0xFFB4B8C2);
+        ? context.colors.textPrimary
+        : context.colors.textMuted;
 
     final Color subtitleColor = enabled
-        ? const Color(0xFF9AA0AC)
-        : const Color(0xFFD0D2D8);
+        ? context.colors.textSecondary
+        : context.colors.textDisabled;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(isChildSetting ? 30 : 16, 10, 10, 10),
@@ -1034,7 +1046,7 @@ class _SettingSwitchTile extends StatelessWidget {
         children: [
           if (icon != null) ...[
             _SettingIcon(icon: icon!, enabled: enabled),
-            const SizedBox(width: 14),
+            SizedBox(width: 14),
           ],
 
           if (isChildSetting) ...[
@@ -1044,11 +1056,11 @@ class _SettingSwitchTile extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: enabled
-                    ? const Color(0xFFF0788F)
-                    : const Color(0xFFD0D2D8),
+                    ? context.colors.pinkStart
+                    : context.colors.textDisabled,
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
           ],
 
           Expanded(
@@ -1065,7 +1077,7 @@ class _SettingSwitchTile extends StatelessWidget {
                     color: titleColor,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   subtitle,
                   style: TextStyle(
@@ -1080,7 +1092,7 @@ class _SettingSwitchTile extends StatelessWidget {
 
           Switch(
             value: value,
-            activeThumbColor: const Color(0xFFF0788F),
+            activeThumbColor: context.colors.pinkStart,
             onChanged: enabled ? onChanged : null,
           ),
         ],
@@ -1101,29 +1113,29 @@ class _SettingIcon extends StatelessWidget {
       width: 42,
       height: 42,
       decoration: BoxDecoration(
-        color: enabled ? const Color(0xFFFCEFF3) : const Color(0xFFF3F3F5),
+        color: enabled ? context.colors.pinkSoft : context.colors.surfaceMuted,
         borderRadius: BorderRadius.circular(13),
       ),
       child: Icon(
         icon,
         size: 21,
-        color: enabled ? const Color(0xFFF0788F) : const Color(0xFFB4B8C2),
+        color: enabled ? context.colors.pinkStart : context.colors.textMuted,
       ),
     );
   }
 }
 
 class _SettingDivider extends StatelessWidget {
-  const _SettingDivider();
+  _SettingDivider();
 
   @override
   Widget build(BuildContext context) {
-    return const Divider(
+    return Divider(
       height: 1,
       thickness: 1,
       indent: 16,
       endIndent: 16,
-      color: Color(0xFFF0EEF0),
+      color: context.colors.divider,
     );
   }
 }

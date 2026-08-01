@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
 import '../services/notification_service.dart';
 
 class NotificationEmptyView extends StatelessWidget {
@@ -39,16 +40,16 @@ class NotificationMessageView extends StatelessWidget {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: const Color(0xFFFCEFF3),
+                color: context.colors.pinkSoftAlt,
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: Icon(icon, size: 36, color: const Color(0xFFF0788F)),
+              child: Icon(icon, size: 36, color: context.colors.pinkDeep),
             ),
             const SizedBox(height: 18),
             Text(
               title,
-              style: const TextStyle(
-                color: Color(0xFF302C2E),
+              style: TextStyle(
+                color: context.colors.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
               ),
@@ -57,8 +58,8 @@ class NotificationMessageView extends StatelessWidget {
             Text(
               description,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Color(0xFF817B7D),
+              style: TextStyle(
+                color: context.colors.textSecondary,
                 fontSize: 14,
                 height: 1.5,
               ),
@@ -122,7 +123,7 @@ class NotificationCard extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: const Color(0xFFFCEFF3),
+              color: context.colors.pinkSoftAlt,
               borderRadius: BorderRadius.circular(15),
             ),
             child: Icon(
@@ -135,7 +136,7 @@ class NotificationCard extends StatelessWidget {
                   : notification.opensStudyGroup
                   ? Icons.menu_book_rounded
                   : Icons.workspace_premium_outlined,
-              color: const Color(0xFFF0788F),
+              color: context.colors.pinkDeep,
               size: 24,
             ),
           ),
@@ -146,8 +147,8 @@ class NotificationCard extends StatelessWidget {
               children: [
                 Text(
                   notification.title,
-                  style: const TextStyle(
-                    color: Color(0xFF302C2E),
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                     height: 1.35,
@@ -157,8 +158,8 @@ class NotificationCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(
                     notification.body,
-                    style: const TextStyle(
-                      color: Color(0xFF686164),
+                    style: TextStyle(
+                      color: context.colors.textSecondary,
                       fontSize: 14,
                       height: 1.5,
                     ),
@@ -168,8 +169,8 @@ class NotificationCard extends StatelessWidget {
                   const SizedBox(height: 10),
                   Text(
                     _formatDateTime(createdAt),
-                    style: const TextStyle(
-                      color: Color(0xFFA39DA0),
+                    style: TextStyle(
+                      color: context.colors.textMuted,
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
@@ -183,7 +184,7 @@ class NotificationCard extends StatelessWidget {
     );
 
     return Material(
-      color: Colors.white,
+      color: context.colors.surface,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: onPressed,
@@ -191,7 +192,7 @@ class NotificationCard extends StatelessWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFF3E7EA)),
+            border: Border.all(color: context.colors.border),
           ),
           child: card,
         ),
