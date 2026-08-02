@@ -109,7 +109,7 @@ class _AdminPageState extends State<AdminPage> {
       const ReportManagementScreen(),
       const InquiryManagementScreen(),
       const NoticeManagementScreen(),
-      const AiUsageLogManagementScreen(),
+      StudyManagementScreen(onReportTap: () => _openMenu(3)),
       const NotificationSendScreen(),
       const CommunityManagementScreen(),
       const StatisticsManagementScreen(),

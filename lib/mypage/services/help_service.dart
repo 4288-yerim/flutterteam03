@@ -11,8 +11,9 @@ class HelpServiceException implements Exception {
 
 class HelpService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseFunctions _functions =
-  FirebaseFunctions.instanceFor(region: 'asia-northeast3');
+  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
+    region: 'asia-northeast3',
+  );
 
   Future<DocumentReference<Map<String, dynamic>>> _requireUserDocRef() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -46,9 +47,15 @@ class HelpService {
   /// 내 문의 내역
   Stream<List<InquiryItem>> watchInquiries() async* {
     try {
-      final userDocRef = await _requireUserDocRef();
-      yield* userDocRef
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        yield const [];
+        return;
+      }
+
+      yield* _firestore
           .collection('inquiries')
+          .where('uid', isEqualTo: user.uid)
           .orderBy('createdAt', descending: true)
           .snapshots()
           .map((snap) => snap.docs.map(InquiryItem.fromDoc).toList());
@@ -62,16 +69,28 @@ class HelpService {
     required String title,
     required String content,
   }) async {
-    final userDocRef = await _requireUserDocRef();
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw HelpServiceException('로그인이 필요합니다.');
+    }
 
-    await userDocRef.collection('inquiries').add({
-      'category': category,
-      'title': title,
-      'content': content,
-      'status': 'waiting',
-      'createdAt': FieldValue.serverTimestamp(),
+    final userDocRef = await _requireUserDocRef();
+    final inquiryRef = _firestore.collection('inquiries').doc();
+
+    await inquiryRef.set({
+      'inquiryId': inquiryRef.id,
+      'uid': user.uid,
+      'userDocId': userDocRef.id,
+      'category': category.trim(),
+      'title': title.trim(),
+      'content': content.trim(),
+      'attachmentFiles': <String>[],
       'answer': null,
+      'status': 'PENDING',
+      'answeredBy': null,
       'answeredAt': null,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
       'isReadByUser': true,
     });
   }
@@ -173,18 +192,26 @@ class HelpService {
 
   Future<void> markSessionRead(String sessionId) async {
     final userDocRef = await _requireUserDocRef();
-    await userDocRef
-        .collection('chat_sessions')
-        .doc(sessionId)
-        .update({'hasUnreadBotReply': false});
+    await userDocRef.collection('chat_sessions').doc(sessionId).update({
+      'hasUnreadBotReply': false,
+    });
   }
 
   Future<void> markInquiryRead(String inquiryId) async {
-    final userDocRef = await _requireUserDocRef();
-    await userDocRef
-        .collection('inquiries')
-        .doc(inquiryId)
-        .update({'isReadByUser': true});
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw HelpServiceException('로그인이 필요합니다.');
+    }
+
+    final inquiryRef = _firestore.collection('inquiries').doc(inquiryId);
+
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(inquiryRef);
+      if (!snapshot.exists || snapshot.data()?['uid'] != user.uid) {
+        throw HelpServiceException('문의 정보를 찾을 수 없습니다.');
+      }
+      transaction.update(inquiryRef, {'isReadByUser': true});
+    });
   }
 
   Future<String?> getAiReply(String userText) async {
