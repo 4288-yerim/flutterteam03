@@ -72,7 +72,7 @@ class InquiryItem {
       title: (data['title'] as String?) ?? '',
       content: (data['content'] as String?) ?? '',
       createdAt: createdAtTs?.toDate() ?? DateTime.now(),
-      status: (data['status'] as String?) == 'completed'
+      status: (data['status'] as String?)?.toUpperCase() == 'ANSWERED'
           ? InquiryStatus.completed
           : InquiryStatus.waiting,
       answer: data['answer'] as String?,
@@ -119,7 +119,9 @@ class ChatSessionSummary {
     required this.hasUnreadBotReply,
   });
 
-  factory ChatSessionSummary.fromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+  factory ChatSessionSummary.fromDoc(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
     final data = doc.data();
     final updatedAtTs = data['updatedAt'] as Timestamp?;
     return ChatSessionSummary(
@@ -148,7 +150,9 @@ class ChatMessageRecord {
     this.quickLinkRoute,
   });
 
-  factory ChatMessageRecord.fromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+  factory ChatMessageRecord.fromDoc(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
     final data = doc.data();
     final createdAtTs = data['createdAt'] as Timestamp?;
     return ChatMessageRecord(
