@@ -11,14 +11,19 @@ class AdminHomeService {
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
     final tomorrowStart = todayStart.add(const Duration(days: 1));
+    final weekStart = todayStart.subtract(const Duration(days: 6));
+
     const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
 
     final results = await Future.wait<dynamic>([
+      // 0. 미처리 신고
       _firestore
           .collection('reports')
           .where('status', isEqualTo: 'PENDING')
           .count()
           .get(),
+
+      // 1. 오늘 접수된 신고
       _firestore
           .collection('reports')
           .where(
@@ -28,6 +33,8 @@ class AdminHomeService {
           .where('createdAt', isLessThan: Timestamp.fromDate(tomorrowStart))
           .count()
           .get(),
+
+      // 2. 오늘 가입한 회원
       _firestore
           .collection('users')
           .where(
@@ -36,15 +43,85 @@ class AdminHomeService {
           )
           .where('createdAt', isLessThan: Timestamp.fromDate(tomorrowStart))
           .get(),
+
+      // 3. 미답변 문의
+      _firestore
+          .collection('inquiries')
+          .where('status', isEqualTo: 'PENDING')
+          .count()
+          .get(),
+
+      // 4. 오늘 접수된 문의
+      _firestore
+          .collection('inquiries')
+          .where(
+            'createdAt',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(todayStart),
+          )
+          .where('createdAt', isLessThan: Timestamp.fromDate(tomorrowStart))
+          .count()
+          .get(),
+
+      // 5. 최근 7일 신고
+      _firestore
+          .collection('reports')
+          .where(
+            'createdAt',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(weekStart),
+          )
+          .where('createdAt', isLessThan: Timestamp.fromDate(tomorrowStart))
+          .get(),
+
+      // 6. 최근 7일 문의
+      _firestore
+          .collection('inquiries')
+          .where(
+            'createdAt',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(weekStart),
+          )
+          .where('createdAt', isLessThan: Timestamp.fromDate(tomorrowStart))
+          .get(),
     ]);
 
     final pendingReportCount =
         (results[0] as AggregateQuerySnapshot).count ?? 0;
-    final todayReportCount =
-        (results[1] as AggregateQuerySnapshot).count ?? 0;
+
+    final todayReportCount = (results[1] as AggregateQuerySnapshot).count ?? 0;
+
     final todayNewMemberCount = _userCount(
       results[2] as QuerySnapshot<Map<String, dynamic>>,
     );
+
+    final pendingInquiryCount =
+        (results[3] as AggregateQuerySnapshot).count ?? 0;
+
+    final todayInquiryCount = (results[4] as AggregateQuerySnapshot).count ?? 0;
+
+    final weeklyReports = results[5] as QuerySnapshot<Map<String, dynamic>>;
+
+    final weeklyInquiries = results[6] as QuerySnapshot<Map<String, dynamic>>;
+
+    final weeklyReportCount = weeklyReports.docs.length;
+    final processedReportCount = weeklyReports.docs.where((document) {
+      final status = document.data()['status']?.toString().toUpperCase() ?? '';
+
+      return status == 'RESOLVED' || status == 'REJECTED';
+    }).length;
+
+    final weeklyInquiryCount = weeklyInquiries.docs.length;
+    final answeredInquiryCount = weeklyInquiries.docs.where((document) {
+      final status = document.data()['status']?.toString().toUpperCase() ?? '';
+
+      return status == 'ANSWERED';
+    }).length;
+
+    final reportProcessRate = weeklyReportCount == 0
+        ? 0.0
+        : processedReportCount / weeklyReportCount;
+
+    final inquiryAnswerRate = weeklyInquiryCount == 0
+        ? 0.0
+        : answeredInquiryCount / weeklyInquiryCount;
 
     return AdminHomeData(
       administratorName: '관리자',
@@ -52,7 +129,7 @@ class AdminHomeService {
           '${now.year}.${_twoDigits(now.month)}.${_twoDigits(now.day)} '
           '${weekdays[now.weekday - 1]}요일',
       pendingReportCount: pendingReportCount,
-      pendingInquiryCount: 7,
+      pendingInquiryCount: pendingInquiryCount,
       metrics: [
         AdminMetric(
           label: '신규 회원',
@@ -75,17 +152,25 @@ class AdminHomeService {
           icon: Icons.report_problem_rounded,
           color: const Color(0xFFE85D68),
         ),
-        const AdminMetric(
+        AdminMetric(
           label: '오늘 문의 건수',
-          value: '7건',
+          value: '$todayInquiryCount건',
           comparison: '오늘 접수된 문의',
           icon: Icons.mark_unread_chat_alt_rounded,
-          color: Color(0xFFE59831),
+          color: const Color(0xFFE59831),
         ),
       ],
-      weeklyStatuses: const [
-        AdminWeeklyStatus(label: '신고 처리율', value: 0.78, detail: '35 / 45건'),
-        AdminWeeklyStatus(label: '문의 응답률', value: 0.86, detail: '43 / 50건'),
+      weeklyStatuses: [
+        AdminWeeklyStatus(
+          label: '신고 처리율',
+          value: reportProcessRate,
+          detail: '$processedReportCount / $weeklyReportCount건',
+        ),
+        AdminWeeklyStatus(
+          label: '문의 응답률',
+          value: inquiryAnswerRate,
+          detail: '$answeredInquiryCount / $weeklyInquiryCount건',
+        ),
       ],
     );
   }
