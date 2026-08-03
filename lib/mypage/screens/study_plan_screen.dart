@@ -2,8 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../../widgets/app_dialog.dart';
-
+import '../../widgets/app_confirm_dialog.dart';
+import '../../widgets/app_date_time_sheets.dart';
 import '../../theme.dart';
 
 import '../../appwidgets/today_todo_app_widget.dart';
@@ -150,26 +150,26 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                             description: '학습 계획을 조회하고 추가하려면 로그인해주세요.',
                           )
                         else if (snapshot.connectionState ==
-                                ConnectionState.waiting &&
+                            ConnectionState.waiting &&
                             !snapshot.hasData)
                           _buildLoadingCard()
                         else if (snapshot.hasError)
-                          _buildMessageCard(
-                            icon: Icons.error_outline_rounded,
-                            title: '학습 계획을 불러오지 못했습니다.',
-                            description: _getFirestoreErrorMessage(
-                              snapshot.error,
-                            ),
-                          )
-                        else if (selectedTasks.isEmpty)
-                          _buildEmptyTaskCard()
-                        else
-                          ...selectedTasks.map(
-                            (task) => Padding(
-                              padding: EdgeInsets.only(bottom: 12),
-                              child: _buildTaskCard(task),
-                            ),
-                          ),
+                            _buildMessageCard(
+                              icon: Icons.error_outline_rounded,
+                              title: '학습 계획을 불러오지 못했습니다.',
+                              description: _getFirestoreErrorMessage(
+                                snapshot.error,
+                              ),
+                            )
+                          else if (selectedTasks.isEmpty)
+                              _buildEmptyTaskCard()
+                            else
+                              ...selectedTasks.asMap().entries.map(
+                                    (entry) => Padding(
+                                  padding: EdgeInsets.only(bottom: 12),
+                                  child: _buildTaskCard(entry.value, entry.key),
+                                ),
+                              ),
                       ],
                     ),
                   );
@@ -188,58 +188,53 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
 
   Widget _buildDateSelector() {
     return AppCard(
-      child: Row(
-        children: [
-          IconButton(
-            tooltip: '이전 날짜',
-            onPressed: _moveToPreviousDate,
-            icon: Icon(
-              Icons.chevron_left_rounded,
-              size: 28,
-              color: context.colors.textSecondary,
+      child: Container(
+        decoration: BoxDecoration(
+          color: context.colors.softBlue,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        padding: EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            IconButton(
+              tooltip: '이전 날짜',
+              onPressed: _moveToPreviousDate,
+              icon: Icon(Icons.chevron_left_rounded,
+                  size: 28, color: context.colors.softBlueAccent),
             ),
-          ),
-          Expanded(
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: _selectDate,
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: Column(
-                  children: [
-                    Text(
-                      _formatDate(_selectedDate),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800,
-                        color: context.colors.textPrimary,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      _getDateLabel(_selectedDate),
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: context.colors.pinkStart,
-                      ),
-                    ),
-                  ],
+            Expanded(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: _selectDate,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Column(
+                    children: [
+                      Text(_formatDate(_selectedDate),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontSize: 19,
+                              fontWeight: FontWeight.w800,
+                              color: context.colors.textPrimary)),
+                      SizedBox(height: 4),
+                      Text(_getDateLabel(_selectedDate),
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: context.colors.softBlueAccent)),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          IconButton(
-            tooltip: '다음 날짜',
-            onPressed: _moveToNextDate,
-            icon: Icon(
-              Icons.chevron_right_rounded,
-              size: 28,
-              color: context.colors.textSecondary,
+            IconButton(
+              tooltip: '다음 날짜',
+              onPressed: _moveToNextDate,
+              icon: Icon(Icons.chevron_right_rounded,
+                  size: 28, color: context.colors.softBlueAccent),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -254,125 +249,125 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
     return AppCard(
       child: totalCount == 0
           ? Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: context.colors.pinkSoft,
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Icon(
+              Icons.auto_awesome_outlined,
+              size: 22,
+              color: context.colors.pinkStart,
+            ),
+          ),
+          SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: context.colors.pinkSoft,
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                  child: Icon(
-                    Icons.auto_awesome_outlined,
-                    size: 22,
-                    color: context.colors.pinkStart,
+                Text(
+                  '오늘의 진행률',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: context.colors.textSecondary,
                   ),
                 ),
-                SizedBox(width: 13),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '오늘의 진행률',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: context.colors.textSecondary,
-                        ),
-                      ),
-                      SizedBox(height: 3),
-                      Text(
-                        '계획된 학습이 없습니다.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: context.colors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: context.colors.pinkSoft,
-                        borderRadius: BorderRadius.circular(13),
-                      ),
-                      child: Icon(
-                        Icons.auto_awesome_outlined,
-                        size: 22,
-                        color: context.colors.pinkStart,
-                      ),
-                    ),
-                    SizedBox(width: 13),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '오늘의 진행률',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: context.colors.textSecondary,
-                            ),
-                          ),
-                          SizedBox(height: 3),
-                          Text(
-                            '학습 계획을 완료해보세요.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: context.colors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      '$completedCount / $totalCount',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: context.colors.pinkStart,
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 18),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 10,
-                    backgroundColor: context.colors.surfaceMuted,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      context.colors.pinkStart,
-                    ),
-                  ),
-                ),
-                SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    '$percentage% 완료',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: context.colors.textSecondary,
-                    ),
+                SizedBox(height: 3),
+                Text(
+                  '계획된 학습이 없습니다.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: context.colors.textSecondary,
                   ),
                 ),
               ],
             ),
+          ),
+        ],
+      )
+          : Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: context.colors.pinkSoft,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(
+                  Icons.auto_awesome_outlined,
+                  size: 22,
+                  color: context.colors.pinkStart,
+                ),
+              ),
+              SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '오늘의 진행률',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: context.colors.textSecondary,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      '학습 계획을 완료해보세요.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.colors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                '$completedCount / $totalCount',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: context.colors.pinkStart,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 18),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 10,
+              backgroundColor: context.colors.surfaceMuted,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                context.colors.pinkStart,
+              ),
+            ),
+          ),
+          SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              '$percentage% 완료',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: context.colors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -401,14 +396,22 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
     );
   }
 
-  Widget _buildTaskCard(StudyPlanTask task) {
+  Widget _buildTaskCard(StudyPlanTask task, int index) {
     final StudyPlanTaskStyle style = _getTaskStyle(task.type);
+    final bool isFuture = _isFutureTask(task);
+    final List<Color> ringColors = [
+      context.colors.pinkStart,
+      context.colors.lavenderAccent,
+      context.colors.mintAccent,
+      context.colors.softBlueAccent,
+    ];
+    final Color ringColor = ringColors[index % ringColors.length];
 
     return AppCard(
       padding: EdgeInsets.zero,
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
-        onTap: () {
+        onTap: _isFutureTask(task) ? null : () {
           _toggleTask(task);
         },
         child: Padding(
@@ -425,22 +428,20 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: task.isCompleted
-                        ? context.colors.pinkStart
-                        : context.colors.surface,
+                        ? ringColor
+                        : (isFuture ? context.colors.surfaceMuted : context.colors.surface),
                     border: Border.all(
                       color: task.isCompleted
-                          ? context.colors.pinkStart
-                          : context.colors.border,
+                          ? ringColor
+                          : (isFuture ? context.colors.border.withOpacity(0.5) : context.colors.border),
                       width: 2,
                     ),
                   ),
                   child: task.isCompleted
-                      ? Icon(
-                          Icons.check_rounded,
-                          size: 18,
-                          color: context.colors.onPrimary,
-                        )
-                      : null,
+                      ? Icon(Icons.check_rounded, size: 18, color: context.colors.onPrimary)
+                      : (isFuture
+                      ? Icon(Icons.lock_outline_rounded, size: 13, color: context.colors.textMuted)
+                      : null),
                 ),
               ),
               SizedBox(width: 13),
@@ -451,10 +452,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                     Row(
                       children: [
                         Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
                             color: style.backgroundColor,
                             borderRadius: BorderRadius.circular(20),
@@ -468,15 +466,37 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                             ),
                           ),
                         ),
+                        if (isFuture) ...[
+                          SizedBox(width: 6),
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: context.colors.surfaceMuted,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.lock_outline_rounded, size: 11, color: context.colors.textMuted),
+                                SizedBox(width: 3),
+                                Text(
+                                  '예정',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: context.colors.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             task.certificateName,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: context.colors.textSecondary,
-                            ),
+                            style: TextStyle(fontSize: 12, color: context.colors.textSecondary),
                           ),
                         ),
                       ],
@@ -490,7 +510,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                         fontWeight: FontWeight.w700,
                         color: task.isCompleted
                             ? context.colors.textSecondary
-                            : context.colors.textPrimary,
+                            : (isFuture ? context.colors.textMuted : context.colors.textPrimary),
                         decoration: task.isCompleted
                             ? TextDecoration.lineThrough
                             : TextDecoration.none,
@@ -543,38 +563,65 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                   ],
                 ),
               ),
-              if (task.type == StudyPlanTaskType.user)
-                PopupMenuButton<String>(
-                  tooltip: '학습 계획 메뉴',
-                  color: context.colors.surface,
-                  icon: Icon(
-                    Icons.more_vert_rounded,
-                    color: context.colors.textSecondary,
-                  ),
-                  onSelected: (value) {
-                    if (value == 'delete') {
+              PopupMenuButton<String>(
+                tooltip: '학습 계획 메뉴',
+                color: context.colors.surface,
+                icon: Icon(
+                  Icons.more_vert_rounded,
+                  color: context.colors.textSecondary,
+                ),
+                onSelected: (value) {
+                  switch (value) {
+                    case 'delete':
                       _showDeleteTaskDialog(task);
-                    }
-                  },
-                  itemBuilder: (context) {
+                      break;
+                    case 'delete_step':
+                      _showDeleteAiStepDialog(task);
+                      break;
+                    case 'delete_plan':
+                      _showDeleteAiPlanDialog(task);
+                      break;
+                  }
+                },
+                itemBuilder: (context) {
+                  if (task.type == StudyPlanTaskType.user) {
                     return [
                       PopupMenuItem<String>(
                         value: 'delete',
                         child: Row(
                           children: [
-                            Icon(
-                              Icons.delete_outline_rounded,
-                              size: 20,
-                              color: context.colors.incorrect,
-                            ),
+                            Icon(Icons.delete_outline_rounded, size: 20, color: context.colors.incorrect),
                             SizedBox(width: 10),
                             Text('학습 계획 삭제'),
                           ],
                         ),
                       ),
                     ];
-                  },
-                ),
+                  }
+                  return [
+                    PopupMenuItem<String>(
+                      value: 'delete_step',
+                      child: Row(
+                        children: [
+                          Icon(Icons.remove_circle_outline, size: 20, color: context.colors.textSecondary),
+                          SizedBox(width: 10),
+                          Text('이 단계만 삭제'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'delete_plan',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_outline_rounded, size: 20, color: context.colors.incorrect),
+                          SizedBox(width: 10),
+                          Text('전체 AI 계획 삭제'),
+                        ],
+                      ),
+                    ),
+                  ];
+                },
+              ),
             ],
           ),
         ),
@@ -684,13 +731,13 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
         ),
         icon: _isSaving
             ? SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: context.colors.onPrimary,
-                ),
-              )
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: context.colors.onPrimary,
+          ),
+        )
             : Icon(Icons.add_rounded),
         label: Text(
           _isSaving ? '저장 중...' : '학습 계획 추가',
@@ -713,27 +760,39 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
   }
 
   Future<void> _selectDate() async {
-    final DateTime? pickedDate = await showDatePicker(
-      context: context,
+    final DateTime? pickedDate = await AppDatePickerSheet.show(
+      context,
       initialDate: _selectedDate,
       firstDate: DateTime(2025),
       lastDate: DateTime(2035),
+      title: '학습 날짜',
     );
 
-    if (pickedDate == null) {
-      return;
-    }
+    if (pickedDate == null) return;
 
     setState(() {
-      _selectedDate = DateTime(
-        pickedDate.year,
-        pickedDate.month,
-        pickedDate.day,
-      );
+      _selectedDate =
+          DateTime(pickedDate.year, pickedDate.month, pickedDate.day);
     });
   }
 
+  bool _isFutureTask(StudyPlanTask task) {
+    final DateTime today = DateTime.now();
+    final DateTime todayDate = DateTime(today.year, today.month, today.day);
+    final DateTime taskDate = DateTime(task.date.year, task.date.month, task.date.day);
+    return taskDate.isAfter(todayDate);
+  }
+
   Future<void> _toggleTask(StudyPlanTask task) async {
+    final DateTime today = DateTime.now();
+    final DateTime todayDate = DateTime(today.year, today.month, today.day);
+    final DateTime taskDate = DateTime(task.date.year, task.date.month, task.date.day);
+
+    if (taskDate.isAfter(todayDate)) {
+      _showSnackBar('아직 오지 않은 날짜의 계획은 완료 처리할 수 없습니다.');
+      return;
+    }
+
     final CollectionReference<Map<String, dynamic>>? collection =
         _studyPlansCollection;
 
@@ -841,6 +900,102 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
     });
   }
 
+  Future<void> _showDeleteAiStepDialog(StudyPlanTask task) async {
+    final bool? result = await AppConfirmDialog.show<bool>(
+      context,
+      icon: Icons.remove_circle_outline,
+      isDestructive: true,
+      title: '단계 삭제',
+      description: '"${task.title}" 단계를 삭제하시겠습니까?',
+      primaryLabel: '삭제',
+      onPrimaryPressed: () => Navigator.pop(context, true),
+      secondaryLabel: '취소',
+      onSecondaryPressed: () => Navigator.pop(context, false),
+    );
+
+    if (result != true) return;
+
+    final collection = _studyPlansCollection;
+    if (collection == null) {
+      _showSnackBar('로그인이 필요합니다.');
+      return;
+    }
+
+    try {
+      final document = collection.doc(task.sourceDocumentId);
+
+      await _firestore.runTransaction((transaction) async {
+        final snapshot = await transaction.get(document);
+        final data = snapshot.data();
+        if (data == null) throw StateError('AI 학습 플랜 문서를 찾을 수 없습니다.');
+
+        final rawSteps = data['steps'];
+        if (rawSteps is! List || task.aiStepIndex! >= rawSteps.length) {
+          throw StateError('단계를 찾을 수 없습니다.');
+        }
+
+        final steps = rawSteps
+            .map((s) => s is Map ? Map<String, dynamic>.from(s) : <String, dynamic>{})
+            .toList();
+
+        steps.removeAt(task.aiStepIndex!);
+
+        final completedStepCount = steps.where((s) => s['isCompleted'] == true).length;
+        final totalStepCount = steps.length;
+        final completionRate = totalStepCount == 0
+            ? 0
+            : ((completedStepCount / totalStepCount) * 100).round();
+
+        transaction.update(document, {
+          'steps': steps,
+          'completedStepCount': completedStepCount,
+          'totalStepCount': totalStepCount,
+          'completionRate': completionRate,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      });
+
+      await TodayTodoAppWidget.sync();
+      _showSnackBar('단계가 삭제되었습니다.');
+    } on FirebaseException catch (error) {
+      _showSnackBar(
+        error.code == 'permission-denied' ? '삭제할 권한이 없습니다.' : '삭제에 실패했습니다.',
+      );
+    }
+  }
+
+  Future<void> _showDeleteAiPlanDialog(StudyPlanTask task) async {
+    final bool? result = await AppConfirmDialog.show<bool>(
+      context,
+      icon: Icons.delete_outline_rounded,
+      isDestructive: true,
+      title: 'AI 학습 계획 전체 삭제',
+      description: '"${task.certificateName}" AI 학습 계획 전체를 삭제하시겠습니까?\n삭제 후 다시 생성해야 합니다.',
+      primaryLabel: '삭제',
+      onPrimaryPressed: () => Navigator.pop(context, true),
+      secondaryLabel: '취소',
+      onSecondaryPressed: () => Navigator.pop(context, false),
+    );
+
+    if (result != true) return;
+
+    final collection = _studyPlansCollection;
+    if (collection == null) {
+      _showSnackBar('로그인이 필요합니다.');
+      return;
+    }
+
+    try {
+      await collection.doc(task.sourceDocumentId).delete();
+      await TodayTodoAppWidget.sync();
+      _showSnackBar('AI 학습 계획이 삭제되었습니다.');
+    } on FirebaseException catch (error) {
+      _showSnackBar(
+        error.code == 'permission-denied' ? '삭제할 권한이 없습니다.' : '삭제에 실패했습니다.',
+      );
+    }
+  }
+
   Future<void> _showAddTaskDialog() async {
     if (_firebaseAuth.currentUser == null) {
       _showSnackBar('로그인이 필요합니다.');
@@ -848,198 +1003,52 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
     }
 
     final TextEditingController titleController = TextEditingController();
-    final TextEditingController descriptionController = TextEditingController();
+    final TextEditingController descriptionController =
+    TextEditingController();
     final TextEditingController subjectController = TextEditingController();
-    final TextEditingController certificateController = TextEditingController();
+    final TextEditingController certificateController =
+    TextEditingController();
 
     DateTime selectedDate = _selectedDate;
     TimeOfDay? startTime;
     TimeOfDay? endTime;
 
-    final bool? result = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AppAlertDialog(
-              icon: Icons.event_note_outlined,
-              title: Text(
-                '학습 계획 추가',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    TextField(
-                      controller: titleController,
-                      textInputAction: TextInputAction.next,
-                      decoration: InputDecoration(
-                        labelText: '학습 과제 이름',
-                        hintText: '학습 과제 이름을 적어주세요',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    SizedBox(height: 14),
-                    TextField(
-                      controller: descriptionController,
-                      minLines: 2,
-                      maxLines: 4,
-                      maxLength: 50,
-                      textInputAction: TextInputAction.newline,
-                      decoration: InputDecoration(
-                        labelText: '학습 과제 설명',
-                        hintText: '학습 과제 내용을 적어주세요',
-                        counterText: '최대 50자',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    SizedBox(height: 14),
-                    TextField(
-                      controller: subjectController,
-                      textInputAction: TextInputAction.next,
-                      decoration: InputDecoration(
-                        labelText: '과목명 (선택)',
-                        hintText: '과목명을 입력해주세요',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    SizedBox(height: 14),
-                    TextField(
-                      controller: certificateController,
-                      textInputAction: TextInputAction.done,
-                      decoration: InputDecoration(
-                        labelText: '자격증명',
-                        hintText: '자격증 이름을 입력해주세요',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    SizedBox(height: 14),
-                    _StudyPlanSelectTile(
-                      icon: Icons.calendar_month_outlined,
-                      title: '학습 날짜',
-                      value: _formatDialogDate(selectedDate),
-                      onTap: () async {
-                        final DateTime? pickedDate = await showDatePicker(
-                          context: context,
-                          initialDate: selectedDate,
-                          firstDate: DateTime(2025),
-                          lastDate: DateTime(2035),
-                        );
-
-                        if (pickedDate != null) {
-                          setDialogState(() {
-                            selectedDate = DateTime(
-                              pickedDate.year,
-                              pickedDate.month,
-                              pickedDate.day,
-                            );
-                          });
-                        }
-                      },
-                    ),
-                    SizedBox(height: 10),
-                    _StudyPlanSelectTile(
-                      icon: Icons.schedule_outlined,
-                      title: '공부 시작 시간 (선택)',
-                      value: startTime == null
-                          ? '선택'
-                          : _formatTimeOfDay(startTime!),
-                      onTap: () async {
-                        final TimeOfDay? pickedTime = await showTimePicker(
-                          context: context,
-                          initialTime: startTime ?? TimeOfDay.now(),
-                        );
-
-                        if (pickedTime != null) {
-                          setDialogState(() {
-                            startTime = pickedTime;
-                          });
-                        }
-                      },
-                    ),
-                    SizedBox(height: 10),
-                    _StudyPlanSelectTile(
-                      icon: Icons.schedule_send_outlined,
-                      title: '공부 종료 시간 (선택)',
-                      value: endTime == null
-                          ? '선택'
-                          : _formatTimeOfDay(endTime!),
-                      onTap: () async {
-                        final TimeOfDay? pickedTime = await showTimePicker(
-                          context: context,
-                          initialTime: endTime ?? startTime ?? TimeOfDay.now(),
-                        );
-
-                        if (pickedTime != null) {
-                          setDialogState(() {
-                            endTime = pickedTime;
-                          });
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () async {
-                    FocusManager.instance.primaryFocus?.unfocus();
-
-                    await Future<void>.delayed(Duration(milliseconds: 100));
-
-                    if (!dialogContext.mounted) {
-                      return;
-                    }
-
-                    Navigator.pop(dialogContext, false);
-                  },
-                  child: Text(
-                    '취소',
-                    style: TextStyle(color: context.colors.textSecondary),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    final String? validationMessage = _validateStudyPlanInput(
-                      title: titleController.text,
-                      description: descriptionController.text,
-                      certificateName: certificateController.text,
-                      startTime: startTime,
-                      endTime: endTime,
-                    );
-
-                    if (validationMessage != null) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        SnackBar(content: Text(validationMessage)),
-                      );
-                      return;
-                    }
-
-                    FocusManager.instance.primaryFocus?.unfocus();
-
-                    await Future<void>.delayed(Duration(milliseconds: 100));
-
-                    if (!dialogContext.mounted) {
-                      return;
-                    }
-
-                    Navigator.pop(dialogContext, true);
-                  },
-                  child: Text(
-                    '추가',
-                    style: TextStyle(
-                      color: context.colors.pinkStart,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
+    final bool? result = await AppConfirmDialog.show<bool>(
+      context,
+      icon: Icons.event_note_outlined,
+      title: '학습 계획 추가',
+      description: '학습 과제 정보를 입력해주세요.',
+      primaryLabel: '추가',
+      secondaryLabel: '취소',
+      onSecondaryPressed: () => Navigator.pop(context, false),
+      onPrimaryPressed: () {
+        final String? validationMessage = _validateStudyPlanInput(
+          title: titleController.text,
+          description: descriptionController.text,
+          certificateName: certificateController.text,
+          startTime: startTime,
+          endTime: endTime,
         );
+
+        if (validationMessage != null) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(validationMessage)));
+          return;
+        }
+
+        FocusManager.instance.primaryFocus?.unfocus();
+        Navigator.pop(context, true);
       },
+      extra: _AddTaskForm(
+        titleController: titleController,
+        descriptionController: descriptionController,
+        subjectController: subjectController,
+        certificateController: certificateController,
+        initialDate: selectedDate,
+        onDateChanged: (date) => selectedDate = date,
+        onStartTimeChanged: (time) => startTime = time,
+        onEndTimeChanged: (time) => endTime = time,
+      ),
     );
 
     if (result == true) {
@@ -1162,16 +1171,16 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
       }
 
       final DocumentReference<Map<String, dynamic>> studyPlanDocument =
-          collection.doc();
+      collection.doc();
 
       final String planId = studyPlanDocument.id;
 
       final DocumentReference<Map<String, dynamic>> calendarDocument =
-          _firestore
-              .collection('users')
-              .doc(user.uid)
-              .collection('calendarEvents')
-              .doc('study_plan_$planId');
+      _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('calendarEvents')
+          .doc('study_plan_$planId');
 
       final WriteBatch batch = _firestore.batch();
 
@@ -1242,42 +1251,16 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
   }
 
   Future<void> _showDeleteTaskDialog(StudyPlanTask task) async {
-    final bool? result = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AppAlertDialog(
-          icon: Icons.delete_outline_rounded,
-          isDestructive: true,
-          title: Text(
-            '학습 계획 삭제',
-            style: TextStyle(fontWeight: FontWeight.w700),
-          ),
-          content: Text('"${task.title}" 학습 계획을 삭제하시겠습니까?'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, false);
-              },
-              child: Text(
-                '취소',
-                style: TextStyle(color: context.colors.textSecondary),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, true);
-              },
-              child: Text(
-                '삭제',
-                style: TextStyle(
-                  color: context.colors.incorrect,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+    final bool? result = await AppConfirmDialog.show<bool>(
+      context,
+      icon: Icons.delete_outline_rounded,
+      isDestructive: true,
+      title: '학습 계획 삭제',
+      description: '"${task.title}" 학습 계획을 삭제하시겠습니까?',
+      primaryLabel: '삭제',
+      onPrimaryPressed: () => Navigator.pop(context, true),
+      secondaryLabel: '취소',
+      onSecondaryPressed: () => Navigator.pop(context, false),
     );
 
     if (result != true) {
@@ -1383,12 +1366,6 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
     return '날짜를 눌러 변경';
   }
 
-  String _formatDialogDate(DateTime date) {
-    return '${date.year}.'
-        '${date.month.toString().padLeft(2, '0')}.'
-        '${date.day.toString().padLeft(2, '0')}';
-  }
-
   String _formatTimeOfDay(TimeOfDay time) {
     return '${time.hour.toString().padLeft(2, '0')}:'
         '${time.minute.toString().padLeft(2, '0')}';
@@ -1427,6 +1404,179 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+/// "학습 계획 추가" 다이얼로그의 폼 부분. AppConfirmDialog의 extra 슬롯에 들어갑니다.
+class _AddTaskForm extends StatefulWidget {
+  final TextEditingController titleController;
+  final TextEditingController descriptionController;
+  final TextEditingController subjectController;
+  final TextEditingController certificateController;
+  final DateTime initialDate;
+  final ValueChanged<DateTime> onDateChanged;
+  final ValueChanged<TimeOfDay?> onStartTimeChanged;
+  final ValueChanged<TimeOfDay?> onEndTimeChanged;
+
+  const _AddTaskForm({
+    required this.titleController,
+    required this.descriptionController,
+    required this.subjectController,
+    required this.certificateController,
+    required this.initialDate,
+    required this.onDateChanged,
+    required this.onStartTimeChanged,
+    required this.onEndTimeChanged,
+  });
+
+  @override
+  State<_AddTaskForm> createState() => _AddTaskFormState();
+}
+
+class _AddTaskFormState extends State<_AddTaskForm> {
+  late DateTime _selectedDate;
+  TimeOfDay? _startTime;
+  TimeOfDay? _endTime;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDate = widget.initialDate;
+  }
+
+  String _formatDialogDate(DateTime date) {
+    return '${date.year}.'
+        '${date.month.toString().padLeft(2, '0')}.'
+        '${date.day.toString().padLeft(2, '0')}';
+  }
+
+  String _formatTimeOfDay(TimeOfDay time) {
+    return '${time.hour.toString().padLeft(2, '0')}:'
+        '${time.minute.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.5,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: widget.titleController,
+              textInputAction: TextInputAction.next,
+              decoration: InputDecoration(
+                labelText: '학습 과제 이름',
+                hintText: '학습 과제 이름을 적어주세요',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+            SizedBox(height: 12),
+            TextField(
+              controller: widget.descriptionController,
+              minLines: 2,
+              maxLines: 3,
+              maxLength: 50,
+              textInputAction: TextInputAction.newline,
+              decoration: InputDecoration(
+                labelText: '학습 과제 설명',
+                hintText: '학습 과제 내용을 적어주세요',
+                counterText: '최대 50자',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+            SizedBox(height: 12),
+            TextField(
+              controller: widget.subjectController,
+              textInputAction: TextInputAction.next,
+              decoration: InputDecoration(
+                labelText: '과목명 (선택)',
+                hintText: '과목명을 입력해주세요',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+            SizedBox(height: 12),
+            TextField(
+              controller: widget.certificateController,
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(
+                labelText: '자격증명',
+                hintText: '자격증 이름을 입력해주세요',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+            SizedBox(height: 12),
+            _StudyPlanSelectTile(
+              icon: Icons.calendar_month_outlined,
+              title: '학습 날짜',
+              value: _formatDialogDate(_selectedDate),
+              onTap: () async {
+                final DateTime? pickedDate = await AppDatePickerSheet.show(
+                  context,
+                  initialDate: _selectedDate,
+                  firstDate: DateTime(2025),
+                  lastDate: DateTime(2035),
+                  title: '학습 날짜',
+                );
+                if (pickedDate != null) {
+                  setState(() {
+                    _selectedDate = DateTime(
+                        pickedDate.year, pickedDate.month, pickedDate.day);
+                  });
+                  widget.onDateChanged(_selectedDate);
+                }
+              },
+            ),
+            SizedBox(height: 10),
+            _StudyPlanSelectTile(
+              icon: Icons.schedule_outlined,
+              title: '공부 시작 시간 (선택)',
+              value: _startTime == null ? '선택' : _formatTimeOfDay(_startTime!),
+              onTap: () async {
+                final TimeOfDay? pickedTime = await AppTimePickerSheet.show(
+                  context,
+                  initialTime: _startTime ?? TimeOfDay.now(),
+                  title: '시작 시간',
+                );
+                if (pickedTime != null) {
+                  setState(() => _startTime = pickedTime);
+                  widget.onStartTimeChanged(_startTime);
+                }
+              },
+            ),
+            SizedBox(height: 10),
+            _StudyPlanSelectTile(
+              icon: Icons.schedule_send_outlined,
+              title: '공부 종료 시간 (선택)',
+              value: _endTime == null ? '선택' : _formatTimeOfDay(_endTime!),
+              onTap: () async {
+                final TimeOfDay? pickedTime = await AppTimePickerSheet.show(
+                  context,
+                  initialTime: _endTime ?? _startTime ?? TimeOfDay.now(),
+                  title: '종료 시간',
+                );
+                if (pickedTime != null) {
+                  setState(() => _endTime = pickedTime);
+                  widget.onEndTimeChanged(_endTime);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -1471,8 +1621,8 @@ class StudyPlanTask {
   bool get isAiStep => aiStepIndex != null;
 
   factory StudyPlanTask.fromDocument(
-    QueryDocumentSnapshot<Map<String, dynamic>> document,
-  ) {
+      QueryDocumentSnapshot<Map<String, dynamic>> document,
+      ) {
     final Map<String, dynamic> data = document.data();
 
     final Timestamp? planDay = data['planday'] as Timestamp?;
@@ -1507,8 +1657,8 @@ class StudyPlanTask {
   }
 
   static List<StudyPlanTask> fromAiPlanDocument(
-    QueryDocumentSnapshot<Map<String, dynamic>> document,
-  ) {
+      QueryDocumentSnapshot<Map<String, dynamic>> document,
+      ) {
     final Map<String, dynamic> data = document.data();
 
     final List<dynamic> rawSteps = data['steps'] is List

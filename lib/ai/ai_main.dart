@@ -13,6 +13,9 @@ import 'subscription.dart';
 import 'certificate_roadmap.dart';
 import 'material_summary.dart';
 import 'material_summary_result.dart';
+import 'pass_risk_detail.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'subscription.dart';
 
 class AiPage extends StatefulWidget {
   AiPage({super.key});
@@ -89,9 +92,38 @@ class _RecentSummary {
   });
 }
 
+class _PassRiskAnalysis {
+  final String certificateName;
+  final int passProbability;
+  final String riskLevel; // LOW / MEDIUM / HIGH
+  final double progressGap; // 경과 기간 대비 진도 격차
+  final double recentCompletionRate;
+
+  _PassRiskAnalysis({
+    required this.certificateName,
+    required this.passProbability,
+    required this.riskLevel,
+    required this.progressGap,
+    required this.recentCompletionRate,
+  });
+
+  String get riskLabel {
+    switch (riskLevel) {
+      case 'HIGH':
+        return '위험';
+      case 'MEDIUM':
+        return '보통';
+      default:
+        return '안정';
+    }
+  }
+}
+
 class _AiPageState extends State<AiPage> {
   String _nickname = '사용자';
   bool _isNicknameLoading = true;
+  bool _isAnalyzingPassRisk = false;
+  String? _latestStudyPlanCertificateName;
 
   bool _isCheckingSubscription = false;
 
@@ -99,6 +131,7 @@ class _AiPageState extends State<AiPage> {
   _WeakestTopic? _weakestTopic;
   _WeeklyStats? _weeklyStats;
   _RecentSummary? _recentSummary;
+  _PassRiskAnalysis? _passRiskAnalysis;
 
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _nicknameSub;
 
@@ -169,6 +202,83 @@ class _AiPageState extends State<AiPage> {
         );
   }
 
+  Future<void> _onAnalyzePassRiskPressed() async {
+    if (_isAnalyzingPassRisk) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('로그인이 필요합니다.')),
+      );
+      return;
+    }
+
+    setState(() => _isAnalyzingPassRisk = true);
+
+    try {
+      // 구독 여부 확인
+      final userQuerySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('uid', isEqualTo: user.uid)
+          .limit(1)
+          .get()
+          .timeout(Duration(seconds: 10));
+
+      if (userQuerySnapshot.docs.isEmpty) {
+        _goToSubscription();
+        return;
+      }
+
+      final subscriptionDoc = await userQuerySnapshot.docs.first.reference
+          .collection('subscription')
+          .doc('current')
+          .get()
+          .timeout(Duration(seconds: 10));
+
+      final status = subscriptionDoc.data()?['status']
+          ?.toString()
+          .trim()
+          .toUpperCase();
+
+      if (status != 'ACTIVE') {
+        _goToSubscription();
+        return;
+      }
+
+      final certName = _latestStudyPlanCertificateName
+          ?? _passRiskAnalysis?.certificateName
+          ?? _weakestTopic?.certificateName;
+
+      if (certName == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('먼저 AI 학습 플랜을 저장해주세요.')),
+        );
+        return;
+      }
+
+      final callable = FirebaseFunctions.instance.httpsCallable('analyzePassRisk');
+      await callable.call({'certificateName': certName});
+      await _loadInsights(user);
+    } on FirebaseFunctionsException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? '분석에 실패했어요.')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('분석 중 오류가 발생했어요.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isAnalyzingPassRisk = false);
+    }
+  }
+
+  void _goToSubscription() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => SubscriptionPage()),
+    );
+  }
+
   Future<void> _loadInsights(User? user) async {
     if (!mounted) return;
 
@@ -177,6 +287,7 @@ class _AiPageState extends State<AiPage> {
         _weakestTopic = null;
         _weeklyStats = null;
         _recentSummary = null;
+        _passRiskAnalysis = null;
         _isInsightLoading = false;
       });
       return;
@@ -199,17 +310,19 @@ class _AiPageState extends State<AiPage> {
           _weakestTopic = null;
           _weeklyStats = null;
           _recentSummary = null;
+          _passRiskAnalysis = null;
           _isInsightLoading = false;
         });
         return;
       }
-
       final userDocRef = userQuerySnapshot.docs.first.reference;
 
       final results = await Future.wait([
         _fetchWeakestTopic(userDocRef),
         _fetchWeeklyStats(userDocRef),
         _fetchRecentSummary(userDocRef),
+        _fetchPassRiskAnalysis(userDocRef),
+        _fetchLatestStudyPlanCertificate(userDocRef),
       ]).timeout(Duration(seconds: 10));
 
       if (!mounted) return;
@@ -218,6 +331,8 @@ class _AiPageState extends State<AiPage> {
         _weakestTopic = results[0] as _WeakestTopic?;
         _weeklyStats = results[1] as _WeeklyStats?;
         _recentSummary = results[2] as _RecentSummary?;
+        _passRiskAnalysis = results[3] as _PassRiskAnalysis?;
+        _latestStudyPlanCertificateName = results[4] as String?;
         _isInsightLoading = false;
       });
     } catch (error) {
@@ -227,6 +342,7 @@ class _AiPageState extends State<AiPage> {
         _weakestTopic = null;
         _weeklyStats = null;
         _recentSummary = null;
+        _passRiskAnalysis = null;
         _isInsightLoading = false;
       });
     }
@@ -354,6 +470,50 @@ class _AiPageState extends State<AiPage> {
     );
   }
 
+  Future<_PassRiskAnalysis?> _fetchPassRiskAnalysis(
+      DocumentReference<Map<String, dynamic>> userDocRef,
+      ) async {
+    final doc = await userDocRef.collection('analysis').doc('passRisk').get();
+
+    if (!doc.exists) return null;
+
+    final data = doc.data();
+    if (data == null) return null;
+
+    final certificateName = (data['certificateName'] as String?)?.trim();
+    if (certificateName == null || certificateName.isEmpty) return null;
+
+    final factors = data['factors'] as Map<String, dynamic>? ?? {};
+
+    return _PassRiskAnalysis(
+      certificateName: certificateName,
+      passProbability: (data['passProbability'] as num?)?.toInt() ?? 0,
+      riskLevel: (data['riskLevel'] as String?)?.trim() ?? 'UNKNOWN',
+      progressGap: (factors['progressGap'] as num?)?.toDouble() ?? 0,
+      recentCompletionRate:
+      (factors['recentCompletionRate'] as num?)?.toDouble() ?? 0,
+    );
+  }
+
+  Future<String?> _fetchLatestStudyPlanCertificate(
+      DocumentReference<Map<String, dynamic>> userDocRef,
+      ) async {
+    final snap = await userDocRef
+        .collection('studyPlans')
+        .orderBy('createdAt', descending: true)
+        .limit(10)
+        .get();
+
+    for (final doc in snap.docs) {
+      final data = doc.data();
+      if (data['steps'] is List) {
+        final name = (data['certificateName'] as String?)?.trim();
+        if (name != null && name.isNotEmpty) return name;
+      }
+    }
+    return null;
+  }
+
   void _onNotificationPressed() {
     Navigator.push(
       context,
@@ -441,6 +601,18 @@ class _AiPageState extends State<AiPage> {
     );
   }
 
+  void _onPassRiskPressed() {
+    if (_passRiskAnalysis == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PassRiskDetailScreen(
+          certificateName: _passRiskAnalysis!.certificateName,
+        ),
+      ),
+    );
+  }
+
   void _onQuestionPressed(BuildContext context, {_WeakestTopic? topic}) {
     Navigator.push(
       context,
@@ -520,6 +692,16 @@ class _AiPageState extends State<AiPage> {
                   onRoadmapPressed: _onRoadmapPressed,
                   onQuestionPressed: () => _onQuestionPressed(context),
                   onSummaryPressed: _onSummaryPressed,
+                ),
+                SizedBox(height: 30),
+                _SectionTitle(title: '합격 예측 분석'),
+                SizedBox(height: 16),
+                _PassRiskCard(
+                  isLoading: _isInsightLoading,
+                  analysis: _passRiskAnalysis,
+                  onPressed: _onPassRiskPressed,
+                  isAnalyzing: _isAnalyzingPassRisk,
+                  onAnalyzePressed: _onAnalyzePassRiskPressed,
                 ),
                 SizedBox(height: 30),
                 _SectionTitle(title: '오늘의 맞춤 제안'),
@@ -772,6 +954,227 @@ class _QuickMenuItem extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _PassRiskCard extends StatelessWidget {
+  final bool isLoading;
+  final _PassRiskAnalysis? analysis;
+  final VoidCallback onPressed;
+  final bool isAnalyzing;
+  final VoidCallback onAnalyzePressed;
+
+  _PassRiskCard({
+    required this.isLoading,
+    required this.analysis,
+    required this.onPressed,
+    required this.isAnalyzing,
+    required this.onAnalyzePressed,
+  });
+
+  Widget _analyzeButton(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: isAnalyzing ? null : onAnalyzePressed,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            gradient: isAnalyzing
+                ? null
+                : LinearGradient(
+              colors: [context.colors.pinkStart, context.colors.pinkDeep],
+            ),
+            color: isAnalyzing ? context.colors.pinkSoft : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              isAnalyzing
+                  ? SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: context.colors.pinkStart,
+                ),
+              )
+                  : Icon(
+                Icons.auto_awesome_rounded,
+                size: 16,
+                color: context.colors.onPrimary,
+              ),
+              SizedBox(width: 6),
+              Text(
+                isAnalyzing
+                    ? '분석 중...'
+                    : (analysis == null ? 'AI 분석하기' : '다시 분석하기'),
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
+                  color: isAnalyzing
+                      ? context.colors.pinkStart
+                      : context.colors.onPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return Container(
+        width: double.infinity,
+        height: 100,
+        decoration: BoxDecoration(
+          color: context.colors.surfaceTransparent.withValues(alpha: 0.85),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: context.colors.border, width: 1.2),
+        ),
+        child: Center(
+          child: SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.4,
+              color: context.colors.pinkStart,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (analysis == null) {
+      return Container(
+        width: double.infinity,
+        padding: EdgeInsets.fromLTRB(18, 18, 18, 16),
+        decoration: BoxDecoration(
+          color: context.colors.surfaceTransparent.withValues(alpha: 0.85),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: context.colors.border, width: 1.2),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.insights_outlined, color: context.colors.textMuted, size: 26),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '학습 플랜을 등록하면 합격 가능성을 분석해드려요.',
+                    style: TextStyle(
+                      color: context.colors.textSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 14),
+            _analyzeButton(context),
+          ],
+        ),
+      );
+    }
+
+    final riskColor = _riskColor(context, analysis!.riskLevel);
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(18, 18, 18, 16),
+      decoration: BoxDecoration(
+        color: context.colors.surfaceTransparent.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: context.colors.border, width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
+            child: InkWell(
+              onTap: onPressed,
+              borderRadius: BorderRadius.circular(18),
+              child: Row(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: riskColor.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(Icons.insights_rounded, color: riskColor, size: 26),
+                  ),
+                  SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          analysis!.certificateName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: context.colors.textSecondary,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          '예상 합격 가능성 ${analysis!.passProbability}%',
+                          style: TextStyle(
+                            color: context.colors.textPrimary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          '위험도 ${analysis!.riskLabel}',
+                          style: TextStyle(
+                            color: riskColor,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: context.colors.textSecondary),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: 14),
+          _analyzeButton(context),
+        ],
+      ),
+    );
+  }
+
+  Color _riskColor(BuildContext context, String riskLevel) {
+    switch (riskLevel) {
+      case 'HIGH':
+        return context.colors.incorrect;
+      case 'MEDIUM':
+        return context.colors.warning;
+      default:
+        return context.colors.mintAccent;
+    }
   }
 }
 
