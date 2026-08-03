@@ -101,6 +101,7 @@ class _AdminPageState extends State<AdminPage> {
   List<Widget> _buildScreens() {
     return [
       AdminHomeScreen(
+        isActive: _selectedIndex == 0,
         onReportTap: () => _openMenu(3),
         onInquiryTap: () => _openMenu(4),
       ),

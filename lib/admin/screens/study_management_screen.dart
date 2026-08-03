@@ -111,8 +111,7 @@ class _StudyManagementScreenState extends State<StudyManagementScreen> {
           final matchesSearch =
               query.isEmpty ||
               group.groupName.toLowerCase().contains(query) ||
-              group.ownerNickname.toLowerCase().contains(query) ||
-              group.ownerUid.toLowerCase().contains(query);
+              group.ownerNickname.toLowerCase().contains(query);
           return matchesFilter && matchesSearch;
         })
         .toList(growable: false);
@@ -179,7 +178,7 @@ class _StudyHeader extends StatelessWidget {
             controller: searchController,
             onChanged: onSearchChanged,
             decoration: const InputDecoration(
-              hintText: '스터디명, 그룹장 닉네임 또는 UID 검색',
+              hintText: '스터디명, 그룹장 닉네임 검색',
               prefixIcon: Icon(Icons.search_rounded),
             ),
           ),
@@ -280,7 +279,7 @@ class _StudyCard extends StatelessWidget {
               const SizedBox(width: 5),
               Expanded(
                 child: Text(
-                  '${group.ownerNickname} · ${group.ownerUid}',
+                  group.ownerNickname,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -307,7 +306,7 @@ class _StudyCard extends StatelessWidget {
           ),
           const SizedBox(height: 7),
           Text(
-            '${group.certificateName} · ID ${group.id}',
+            group.certificateName,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(color: context.colors.textMuted, fontSize: 12),
