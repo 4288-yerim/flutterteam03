@@ -167,7 +167,6 @@ class _SplashScreenState extends State<SplashScreen>
         ),
         child: Stack(
           children: [
-            // 배경 장식 원 (은은하게 숨쉬기)
             _BackgroundBlob(
               controller: _breatheController,
               alignment: const Alignment(-1.3, -1.0),
@@ -184,7 +183,6 @@ class _SplashScreenState extends State<SplashScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // 캐릭터: 인사하듯 좌우로 까딱이며 살짝 들썩임
                   FadeTransition(
                     opacity: _wordmarkOpacity,
                     child: _WavingCharacter(controller: _characterController),
@@ -197,10 +195,8 @@ class _SplashScreenState extends State<SplashScreen>
                     position: _wordmarkSlide,
                     child: FadeTransition(
                       opacity: _wordmarkOpacity,
-                      child: Image.asset(
-                        Theme.of(context).brightness == Brightness.dark
-                            ? 'assets/images/textLogo_dark.png'
-                            : 'assets/images/textLogo.png',
+                      child:Image.asset(
+                        'assets/images/textLogo.png',
                         height: 34,
                       ),
                     ),
@@ -283,9 +279,7 @@ class _WavingCharacter extends StatelessWidget {
     return AnimatedBuilder(
       animation: controller,
       builder: (context, child) {
-        // -0.06 ~ 0.06 라디안 사이로 좌우 까딱임 (인사하는 느낌)
         final tilt = (controller.value - 0.5) * 0.12;
-        // 살짝 위아래로도 들썩 (열공 텐션)
         final bounce = -6 * (1 - (controller.value - 0.5).abs() * 2);
         return Transform.translate(
           offset: Offset(0, bounce),

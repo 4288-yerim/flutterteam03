@@ -9,6 +9,8 @@ import '../theme.dart';
 import 'services/study_plan_ai_service.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
+import '../widgets/app_confirm_dialog.dart';
+import '../mypage/screens/study_plan_screen.dart';
 
 class AiStudyPlanPage extends StatefulWidget {
   AiStudyPlanPage({super.key});
@@ -30,7 +32,7 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
   static List<int> _genDurations = [1000, 1200, 1400, 1200, 800, 500];
 
   final PageController _pageController = PageController();
-  int _currentStep = 0; // 0: 자격증/회차, 1: 날짜/시간대/복습, 2: 결과
+  int _currentStep = 0;
 
   late final AnimationController _loadingController;
 
@@ -59,11 +61,15 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
   bool _includeReview = true;
   bool _isGenerating = false;
   bool _isSavingPlan = false;
+  bool _isPlanSaved = false;
 
   final List<DateTime> _excludedDates = [];
 
   final StudyPlanAiService _aiService = StudyPlanAiService();
   List<StudyPlanDayResult> _generatedPlan = [];
+  List<DateTime?> _planDates = [];
+  final Set<int> _expandedWeeks = {};
+  final Map<int, GlobalKey> _weekSectionKeys = {};
 
   @override
   void initState() {
@@ -71,6 +77,131 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
     _loadingController = AnimationController(vsync: this);
     _aiService.loadModel();
     _loadCertificates();
+  }
+
+  List<Widget> _buildWeeklyGroupedPlan() {
+    final weeks = <List<int>>[];
+    for (var i = 0; i < _generatedPlan.length; i++) {
+      final weekIdx = i ~/ 7;
+      if (weeks.length <= weekIdx) weeks.add([]);
+      weeks[weekIdx].add(i);
+    }
+
+    final todayWeekIdx = _todayWeekIndex(_planDates);
+
+    return List.generate(weeks.length, (weekIdx) {
+      final indices = weeks[weekIdx];
+      final isExpanded = _expandedWeeks.contains(weekIdx);
+      final isCurrentWeek = weekIdx == todayWeekIdx;
+      final key = _weekSectionKeys.putIfAbsent(weekIdx, () => GlobalKey());
+
+      return Padding(
+        key: key,
+        padding: EdgeInsets.only(bottom: 12),
+        child: _WeekSection(
+          weekNumber: weekIdx + 1,
+          dayCount: indices.length,
+          isExpanded: isExpanded,
+          isCurrentWeek: isCurrentWeek,
+          onToggle: () => _toggleWeek(weekIdx),
+          children: indices.map((i) {
+            final result = _generatedPlan[i];
+            final item = _DailyPlanItem(
+              day: result.dayLabel,
+              title: result.title,
+              detail: result.detail,
+              duration: result.duration,
+            );
+            return Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: _PlanCard(item: item, index: i),
+            );
+          }).toList(),
+        ),
+      );
+    });
+  }
+
+  void _toggleWeek(int weekIdx) {
+    setState(() {
+      if (_expandedWeeks.contains(weekIdx)) {
+        _expandedWeeks.remove(weekIdx);
+      } else {
+        _expandedWeeks
+          ..clear()          // 아코디언: 하나 열면 나머지는 닫힘
+          ..add(weekIdx);
+      }
+    });
+  }
+
+  void _jumpToWeek(int weekIdx) {
+    setState(() {
+      _expandedWeeks
+        ..clear()
+        ..add(weekIdx);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final key = _weekSectionKeys[weekIdx];
+      final ctx = key?.currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(
+          ctx,
+          duration: Duration(milliseconds: 320),
+          curve: Curves.easeOutCubic,
+          alignment: 0.05,
+        );
+      }
+    });
+  }
+
+  Widget _buildWeekQuickNav() {
+    final totalWeeks = (_generatedPlan.length / 7).ceil();
+    if (totalWeeks <= 1) return SizedBox.shrink();
+
+    final todayWeekIdx = _todayWeekIndex(_planDates);
+
+    return SizedBox(
+      height: 40,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: totalWeeks,
+        separatorBuilder: (context, index) => SizedBox(width: 8),
+        itemBuilder: (context, weekIdx) {
+          final isCurrentWeek = weekIdx == todayWeekIdx;
+          final isSelected = _expandedWeeks.contains(weekIdx);
+
+          return GestureDetector(
+            onTap: () => _jumpToWeek(weekIdx),
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 14),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? (isCurrentWeek
+                    ? context.colors.mint
+                    : context.colors.pinkSoft)
+                    : context.colors.surfaceTransparent.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isCurrentWeek ? Color(0xFF5BB8AB) : context.colors.border,
+                  width: isCurrentWeek ? 1.4 : 1,
+                ),
+              ),
+              child: Text(
+                '${weekIdx + 1}주차',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                  color: isCurrentWeek
+                      ? Color(0xFF5BB8AB)
+                      : context.colors.textSecondary,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _loadCertificates() async {
@@ -109,9 +240,7 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
           .orderBy('sortdate', descending: false)
           .get();
 
-      final roundField = certificate.qualgbcd == 'T'
-          ? 'implplannm'
-          : 'description';
+      const roundField = 'implplannm';
 
       final now = Timestamp.now();
 
@@ -139,7 +268,6 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
         if (label == null) continue;
 
         rounds.add(label);
-        // 필기(서류) 시험일 우선, 없으면 실기 시험일
         final docExam = (data['docexamstartat'] as Timestamp?)?.toDate();
         final pracExam = (data['pracexamstartat'] as Timestamp?)?.toDate();
         examDates[label] = docExam ?? pracExam;
@@ -401,9 +529,11 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
     );
 
     final generatedDays = <StudyPlanDayResult>[];
+    final planDates = <DateTime?>[];
     for (var i = 0; i < rawResults.length; i++) {
       final original = rawResults[i];
       final date = i < studyDates.length ? studyDates[i] : null;
+      planDates.add(date);
       final isReviewDay = original.dayLabel == '복습일';
       final label = date != null
           ? (isReviewDay
@@ -433,6 +563,10 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
 
     setState(() {
       _generatedPlan = generatedDays;
+      _planDates = planDates;
+      _expandedWeeks
+        ..clear()
+        ..add(_todayWeekIndex(planDates));
       _isGenerating = false;
     });
 
@@ -449,6 +583,8 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
   }
 
   Future<void> _savePlan() async {
+    if (_isPlanSaved) return;
+
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
       _showMessage('로그인 후 저장할 수 있어요.');
@@ -477,33 +613,64 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
           .doc(uid)
           .collection('studyPlans')
           .add({
-            'certificateId': _selectedCertificate!.jmcd,
-            'certificateName': _selectedCertificate!.name,
-            'scheduleName': _selectedRound,
-            'examStartAt': _examDate != null
-                ? Timestamp.fromDate(_examDate!)
-                : null,
-            'recommendedStudyStartDate': _studyStartDate != null
-                ? _formatDateYmd(_studyStartDate!)
-                : null,
-            'steps': steps,
-            'totalStepCount': steps.length,
-            'completedStepCount': 0,
-            'completionRate': 0,
-            'status': 'NOT_STARTED',
-            'createdAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
+        'certificateId': _selectedCertificate!.jmcd,
+        'certificateName': _selectedCertificate!.name,
+        'scheduleName': _selectedRound,
+        'examStartAt': _examDate != null
+            ? Timestamp.fromDate(_examDate!)
+            : null,
+        'recommendedStudyStartDate': _studyStartDate != null
+            ? _formatDateYmd(_studyStartDate!)
+            : null,
+        'steps': steps,
+        'totalStepCount': steps.length,
+        'completedStepCount': 0,
+        'completionRate': 0,
+        'status': 'NOT_STARTED',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
       if (!mounted) return;
-      setState(() => _isSavingPlan = false);
-      _showMessage('학습 플랜이 저장됐어요.');
+      setState(() {
+        _isSavingPlan = false;
+        _isPlanSaved = true;
+      });
+      _showSavedDialog();
     } catch (e) {
       debugPrint('학습 플랜 저장 실패: $e');
       if (!mounted) return;
       setState(() => _isSavingPlan = false);
       _showMessage('저장에 실패했어요. 잠시 후 다시 시도해주세요.');
     }
+  }
+  int _todayWeekIndex(List<DateTime?> dates) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    for (var i = 0; i < dates.length; i++) {
+      final d = dates[i];
+      if (d != null && !d.isBefore(today)) {
+        return i ~/ 7;
+      }
+    }
+    return 0;
+  }
+  Future<void> _showSavedDialog() async {
+    await AppConfirmDialog.show(
+      context,
+      icon: Icons.check_circle_outline_rounded,
+      title: '학습 플랜이 저장됐어요',
+      description: '마이페이지에서 보시겠어요?',
+      primaryLabel: '마이페이지로 이동',
+      onPrimaryPressed: () {
+        Navigator.of(context).pop();
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const StudyPlanScreen()),
+        );
+      },
+      secondaryLabel: '닫기',
+      onSecondaryPressed: () => Navigator.of(context).pop(),
+    );
   }
 
   Future<bool?> _showExitDuringGenerationSheet() {
@@ -546,6 +713,7 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
       _generatedPlan = [];
       _examDate = null;
       _examDateAutoFilled = false;
+      _isPlanSaved = false;
     });
     _goToStep(0);
   }
@@ -557,6 +725,7 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
       _excludedDates.clear();
       _includeReview = true;
       _generatedPlan = [];
+      _isPlanSaved = false;
     });
     _goToStep(1);
   }
@@ -1683,7 +1852,7 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
           ),
           Switch(
             value: _includeReview,
-            activeTrackColor: context.colors.pinkStart,
+            activeTrackColor: Color(0xFF5BB8AB),
             onChanged: (value) {
               setState(() => _includeReview = value);
             },
@@ -1774,7 +1943,7 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
                     child: Text(
                       'AI 생성 완료',
                       style: TextStyle(
-                        color: context.colors.pinkStart,
+                        color: Color(0xFF5BB8AB),
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
                       ),
@@ -1822,31 +1991,26 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
               ),
             ),
             SizedBox(height: 16),
-            ListView.separated(
-              physics: NeverScrollableScrollPhysics(),
-              shrinkWrap: true,
-              itemCount: _generatedPlan.length,
-              separatorBuilder: (context, index) => SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final result = _generatedPlan[index];
-                final item = _DailyPlanItem(
-                  day: result.dayLabel,
-                  title: result.title,
-                  detail: result.detail,
-                  duration: result.duration,
-                );
-                return _PlanCard(item: item, index: index);
-              },
-            ),
+            _buildWeekQuickNav(),
+            SizedBox(height: 14),
+            ..._buildWeeklyGroupedPlan(),
             SizedBox(height: 30),
             SizedBox(
               width: double.infinity,
               height: 56,
               child: FilledButton.icon(
-                onPressed: _isSavingPlan ? null : _savePlan,
+                onPressed: (_isSavingPlan || _isPlanSaved) ? null : _savePlan,
                 style: FilledButton.styleFrom(
-                  backgroundColor: context.colors.pinkStart,
-                  foregroundColor: context.colors.onPrimary,
+                  backgroundColor: _isPlanSaved
+                      ? context.colors.border
+                      : context.colors.pinkStart,
+                  foregroundColor: _isPlanSaved
+                      ? context.colors.textSecondary
+                      : context.colors.onPrimary,
+                  disabledBackgroundColor: _isPlanSaved
+                      ? context.colors.border
+                      : context.colors.pinkSoft,
+                  disabledForegroundColor: context.colors.textSecondary,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
@@ -1854,16 +2018,20 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
                 ),
                 icon: _isSavingPlan
                     ? SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.2,
-                          color: context.colors.surface,
-                        ),
-                      )
-                    : Icon(Icons.bookmark_add_outlined),
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.2,
+                    color: context.colors.surface,
+                  ),
+                )
+                    : Icon(_isPlanSaved
+                    ? Icons.check_rounded
+                    : Icons.bookmark_add_outlined),
                 label: Text(
-                  _isSavingPlan ? '저장 중...' : '학습 플랜 저장하기',
+                  _isSavingPlan
+                      ? '저장 중...'
+                      : (_isPlanSaved ? '저장됨' : '학습 플랜 저장하기'),
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
               ),
@@ -3013,7 +3181,7 @@ class _TimePickerSheetState extends State<_TimePickerSheet> {
   late final FixedExtentScrollController _minuteController;
 
   late int _selectedHour;
-  late int _selectedMinute; // 0, 5, 10, ... 55
+  late int _selectedMinute;
 
   @override
   void initState() {
@@ -3212,6 +3380,113 @@ class _MonthNavButton extends StatelessWidget {
   }
 }
 
+class _WeekSection extends StatelessWidget {
+  final int weekNumber;
+  final int dayCount;
+  final bool isExpanded;
+  final bool isCurrentWeek;
+  final VoidCallback onToggle;
+  final List<Widget> children;
+
+  _WeekSection({
+    required this.weekNumber,
+    required this.dayCount,
+    required this.isExpanded,
+    required this.isCurrentWeek,
+    required this.onToggle,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: context.colors.surfaceTransparent.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: context.colors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: onToggle,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: isCurrentWeek
+                            ? context.colors.mint
+                            : context.colors.pinkSoft,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '$weekNumber',
+                        style: TextStyle(
+                          color: isCurrentWeek
+                              ? Color(0xFF5BB8AB)
+                              : context.colors.pinkStart,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        '$weekNumber주차',
+                        style: TextStyle(
+                          color: context.colors.textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '$dayCount일',
+                      style: TextStyle(
+                        color: context.colors.textSecondary,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    AnimatedRotation(
+                      turns: isExpanded ? 0.5 : 0,
+                      duration: Duration(milliseconds: 220),
+                      child: Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: context.colors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          AnimatedCrossFade(
+            duration: Duration(milliseconds: 220),
+            crossFadeState:
+            isExpanded ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+            firstChild: Padding(
+              padding: EdgeInsets.fromLTRB(14, 0, 14, 14),
+              child: Column(children: children),
+            ),
+            secondChild: SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PlanCard extends StatelessWidget {
   final _DailyPlanItem item;
   final int index;
@@ -3221,6 +3496,7 @@ class _PlanCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isEven = index.isEven;
+    final isReviewDay = item.day.contains('복습');
 
     return Container(
       width: double.infinity,
@@ -3256,13 +3532,35 @@ class _PlanCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  item.day,
-                  style: TextStyle(
-                    color: context.colors.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      item.day,
+                      style: TextStyle(
+                        color: context.colors.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (isReviewDay) ...[
+                      SizedBox(width: 6),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: context.colors.mint,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '복습',
+                          style: TextStyle(
+                            color: Color(0xFF5BB8AB),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 SizedBox(height: 4),
                 Text(
@@ -3313,7 +3611,7 @@ class _PlanCard extends StatelessWidget {
 class _CertificateOption {
   final String jmcd;
   final String name;
-  final String qualgbcd; // T: 국가기술자격, S: 국가전문자격
+  final String qualgbcd;
   final bool isManual;
 
   _CertificateOption({

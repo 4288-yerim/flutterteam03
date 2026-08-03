@@ -2016,3 +2016,227 @@ Object.assign(
 
 const { chatbotReply } = require("./chat/chatbotReply");
 exports.chatbotReply = chatbotReply;
+
+const tf = require('@tensorflow/tfjs');
+const fs = require('fs');
+const path = require('path');
+
+function nodeFileIOHandler(modelJsonPath) {
+  return {
+    async load() {
+      const modelDir = path.dirname(modelJsonPath);
+      const modelJSON = JSON.parse(fs.readFileSync(modelJsonPath, 'utf8'));
+
+      const weightSpecs = [];
+      const buffers = [];
+      for (const group of modelJSON.weightsManifest) {
+        weightSpecs.push(...group.weights);
+        for (const p of group.paths) {
+          buffers.push(fs.readFileSync(path.join(modelDir, p)));
+        }
+      }
+
+      const concatBuffer = Buffer.concat(buffers);
+      const weightData = concatBuffer.buffer.slice(
+        concatBuffer.byteOffset,
+        concatBuffer.byteOffset + concatBuffer.byteLength
+      );
+
+      return {
+        modelTopology: modelJSON.modelTopology,
+        weightSpecs,
+        weightData,
+        format: modelJSON.format,
+        generatedBy: modelJSON.generatedBy,
+        convertedBy: modelJSON.convertedBy,
+        userDefinedMetadata: modelJSON.userDefinedMetadata,
+      };
+    },
+  };
+}
+
+let model;
+async function loadModel() {
+  if (!model) {
+    const modelJsonPath = path.join(__dirname, 'tfjs_model/model.json');
+    model = await tf.loadGraphModel(nodeFileIOHandler(modelJsonPath));
+  }
+  return model;
+}
+const FEATURE_MIN = [
+  -0.1575008, 0.150032, 0.1500121, 0.0,
+  0.000015765891, 0.0055865920, 0.1000188, 0.0000013657623,
+];
+const FEATURE_MAX = [
+  0.6882366, 0.94997954, 0.949982, 4.0,
+  0.999983, 0.89928055, 0.99998575, 0.59990424,
+];
+
+function normalize(rawFeatures) {
+  return rawFeatures.map((v, i) => {
+    const range = FEATURE_MAX[i] - FEATURE_MIN[i];
+    const normalized = (v - FEATURE_MIN[i]) / range;
+    return Math.min(1, Math.max(0, normalized));
+  });
+}
+
+// steps 배열의 dayLabel("8/3(월)")에서 실제 날짜를 복원.
+// Flutter의 StudyPlanTask._parseStepDate와 동일한 로직.
+function parseStepDate(dayLabel, recommendedStartDate, fallbackIndex) {
+  const match = /(\d{1,2})\/(\d{1,2})/.exec(dayLabel || '');
+  if (!match) {
+    const d = new Date(recommendedStartDate);
+    d.setDate(d.getDate() + fallbackIndex);
+    return d;
+  }
+  const month = parseInt(match[1], 10);
+  const day = parseInt(match[2], 10);
+  let year = recommendedStartDate.getFullYear();
+  if (month < recommendedStartDate.getMonth() + 1) year += 1;
+  return new Date(year, month - 1, day);
+}
+
+function daysBetween(a, b) {
+  return Math.round((b.setHours(0,0,0,0) - a.setHours(0,0,0,0)) / (1000 * 60 * 60 * 24));
+}
+
+async function computeFeatures(uid, certificateName) {
+const planSnap = await db.collection('users').doc(uid)
+    .collection('studyPlans')
+    .orderBy('createdAt', 'desc')
+    .limit(20)
+    .get();
+
+  const matchedDoc = planSnap.docs.find((doc) => {
+    const d = doc.data();
+    return d.certificateName === certificateName && Array.isArray(d.steps);
+  });
+
+  if (!matchedDoc) {
+    throw new HttpsError('not-found', '해당 자격증의 AI 학습 플랜을 찾을 수 없습니다.');
+  }
+
+  const plan = matchedDoc.data();
+  const steps = Array.isArray(plan.steps) ? plan.steps : [];
+  if (steps.length === 0) {
+    throw new HttpsError('failed-precondition', '학습 플랜에 단계가 없습니다.');
+  }
+
+  const recommendedStartDate = plan.recommendedStudyStartDate
+    ? new Date(plan.recommendedStudyStartDate + 'T00:00:00')
+    : new Date();
+
+  const today = new Date();
+  const stepDates = steps.map((s, i) => parseStepDate(s.dayLabel, new Date(recommendedStartDate), i));
+
+  const totalDays = steps.length;
+  const elapsedDays = Math.min(
+    totalDays,
+    Math.max(0, stepDates.filter((d) => d <= today).length)
+  );
+  const elapsedRatio = totalDays > 0 ? elapsedDays / totalDays : 0;
+
+  const completedStepCount = steps.filter((s) => s.isCompleted === true).length;
+  const completionRate = totalDays > 0 ? completedStepCount / totalDays : 0;
+  const progressGap = elapsedRatio - completionRate;
+
+  // 최근 7일 구간
+  const sevenDaysAgo = new Date(today); sevenDaysAgo.setDate(today.getDate() - 7);
+  const recentIdx = steps.map((_, i) => i).filter((i) => stepDates[i] >= sevenDaysAgo && stepDates[i] <= today);
+  const recentTotal = recentIdx.length;
+  const recentCompleted = recentIdx.filter((i) => steps[i].isCompleted === true).length;
+  const recentCompletionRate = recentTotal > 0 ? recentCompleted / recentTotal : completionRate;
+
+  // 최근 14일 구간 (일관성)
+  const fourteenDaysAgo = new Date(today); fourteenDaysAgo.setDate(today.getDate() - 14);
+  const last14Idx = steps.map((_, i) => i).filter((i) => stepDates[i] >= fourteenDaysAgo && stepDates[i] <= today);
+  const last14Total = last14Idx.length;
+  const last14Completed = last14Idx.filter((i) => steps[i].isCompleted === true).length;
+  const consistencyScore = last14Total > 0 ? last14Completed / last14Total : 0.5;
+
+  const daysRemaining = Math.max(1, totalDays - elapsedDays);
+  const daysRemainingNorm = daysRemaining / totalDays;
+
+  // 실제 가용시간 데이터가 없어 "잔여 단계 수 / 잔여 일수"로 근사 (1일 1단계 기준)
+  const remainingSteps = Math.max(0, totalDays - completedStepCount);
+  const timePressure = Math.min(4, Math.max(0, remainingSteps / daysRemaining));
+
+  // 난이도 데이터가 없어 중간값으로 고정 (추후 studyPlans에 difficulty 필드 추가 시 대체 가능)
+  const difficultyNorm = 0.5;
+
+  // 오답 개수 기반 약점 비중 근사
+  const wrongSnap = await db.collection('users').doc(uid)
+    .collection('wrong_answers')
+    .where('certificationName', '==', certificateName)
+    .limit(100)
+    .get();
+  const subjectWeakRatio = Math.min(0.6, wrongSnap.size / 50 * 0.6);
+
+  return {
+    features: [
+      progressGap, recentCompletionRate, consistencyScore, timePressure,
+      difficultyNorm, daysRemainingNorm, elapsedRatio, subjectWeakRatio,
+    ],
+    debug: { totalDays, elapsedDays, completedStepCount, recentTotal, last14Total },
+  };
+}
+
+exports.analyzePassRisk = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
+  }
+  const certificateName = (request.data?.certificateName || '').trim();
+  if (!certificateName) {
+    throw new HttpsError('invalid-argument', 'certificateName이 필요합니다.');
+  }
+
+  const { features: rawFeatures } = await computeFeatures(request.auth.uid, certificateName);
+
+  const m = await loadModel();
+  const input = tf.tensor2d([normalize(rawFeatures)]);
+
+  const outputs = m.predict(input);
+  const outputArr = Array.isArray(outputs) ? outputs : [outputs];
+  let riskTensor, passTensor;
+  for (const t of outputArr) {
+    if (t.shape[t.shape.length - 1] === 3) riskTensor = t;
+    else passTensor = t;
+  }
+  if (!riskTensor || !passTensor) {
+    throw new HttpsError('internal', '모델 출력 형태가 예상과 다릅니다.');
+  }
+
+  const riskProbs = Array.from(await riskTensor.data());
+  const passProb = (await passTensor.data())[0];
+  input.dispose();
+  outputArr.forEach((t) => t.dispose());
+
+  const riskNames = ['LOW', 'MEDIUM', 'HIGH'];
+  let riskIdx = 0;
+  for (let i = 1; i < riskProbs.length; i++) {
+    if (riskProbs[i] > riskProbs[riskIdx]) riskIdx = i;
+  }
+
+  const factors = {
+    progressGap: rawFeatures[0],
+    recentCompletionRate: rawFeatures[1],
+    consistencyScore: rawFeatures[2],
+    timePressure: rawFeatures[3],
+    difficultyNorm: rawFeatures[4],
+    daysRemainingNorm: rawFeatures[5],
+    elapsedRatio: rawFeatures[6],
+    subjectWeakRatio: rawFeatures[7],
+  };
+
+  await db.collection('users').doc(request.auth.uid)
+    .collection('analysis').doc('passRisk')
+    .set({
+      passProbability: Math.round(passProb * 100),
+      riskLevel: riskNames[riskIdx],
+      certificateName,
+      factors,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+  return { success: true, passProbability: Math.round(passProb * 100), riskLevel: riskNames[riskIdx] };
+});
