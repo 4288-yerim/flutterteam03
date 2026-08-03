@@ -1,17 +1,17 @@
+val newBuildDir: Directory = rootProject.layout.buildDirectory.dir("../../build").get()
+rootProject.layout.buildDirectory.value(newBuildDir)
+
+subprojects {
+    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
+    project.layout.buildDirectory.value(newSubprojectBuildDir)
+}
+
 allprojects {
     repositories {
         google()
         mavenCentral()
     }
 }
-
-rootProject.layout.buildDirectory.set(file("../build"))
-
-subprojects {
-    val newSubprojectBuildDir: Directory = rootProject.layout.buildDirectory.dir(project.name).get()
-    project.layout.buildDirectory.set(newSubprojectBuildDir)
-}
-
 subprojects {
     afterEvaluate {
         if (project.plugins.hasPlugin("com.android.library") ||
@@ -22,7 +22,6 @@ subprojects {
         }
     }
 }
-
 subprojects {
     afterEvaluate {
         extensions.findByType<com.android.build.gradle.BaseExtension>()?.let { android ->
@@ -31,7 +30,6 @@ subprojects {
                 targetCompatibility = JavaVersion.VERSION_17
             }
         }
-
         tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
             compilerOptions {
                 jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
@@ -39,11 +37,9 @@ subprojects {
         }
     }
 }
-
 subprojects {
-    project.evaluationDependsOn(":app")
+    project.evaluationDependsOn(":app")   // ← 이거 하나만 남김
 }
-
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
