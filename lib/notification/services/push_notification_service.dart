@@ -12,6 +12,7 @@ import '../../mypage/screens/study_plan_screen.dart';
 import '../../study/study_chat.dart';
 import '../../study/study_join_requests.dart';
 import '../../study/study_room.dart';
+import '../screens/notification.dart';
 import 'local_notification_service.dart';
 
 class PushNotificationService {
@@ -331,6 +332,15 @@ class PushNotificationService {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final navigator = navigatorKey.currentState;
       if (navigator == null) {
+        return;
+      }
+
+      if (refType == 'ADMIN_NOTIFICATION') {
+        navigator.push(
+          MaterialPageRoute<void>(
+            builder: (_) => const NotificationPage(),
+          ),
+        );
         return;
       }
 
