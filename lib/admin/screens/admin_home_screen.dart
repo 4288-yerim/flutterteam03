@@ -8,10 +8,12 @@ import '../widgets/admin_home_widgets.dart';
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({
     super.key,
+    required this.isActive,
     required this.onReportTap,
     required this.onInquiryTap,
   });
 
+  final bool isActive;
   final VoidCallback onReportTap;
   final VoidCallback onInquiryTap;
 
@@ -27,6 +29,15 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   void initState() {
     super.initState();
     _homeData = _service.fetchHomeData();
+  }
+
+  @override
+  void didUpdateWidget(covariant AdminHomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (!oldWidget.isActive && widget.isActive) {
+      _homeData = _service.fetchHomeData();
+    }
   }
 
   Future<void> _refresh() async {

@@ -1,13 +1,21 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class AdminHomeService {
-  AdminHomeService({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  AdminHomeService({FirebaseFirestore? firestore, FirebaseAuth? firebaseAuth})
+    : _firestore = firestore ?? FirebaseFirestore.instance,
+      _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
 
   final FirebaseFirestore _firestore;
+  final FirebaseAuth _firebaseAuth;
 
   Future<AdminHomeData> fetchHomeData() async {
+    final adminUid = _firebaseAuth.currentUser?.uid;
+    if (adminUid == null) {
+      throw StateError('관리자 로그인이 필요합니다.');
+    }
+
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
     final tomorrowStart = todayStart.add(const Duration(days: 1));
@@ -81,6 +89,20 @@ class AdminHomeService {
           )
           .where('createdAt', isLessThan: Timestamp.fromDate(tomorrowStart))
           .get(),
+
+      // 7. 현재 로그인한 관리자 정보
+      _firestore.collection('users').doc(adminUid).get(),
+
+      // 8. 오늘 처리한 신고
+      _firestore
+          .collection('reports')
+          .where(
+            'processedAt',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(todayStart),
+          )
+          .where('processedAt', isLessThan: Timestamp.fromDate(tomorrowStart))
+          .count()
+          .get(),
     ]);
 
     final pendingReportCount =
@@ -100,6 +122,16 @@ class AdminHomeService {
     final weeklyReports = results[5] as QuerySnapshot<Map<String, dynamic>>;
 
     final weeklyInquiries = results[6] as QuerySnapshot<Map<String, dynamic>>;
+
+    final administratorDocument =
+        results[7] as DocumentSnapshot<Map<String, dynamic>>;
+    final administratorName = _text(
+      administratorDocument.data()?['nickname'],
+      fallback: '관리자',
+    );
+
+    final todayProcessedReportCount =
+        (results[8] as AggregateQuerySnapshot).count ?? 0;
 
     final weeklyReportCount = weeklyReports.docs.length;
     final processedReportCount = weeklyReports.docs.where((document) {
@@ -124,7 +156,7 @@ class AdminHomeService {
         : answeredInquiryCount / weeklyInquiryCount;
 
     return AdminHomeData(
-      administratorName: '관리자',
+      administratorName: administratorName,
       todayLabel:
           '${now.year}.${_twoDigits(now.month)}.${_twoDigits(now.day)} '
           '${weekdays[now.weekday - 1]}요일',
@@ -138,12 +170,12 @@ class AdminHomeService {
           icon: Icons.person_add_alt_1_rounded,
           color: const Color(0xFF5E72E4),
         ),
-        const AdminMetric(
-          label: 'chatbot 사용 건수',
-          value: '38개',
-          comparison: '오늘 chatbot 사용 건수',
-          icon: Icons.smart_toy_rounded,
-          color: Color(0xFF8E66D5),
+        AdminMetric(
+          label: '오늘 신고 처리',
+          value: '$todayProcessedReportCount건',
+          comparison: '오늘 승인 또는 반려한 신고',
+          icon: Icons.task_alt_rounded,
+          color: const Color(0xFF8E66D5),
         ),
         AdminMetric(
           label: '오늘 신고 건수',
@@ -179,6 +211,11 @@ class AdminHomeService {
     return snapshot.docs.where((document) {
       return document.data()['role']?.toString().toUpperCase() == 'USER';
     }).length;
+  }
+
+  String _text(Object? value, {required String fallback}) {
+    final text = value?.toString().trim() ?? '';
+    return text.isEmpty ? fallback : text;
   }
 
   String _twoDigits(int value) => value.toString().padLeft(2, '0');
