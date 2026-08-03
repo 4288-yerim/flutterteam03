@@ -5,8 +5,6 @@ import '../widgets/app_button.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../widgets/app_card.dart';
 
-/// 이 파일을 Android Studio에서 열고 우측 상단 ▶ 버튼(또는 main() 옆 초록 삼각형)을
-/// 누르면 이 페이지만 바로 실행됩니다. Firebase 연결 필요 없어요.
 void main() {
   runApp(
     MaterialApp(

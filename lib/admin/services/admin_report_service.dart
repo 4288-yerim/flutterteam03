@@ -13,17 +13,37 @@ class AdminReportService {
 
   Stream<List<AdminReport>> watchReports() {
     return _firestore.collection('reports').snapshots().map((snapshot) {
-      final reports = snapshot.docs.map(AdminReport.fromDocument).toList();
-      reports.sort((a, b) {
-        final aDate = a.createdAt;
-        final bDate = b.createdAt;
-        if (aDate == null && bDate == null) return 0;
-        if (aDate == null) return 1;
-        if (bDate == null) return -1;
-        return bDate.compareTo(aDate);
-      });
-      return reports;
+      return _sortedReports(snapshot.docs);
     });
+  }
+
+  /// Reports whose target is [targetUid], limited to community posts/comments.
+  Stream<List<AdminReport>> watchContentReportsForMember(String targetUid) {
+    return _firestore
+        .collection('reports')
+        .where('targetUid', isEqualTo: targetUid)
+        .snapshots()
+        .map((snapshot) => _sortedReports(snapshot.docs)
+            .where(
+              (report) =>
+                  report.targetType == 'POST' || report.targetType == 'COMMENT',
+            )
+            .toList());
+  }
+
+  List<AdminReport> _sortedReports(
+    Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> documents,
+  ) {
+    final reports = documents.map(AdminReport.fromDocument).toList();
+    reports.sort((a, b) {
+      final aDate = a.createdAt;
+      final bDate = b.createdAt;
+      if (aDate == null && bDate == null) return 0;
+      if (aDate == null) return 1;
+      if (bDate == null) return -1;
+      return bDate.compareTo(aDate);
+    });
+    return reports;
   }
 
   Future<void> processReport({

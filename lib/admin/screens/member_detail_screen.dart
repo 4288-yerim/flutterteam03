@@ -6,6 +6,7 @@ import '../../theme.dart';
 import '../../widgets/app_confirm_dialog.dart';
 import '../../widgets/app_main_background.dart';
 import '../services/admin_member_service.dart';
+import '../services/admin_report_service.dart';
 import '../widgets/member_detail_widgets.dart';
 import 'member_community_activity_screen.dart';
 
@@ -513,6 +514,7 @@ class MemberReportSummaryScreen extends StatelessWidget {
   const MemberReportSummaryScreen({super.key, required this.member});
 
   final AdminMember member;
+  static final AdminReportService _reportService = AdminReportService();
 
   @override
   Widget build(BuildContext context) {
@@ -583,6 +585,36 @@ class MemberReportSummaryScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
+            StreamBuilder<List<AdminReport>>(
+              stream: _reportService.watchContentReportsForMember(member.uid),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return const _ReportHistoryMessage(
+                    icon: Icons.error_outline_rounded,
+                    message: '신고 내역을 불러오지 못했습니다.',
+                  );
+                }
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final reports = snapshot.data!;
+                if (reports.isEmpty) {
+                  return const _ReportHistoryMessage(
+                    icon: Icons.inbox_outlined,
+                    message: '신고당한 게시글 또는 댓글이 없습니다.',
+                  );
+                }
+                return Column(
+                  children: [
+                    for (final report in reports) ...[
+                      _MemberContentReportCard(report: report),
+                      const SizedBox(height: 10),
+                    ],
+                  ],
+                );
+              },
+            ),
+            if (member.uid.isEmpty)
             AdminMemberDetailSurface(
               padding: EdgeInsets.symmetric(horizontal: 20, vertical: 38),
               child: Column(
@@ -618,6 +650,115 @@ class MemberReportSummaryScreen extends StatelessWidget {
     );
   }
 }
+
+class _ReportHistoryMessage extends StatelessWidget {
+  const _ReportHistoryMessage({required this.icon, required this.message});
+
+  final IconData icon;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return AdminMemberDetailSurface(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 38),
+      child: Column(
+        children: [
+          Icon(icon, color: context.colors.textMuted, size: 34),
+          const SizedBox(height: 10),
+          Text(
+            message,
+            style: TextStyle(
+              color: context.colors.textSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MemberContentReportCard extends StatelessWidget {
+  const _MemberContentReportCard({required this.report});
+
+  final AdminReport report;
+
+  @override
+  Widget build(BuildContext context) {
+    final isPost = report.targetType == 'POST';
+    final (statusLabel, statusColor) = switch (report.status) {
+      'PENDING' => ('미처리', context.colors.warning),
+      'RESOLVED' => ('승인', context.colors.correct),
+      'REJECTED' => ('반려', context.colors.textSecondary),
+      _ => (report.status, context.colors.textSecondary),
+    };
+
+    return AdminMemberDetailSurface(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isPost ? Icons.article_outlined : Icons.chat_bubble_outline,
+                color: context.colors.lavenderAccent,
+                size: 19,
+              ),
+              const SizedBox(width: 7),
+              Text(
+                isPost ? '게시글' : '댓글',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              const Spacer(),
+              Text(
+                statusLabel,
+                style: TextStyle(color: statusColor, fontWeight: FontWeight.w800),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            report.targetTitle.isEmpty ? '내용 정보 없음' : report.targetTitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '신고 사유: ${_memberReportReasonLabel(report.reasonType)}',
+            style: TextStyle(color: context.colors.textSecondary, fontSize: 13),
+          ),
+          if (report.description.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              report.description,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: context.colors.textMuted, fontSize: 12),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Text(
+            '신고일 ${_formatDateTime(report.createdAt)}',
+            style: TextStyle(color: context.colors.textMuted, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _memberReportReasonLabel(String reason) => switch (reason.toUpperCase()) {
+  'SPAM' => '스팸/홍보',
+  'ABUSE' => '욕설/괴롭힘',
+  'INAPPROPRIATE' => '부적절한 콘텐츠',
+  'FALSE_INFORMATION' => '거짓 정보',
+  'FRAUD' => '사기/허위 정보',
+  'COPYRIGHT' => '저작권 침해',
+  _ => '기타',
+};
 
 class _ReportCountCard extends StatelessWidget {
   const _ReportCountCard({
