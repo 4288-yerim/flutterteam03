@@ -233,6 +233,9 @@ class CommunityService {
     required CommunityBoardType boardType,
     required String title,
     required String content,
+    required String writerUid,
+    required List<Map<String, dynamic>> imageAttachments,
+    required List<Map<String, dynamic>> fileAttachments,
   }) async {
     DocumentReference<Map<String, dynamic>> postReference =
     _firestore.collection('posts').doc(postId);
@@ -246,6 +249,10 @@ class CommunityService {
 
     Map<String, dynamic> postData =
         postSnapshot.data() ?? {};
+
+    if (postData['writerUid']?.toString() != writerUid) {
+      throw StateError('작성자만 게시글을 수정할 수 있습니다.');
+    }
 
     if (boardType == CommunityBoardType.passReview) {
       String writerUid =
@@ -290,6 +297,8 @@ class CommunityService {
       'boardType': boardType.code,
       'title': title,
       'content': content,
+      'imageAttachments': imageAttachments,
+      'fileAttachments': fileAttachments,
       'updatedAt': FieldValue.serverTimestamp(),
     };
 

@@ -69,12 +69,7 @@ extension CommunityBoardTypeX on CommunityBoardType {
   }
 }
 
-enum CommunityPostSort {
-  latest,
-  views,
-  likes,
-  comments,
-}
+enum CommunityPostSort { latest, views, likes, comments }
 
 extension CommunityPostSortX on CommunityPostSort {
   String get label {
@@ -100,14 +95,10 @@ class CommunityCertificateTag {
     required this.certificateName,
   });
 
-  factory CommunityCertificateTag.fromMap(
-      Map<String, dynamic> data,
-      ) {
+  factory CommunityCertificateTag.fromMap(Map<String, dynamic> data) {
     return CommunityCertificateTag(
-      certificateId:
-      data['certificateId']?.toString() ?? '',
-      certificateName:
-      data['certificateName']?.toString() ?? '',
+      certificateId: data['certificateId']?.toString() ?? '',
+      certificateName: data['certificateName']?.toString() ?? '',
     );
   }
 
@@ -128,13 +119,15 @@ class CommunityImageAttachment {
     required this.path,
   });
 
-  factory CommunityImageAttachment.fromMap(
-      Map<String, dynamic> data,
-      ) {
+  factory CommunityImageAttachment.fromMap(Map<String, dynamic> data) {
     return CommunityImageAttachment(
       url: data['url']?.toString() ?? '',
       path: data['path']?.toString() ?? '',
     );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {'url': url, 'path': path};
   }
 }
 
@@ -149,14 +142,16 @@ class CommunityFileAttachment {
     required this.path,
   });
 
-  factory CommunityFileAttachment.fromMap(
-      Map<String, dynamic> data,
-      ) {
+  factory CommunityFileAttachment.fromMap(Map<String, dynamic> data) {
     return CommunityFileAttachment(
       name: data['name']?.toString() ?? '첨부파일',
       url: data['url']?.toString() ?? '',
       path: data['path']?.toString() ?? '',
     );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {'name': name, 'url': url, 'path': path};
   }
 }
 
@@ -212,15 +207,11 @@ class CommunityPost {
   });
 
   bool get hasAttachment {
-    return imageAttachments.isNotEmpty ||
-        fileAttachments.isNotEmpty;
+    return imageAttachments.isNotEmpty || fileAttachments.isNotEmpty;
   }
 
   String get thumbnailUrl {
-    if (imageAttachments.isEmpty) {
-      return '';
-    }
-    return imageAttachments.first.url;
+    return imageAttachments.isEmpty ? '' : imageAttachments.first.url;
   }
 
   factory CommunityPost.fromDocument(
@@ -236,34 +227,22 @@ class CommunityPost {
       title: data['title']?.toString() ?? '',
       content: data['content']?.toString() ?? '',
       writerUid: data['writerUid']?.toString() ?? '',
-      writerNickname:
-      data['writerNickname']?.toString() ?? '사용자',
+      writerNickname: data['writerNickname']?.toString() ?? '사용자',
       writerProfileImageUrl:
       data['writerProfileImageUrl']?.toString() ?? '',
       isCertifiedWriter: data['isCertifiedWriter'] == true,
-      certificateTags: _readCertificateTags(
-        data['certificateTags'],
-      ),
-      imageAttachments: _readImageAttachments(
-        data['imageAttachments'],
-      ),
-      fileAttachments: _readFileAttachments(
-        data['fileAttachments'],
-      ),
+      certificateTags: _readCertificateTags(data['certificateTags']),
+      imageAttachments: _readImageAttachments(data['imageAttachments']),
+      fileAttachments: _readFileAttachments(data['fileAttachments']),
       viewCount: _readInt(data['viewCount']),
       commentCount: _readInt(data['commentCount']),
       likeCount: _readInt(data['likeCount']),
       bookmarkCount: _readInt(data['bookmarkCount']),
-      questionStatus:
-      data['questionStatus']?.toString() ?? '',
-      recruitStatus:
-      data['recruitStatus']?.toString() ?? '',
-      postStatus:
-      data['postStatus']?.toString() ?? 'NORMAL',
-      visibility:
-      data['visibility']?.toString() ?? 'PUBLIC',
-      studyGroupId:
-      data['studyGroupId']?.toString() ?? '',
+      questionStatus: data['questionStatus']?.toString() ?? '',
+      recruitStatus: data['recruitStatus']?.toString() ?? '',
+      postStatus: data['postStatus']?.toString() ?? 'NORMAL',
+      visibility: data['visibility']?.toString() ?? 'PUBLIC',
+      studyGroupId: data['studyGroupId']?.toString() ?? '',
       createdAt: _readDateTime(data['createdAt']),
       updatedAt: _readDateTime(data['updatedAt']),
       deletedAt: _readDateTime(data['deletedAt']),
@@ -290,69 +269,33 @@ class CommunityPost {
     return null;
   }
 
-  static List<CommunityCertificateTag> _readCertificateTags(
-      dynamic value,
-      ) {
+  static List<CommunityCertificateTag> _readCertificateTags(dynamic value) {
     if (value is! List) {
       return [];
     }
 
-    List<CommunityCertificateTag> result = [];
-
-    for (dynamic item in value) {
-      if (item is Map) {
-        result.add(
-          CommunityCertificateTag.fromMap(
-            Map<String, dynamic>.from(item),
-          ),
-        );
-      }
-    }
-
-    return result;
+    return value.whereType<Map>().map((item) {
+      return CommunityCertificateTag.fromMap(Map<String, dynamic>.from(item));
+    }).toList();
   }
 
-  static List<CommunityImageAttachment> _readImageAttachments(
-      dynamic value,
-      ) {
+  static List<CommunityImageAttachment> _readImageAttachments(dynamic value) {
     if (value is! List) {
       return [];
     }
 
-    List<CommunityImageAttachment> result = [];
-
-    for (dynamic item in value) {
-      if (item is Map) {
-        result.add(
-          CommunityImageAttachment.fromMap(
-            Map<String, dynamic>.from(item),
-          ),
-        );
-      }
-    }
-
-    return result;
+    return value.whereType<Map>().map((item) {
+      return CommunityImageAttachment.fromMap(Map<String, dynamic>.from(item));
+    }).toList();
   }
 
-  static List<CommunityFileAttachment> _readFileAttachments(
-      dynamic value,
-      ) {
+  static List<CommunityFileAttachment> _readFileAttachments(dynamic value) {
     if (value is! List) {
       return [];
     }
 
-    List<CommunityFileAttachment> result = [];
-
-    for (dynamic item in value) {
-      if (item is Map) {
-        result.add(
-          CommunityFileAttachment.fromMap(
-            Map<String, dynamic>.from(item),
-          ),
-        );
-      }
-    }
-
-    return result;
+    return value.whereType<Map>().map((item) {
+      return CommunityFileAttachment.fromMap(Map<String, dynamic>.from(item));
+    }).toList();
   }
 }

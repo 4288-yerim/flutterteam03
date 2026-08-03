@@ -269,11 +269,11 @@ class _CommunityPostAddPageState extends State<CommunityPostAddPage> {
       if (error is FirebaseException) {
         if (error.code == 'unauthorized' || error.code == 'permission-denied') {
           message =
-              '사진 또는 파일 업로드 권한이 없어요. '
+          '사진 또는 파일 업로드 권한이 없어요. '
               'Firebase 규칙을 확인해 주세요.';
         } else if (error.code == 'retry-limit-exceeded') {
           message =
-              '인터넷 연결이 불안정해요. '
+          '인터넷 연결이 불안정해요. '
               '잠시 후 다시 시도해 주세요.';
         }
       }
@@ -344,7 +344,7 @@ class _CommunityPostAddPageState extends State<CommunityPostAddPage> {
       await reference.putData(
         file.bytes!,
         SettableMetadata(
-          contentType: 'application/octet-stream',
+          contentType: _fileContentType(file.extension),
           customMetadata: {'originalName': file.name, 'uploaderUid': userUid},
         ),
       );
@@ -387,6 +387,31 @@ class _CommunityPostAddPageState extends State<CommunityPostAddPage> {
         return 'image/heic';
       default:
         return 'image/jpeg';
+    }
+  }
+
+  String _fileContentType(String? extension) {
+    switch (extension?.toLowerCase()) {
+      case 'pdf':
+        return 'application/pdf';
+      case 'txt':
+        return 'text/plain';
+      case 'zip':
+        return 'application/zip';
+      case 'doc':
+        return 'application/msword';
+      case 'docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'xls':
+        return 'application/vnd.ms-excel';
+      case 'xlsx':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      case 'ppt':
+        return 'application/vnd.ms-powerpoint';
+      case 'pptx':
+        return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      default:
+        return 'application/octet-stream';
     }
   }
 
@@ -433,7 +458,7 @@ class _CommunityPostAddPageState extends State<CommunityPostAddPage> {
           Expanded(
             child: Text(
               '자격증 태그와 학습 자료를 함께 올리면 '
-              '필요한 사람에게 글이 더 잘 보여요.',
+                  '필요한 사람에게 글이 더 잘 보여요.',
               style: TextStyle(
                 color: context.colors.textPrimary,
                 fontSize: 13,
@@ -460,26 +485,26 @@ class _CommunityPostAddPageState extends State<CommunityPostAddPage> {
             decoration: _inputDecoration(hintText: '게시판을 선택해 주세요.'),
             items: CommunityBoardType.values
                 .where((board) {
-                  return board != CommunityBoardType.all;
-                })
+              return board != CommunityBoardType.all;
+            })
                 .map((board) {
-                  return DropdownMenuItem<CommunityBoardType>(
-                    value: board,
-                    child: Text(board.label),
-                  );
-                })
+              return DropdownMenuItem<CommunityBoardType>(
+                value: board,
+                child: Text(board.label),
+              );
+            })
                 .toList(),
             onChanged: _isSaving
                 ? null
                 : (board) {
-                    if (board == null) {
-                      return;
-                    }
+              if (board == null) {
+                return;
+              }
 
-                    setState(() {
-                      _selectedBoard = board;
-                    });
-                  },
+              setState(() {
+                _selectedBoard = board;
+              });
+            },
           ),
           const SizedBox(height: 20),
           _buildFieldTitle('관련 자격증 (선택)'),
@@ -656,10 +681,10 @@ class _CommunityPostAddPageState extends State<CommunityPostAddPage> {
                   onTap: _isSaving
                       ? null
                       : () {
-                          setState(() {
-                            _selectedImages.removeAt(index);
-                          });
-                        },
+                    setState(() {
+                      _selectedImages.removeAt(index);
+                    });
+                  },
                   borderRadius: BorderRadius.circular(20),
                   child: Container(
                     width: 25,
@@ -733,10 +758,10 @@ class _CommunityPostAddPageState extends State<CommunityPostAddPage> {
                 onPressed: _isSaving
                     ? null
                     : () {
-                        setState(() {
-                          _selectedFiles.removeAt(index);
-                        });
-                      },
+                  setState(() {
+                    _selectedFiles.removeAt(index);
+                  });
+                },
                 icon: const Icon(Icons.close_rounded, size: 19),
               ),
             ],
@@ -804,11 +829,11 @@ class _CommunityPostAddPageState extends State<CommunityPostAddPage> {
   }
 
   Widget? _buildInsideCounter(
-    BuildContext context, {
-    required int currentLength,
-    required bool isFocused,
-    required int? maxLength,
-  }) {
+      BuildContext context, {
+        required int currentLength,
+        required bool isFocused,
+        required int? maxLength,
+      }) {
     return Transform.translate(
       offset: const Offset(0, -30),
       child: Padding(
@@ -836,24 +861,24 @@ class _CommunityPostAddPageState extends State<CommunityPostAddPage> {
         ),
         child: _isSaving
             ? Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.2,
-                      color: context.colors.onPrimary,
-                    ),
-                  ),
-                  SizedBox(width: 10),
-                  Text('업로드 중'),
-                ],
-              )
-            : const Text(
-                '게시글 등록',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.2,
+                color: context.colors.onPrimary,
               ),
+            ),
+            SizedBox(width: 10),
+            Text('업로드 중'),
+          ],
+        )
+            : const Text(
+          '게시글 등록',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        ),
       ),
     );
   }

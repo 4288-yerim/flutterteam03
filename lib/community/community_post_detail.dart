@@ -1,5 +1,10 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // 댓글 좋아요·수정·삭제 적용본
 import '../theme.dart';
@@ -33,6 +38,7 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
   late final CommunityService _service;
   final TextEditingController _commentController = TextEditingController();
   final FocusNode _commentFocusNode = FocusNode();
+  final Dio _dio = Dio();
   final Map<String, Future<Map<String, dynamic>>> _profileFutures = {};
 
   int _streamVersion = 0;
@@ -44,6 +50,10 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
   bool _isTogglingBookmark = false;
   bool _isUpdatingRecruitStatus = false;
   final Set<String> _togglingCommentLikeIds = {};
+  final Set<String> _processingCommentIds = {};
+  final Set<String> _openingFilePaths = {};
+  final Set<String> _downloadingAttachmentKeys = {};
+  final Map<String, double> _downloadProgress = {};
   String _replyToCommentId = '';
   String _replyToNickname = '';
 
@@ -60,6 +70,7 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
 
   @override
   void dispose() {
+    _dio.close(force: true);
     _commentController.dispose();
     _commentFocusNode.dispose();
     super.dispose();
@@ -167,9 +178,9 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
   }
 
   Future<void> _showPostReportModal(
-    CommunityPost post, {
-    CommunityComment? comment,
-  }) async {
+      CommunityPost post, {
+        CommunityComment? comment,
+      }) async {
     User? user = FirebaseAuth.instance.currentUser;
     String targetUid = comment?.writerUid ?? post.writerUid;
 
@@ -512,61 +523,30 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
   Future<void> _editComment(CommunityComment comment) async {
     String currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
-    if (currentUid.isEmpty || currentUid != comment.writerUid) {
+    if (currentUid.isEmpty ||
+        currentUid != comment.writerUid ||
+        _processingCommentIds.contains(comment.id)) {
       return;
     }
-
-    TextEditingController editController = TextEditingController(
-      text: comment.content,
-    );
 
     String? editedContent = await showDialog<String>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('댓글 수정'),
-          content: TextField(
-            controller: editController,
-            autofocus: true,
-            minLines: 3,
-            maxLines: 6,
-            maxLength: 500,
-            decoration: const InputDecoration(
-              hintText: '댓글 내용을 입력해 주세요.',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-              },
-              child: const Text('취소'),
-            ),
-            FilledButton(
-              onPressed: () {
-                String value = editController.text.trim();
-
-                if (value.isEmpty) {
-                  return;
-                }
-
-                Navigator.pop(dialogContext, value);
-              },
-              child: const Text('수정'),
-            ),
-          ],
+        return _CommentEditDialog(
+          initialContent: comment.content,
         );
       },
     );
-
-    editController.dispose();
 
     if (editedContent == null ||
         editedContent == comment.content.trim() ||
         !mounted) {
       return;
     }
+
+    setState(() {
+      _processingCommentIds.add(comment.id);
+    });
 
     try {
       await _service.updateComment(
@@ -591,13 +571,21 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('댓글을 수정하지 못했어요.')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _processingCommentIds.remove(comment.id);
+        });
+      }
     }
   }
 
   Future<void> _confirmDeleteComment(CommunityComment comment) async {
     String currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
-    if (currentUid.isEmpty || currentUid != comment.writerUid) {
+    if (currentUid.isEmpty ||
+        currentUid != comment.writerUid ||
+        _processingCommentIds.contains(comment.id)) {
       return;
     }
 
@@ -629,6 +617,10 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
       return;
     }
 
+    setState(() {
+      _processingCommentIds.add(comment.id);
+    });
+
     try {
       await _service.deleteComment(
         postId: widget.postId,
@@ -643,6 +635,12 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('댓글을 삭제하지 못했어요.')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _processingCommentIds.remove(comment.id);
+        });
+      }
     }
   }
 
@@ -688,14 +686,19 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
   }
 
   Future<void> _acceptAnswer(
-    CommunityPost post,
-    CommunityComment comment,
-  ) async {
+      CommunityPost post,
+      CommunityComment comment,
+      ) async {
     if (!_isWriter(post) ||
         post.boardType != CommunityBoardType.question ||
-        comment.isReply) {
+        comment.isReply ||
+        _processingCommentIds.contains(comment.id)) {
       return;
     }
+
+    setState(() {
+      _processingCommentIds.add(comment.id);
+    });
 
     try {
       await _service.acceptAnswer(postId: post.id, commentId: comment.id);
@@ -715,6 +718,12 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('답변을 채택하지 못했어요.')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _processingCommentIds.remove(comment.id);
+        });
+      }
     }
   }
 
@@ -786,6 +795,177 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
         });
       }
     }
+  }
+
+  Future<void> _openFileAttachment(CommunityFileAttachment file) async {
+    String key = file.path.isNotEmpty ? file.path : file.url;
+
+    if (key.isEmpty || _openingFilePaths.contains(key)) {
+      return;
+    }
+
+    Uri? uri = Uri.tryParse(file.url);
+
+    if (uri == null ||
+        !uri.hasScheme ||
+        (uri.scheme != 'http' && uri.scheme != 'https')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('첨부파일 주소가 올바르지 않아요.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _openingFilePaths.add(key);
+    });
+
+    try {
+      bool opened = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!opened) {
+        opened = await launchUrl(
+          uri,
+          mode: LaunchMode.platformDefault,
+        );
+      }
+
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('첨부파일을 열 수 없어요.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('첨부파일을 열지 못했어요. 다시 시도해 주세요.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _openingFilePaths.remove(key);
+        });
+      }
+    }
+  }
+
+  Future<void> _downloadAttachment({
+    required String url,
+    required String fileName,
+    required String key,
+  }) async {
+    if (url.isEmpty ||
+        key.isEmpty ||
+        _downloadingAttachmentKeys.contains(key)) {
+      return;
+    }
+
+    Uri? uri = Uri.tryParse(url);
+
+    if (uri == null ||
+        !uri.hasScheme ||
+        (uri.scheme != 'http' && uri.scheme != 'https')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('다운로드 주소가 올바르지 않아요.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _downloadingAttachmentKeys.add(key);
+      _downloadProgress[key] = 0;
+    });
+
+    try {
+      Response<List<int>> response = await _dio.get<List<int>>(
+        url,
+        options: Options(responseType: ResponseType.bytes),
+        onReceiveProgress: (received, total) {
+          if (!mounted || total <= 0) {
+            return;
+          }
+
+          setState(() {
+            _downloadProgress[key] = received / total;
+          });
+        },
+      );
+
+      List<int>? data = response.data;
+
+      if (data == null || data.isEmpty) {
+        throw StateError('다운로드한 파일이 비어 있습니다.');
+      }
+
+      String safeFileName = fileName
+          .replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')
+          .trim();
+
+      if (safeFileName.isEmpty) {
+        safeFileName = '첨부파일';
+      }
+
+      String? savedPath = await FilePicker.platform.saveFile(
+        dialogTitle: '파일을 저장할 위치를 선택해 주세요.',
+        fileName: safeFileName,
+        bytes: Uint8List.fromList(data),
+      );
+
+      if (!mounted || savedPath == null) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('파일을 저장했어요.')),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('파일을 다운로드하지 못했어요.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _downloadingAttachmentKeys.remove(key);
+          _downloadProgress.remove(key);
+        });
+      }
+    }
+  }
+
+  String _imageDownloadName(
+      CommunityImageAttachment image,
+      int index,
+      ) {
+    String name = image.path.split('/').last.trim();
+
+    if (name.isNotEmpty && name.contains('.')) {
+      return name;
+    }
+
+    return 'community_image_${index + 1}.jpg';
+  }
+
+  Future<void> _showImageViewer(
+      List<CommunityImageAttachment> images,
+      int initialIndex,
+      ) async {
+    FocusScope.of(context).unfocus();
+
+    await showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.92),
+      builder: (dialogContext) {
+        return _CommunityImageViewer(
+          images: images,
+          initialIndex: initialIndex,
+        );
+      },
+    );
   }
 
   @override
@@ -912,8 +1092,8 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
         onPressed: _isUpdatingRecruitStatus
             ? null
             : () {
-                _changeRecruitStatus(post);
-              },
+          _changeRecruitStatus(post);
+        },
         style: FilledButton.styleFrom(
           backgroundColor: context.colors.pinkStart,
           foregroundColor: context.colors.onPrimary,
@@ -923,13 +1103,13 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
         ),
         icon: _isUpdatingRecruitStatus
             ? SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: context.colors.onPrimary,
-                ),
-              )
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: context.colors.onPrimary,
+          ),
+        )
             : const Icon(Icons.sync_alt_rounded, size: 19),
         label: Text(
           _recruitActionLabel(nextStatus),
@@ -1017,9 +1197,9 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
   }
 
   Widget _buildCommentList(
-    CommunityPost post,
-    List<CommunityComment> comments,
-  ) {
+      CommunityPost post,
+      List<CommunityComment> comments,
+      ) {
     List<CommunityComment> rootComments = comments.where((comment) {
       return !comment.isReply;
     }).toList();
@@ -1082,12 +1262,13 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
   }) {
     String currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
     bool canManage = currentUid.isNotEmpty && currentUid == comment.writerUid;
+    bool isProcessing = _processingCommentIds.contains(comment.id);
     bool canAccept =
         post.boardType == CommunityBoardType.question &&
-        _isWriter(post) &&
-        !isReply &&
-        !comment.isAccepted &&
-        comment.writerUid != post.writerUid;
+            _isWriter(post) &&
+            !isReply &&
+            !comment.isAccepted &&
+            comment.writerUid != post.writerUid;
 
     return Container(
       margin: EdgeInsets.only(left: isReply ? 28 : 0, top: 13, bottom: 13),
@@ -1096,9 +1277,9 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
           : EdgeInsets.zero,
       decoration: isReply
           ? BoxDecoration(
-              color: context.colors.pinkSoft.withOpacity(0.45),
-              borderRadius: BorderRadius.circular(12),
-            )
+        color: context.colors.pinkSoft.withOpacity(0.45),
+        borderRadius: BorderRadius.circular(12),
+      )
           : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1139,7 +1320,9 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
                 _buildCompactCommentAction(
                   icon: Icons.check_circle_outline_rounded,
                   label: '답변 채택',
-                  onPressed: () {
+                  onPressed: isProcessing
+                      ? null
+                      : () {
                     _acceptAnswer(post, comment);
                   },
                 ),
@@ -1147,7 +1330,9 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
                 _buildCompactCommentAction(
                   icon: Icons.edit_outlined,
                   label: '수정',
-                  onPressed: () {
+                  onPressed: isProcessing
+                      ? null
+                      : () {
                     _editComment(comment);
                   },
                 ),
@@ -1155,7 +1340,9 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
                 _buildCompactCommentAction(
                   icon: Icons.delete_outline_rounded,
                   label: '삭제',
-                  onPressed: () {
+                  onPressed: isProcessing
+                      ? null
+                      : () {
                     _confirmDeleteComment(comment);
                   },
                 ),
@@ -1309,8 +1496,8 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
           onPressed: isProcessing
               ? null
               : () {
-                  _toggleCommentLike(comment);
-                },
+            _toggleCommentLike(comment);
+          },
           color: isLiked
               ? context.colors.pinkStart
               : context.colors.textSecondary,
@@ -1329,25 +1516,25 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
       ),
       child: imageUrl.isEmpty
           ? Icon(
+        Icons.person_rounded,
+        size: 20,
+        color: context.colors.pinkStart,
+      )
+          : ClipOval(
+        child: Image.network(
+          imageUrl,
+          width: 34,
+          height: 34,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Icon(
               Icons.person_rounded,
               size: 20,
               color: context.colors.pinkStart,
-            )
-          : ClipOval(
-              child: Image.network(
-                imageUrl,
-                width: 34,
-                height: 34,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Icon(
-                    Icons.person_rounded,
-                    size: 20,
-                    color: context.colors.pinkStart,
-                  );
-                },
-              ),
-            ),
+            );
+          },
+        ),
+      ),
     );
   }
 
@@ -1397,37 +1584,54 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Expanded(
-              child: TextField(
-                controller: _commentController,
-                focusNode: _commentFocusNode,
-                enabled: !_isSubmittingComment,
-                minLines: 1,
-                maxLines: 4,
-                maxLength: 500,
-                decoration: InputDecoration(
-                  hintText: _replyToCommentId.isEmpty
-                      ? '댓글을 입력해 주세요.'
-                      : '답글을 입력해 주세요.',
-                  counterText: '',
-                  filled: true,
-                  fillColor: Theme.of(context).colorScheme.surface,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 13,
-                    vertical: 11,
+              child: Stack(
+                children: [
+                  TextField(
+                    controller: _commentController,
+                    focusNode: _commentFocusNode,
+                    enabled: !_isSubmittingComment,
+                    minLines: 2,
+                    maxLines: 4,
+                    maxLength: 500,
+                    decoration: InputDecoration(
+                      hintText: _replyToCommentId.isEmpty
+                          ? '댓글을 입력해 주세요.'
+                          : '답글을 입력해 주세요.',
+                      counterText: '',
+                      filled: true,
+                      fillColor: Theme.of(context).colorScheme.surface,
+                      contentPadding: const EdgeInsets.fromLTRB(13, 11, 54, 28),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(13),
+                        borderSide: BorderSide(color: context.colors.pinkSoft),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(13),
+                        borderSide: BorderSide(color: context.colors.pinkSoft),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(13),
+                        borderSide: BorderSide(color: context.colors.pinkStart),
+                      ),
+                    ),
                   ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(13),
-                    borderSide: BorderSide(color: context.colors.pinkSoft),
+                  Positioned(
+                    right: 11,
+                    bottom: 8,
+                    child: ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: _commentController,
+                      builder: (context, value, child) {
+                        return Text(
+                          '${value.text.length}/500',
+                          style: TextStyle(
+                            color: context.colors.textSecondary,
+                            fontSize: 11,
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(13),
-                    borderSide: BorderSide(color: context.colors.pinkSoft),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(13),
-                    borderSide: BorderSide(color: context.colors.pinkStart),
-                  ),
-                ),
+                ],
               ),
             ),
             const SizedBox(width: 8),
@@ -1446,13 +1650,13 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
                 ),
                 child: _isSubmittingComment
                     ? SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: context.colors.onPrimary,
-                        ),
-                      )
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: context.colors.onPrimary,
+                  ),
+                )
                     : const Icon(Icons.send_rounded, size: 20),
               ),
             ),
@@ -1505,14 +1709,14 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
             },
             icon: _isDeleting
                 ? SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
                 : Icon(
-                    Icons.more_vert_rounded,
-                    color: context.colors.textSecondary,
-                  ),
+              Icons.more_vert_rounded,
+              color: context.colors.textSecondary,
+            ),
           ),
         if (!_isWriter(post) && FirebaseAuth.instance.currentUser != null)
           IconButton(
@@ -1520,17 +1724,17 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
             onPressed: _isReporting
                 ? null
                 : () {
-                    _showPostReportModal(post);
-                  },
+              _showPostReportModal(post);
+            },
             icon: _isReporting
                 ? SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: context.colors.incorrect,
-                    ),
-                  )
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: context.colors.incorrect,
+              ),
+            )
                 : Icon(Icons.report_outlined, color: context.colors.incorrect),
           ),
       ],
@@ -1615,19 +1819,19 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
       child: imageUrl.isEmpty
           ? Icon(Icons.person_rounded, color: context.colors.pinkStart)
           : ClipOval(
-              child: Image.network(
-                imageUrl,
-                width: 42,
-                height: 42,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Icon(
-                    Icons.person_rounded,
-                    color: context.colors.pinkStart,
-                  );
-                },
-              ),
-            ),
+        child: Image.network(
+          imageUrl,
+          width: 42,
+          height: 42,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Icon(
+              Icons.person_rounded,
+              color: context.colors.pinkStart,
+            );
+          },
+        ),
+      ),
     );
   }
 
@@ -1657,32 +1861,113 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
 
   Widget _buildImages(List<CommunityImageAttachment> images) {
     return Column(
-      children: images.map((image) {
+      children: images.asMap().entries.map((entry) {
+        int index = entry.key;
+        CommunityImageAttachment image = entry.value;
+        String key = image.path.isNotEmpty ? image.path : image.url;
+        bool isDownloading = _downloadingAttachmentKeys.contains(key);
+        double? progress = _downloadProgress[key];
+
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(15),
-            child: Image.network(
-              image.url,
-              width: double.infinity,
-              height: 240,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  width: double.infinity,
-                  height: 180,
-                  alignment: Alignment.center,
-                  color: context.colors.pinkSoft,
-                  child: Icon(
-                    Icons.image_not_supported_outlined,
-                    color: context.colors.textSecondary,
+            child: Stack(
+              children: [
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: image.url.isEmpty
+                      ? null
+                      : () {
+                    _showImageViewer(images, index);
+                  },
+                  child: Image.network(
+                    image.url,
+                    width: double.infinity,
+                    height: 240,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        width: double.infinity,
+                        height: 180,
+                        alignment: Alignment.center,
+                        color: context.colors.pinkSoft,
+                        child: Icon(
+                          Icons.image_not_supported_outlined,
+                          color: context.colors.textSecondary,
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
+                ),
+                Positioned(
+                  right: 10,
+                  bottom: 10,
+                  child: Row(
+                    children: [
+                      _buildImageOverlayButton(
+                        tooltip: '이미지 다운로드',
+                        icon: Icons.download_rounded,
+                        isLoading: isDownloading,
+                        progress: progress,
+                        onPressed: image.url.isEmpty || isDownloading
+                            ? null
+                            : () {
+                          _downloadAttachment(
+                            url: image.url,
+                            fileName: _imageDownloadName(image, index),
+                            key: key,
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      _buildImageOverlayButton(
+                        tooltip: '이미지 크게 보기',
+                        icon: Icons.open_in_full_rounded,
+                        onPressed: image.url.isEmpty
+                            ? null
+                            : () {
+                          _showImageViewer(images, index);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         );
       }).toList(),
+    );
+  }
+
+  Widget _buildImageOverlayButton({
+    required String tooltip,
+    required IconData icon,
+    required VoidCallback? onPressed,
+    bool isLoading = false,
+    double? progress,
+  }) {
+    return Material(
+      color: Colors.black.withOpacity(0.58),
+      shape: const CircleBorder(),
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        constraints: const BoxConstraints.tightFor(width: 38, height: 38),
+        padding: EdgeInsets.zero,
+        icon: isLoading
+            ? SizedBox(
+          width: 19,
+          height: 19,
+          child: CircularProgressIndicator(
+            value: progress != null && progress > 0 ? progress : null,
+            strokeWidth: 2,
+            color: Colors.white,
+          ),
+        )
+            : Icon(icon, color: Colors.white, size: 19),
+      ),
     );
   }
 
@@ -1700,34 +1985,107 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
         ),
         const SizedBox(height: 9),
         ...files.map((file) {
-          return Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
-            decoration: BoxDecoration(
+          String key = file.path.isNotEmpty ? file.path : file.url;
+          bool isOpening = _openingFilePaths.contains(key);
+          bool isDownloading = _downloadingAttachmentKeys.contains(key);
+          double? progress = _downloadProgress[key];
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Material(
               color: context.colors.softBlue,
               borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.insert_drive_file_outlined,
-                  size: 20,
-                  color: context.colors.pinkStart,
-                ),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Text(
-                    file.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: context.colors.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: isOpening || file.url.isEmpty
+                    ? null
+                    : () {
+                  _openFileAttachment(file);
+                },
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(13, 8, 5, 8),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.insert_drive_file_outlined,
+                        size: 20,
+                        color: context.colors.pinkStart,
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              file.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: context.colors.textPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              file.url.isEmpty
+                                  ? '파일 주소 없음'
+                                  : '파일명을 누르면 열려요.',
+                              style: TextStyle(
+                                color: context.colors.textSecondary,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: '파일 다운로드',
+                        onPressed: file.url.isEmpty || isDownloading
+                            ? null
+                            : () {
+                          _downloadAttachment(
+                            url: file.url,
+                            fileName: file.name,
+                            key: key,
+                          );
+                        },
+                        icon: isDownloading
+                            ? SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            value: progress != null && progress > 0
+                                ? progress
+                                : null,
+                            strokeWidth: 2,
+                            color: context.colors.pinkStart,
+                          ),
+                        )
+                            : const Icon(Icons.download_rounded, size: 20),
+                      ),
+                      IconButton(
+                        tooltip: '파일 열기',
+                        onPressed: file.url.isEmpty || isOpening
+                            ? null
+                            : () {
+                          _openFileAttachment(file);
+                        },
+                        icon: isOpening
+                            ? SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: context.colors.pinkStart,
+                          ),
+                        )
+                            : const Icon(Icons.open_in_new_rounded, size: 19),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
           );
         }),
@@ -1757,68 +2115,68 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
         Expanded(
           child: currentUid.isEmpty
               ? _DetailCount(
-                  icon: Icons.favorite_border_rounded,
-                  label: '좋아요',
-                  value: post.likeCount,
-                  onTap: () {
-                    _toggleLike(post);
-                  },
-                )
+            icon: Icons.favorite_border_rounded,
+            label: '좋아요',
+            value: post.likeCount,
+            onTap: () {
+              _toggleLike(post);
+            },
+          )
               : StreamBuilder<bool>(
-                  stream: _service.watchLikeStatus(
-                    postId: post.id,
-                    userUid: currentUid,
-                  ),
-                  builder: (context, snapshot) {
-                    bool isLiked = snapshot.data ?? false;
+            stream: _service.watchLikeStatus(
+              postId: post.id,
+              userUid: currentUid,
+            ),
+            builder: (context, snapshot) {
+              bool isLiked = snapshot.data ?? false;
 
-                    return _DetailCount(
-                      icon: isLiked
-                          ? Icons.favorite_rounded
-                          : Icons.favorite_border_rounded,
-                      label: '좋아요',
-                      value: post.likeCount,
-                      isActive: isLiked,
-                      enabled: !_isTogglingLike,
-                      onTap: () {
-                        _toggleLike(post);
-                      },
-                    );
-                  },
-                ),
+              return _DetailCount(
+                icon: isLiked
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
+                label: '좋아요',
+                value: post.likeCount,
+                isActive: isLiked,
+                enabled: !_isTogglingLike,
+                onTap: () {
+                  _toggleLike(post);
+                },
+              );
+            },
+          ),
         ),
         Expanded(
           child: currentUid.isEmpty
               ? _DetailCount(
-                  icon: Icons.bookmark_border_rounded,
-                  label: '저장',
-                  value: post.bookmarkCount,
-                  onTap: () {
-                    _toggleBookmark(post);
-                  },
-                )
+            icon: Icons.bookmark_border_rounded,
+            label: '저장',
+            value: post.bookmarkCount,
+            onTap: () {
+              _toggleBookmark(post);
+            },
+          )
               : StreamBuilder<bool>(
-                  stream: _service.watchBookmarkStatus(
-                    postId: post.id,
-                    userUid: currentUid,
-                  ),
-                  builder: (context, snapshot) {
-                    bool isBookmarked = snapshot.data ?? false;
+            stream: _service.watchBookmarkStatus(
+              postId: post.id,
+              userUid: currentUid,
+            ),
+            builder: (context, snapshot) {
+              bool isBookmarked = snapshot.data ?? false;
 
-                    return _DetailCount(
-                      icon: isBookmarked
-                          ? Icons.bookmark_rounded
-                          : Icons.bookmark_border_rounded,
-                      label: '저장',
-                      value: post.bookmarkCount,
-                      isActive: isBookmarked,
-                      enabled: !_isTogglingBookmark,
-                      onTap: () {
-                        _toggleBookmark(post);
-                      },
-                    );
-                  },
-                ),
+              return _DetailCount(
+                icon: isBookmarked
+                    ? Icons.bookmark_rounded
+                    : Icons.bookmark_border_rounded,
+                label: '저장',
+                value: post.bookmarkCount,
+                isActive: isBookmarked,
+                enabled: !_isTogglingBookmark,
+                onTap: () {
+                  _toggleBookmark(post);
+                },
+              );
+            },
+          ),
         ),
       ],
     );
@@ -1935,4 +2293,298 @@ String _formatCreatedAt(DateTime? dateTime) {
   String minute = dateTime.minute.toString().padLeft(2, '0');
 
   return '$year.$month.$day $hour:$minute';
+}
+
+class _CommentEditDialog extends StatefulWidget {
+  final String initialContent;
+
+  const _CommentEditDialog({
+    required this.initialContent,
+  });
+
+  @override
+  State<_CommentEditDialog> createState() {
+    return _CommentEditDialogState();
+  }
+}
+
+class _CommentEditDialogState extends State<_CommentEditDialog> {
+  late final TextEditingController _controller;
+
+  static const int _maxLength = 500;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = TextEditingController(
+      text: widget.initialContent,
+    );
+
+    _controller.selection = TextSelection.collapsed(
+      offset: _controller.text.length,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    String content = _controller.text.trim();
+
+    if (content.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('댓글 내용을 입력해 주세요.')),
+      );
+      return;
+    }
+
+    Navigator.pop(context, content);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    bool canSave = _controller.text.trim().isNotEmpty;
+
+    return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: 20,
+        vertical: 24,
+      ),
+      titlePadding: const EdgeInsets.fromLTRB(22, 22, 22, 10),
+      contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+      actionsPadding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
+      title: Text(
+        '댓글 수정',
+        style: TextStyle(
+          color: context.colors.textPrimary,
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 180,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: TextField(
+                controller: _controller,
+                autofocus: true,
+                expands: true,
+                minLines: null,
+                maxLines: null,
+                maxLength: _maxLength,
+                keyboardType: TextInputType.multiline,
+                textAlignVertical: TextAlignVertical.top,
+                decoration: InputDecoration(
+                  hintText: '댓글 내용을 입력해 주세요.',
+                  hintStyle: TextStyle(
+                    color: context.colors.textSecondary,
+                    fontSize: 14,
+                  ),
+                  counterText: '',
+                  contentPadding: const EdgeInsets.fromLTRB(
+                    15,
+                    15,
+                    15,
+                    38,
+                  ),
+                  filled: true,
+                  fillColor: Theme.of(context).colorScheme.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(
+                      color: context.colors.pinkSoft,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(
+                      color: context.colors.pinkSoft,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(
+                      color: context.colors.pinkStart,
+                      width: 1.4,
+                    ),
+                  ),
+                ),
+                onChanged: (value) {
+                  setState(() {});
+                },
+              ),
+            ),
+            Positioned(
+              right: 13,
+              bottom: 11,
+              child: Text(
+                '${_controller.text.length}/$_maxLength',
+                style: TextStyle(
+                  color: context.colors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          child: const Text('취소'),
+        ),
+        FilledButton(
+          onPressed: canSave ? _save : null,
+          style: FilledButton.styleFrom(
+            backgroundColor: context.colors.pinkStart,
+            foregroundColor: context.colors.onPrimary,
+          ),
+          child: const Text('수정'),
+        ),
+      ],
+    );
+  }
+}
+
+class _CommunityImageViewer extends StatefulWidget {
+  final List<CommunityImageAttachment> images;
+  final int initialIndex;
+
+  const _CommunityImageViewer({
+    required this.images,
+    required this.initialIndex,
+  });
+
+  @override
+  State<_CommunityImageViewer> createState() {
+    return _CommunityImageViewerState();
+  }
+}
+
+class _CommunityImageViewerState extends State<_CommunityImageViewer> {
+  late final PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog.fullscreen(
+      backgroundColor: Colors.black,
+      child: SafeArea(
+        child: Stack(
+          children: [
+            PageView.builder(
+              controller: _pageController,
+              itemCount: widget.images.length,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
+              itemBuilder: (context, index) {
+                return InteractiveViewer(
+                  minScale: 0.8,
+                  maxScale: 4,
+                  child: Center(
+                    child: Image.network(
+                      widget.images[index].url,
+                      width: double.infinity,
+                      fit: BoxFit.contain,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) {
+                          return child;
+                        }
+
+                        return const Center(
+                          child: CircularProgressIndicator(color: Colors.white),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.broken_image_outlined,
+                              color: Colors.white70,
+                              size: 45,
+                            ),
+                            SizedBox(height: 10),
+                            Text(
+                              '이미지를 불러오지 못했어요.',
+                              style: TextStyle(color: Colors.white70),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
+            Positioned(
+              top: 8,
+              left: 8,
+              child: IconButton(
+                tooltip: '닫기',
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.black.withOpacity(0.48),
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ),
+            if (widget.images.length > 1)
+              Positioned(
+                top: 14,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.48),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${_currentIndex + 1}/${widget.images.length}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
