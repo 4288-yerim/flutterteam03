@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-
+import 'notice_list_screen.dart';
 import '../../theme.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
@@ -35,6 +35,16 @@ class _HelpAndInquiryScreenState extends State<HelpAndInquiryScreen> {
       appBar: AppTopBar(
         title: '문의 및 도움말',
         actions: [
+          IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NoticeListScreen()),
+            ),
+            icon: Icon(
+              Icons.campaign_rounded,
+              color: context.colors.iconPrimary,
+            ),
+          ),
           StreamBuilder<List<ChatSessionSummary>>(
             stream: _chatSessionsStream,
             builder: (context, snapshot) {
