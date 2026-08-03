@@ -127,7 +127,9 @@ class NotificationCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(15),
             ),
             child: Icon(
-              notification.opensCommunityPost
+              notification.category.toUpperCase() == 'ADMIN'
+                  ? Icons.campaign_outlined
+                  : notification.opensCommunityPost
                   ? Icons.forum_outlined
                   : notification.opensFriends
                   ? Icons.people_outline_rounded

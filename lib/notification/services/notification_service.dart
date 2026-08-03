@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum NotificationSection {
   all('전체'),
+  admin('운영'),
   certificate('자격증'),
   study('학습'),
   studyGroup('스터디'),
@@ -56,6 +57,8 @@ class AppNotification {
 
   NotificationSection? get section {
     switch (category.toUpperCase()) {
+      case 'ADMIN':
+        return NotificationSection.admin;
       case 'CERTIFICATE':
         return NotificationSection.certificate;
       case 'STUDY':
