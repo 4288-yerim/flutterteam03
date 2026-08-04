@@ -30,6 +30,7 @@ import 'app_setting_screen.dart';
 import 'help_and_inquiry_screen.dart';
 import 'account_withdrawal_screen.dart';
 import 'my_certificate_roadmap_screen.dart';
+import '../../ai/subscription.dart';
 
 class MyPageScreen extends StatefulWidget {
   const MyPageScreen({super.key});
@@ -599,6 +600,18 @@ class _MyPageScreenState extends State<MyPageScreen> {
                       padding: EdgeInsets.zero,
                       child: Column(
                         children: [
+                          MyPageMenuTile(
+                            icon: Icons.workspace_premium_outlined,
+                            title: '구독 관리',
+                            subtitle: 'AI 구독 상태를 확인하고 결제 및 해지를 관리합니다.',
+                            onTap: () {
+                              _openPage(
+                                context,
+                                SubscriptionPage(),
+                              );
+                            },
+                          ),
+                          _MenuDivider(),
                           MyPageMenuTile(
                             icon: Icons.lock_outline,
                             title: '비밀번호 변경',
