@@ -343,6 +343,7 @@ class CertificateListTile extends StatelessWidget {
   final String certificateName;
   final String detailText;
   final String qualificationCode;
+  final bool isOther;
   final VoidCallback onTap;
 
   const CertificateListTile({
@@ -350,12 +351,23 @@ class CertificateListTile extends StatelessWidget {
     required this.certificateName,
     required this.detailText,
     required this.qualificationCode,
+    this.isOther = false,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final bool isTechnical = qualificationCode == 'T';
+    final iconBackground = isOther
+        ? context.colors.otherCertificateSoft
+        : isTechnical
+        ? context.colors.softBlue
+        : context.colors.mint;
+    final iconColor = isOther
+        ? context.colors.otherCertificateAccent
+        : isTechnical
+        ? context.colors.info
+        : context.colors.correct;
 
     return Material(
       color: Colors.transparent,
@@ -369,16 +381,12 @@ class CertificateListTile extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: isTechnical
-                      ? context.colors.softBlue
-                      : context.colors.mint,
+                  color: iconBackground,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
                   Icons.workspace_premium_outlined,
-                  color: isTechnical
-                      ? context.colors.info
-                      : context.colors.correct,
+                  color: iconColor,
                   size: 22,
                 ),
               ),
@@ -430,6 +438,7 @@ class CertificateSearchResultTile extends StatelessWidget {
   final String qualificationType;
   final String detailText;
   final String qualificationCode;
+  final bool isOther;
   final VoidCallback onTap;
 
   const CertificateSearchResultTile({
@@ -438,12 +447,23 @@ class CertificateSearchResultTile extends StatelessWidget {
     required this.qualificationType,
     required this.detailText,
     required this.qualificationCode,
+    this.isOther = false,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final bool isTechnical = qualificationCode == 'T';
+    final iconBackground = isOther
+        ? context.colors.otherCertificateSoft
+        : isTechnical
+        ? context.colors.softBlue
+        : context.colors.mint;
+    final iconColor = isOther
+        ? context.colors.otherCertificateAccent
+        : isTechnical
+        ? context.colors.info
+        : context.colors.correct;
 
     final String subtitle = detailText.isEmpty
         ? qualificationType
@@ -461,16 +481,12 @@ class CertificateSearchResultTile extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: isTechnical
-                      ? context.colors.softBlue
-                      : context.colors.mint,
+                  color: iconBackground,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
                   Icons.workspace_premium_outlined,
-                  color: isTechnical
-                      ? context.colors.info
-                      : context.colors.correct,
+                  color: iconColor,
                   size: 22,
                 ),
               ),

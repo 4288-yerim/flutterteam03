@@ -262,7 +262,7 @@ class _NoticeManagementScreenState extends State<NoticeManagementScreen> {
                             items: const [
                               DropdownMenuItem(
                                 value: 'APP',
-                                child: Text('앱 일반'),
+                                child: Text('일반'),
                               ),
                               DropdownMenuItem(
                                 value: 'EXAM',
@@ -747,7 +747,7 @@ String _statusLabel(String status) => switch (status) {
 String _noticeTypeLabel(String type) => switch (type) {
   'EXAM' => '시험·접수',
   'UPDATE' => '업데이트',
-  _ => '앱 일반',
+  _ => '일반',
 };
 
 String _targetLabel(AdminNotice notice) {

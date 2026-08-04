@@ -16,13 +16,7 @@ class CertificateSearchService {
     try {
       final snapshot = await _certificationsCollection.get();
 
-      return snapshot.docs
-          .map(Certification.fromFirestore)
-          .where((certificate) {
-        return certificate.qualgbcd == 'T' ||
-            certificate.qualgbcd == 'S';
-      })
-          .toList();
+      return snapshot.docs.map(Certification.fromFirestore).toList();
     } on FirebaseException catch (error) {
       throw CertificateSearchException(
         error.message ?? '자격증 정보를 불러오지 못했습니다.',
@@ -37,6 +31,7 @@ class CertificateSearchService {
 
 class Certification {
   final String id;
+  final bool hasSource;
 
   final String qualgbcd;
   final String qualgbnm;
@@ -55,6 +50,7 @@ class Certification {
 
   const Certification({
     required this.id,
+    required this.hasSource,
     required this.qualgbcd,
     required this.qualgbnm,
     required this.obligfldcd,
@@ -73,6 +69,10 @@ class Certification {
 
   bool get isProfessional {
     return qualgbcd == 'S';
+  }
+
+  bool get isHumanResourcesDevelopmentService {
+    return !hasSource;
   }
 
   String get qualificationName {
@@ -112,6 +112,7 @@ class Certification {
 
     return Certification(
       id: document.id,
+      hasSource: data.containsKey('source'),
       qualgbcd: _readString(data['qualgbcd']),
       qualgbnm: _readString(data['qualgbnm']),
       obligfldcd: _readString(data['obligfldcd']),

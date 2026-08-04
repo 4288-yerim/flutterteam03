@@ -10,6 +10,7 @@ import '../widgets/certificate_common_widgets.dart';
 import '../widgets/certificate_search_widgets.dart';
 import 'professional_certificate_detail.dart';
 import 'technical_certificate_detail.dart';
+import 'other_certificate_detail.dart';
 
 class CertificateSearchPage extends StatefulWidget {
   const CertificateSearchPage({super.key});
@@ -23,20 +24,34 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
       CertificateSearchService();
 
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   final List<Certification> _certifications = [];
 
   bool _isLoading = true;
   bool _isTechnicalJobFieldCollapsed = false;
+  bool _isTechnicalCategoryCollapsed = false;
   bool _isProfessionalSeriesCollapsed = false;
 
   String? _loadError;
 
+  String? _selectedTopLevelCategory;
   String _selectedQualificationCode = 'T';
 
   String? _selectedJobFieldCode;
   String? _selectedCategoryCode;
   String? _selectedProfessionalSeriesCode;
+  String? _selectedOtherQualificationName;
+  String? _selectedOtherJobFieldName;
+  String? _selectedOtherCategoryName;
+  bool _isOtherQualificationCollapsed = false;
+  bool _isOtherJobFieldCollapsed = false;
+  bool _isOtherCategoryCollapsed = false;
+
+  final Map<String, String> _topLevelCategories = const {
+    'hrd': '산업인력공단',
+    'other': '그 외',
+  };
 
   final Map<String, String> _qualificationTypes = const {
     'T': '국가기술자격',
@@ -47,6 +62,10 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
     return _selectedQualificationCode == 'T';
   }
 
+  bool get _isHumanResourcesDevelopmentService {
+    return _selectedTopLevelCategory == 'hrd';
+  }
+
   bool get _isSearching {
     return _searchController.text.trim().isNotEmpty;
   }
@@ -55,7 +74,8 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
     final Map<String, String> groupedFields = {};
 
     for (final certificate in _certifications) {
-      if (!certificate.isTechnical) {
+      if (!certificate.isHumanResourcesDevelopmentService ||
+          !certificate.isTechnical) {
         continue;
       }
 
@@ -86,7 +106,8 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
     final Map<String, String> groupedCategories = {};
 
     for (final certificate in _certifications) {
-      if (!certificate.isTechnical) {
+      if (!certificate.isHumanResourcesDevelopmentService ||
+          !certificate.isTechnical) {
         continue;
       }
 
@@ -118,7 +139,8 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
     final Map<String, String> groupedSeries = {};
 
     for (final certificate in _certifications) {
-      if (!certificate.isProfessional) {
+      if (!certificate.isHumanResourcesDevelopmentService ||
+          !certificate.isProfessional) {
         continue;
       }
 
@@ -141,13 +163,73 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
     return series;
   }
 
+  List<_FilterOption> get _otherQualificationTypes => _groupOptions(
+    _certifications.where((certificate) =>
+        !certificate.isHumanResourcesDevelopmentService),
+    (certificate) => certificate.qualgbnm,
+  );
+
+  List<_FilterOption> get _otherJobFields {
+    final qualificationName = _selectedOtherQualificationName;
+    if (qualificationName == null) return [];
+    return _groupOptions(
+      _certifications.where((certificate) =>
+          !certificate.isHumanResourcesDevelopmentService &&
+          certificate.qualgbnm == qualificationName),
+      (certificate) => certificate.obligfldnm,
+    );
+  }
+
+  List<_FilterOption> get _otherCategories {
+    final qualificationName = _selectedOtherQualificationName;
+    final jobFieldName = _selectedOtherJobFieldName;
+    if (qualificationName == null || jobFieldName == null) return [];
+    return _groupOptions(
+      _certifications.where((certificate) =>
+          !certificate.isHumanResourcesDevelopmentService &&
+          certificate.qualgbnm == qualificationName &&
+          certificate.obligfldnm == jobFieldName),
+      (certificate) => certificate.mdobligfldnm,
+    );
+  }
+
+  List<Certification> get _selectedOtherCertificates {
+    final qualificationName = _selectedOtherQualificationName;
+    final jobFieldName = _selectedOtherJobFieldName;
+    final categoryName = _selectedOtherCategoryName;
+    if (qualificationName == null || jobFieldName == null || categoryName == null) {
+      return [];
+    }
+    final certificates = _certifications.where((certificate) {
+      return !certificate.isHumanResourcesDevelopmentService &&
+          certificate.qualgbnm == qualificationName &&
+          certificate.obligfldnm == jobFieldName &&
+          certificate.mdobligfldnm == categoryName;
+    }).toList()..sort((a, b) => a.name.compareTo(b.name));
+    return certificates;
+  }
+
+  List<_FilterOption> _groupOptions(
+    Iterable<Certification> certificates,
+    String Function(Certification certificate) valueOf,
+  ) {
+    final names = <String>{};
+    for (final certificate in certificates) {
+      final name = valueOf(certificate);
+      if (name.isNotEmpty) names.add(name);
+    }
+    return names.map((name) => _FilterOption(code: name, name: name)).toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+  }
+
   List<Certification> get _selectedTechnicalCertificates {
     if (_selectedJobFieldCode == null || _selectedCategoryCode == null) {
       return [];
     }
 
     final certificates = _certifications.where((certificate) {
-      return certificate.isTechnical &&
+      return certificate.isHumanResourcesDevelopmentService &&
+          certificate.isTechnical &&
           certificate.obligfldcd == _selectedJobFieldCode &&
           certificate.mdobligfldcd == _selectedCategoryCode;
     }).toList();
@@ -163,7 +245,8 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
     }
 
     final certificates = _certifications.where((certificate) {
-      return certificate.isProfessional &&
+      return certificate.isHumanResourcesDevelopmentService &&
+          certificate.isProfessional &&
           certificate.seriescd == _selectedProfessionalSeriesCode;
     }).toList();
 
@@ -237,6 +320,7 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
             certificateName: certificate.name,
             qualificationType: certificate.qualificationName,
             qualificationCode: certificate.qualgbcd,
+            hasSource: certificate.hasSource,
             detailText: certificate.searchDetailText,
           ),
         )
@@ -298,10 +382,13 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
   void _openCertificateDetail({
     required String certificationId,
     required String qualificationCode,
+    required bool hasSource,
   }) {
     final Widget detailPage;
 
-    if (qualificationCode == 'T') {
+    if (hasSource) {
+      detailPage = OtherCertificateDetailPage(certificationId: certificationId);
+    } else if (qualificationCode == 'T') {
       detailPage = TechnicalCertificateDetailPage(
         certificationId: certificationId,
       );
@@ -330,11 +417,84 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
     });
   }
 
+  void _selectTopLevelCategory(String code) {
+    setState(() {
+      _selectedTopLevelCategory = code;
+      _selectedQualificationCode = 'T';
+      _selectedJobFieldCode = null;
+      _selectedCategoryCode = null;
+      _selectedProfessionalSeriesCode = null;
+      _selectedOtherQualificationName = null;
+      _selectedOtherJobFieldName = null;
+      _selectedOtherCategoryName = null;
+      _isTechnicalJobFieldCollapsed = false;
+      _isTechnicalCategoryCollapsed = false;
+      _isProfessionalSeriesCollapsed = false;
+      _isOtherQualificationCollapsed = false;
+      _isOtherJobFieldCollapsed = false;
+      _isOtherCategoryCollapsed = false;
+    });
+  }
+
+  void _selectOtherQualificationType(String name) {
+    setState(() {
+      _selectedOtherQualificationName = name;
+      _selectedOtherJobFieldName = null;
+      _selectedOtherCategoryName = null;
+      _isOtherQualificationCollapsed = true;
+      _isOtherJobFieldCollapsed = false;
+      _isOtherCategoryCollapsed = false;
+    });
+  }
+
+  void _selectOtherJobField(String name) {
+    setState(() {
+      _selectedOtherJobFieldName = name;
+      _selectedOtherCategoryName = null;
+      _isOtherJobFieldCollapsed = true;
+      _isOtherCategoryCollapsed = false;
+    });
+    _scrollToNextFilter();
+  }
+
+  void _selectOtherCategory(String name) {
+    setState(() {
+      _selectedOtherCategoryName = name;
+      _isOtherCategoryCollapsed = true;
+    });
+    _scrollToNextFilter();
+  }
+
+  void _expandOtherQualificationTypes() {
+    setState(() => _isOtherQualificationCollapsed = false);
+  }
+
+  void _expandOtherJobFields() {
+    setState(() => _isOtherJobFieldCollapsed = false);
+  }
+
+  void _expandOtherCategories() {
+    setState(() => _isOtherCategoryCollapsed = false);
+  }
+
   void _selectTechnicalJobField(String code) {
     setState(() {
       _selectedJobFieldCode = code;
       _selectedCategoryCode = null;
       _isTechnicalJobFieldCollapsed = true;
+      _isTechnicalCategoryCollapsed = false;
+    });
+    _scrollToNextFilter();
+  }
+
+  void _scrollToNextFilter() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
     });
   }
 
@@ -347,7 +507,13 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
   void _selectTechnicalCategory(String code) {
     setState(() {
       _selectedCategoryCode = code;
+      _isTechnicalCategoryCollapsed = true;
     });
+    _scrollToNextFilter();
+  }
+
+  void _expandTechnicalCategories() {
+    setState(() => _isTechnicalCategoryCollapsed = false);
   }
 
   void _selectProfessionalSeries(String code) {
@@ -355,6 +521,7 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
       _selectedProfessionalSeriesCode = code;
       _isProfessionalSeriesCollapsed = true;
     });
+    _scrollToNextFilter();
   }
 
   void _expandProfessionalSeries() {
@@ -371,6 +538,7 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -408,6 +576,7 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
     }
 
     return ListView(
+      controller: _scrollController,
       padding: EdgeInsets.fromLTRB(24, 16, 24, 40),
       children: [
         CertificatePageHeader(
@@ -436,7 +605,29 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CertificateSectionTitle(title: '자격 구분', subtitle: '조회할 자격 유형을 선택하세요.'),
+        CertificateSectionTitle(title: '카테고리', subtitle: '자격증 제공 기관을 선택하세요.'),
+        SizedBox(height: 15),
+        QualificationTypeSelector(
+          qualificationTypes: _topLevelCategories,
+          selectedCode: _selectedTopLevelCategory ?? '',
+          onSelected: _selectTopLevelCategory,
+        ),
+        SizedBox(height: 34),
+        if (_selectedTopLevelCategory == null)
+          SizedBox.shrink()
+        else if (_isHumanResourcesDevelopmentService)
+          _buildHumanResourcesDevelopmentServiceSection()
+        else
+          _buildOtherCertificateSection(),
+      ],
+    );
+  }
+
+  Widget _buildHumanResourcesDevelopmentServiceSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CertificateSectionTitle(title: '자격 구분', subtitle: '자격 유형을 선택하세요.'),
         SizedBox(height: 15),
         QualificationTypeSelector(
           qualificationTypes: _qualificationTypes,
@@ -449,6 +640,117 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
         else
           _buildProfessionalQualificationSection(),
       ],
+    );
+  }
+
+  Widget _buildOtherCertificateSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CertificateSectionTitle(title: '자격 구분', subtitle: '자격 구분을 선택하세요.'),
+        SizedBox(height: 15),
+        if (_isOtherQualificationCollapsed &&
+            _selectedOtherQualificationName != null)
+          CollapsedSelectionCard(
+            title: '선택한 자격 구분',
+            value: _selectedOtherQualificationName!,
+            onReselect: _expandOtherQualificationTypes,
+          )
+        else
+          _buildOtherOptionGrid(
+            options: _otherQualificationTypes,
+            selectedName: _selectedOtherQualificationName,
+            onSelected: _selectOtherQualificationType,
+          ),
+        if (_selectedOtherQualificationName != null) ...[
+          SizedBox(height: 34),
+          CertificateSectionTitle(title: '직무 분야', subtitle: '직무 분야를 선택하세요.'),
+          SizedBox(height: 15),
+          if (_isOtherJobFieldCollapsed && _selectedOtherJobFieldName != null)
+            CollapsedSelectionCard(
+              title: '선택한 직무 분야',
+              value: _selectedOtherJobFieldName!,
+              onReselect: _expandOtherJobFields,
+            )
+          else
+            _buildOtherOptionGrid(
+              options: _otherJobFields,
+              selectedName: _selectedOtherJobFieldName,
+              onSelected: _selectOtherJobField,
+            ),
+        ],
+        if (_selectedOtherJobFieldName != null) ...[
+          SizedBox(height: 34),
+          CertificateSectionTitle(title: '분류', subtitle: '세부 분류를 선택하세요.'),
+          SizedBox(height: 15),
+          if (_isOtherCategoryCollapsed && _selectedOtherCategoryName != null)
+            CollapsedSelectionCard(
+              title: '선택한 분류',
+              value: _selectedOtherCategoryName!,
+              onReselect: _expandOtherCategories,
+            )
+          else
+            _buildOtherCategorySelector(),
+        ],
+        if (_selectedOtherCategoryName != null) ...[
+          SizedBox(height: 34),
+          CertificateSectionTitle(
+            title: '시행 종목',
+            subtitle: '자격증을 누르면 상세 정보를 확인할 수 있어요.',
+            count: _selectedOtherCertificates.length,
+          ),
+          SizedBox(height: 15),
+          _buildCertificateList(certificates: _selectedOtherCertificates),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildOtherOptionGrid({
+    required List<_FilterOption> options,
+    required String? selectedName,
+    required ValueChanged<String> onSelected,
+  }) {
+    if (options.isEmpty) return EmptyFilterResult(message: '등록된 분류가 없습니다.');
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: NeverScrollableScrollPhysics(),
+      itemCount: options.length,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 2.25,
+      ),
+      itemBuilder: (context, index) {
+        final option = options[index];
+        return CertificateCategoryCard(
+          label: option.name,
+          selected: selectedName == option.code,
+          icon: Icons.category_outlined,
+          onTap: () => onSelected(option.code),
+        );
+      },
+    );
+  }
+
+  Widget _buildOtherCategorySelector() {
+    final categories = _otherCategories;
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(18),
+      decoration: certificateCardDecoration(context: context),
+      child: categories.isEmpty
+          ? EmptyInlineResult(message: '등록된 분류가 없습니다.')
+          : Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: categories.map((category) => CertificateSelectionChip(
+                label: category.name,
+                selected: _selectedOtherCategoryName == category.code,
+                onTap: () => _selectOtherCategory(category.code),
+              )).toList(),
+            ),
     );
   }
 
@@ -480,7 +782,15 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
             subtitle: '선택한 직무 분야의 세부 분류입니다.',
           ),
           SizedBox(height: 15),
-          _buildTechnicalCategorySelector(),
+          if (_isTechnicalCategoryCollapsed &&
+              _selectedTechnicalCategory != null)
+            CollapsedSelectionCard(
+              title: '선택한 분류',
+              value: _selectedTechnicalCategory!.name,
+              onReselect: _expandTechnicalCategories,
+            )
+          else
+            _buildTechnicalCategorySelector(),
         ],
 
         if (_selectedCategoryCode != null) ...[
@@ -643,10 +953,12 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
                 certificateName: certificate.name,
                 detailText: certificate.listDetailText,
                 qualificationCode: certificate.qualgbcd,
+                isOther: certificate.hasSource,
                 onTap: () {
                   _openCertificateDetail(
                     certificationId: certificate.id,
                     qualificationCode: certificate.qualgbcd,
+                    hasSource: certificate.hasSource,
                   );
                 },
               ),
@@ -714,10 +1026,12 @@ class _CertificateSearchPageState extends State<CertificateSearchPage> {
                       qualificationType: result.qualificationType,
                       detailText: result.detailText,
                       qualificationCode: result.qualificationCode,
+                      isOther: result.hasSource,
                       onTap: () {
                         _openCertificateDetail(
                           certificationId: result.certificationId,
                           qualificationCode: result.qualificationCode,
+                          hasSource: result.hasSource,
                         );
                       },
                     ),
@@ -750,6 +1064,7 @@ class _SearchResultItem {
   final String certificateName;
   final String qualificationType;
   final String qualificationCode;
+  final bool hasSource;
   final String detailText;
 
   const _SearchResultItem({
@@ -757,6 +1072,7 @@ class _SearchResultItem {
     required this.certificateName,
     required this.qualificationType,
     required this.qualificationCode,
+    required this.hasSource,
     required this.detailText,
   });
 }

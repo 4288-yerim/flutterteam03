@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:table_calendar/table_calendar.dart';
 
 import '../../widgets/app_dialog.dart';
 
@@ -10,6 +11,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
+import '../../certificate/widgets/certificate_schedule_widgets.dart';
 
 class MyPageCalendarScreen extends StatefulWidget {
   const MyPageCalendarScreen({super.key});
@@ -324,7 +326,14 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
           children: [
             Padding(
               padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
-              child: _buildTabSelector(),
+              child: CertificateScheduleTabSelector(
+                selectedIndex: _selectedTabIndex,
+                onChanged: (index) {
+                  setState(() {
+                    _selectedTabIndex = index;
+                  });
+                },
+              ),
             ),
             SizedBox(height: 16),
             if (_isLoadingSchedules)
@@ -650,10 +659,101 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
       child: Column(
         children: [
           _buildMonthHeader(),
-          SizedBox(height: 20),
-          _buildWeekdayHeader(),
-          SizedBox(height: 10),
-          _buildCalendarGrid(),
+          SizedBox(height: 14),
+          TableCalendar<CalendarScheduleItem>(
+            firstDay: DateTime(2020, 1, 1),
+            lastDay: DateTime(2035, 12, 31),
+            focusedDay: _focusedMonth,
+            selectedDayPredicate: (day) => _isSameDate(day, _selectedDate),
+            eventLoader: _getSchedulesForDate,
+            calendarFormat: CalendarFormat.month,
+            availableCalendarFormats: const {CalendarFormat.month: '월'},
+            headerVisible: false,
+            startingDayOfWeek: StartingDayOfWeek.sunday,
+            rowHeight: 52,
+            daysOfWeekHeight: 32,
+            onDaySelected: (selectedDay, focusedDay) {
+              setState(() {
+                _selectedDate = _dateOnly(selectedDay);
+                _focusedMonth = DateTime(focusedDay.year, focusedDay.month);
+              });
+            },
+            onPageChanged: (focusedDay) {
+              setState(() {
+                _focusedMonth = DateTime(focusedDay.year, focusedDay.month);
+              });
+            },
+            calendarBuilders: CalendarBuilders<CalendarScheduleItem>(
+              markerBuilder: (context, day, events) {
+                if (events.isEmpty) return null;
+                final types = events.map((event) => event.type).toSet().take(3);
+                final isSelected = _isSameDate(day, _selectedDate);
+                return Positioned(
+                  bottom: 5,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: types.map((type) => Container(
+                      width: 6,
+                      height: 6,
+                      margin: EdgeInsets.symmetric(horizontal: 1.5),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? context.colors.onPrimary
+                            : _getScheduleColor(type),
+                        shape: BoxShape.circle,
+                      ),
+                    )).toList(),
+                  ),
+                );
+              },
+            ),
+            daysOfWeekStyle: DaysOfWeekStyle(
+              weekdayStyle: TextStyle(
+                color: context.colors.textSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+              weekendStyle: TextStyle(
+                color: context.colors.textSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            calendarStyle: CalendarStyle(
+              outsideDaysVisible: true,
+              outsideTextStyle: TextStyle(
+                color: context.colors.textMuted.withValues(alpha: 0.35),
+                fontSize: 14,
+              ),
+              defaultTextStyle: TextStyle(
+                color: context.colors.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+              weekendTextStyle: TextStyle(
+                color: context.colors.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+              todayDecoration: BoxDecoration(
+                color: context.colors.pinkSoft,
+                shape: BoxShape.circle,
+              ),
+              todayTextStyle: TextStyle(
+                color: context.colors.pinkDeep,
+                fontWeight: FontWeight.w700,
+              ),
+              selectedDecoration: BoxDecoration(
+                color: context.colors.pinkDeep,
+                shape: BoxShape.circle,
+              ),
+              selectedTextStyle: TextStyle(
+                color: context.colors.onPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+              markersMaxCount: 0,
+            ),
+          ),
         ],
       ),
     );

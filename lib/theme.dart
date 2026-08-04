@@ -47,12 +47,14 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color lavender;
   final Color softBlue;
   final Color mint;
+  final Color otherCertificateSoft;
 
   // 강조용 (아이콘, 배지, 버튼 등 배경 위에 올라가는 진한 톤)
   final Color pinkDeep;
   final Color lavenderAccent;
   final Color softBlueAccent;
   final Color mintAccent;
+  final Color otherCertificateAccent;
 
   // ─────────────────────────────────────────────────────────
   // 상태 피드백
@@ -106,10 +108,12 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.lavender,
     required this.softBlue,
     required this.mint,
+    required this.otherCertificateSoft,
     required this.pinkDeep,
     required this.lavenderAccent,
     required this.softBlueAccent,
     required this.mintAccent,
+    required this.otherCertificateAccent,
     required this.correct,
     required this.correctSoft,
     required this.incorrect,
@@ -147,10 +151,12 @@ class AppColors extends ThemeExtension<AppColors> {
     lavender: Color(0xFFEEE9FD),
     softBlue: Color(0xFFECF0FD),
     mint: Color(0xFFECF6F3),
+    otherCertificateSoft: Color(0xFFFFF1E3),
     pinkDeep: Color(0xFFE9678A),
     lavenderAccent: Color(0xFF9B7AF5),
     softBlueAccent: Color(0xFF6C8EEB),
     mintAccent: Color(0xFF4FAE8E),
+    otherCertificateAccent: Color(0xFFE58A36),
     correct: Color(0xFF4CAF7D),
     correctSoft: Color(0xFFE9F7EF),
     incorrect: Color(0xFFE96B7A),
@@ -188,10 +194,12 @@ class AppColors extends ThemeExtension<AppColors> {
     lavender: Color(0xFF322E42),
     softBlue: Color(0xFF29304A),
     mint: Color(0xFF223A2E),
+    otherCertificateSoft: Color(0xFF4A3523),
     pinkDeep: Color(0xFFCB7A8E),
     lavenderAccent: Color(0xFFB39DFF),
     softBlueAccent: Color(0xFF8FA8F0),
     mintAccent: Color(0xFF7FCBB0),
+    otherCertificateAccent: Color(0xFFF0B35A),
     correct: Color(0xFF7FCBB0),
     correctSoft: Color(0xFF1F3A2E),
     incorrect: Color(0xFFE08A94),
@@ -230,10 +238,12 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? lavender,
     Color? softBlue,
     Color? mint,
+    Color? otherCertificateSoft,
     Color? pinkDeep,
     Color? lavenderAccent,
     Color? softBlueAccent,
     Color? mintAccent,
+    Color? otherCertificateAccent,
     Color? correct,
     Color? correctSoft,
     Color? incorrect,
@@ -270,10 +280,13 @@ class AppColors extends ThemeExtension<AppColors> {
       lavender: lavender ?? this.lavender,
       softBlue: softBlue ?? this.softBlue,
       mint: mint ?? this.mint,
+      otherCertificateSoft: otherCertificateSoft ?? this.otherCertificateSoft,
       pinkDeep: pinkDeep ?? this.pinkDeep,
       lavenderAccent: lavenderAccent ?? this.lavenderAccent,
       softBlueAccent: softBlueAccent ?? this.softBlueAccent,
       mintAccent: mintAccent ?? this.mintAccent,
+      otherCertificateAccent:
+          otherCertificateAccent ?? this.otherCertificateAccent,
       correct: correct ?? this.correct,
       correctSoft: correctSoft ?? this.correctSoft,
       incorrect: incorrect ?? this.incorrect,
@@ -320,10 +333,20 @@ class AppColors extends ThemeExtension<AppColors> {
       lavender: Color.lerp(lavender, other.lavender, t)!,
       softBlue: Color.lerp(softBlue, other.softBlue, t)!,
       mint: Color.lerp(mint, other.mint, t)!,
+      otherCertificateSoft: Color.lerp(
+        otherCertificateSoft,
+        other.otherCertificateSoft,
+        t,
+      )!,
       pinkDeep: Color.lerp(pinkDeep, other.pinkDeep, t)!,
       lavenderAccent: Color.lerp(lavenderAccent, other.lavenderAccent, t)!,
       softBlueAccent: Color.lerp(softBlueAccent, other.softBlueAccent, t)!,
       mintAccent: Color.lerp(mintAccent, other.mintAccent, t)!,
+      otherCertificateAccent: Color.lerp(
+        otherCertificateAccent,
+        other.otherCertificateAccent,
+        t,
+      )!,
       correct: Color.lerp(correct, other.correct, t)!,
       correctSoft: Color.lerp(correctSoft, other.correctSoft, t)!,
       incorrect: Color.lerp(incorrect, other.incorrect, t)!,
