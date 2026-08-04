@@ -81,52 +81,67 @@ class AdminCommunityService {
     required AdminCommunityComment comment,
   }) async {
     final adminUid = _requireAdminUid();
+
     if (comment.status != 'NORMAL') {
       throw StateError('이미 숨김 처리된 댓글입니다.');
     }
 
-    final postReference = _firestore.collection('posts').doc(postId);
-    final commentsReference = postReference.collection('comments');
-    final batchId = commentsReference.doc().id;
-    final replies = await commentsReference
-        .where('parentCommentId', isEqualTo: comment.id)
-        .get();
-    final visibleReplies = replies.docs.where((document) {
-      final status = _text(
-        document.data()['commentStatus'],
-        fallback: 'NORMAL',
-      ).toUpperCase();
-      return status == 'NORMAL';
-    }).toList();
+    final postReference =
+    _firestore.collection('posts').doc(postId);
+
+    final batchId = postReference
+        .collection('comments')
+        .doc()
+        .id;
 
     await _firestore.runTransaction((transaction) async {
-      final latest = await transaction.get(comment.reference);
-      if (!latest.exists) throw StateError('댓글을 찾을 수 없습니다.');
+      final latest =
+      await transaction.get(comment.reference);
+
+      if (!latest.exists) {
+        throw StateError('댓글을 찾을 수 없습니다.');
+      }
+
+      final latestData = latest.data()!;
       final latestStatus = _text(
-        latest.data()?['commentStatus'],
+        latestData['commentStatus'],
         fallback: 'NORMAL',
       ).toUpperCase();
+
       if (latestStatus != 'NORMAL') {
         throw StateError('이미 숨김 처리된 댓글입니다.');
       }
 
-      final updates = <String, Object?>{
+      final isRootComment =
+          _text(latestData['parentCommentId']).isEmpty;
+      final wasAccepted =
+          latestData['isAccepted'] == true;
+
+      transaction.update(comment.reference, {
         'commentStatus': 'DELETED',
+        'isAccepted': false,
         'deletedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'moderationStatus': 'HIDDEN',
         'moderationBatchId': batchId,
+        'moderationReportId': null,
         'moderatedBy': adminUid,
         'moderatedAt': FieldValue.serverTimestamp(),
-      };
-      transaction.update(comment.reference, updates);
-      for (final reply in visibleReplies) {
-        transaction.update(reply.reference, updates);
-      }
-      transaction.update(postReference, {
-        'commentCount': FieldValue.increment(-(1 + visibleReplies.length)),
-        'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      final postUpdates = <String, Object?>{
+        'commentCount': FieldValue.increment(-1),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (isRootComment && wasAccepted) {
+        postUpdates['questionStatus'] = 'WAITING';
+      }
+
+      transaction.update(
+        postReference,
+        postUpdates,
+      );
     });
   }
 

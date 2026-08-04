@@ -52,33 +52,96 @@ class AdminReportService {
     required bool hideContent,
   }) async {
     final administrator = _firebaseAuth.currentUser;
+
     if (administrator == null) {
       throw StateError('관리자 로그인 정보를 확인할 수 없습니다.');
     }
 
-    final reportReference = _firestore.collection('reports').doc(report.id);
+    final reportReference =
+    _firestore.collection('reports').doc(report.id);
+
     await _firestore.runTransaction((transaction) async {
-      final latestReport = await transaction.get(reportReference);
+      final latestReport =
+      await transaction.get(reportReference);
+
       if (!latestReport.exists) {
         throw StateError('신고 문서를 찾을 수 없습니다.');
       }
 
-      final latestStatus =
-          latestReport.data()?['status']?.toString().toUpperCase() ?? '';
+      final latestStatus = latestReport
+          .data()?['status']
+          ?.toString()
+          .toUpperCase() ??
+          '';
+
       if (latestStatus != 'PENDING') {
         throw StateError('이미 처리된 신고입니다.');
       }
 
-      final approved = decision == AdminReportDecision.approve;
+      final approved =
+          decision == AdminReportDecision.approve;
+
       final shouldHideContent =
-          approved && hideContent && report.canHideContent;
+          approved &&
+              hideContent &&
+              report.canHideContent;
+
+      DocumentReference<Map<String, dynamic>>?
+      targetPostReference;
+      DocumentReference<Map<String, dynamic>>?
+      targetCommentReference;
+      DocumentSnapshot<Map<String, dynamic>>?
+      latestComment;
+
+      // Firestore 트랜잭션은 읽기를 먼저 끝내야 하므로
+      // 댓글 숨김에 필요한 문서를 먼저 읽습니다.
+      if (shouldHideContent &&
+          report.targetType.toUpperCase() == 'COMMENT') {
+        targetPostReference = _firestore
+            .collection('posts')
+            .doc(report.targetIds[0]);
+
+        targetCommentReference = targetPostReference
+            .collection('comments')
+            .doc(report.targetIds[1]);
+
+        latestComment = await transaction.get(
+          targetCommentReference,
+        );
+
+        if (!latestComment.exists) {
+          throw StateError('신고 대상 댓글을 찾을 수 없습니다.');
+        }
+
+        final latestCommentStatus = latestComment
+            .data()?['commentStatus']
+            ?.toString()
+            .toUpperCase() ??
+            'NORMAL';
+
+        if (latestCommentStatus != 'NORMAL') {
+          throw StateError(
+            '신고 대상 댓글이 이미 숨김 처리되었습니다.',
+          );
+        }
+      }
+
       final actionTypes = <String>[];
+
       if (!approved) {
         actionTypes.add('NONE');
       } else {
-        if (report.targetUid.isNotEmpty) actionTypes.add('WARNING');
-        if (shouldHideContent) actionTypes.add('DELETE');
-        if (actionTypes.isEmpty) actionTypes.add('NONE');
+        if (report.targetUid.isNotEmpty) {
+          actionTypes.add('WARNING');
+        }
+
+        if (shouldHideContent) {
+          actionTypes.add('DELETE');
+        }
+
+        if (actionTypes.isEmpty) {
+          actionTypes.add('NONE');
+        }
       }
 
       transaction.update(reportReference, {
@@ -88,37 +151,51 @@ class AdminReportService {
         'processedAt': FieldValue.serverTimestamp(),
       });
 
-      if (!approved) return;
+      if (!approved) {
+        return;
+      }
 
       if (report.targetUid.isNotEmpty) {
         final counterUpdates = <String, Object>{
           'reportCount': FieldValue.increment(1),
           'updatedAt': FieldValue.serverTimestamp(),
         };
+
         switch (report.targetType.toUpperCase()) {
           case 'POST':
-            counterUpdates['postReportCount'] = FieldValue.increment(1);
+            counterUpdates['postReportCount'] =
+                FieldValue.increment(1);
             break;
+
           case 'COMMENT':
-            counterUpdates['commentsReportCount'] = FieldValue.increment(1);
+            counterUpdates['commentsReportCount'] =
+                FieldValue.increment(1);
             break;
+
           case 'STUDY_MEMBER':
-            counterUpdates['studyMemberReportCount'] = FieldValue.increment(1);
+            counterUpdates['studyMemberReportCount'] =
+                FieldValue.increment(1);
             break;
         }
 
         transaction.update(
-          _firestore.collection('users').doc(report.targetUid),
+          _firestore
+              .collection('users')
+              .doc(report.targetUid),
           counterUpdates,
         );
       }
 
-      if (!shouldHideContent) return;
+      if (!shouldHideContent) {
+        return;
+      }
 
       switch (report.targetType.toUpperCase()) {
         case 'POST':
           transaction.update(
-            _firestore.collection('posts').doc(report.targetIds.first),
+            _firestore
+                .collection('posts')
+                .doc(report.targetIds.first),
             {
               'postStatus': 'DELETED',
               'visibility': 'PRIVATE',
@@ -127,18 +204,48 @@ class AdminReportService {
             },
           );
           break;
+
         case 'COMMENT':
+          final commentData = latestComment!.data()!;
+
+          final isRootComment =
+              (commentData['parentCommentId']
+                  ?.toString()
+                  .trim() ??
+                  '')
+                  .isEmpty;
+
+          final wasAccepted =
+              commentData['isAccepted'] == true;
+
           transaction.update(
-            _firestore
-                .collection('posts')
-                .doc(report.targetIds[0])
-                .collection('comments')
-                .doc(report.targetIds[1]),
+            targetCommentReference!,
             {
               'commentStatus': 'DELETED',
+              'isAccepted': false,
               'deletedAt': FieldValue.serverTimestamp(),
               'updatedAt': FieldValue.serverTimestamp(),
+              'moderationStatus': 'REPORT_HIDDEN',
+              'moderationBatchId': null,
+              'moderationReportId': report.id,
+              'moderatedBy': administrator.uid,
+              'moderatedAt':
+              FieldValue.serverTimestamp(),
             },
+          );
+
+          final postUpdates = <String, Object?>{
+            'commentCount': FieldValue.increment(-1),
+            'updatedAt': FieldValue.serverTimestamp(),
+          };
+
+          if (isRootComment && wasAccepted) {
+            postUpdates['questionStatus'] = 'WAITING';
+          }
+
+          transaction.update(
+            targetPostReference!,
+            postUpdates,
           );
           break;
       }

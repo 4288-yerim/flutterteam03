@@ -1260,6 +1260,12 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
     required CommunityComment comment,
     required bool isReply,
   }) {
+    if (comment.isModerationHidden) {
+      return _buildModerationHiddenCommentItem(
+        isReply: isReply,
+      );
+    }
+
     String currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
     bool canManage = currentUid.isNotEmpty && currentUid == comment.writerUid;
     bool isProcessing = _processingCommentIds.contains(comment.id);
@@ -1347,6 +1353,50 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
                   },
                 ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModerationHiddenCommentItem({
+    required bool isReply,
+  }) {
+    return Container(
+      margin: EdgeInsets.only(
+        left: isReply ? 28 : 0,
+        top: 13,
+        bottom: 13,
+      ),
+      padding: isReply
+          ? const EdgeInsets.fromLTRB(12, 14, 10, 14)
+          : const EdgeInsets.symmetric(vertical: 14),
+      decoration: isReply
+          ? BoxDecoration(
+        color: context.colors.pinkSoft
+            .withOpacity(0.45),
+        borderRadius: BorderRadius.circular(12),
+      )
+          : null,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.visibility_off_outlined,
+            size: 18,
+            color: context.colors.textSecondary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '관리자에 의해 숨겨진 댓글입니다.',
+              style: TextStyle(
+                color: context.colors.textSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                height: 1.4,
+              ),
+            ),
           ),
         ],
       ),

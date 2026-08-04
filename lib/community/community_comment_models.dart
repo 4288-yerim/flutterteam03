@@ -10,6 +10,7 @@ class CommunityComment {
   final int likeCount;
   final bool isAccepted;
   final String commentStatus;
+  final String moderationStatus;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? deletedAt;
@@ -24,6 +25,7 @@ class CommunityComment {
     required this.likeCount,
     required this.isAccepted,
     required this.commentStatus,
+    required this.moderationStatus,
     required this.createdAt,
     required this.updatedAt,
     required this.deletedAt,
@@ -31,6 +33,17 @@ class CommunityComment {
 
   bool get isReply {
     return parentCommentId.isNotEmpty;
+  }
+
+  bool get isModerationHidden {
+    if (commentStatus.toUpperCase() != 'DELETED') {
+      return false;
+    }
+
+    final status = moderationStatus.toUpperCase();
+
+    return status == 'HIDDEN' ||
+        status == 'REPORT_HIDDEN';
   }
 
   factory CommunityComment.fromDocument(
@@ -52,6 +65,11 @@ class CommunityComment {
       isAccepted: data['isAccepted'] == true,
       commentStatus:
       data['commentStatus']?.toString() ?? 'NORMAL',
+      moderationStatus:
+      data['moderationStatus']
+          ?.toString()
+          .toUpperCase() ??
+          '',
       createdAt: _readDateTime(data['createdAt']),
       updatedAt: _readDateTime(data['updatedAt']),
       deletedAt: _readDateTime(data['deletedAt']),
