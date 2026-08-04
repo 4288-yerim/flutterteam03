@@ -361,10 +361,14 @@ class AdminCertificateScheduleDraft {
     this.writtenRegistrationEndAt,
     this.writtenExamStartAt,
     this.writtenExamEndAt,
+    this.writtenPassStartAt,
+    this.writtenPassEndAt,
     this.practicalRegistrationStartAt,
     this.practicalRegistrationEndAt,
     this.practicalExamStartAt,
     this.practicalExamEndAt,
+    this.practicalPassStartAt,
+    this.practicalPassEndAt,
     this.links = const [],
   });
 
@@ -374,10 +378,14 @@ class AdminCertificateScheduleDraft {
   final DateTime? writtenRegistrationEndAt;
   final DateTime? writtenExamStartAt;
   final DateTime? writtenExamEndAt;
+  final DateTime? writtenPassStartAt;
+  final DateTime? writtenPassEndAt;
   final DateTime? practicalRegistrationStartAt;
   final DateTime? practicalRegistrationEndAt;
   final DateTime? practicalExamStartAt;
   final DateTime? practicalExamEndAt;
+  final DateTime? practicalPassStartAt;
+  final DateTime? practicalPassEndAt;
   final List<Map<String, String>> links;
 
   factory AdminCertificateScheduleDraft.fromMap(String id, Map<String, dynamic> data) {
@@ -387,8 +395,11 @@ class AdminCertificateScheduleDraft {
       title: data['implplannm']?.toString().trim() ?? '',
       writtenRegistrationStartAt: date(data['docregstartat']), writtenRegistrationEndAt: date(data['docregendat']),
       writtenExamStartAt: date(data['docexamstartat']), writtenExamEndAt: date(data['docexamendat']),
+      writtenPassStartAt: date(data['docpassstartat']) ?? date(data['docpassat']),
+      writtenPassEndAt: date(data['docpassendat']) ?? date(data['docpassat']),
       practicalRegistrationStartAt: date(data['pracregstartat']), practicalRegistrationEndAt: date(data['pracregendat']),
       practicalExamStartAt: date(data['pracexamstartat']), practicalExamEndAt: date(data['pracexamendat']),
+      practicalPassStartAt: date(data['pracpassstartat']), practicalPassEndAt: date(data['pracpassendat']),
       links: (data['links'] as List? ?? const []).whereType<Map>().map((link) => {'label': link['label']?.toString().trim() ?? '', 'url': link['url']?.toString().trim() ?? ''}).where((link) => link['label']!.isNotEmpty && link['url']!.isNotEmpty).toList(),
     );
   }
@@ -399,10 +410,15 @@ class AdminCertificateScheduleDraft {
     'docregendat': writtenRegistrationEndAt,
     'docexamstartat': writtenExamStartAt,
     'docexamendat': writtenExamEndAt,
+    'docpassstartat': writtenPassStartAt,
+    'docpassendat': writtenPassEndAt,
+    'docpassat': writtenPassEndAt ?? writtenPassStartAt,
     'pracregstartat': practicalRegistrationStartAt,
     'pracregendat': practicalRegistrationEndAt,
     'pracexamstartat': practicalExamStartAt,
     'pracexamendat': practicalExamEndAt,
+    'pracpassstartat': practicalPassStartAt,
+    'pracpassendat': practicalPassEndAt,
     'sortdate': writtenExamStartAt ?? practicalExamStartAt ?? writtenRegistrationStartAt,
     'links': links,
   };

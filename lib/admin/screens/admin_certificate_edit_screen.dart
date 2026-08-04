@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../certificate/services/certificate_category_content_service.dart';
 import '../../theme.dart';
+import '../widgets/admin_schedule_date_picker.dart';
 import '../services/admin_certificate_service.dart';
 
 class AdminCertificateEditScreen extends StatefulWidget {
@@ -164,19 +165,123 @@ class _LinkEditor {
   void dispose() { label.dispose(); url.dispose(); }
 }
 
-class _ScheduleDialog extends StatefulWidget { const _ScheduleDialog(); @override State<_ScheduleDialog> createState() => _ScheduleDialogState(); }
+class _ScheduleDialog extends StatefulWidget {
+  const _ScheduleDialog();
+
+  @override
+  State<_ScheduleDialog> createState() => _ScheduleDialogState();
+}
+
 class _ScheduleDialogState extends State<_ScheduleDialog> {
   final _title = TextEditingController();
-  final _registrationStart = TextEditingController(); final _registrationEnd = TextEditingController();
-  final _writtenStart = TextEditingController(); final _writtenEnd = TextEditingController();
-  final _practicalStart = TextEditingController(); final _practicalEnd = TextEditingController();
-  DateTime? _date(TextEditingController c) => DateTime.tryParse(c.text.trim());
-  @override void dispose() { for (final c in [_title, _registrationStart, _registrationEnd, _writtenStart, _writtenEnd, _practicalStart, _practicalEnd]) { c.dispose(); } super.dispose(); }
-  @override Widget build(BuildContext context) => AlertDialog(
+  DateTime? _writtenRegistrationStart;
+  DateTime? _writtenRegistrationEnd;
+  DateTime? _writtenExamStart;
+  DateTime? _writtenExamEnd;
+  DateTime? _writtenPassStart;
+  DateTime? _writtenPassEnd;
+  DateTime? _practicalRegistrationStart;
+  DateTime? _practicalRegistrationEnd;
+  DateTime? _practicalExamStart;
+  DateTime? _practicalExamEnd;
+  DateTime? _practicalPassStart;
+  DateTime? _practicalPassEnd;
+
+  @override
+  void dispose() { _title.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
     title: const Text('시험 일정 추가'),
-    content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [_input(_title, '회차명'), _input(_registrationStart, '필기 접수 시작일'), _input(_registrationEnd, '필기 접수 종료일'), _input(_writtenStart, '필기 시험 시작일'), _input(_writtenEnd, '필기 시험 종료일'), _input(_practicalStart, '실기 시험 시작일'), _input(_practicalEnd, '실기 시험 종료일')])),
-    actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')), FilledButton(onPressed: _submit, child: const Text('추가'))],
+    content: SingleChildScrollView(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: context.colors.pinkSoft,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            '단일 시험은 실기/면접을 제외한 필기/통합 일정만 입력해주세요.\n시험일이 하루인 경우 시작일만 입력해주세요.',
+            style: TextStyle(
+              color: context.colors.textPrimary,
+              fontSize: 13,
+              height: 1.5,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextField(controller: _title, decoration: const InputDecoration(labelText: '회차명', hintText: '예: 2026년 정기 기사 1회')),
+        const SizedBox(height: 12),
+        _dateField('필기/통합 원서 접수 시작일', _writtenRegistrationStart, (value) => _writtenRegistrationStart = value),
+        _dateField('필기/통합 원서 접수 마감일', _writtenRegistrationEnd, (value) => _writtenRegistrationEnd = value),
+        _dateField('필기/통합 시험 시작일', _writtenExamStart, (value) => _writtenExamStart = value),
+        _dateField('필기/통합 시험 종료일', _writtenExamEnd, (value) => _writtenExamEnd = value),
+        _dateField('필기/통합 합격자 발표 시작일', _writtenPassStart, (value) => _writtenPassStart = value),
+        _dateField('필기/통합 합격자 발표 마감일', _writtenPassEnd, (value) => _writtenPassEnd = value),
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 8),
+          child: Divider(),
+        ),
+        _dateField('실기/면접 접수 시작일', _practicalRegistrationStart, (value) => _practicalRegistrationStart = value),
+        _dateField('실기/면접 접수 종료일', _practicalRegistrationEnd, (value) => _practicalRegistrationEnd = value),
+        _dateField('실기/면접 시험 시작일', _practicalExamStart, (value) => _practicalExamStart = value),
+        _dateField('실기/면접 시험 종료일', _practicalExamEnd, (value) => _practicalExamEnd = value),
+        _dateField('실기/면접 합격자 발표 시작일', _practicalPassStart, (value) => _practicalPassStart = value),
+        _dateField('실기/면접 합격자 발표 마감일', _practicalPassEnd, (value) => _practicalPassEnd = value),
+      ]),
+    ),
+    actions: [
+      TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
+      FilledButton(onPressed: _submit, child: const Text('추가')),
+    ],
   );
-  Widget _input(TextEditingController c, String label) => Padding(padding: const EdgeInsets.only(bottom: 10), child: TextField(controller: c, decoration: InputDecoration(labelText: label, hintText: label == '회차명' ? '예: 2026년 정기 기사 1회' : 'YYYY-MM-DD')));
-  void _submit() { if (_title.text.trim().isEmpty) return; Navigator.pop(context, AdminCertificateScheduleDraft(id: 'admin_${DateTime.now().microsecondsSinceEpoch}', title: _title.text.trim(), writtenRegistrationStartAt: _date(_registrationStart), writtenRegistrationEndAt: _date(_registrationEnd), writtenExamStartAt: _date(_writtenStart), writtenExamEndAt: _date(_writtenEnd), practicalExamStartAt: _date(_practicalStart), practicalExamEndAt: _date(_practicalEnd))); }
+
+  Widget _dateField(String label, DateTime? value, ValueChanged<DateTime?> onChanged) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: OutlinedButton.icon(
+      onPressed: () async {
+        final selected = await showDialog<DateTime>(
+          context: context,
+          builder: (_) => AdminScheduleDatePickerDialog(
+            initialDate: value ?? DateTime.now(),
+          ),
+        );
+        if (selected != null) setState(() => onChanged(selected));
+      },
+      icon: const Icon(Icons.calendar_month_rounded),
+      label: Align(
+        alignment: Alignment.centerLeft,
+        child: Text('$label${value == null ? '' : ': ${_formatDate(value)}'}'),
+      ),
+    ),
+  );
+
+  String _formatDate(DateTime value) => '${value.year}.${value.month.toString().padLeft(2, '0')}.${value.day.toString().padLeft(2, '0')}';
+
+  void _submit() {
+    if (_title.text.trim().isEmpty ||
+        _writtenRegistrationStart == null ||
+        _writtenExamStart == null ||
+        _writtenPassStart == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '회차명, 필기/통합 원서 접수 시작일, 시험 시작일, 합격자 발표 시작일은 필수입니다.',
+          ),
+        ),
+      );
+      return;
+    }
+    Navigator.pop(context, AdminCertificateScheduleDraft(
+      id: 'admin_${DateTime.now().microsecondsSinceEpoch}', title: _title.text.trim(),
+      writtenRegistrationStartAt: _writtenRegistrationStart, writtenRegistrationEndAt: _writtenRegistrationEnd,
+      writtenExamStartAt: _writtenExamStart, writtenExamEndAt: _writtenExamEnd,
+      writtenPassStartAt: _writtenPassStart, writtenPassEndAt: _writtenPassEnd,
+      practicalRegistrationStartAt: _practicalRegistrationStart, practicalRegistrationEndAt: _practicalRegistrationEnd,
+      practicalExamStartAt: _practicalExamStart, practicalExamEndAt: _practicalExamEnd,
+      practicalPassStartAt: _practicalPassStart, practicalPassEndAt: _practicalPassEnd,
+    ));
+  }
 }
