@@ -13,6 +13,7 @@ import 'admin_home_screen.dart';
 import 'study_management_screen.dart';
 import 'certificate_management_screen.dart';
 import 'certificate_add_screen.dart';
+import 'certificate_category_content_edit_screen.dart';
 import 'community_management_screen.dart';
 import 'inquiry_management_screen.dart';
 import 'member_management_screen.dart';
@@ -212,6 +213,19 @@ class _AdminPageState extends State<AdminPage> {
               foregroundColor: context.colors.textPrimary,
               surfaceTintColor: Colors.transparent,
               actions: [
+                if (_selectedIndex == 2)
+                  IconButton(
+                    tooltip: '자격증 안내 수정',
+                    icon: const Icon(Icons.edit_note_rounded),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const CertificateCategoryContentEditScreen(),
+                        ),
+                      );
+                    },
+                  ),
                 if (_selectedIndex == 2)
                   IconButton(
                     tooltip: '자격증 추가',

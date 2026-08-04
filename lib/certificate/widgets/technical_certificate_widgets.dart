@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 import '../services/technical_certificate_service.dart';
+import '../services/certificate_category_content_service.dart';
+import 'certificate_schedule_notice_content_card.dart';
 import 'certificate_common_widgets.dart';
 import 'certificate_detail_widgets.dart';
 
@@ -30,6 +32,8 @@ class TechnicalScheduleCard extends StatefulWidget {
 
   final DateTime? practicalPassStartAt;
   final DateTime? practicalPassEndAt;
+  final List<CertificateContentLink> links;
+  final ValueChanged<String>? onOpenLink;
 
   const TechnicalScheduleCard({
     super.key,
@@ -47,6 +51,8 @@ class TechnicalScheduleCard extends StatefulWidget {
     required this.practicalExamEndAt,
     required this.practicalPassStartAt,
     required this.practicalPassEndAt,
+    this.links = const [],
+    this.onOpenLink,
   });
 
   @override
@@ -226,6 +232,13 @@ class _TechnicalScheduleCardState extends State<TechnicalScheduleCard> {
                             ],
                           );
                         }),
+                        if (widget.links.isNotEmpty && widget.onOpenLink != null) ...[
+                          SizedBox(height: 16),
+                          CertificateContentLinkButtons(
+                            links: widget.links,
+                            onOpenLink: widget.onOpenLink!,
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -564,7 +577,10 @@ class TechnicalExamInformationCard extends StatelessWidget {
           child: Column(
             children: [
               if (writtenFee != null)
-                _ExamFeeRow(label: '필기', fee: writtenFee!),
+                _ExamFeeRow(
+                  label: practicalFee == null ? '통합' : '필기',
+                  fee: writtenFee!,
+                ),
               if (writtenFee != null && practicalFee != null)
                 SizedBox(height: 10),
               if (practicalFee != null)

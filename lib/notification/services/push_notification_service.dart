@@ -62,8 +62,6 @@ class PushNotificationService {
       criticalAlert: false,
       provisional: false,
     );
-
-    debugPrint('FCM 알림 권한 상태: ${settings.authorizationStatus}');
   }
 
   void _listenAuthState() {
@@ -91,7 +89,6 @@ class PushNotificationService {
       final token = await _messaging.getToken();
 
       if (token == null || token.isEmpty) {
-        debugPrint('FCM 토큰을 가져오지 못했습니다.');
         return;
       }
 
@@ -104,11 +101,7 @@ class PushNotificationService {
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      debugPrint('FCM 토큰 저장 완료');
-      debugPrint('FCM token: $token');
     } catch (error, stackTrace) {
-      debugPrint('FCM 토큰 저장 실패: $error');
-      debugPrintStack(stackTrace: stackTrace);
     }
   }
 
@@ -128,10 +121,7 @@ class PushNotificationService {
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
 
-        debugPrint('갱신된 FCM 토큰 저장 완료');
       } catch (error, stackTrace) {
-        debugPrint('갱신된 FCM 토큰 저장 실패: $error');
-        debugPrintStack(stackTrace: stackTrace);
       }
     });
   }
@@ -153,7 +143,6 @@ class PushNotificationService {
 
     await _messaging.deleteToken();
     _registeredUid = null;
-    debugPrint('로그아웃 FCM 토큰 정리 완료');
   }
 
   Future<void> _removeCurrentToken() async {
@@ -174,11 +163,7 @@ class PushNotificationService {
         'fcmTokens': FieldValue.arrayRemove([token]),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-
-      debugPrint('로그아웃 사용자 FCM 토큰 제거 완료');
     } catch (error, stackTrace) {
-      debugPrint('로그아웃 사용자 FCM 토큰 제거 실패: $error');
-      debugPrintStack(stackTrace: stackTrace);
     }
   }
 
@@ -254,8 +239,6 @@ class PushNotificationService {
     final refType = message.data['refType']?.toString();
     final planDate = message.data['planDate']?.toString();
 
-    debugPrint('FCM 알림 클릭: refType=$refType, planDate=$planDate');
-
     if (refType == null || refType.isEmpty) {
       return;
     }
@@ -298,7 +281,6 @@ class PushNotificationService {
       final navigator = navigatorKey.currentState;
 
       if (navigator == null) {
-        debugPrint('학습 계획 화면 이동 실패: Navigator 준비 안 됨');
         return;
       }
 

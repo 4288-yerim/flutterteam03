@@ -35,6 +35,16 @@ class CertificateDetailHeader extends StatelessWidget {
         : isTechnical
         ? context.colors.info
         : context.colors.correct;
+    final badgeBackground = isOther
+        ? context.colors.otherCertificateSoft
+        : isTechnical
+        ? context.colors.softBlue
+        : context.colors.mint;
+    final badgeColor = isOther
+        ? context.colors.otherCertificateAccent
+        : isTechnical
+        ? context.colors.info
+        : context.colors.correct;
 
     return Container(
       width: double.infinity,
@@ -70,17 +80,13 @@ class CertificateDetailHeader extends StatelessWidget {
           Container(
             padding: EdgeInsets.symmetric(horizontal: 13, vertical: 7),
             decoration: BoxDecoration(
-              color: isOther
-                  ? context.colors.otherCertificateSoft
-                  : context.colors.pinkSoft,
+              color: badgeBackground,
               borderRadius: BorderRadius.circular(30),
             ),
             child: Text(
               qualificationName,
               style: TextStyle(
-                color: isOther
-                    ? context.colors.otherCertificateAccent
-                    : context.colors.pinkDeep,
+              color: badgeColor,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),

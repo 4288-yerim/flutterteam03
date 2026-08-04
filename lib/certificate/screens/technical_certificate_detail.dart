@@ -9,10 +9,12 @@ import '../../widgets/app_main_background.dart';
 import '../../widgets/app_state_views.dart';
 import '../../widgets/app_top_bar.dart';
 import '../services/certificate_detail_service.dart';
+import '../services/certificate_category_content_service.dart';
 import '../services/technical_certificate_service.dart';
 import '../services/certificate_search_service.dart';
 import '../widgets/certificate_common_widgets.dart';
 import '../widgets/certificate_detail_widgets.dart';
+import '../widgets/certificate_schedule_notice_content_card.dart';
 import '../widgets/technical_certificate_widgets.dart';
 
 class TechnicalCertificateDetailPage extends StatefulWidget {
@@ -46,14 +48,6 @@ class _TechnicalCertificateDetailPageState
     '&gId=',
   );
 
-  static final Uri _scheduleNoticeUri = Uri.parse(
-    'https://www.q-net.or.kr/man004.do'
-    '?id=man00401'
-    '&notiType=10'
-    '&gSite='
-    '&gId=',
-  );
-
   static final Uri _noScheduleUri = Uri.parse(
     'https://www.q-net.or.kr/crf021.do'
     '?id=crf02103'
@@ -64,6 +58,8 @@ class _TechnicalCertificateDetailPageState
 
   final CertificateDetailService _certificateDetailService =
       CertificateDetailService();
+  final CertificateCategoryContentService _categoryContentService =
+      CertificateCategoryContentService();
 
   final TechnicalCertificateService _technicalCertificateService =
       TechnicalCertificateService();
@@ -1022,13 +1018,14 @@ class _TechnicalCertificateDetailPageState
     }
   }
 
-  Future<void> _openScheduleNotice() async {
+  Future<void> _openScheduleNoticeUrl(String value) async {
+    final uri = Uri.tryParse(value);
+    if (uri == null || (uri.scheme != 'https' && uri.scheme != 'http')) {
+      _showScheduleNoticeLinkError();
+      return;
+    }
     try {
-      final opened = await launchUrl(
-        _scheduleNoticeUri,
-        mode: LaunchMode.externalApplication,
-      );
-
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (!opened && mounted) {
         _showScheduleNoticeLinkError();
       }
@@ -1277,7 +1274,28 @@ class _TechnicalCertificateDetailPageState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CertificateScheduleNoticeCard(onOpenNotice: _openScheduleNotice),
+        StreamBuilder<CertificateCategoryScheduleNotice>(
+          stream: _categoryContentService.watchScheduleNotice(
+            CertificateCategory.technical,
+            fallback: CertificateCategoryScheduleNotice(
+              items: [
+                '원서접수 시간은 원서접수 첫날 10:00부터 마지막 날 18:00까지입니다.',
+                '필기시험 합격예정자 및 최종합격자 발표 시간은 해당 발표일 09:00입니다.',
+                '시험 일정은 종목별, 지역별로 상이할 수 있습니다.',
+                '접수 일정 전에 공지되는 해당 회별 수험자 안내(Q-Net 공지사항 게시)를 반드시 확인해야 합니다.',
+                '빈자리 원서접수 기간이 운영될 수 있으나, 자격증 상세보기에는 표시되지 않을 수 있습니다.',
+              ],
+            ),
+          ),
+          builder: (context, snapshot) {
+            final notice = snapshot.data;
+            return CertificateScheduleNoticeContentCard(
+              items: notice?.items ?? const [],
+              links: notice?.links ?? const [],
+              onOpenLink: _openScheduleNoticeUrl,
+            );
+          },
+        ),
         SizedBox(height: 16),
         if (_schedules.isEmpty)
           _TechnicalDetailEmptyTab(
@@ -1311,6 +1329,8 @@ class _TechnicalCertificateDetailPageState
               practicalExamEndAt: schedule.practicalExamEndAt,
               practicalPassStartAt: schedule.practicalPassStartAt,
               practicalPassEndAt: schedule.practicalPassEndAt,
+              links: schedule.links,
+              onOpenLink: _openScheduleNoticeUrl,
             ),
           );
           }),

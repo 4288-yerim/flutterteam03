@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
 import 'certificate_detail_service.dart';
+import 'certificate_category_content_service.dart';
 
 class TechnicalCertificateService {
   TechnicalCertificateService({
@@ -91,16 +92,19 @@ class TechnicalCertificateService {
           examFeeDocument.data() ?? {},
         )
             : null,
+        examFeeLinks: _readLinks(examFeeDocument.data()),
         examTrends: examTrendsDocument.exists
             ? _readString(
           examTrendsDocument.data()?['contents'],
         )
             : '',
+        examTrendsLinks: _readLinks(examTrendsDocument.data()),
         howToObtain: howToObtainDocument.exists
             ? _readString(
           howToObtainDocument.data()?['contents'],
         )
             : '',
+        howToObtainLinks: _readLinks(howToObtainDocument.data()),
       );
     } on FirebaseException catch (error) {
       throw CertificateDetailException(
@@ -111,6 +115,14 @@ class TechnicalCertificateService {
         '시험 정보를 불러오는 중 오류가 발생했습니다.',
       );
     }
+  }
+
+  static List<CertificateContentLink> _readLinks(Map<String, dynamic>? data) {
+    final links = (data?['links'] as List? ?? const [])
+        .map(CertificateContentLink.fromMap)
+        .where((link) => link.label.isNotEmpty && link.url.isNotEmpty)
+        .toList();
+    return links;
   }
 
   Future<List<TechnicalExamSubject>> getExamSubjects({
@@ -541,6 +553,9 @@ class TechnicalCertificateService {
   static String _readString(dynamic value) {
     if (value == null) {
       return '';
+    }
+    if (value is List) {
+      return value.map((item) => item.toString().trim()).where((item) => item.isNotEmpty).join('\n');
     }
 
     return value.toString().trim();
@@ -1084,6 +1099,7 @@ class TechnicalCertificateSchedule {
   final DateTime? practicalPassEndAt;
 
   final DateTime? sortDate;
+  final List<CertificateContentLink> links;
 
   const TechnicalCertificateSchedule({
     required this.id,
@@ -1102,6 +1118,7 @@ class TechnicalCertificateSchedule {
     required this.practicalPassStartAt,
     required this.practicalPassEndAt,
     required this.sortDate,
+    this.links = const [],
   });
 
   DateTime? get lastPassAnnouncementDate =>
@@ -1170,6 +1187,10 @@ class TechnicalCertificateSchedule {
       _readDate(data['pracpassendat']),
       sortDate:
       _readDate(data['sortdate']),
+      links: (data['links'] as List? ?? const [])
+          .map(CertificateContentLink.fromMap)
+          .where((link) => link.label.isNotEmpty && link.url.isNotEmpty)
+          .toList(),
     );
   }
 
@@ -1251,10 +1272,16 @@ class TechnicalCertificateExamDetails {
   final TechnicalCertificateExamFee? examFee;
   final String examTrends;
   final String howToObtain;
+  final List<CertificateContentLink> examFeeLinks;
+  final List<CertificateContentLink> examTrendsLinks;
+  final List<CertificateContentLink> howToObtainLinks;
 
   const TechnicalCertificateExamDetails({
     required this.examFee,
     required this.examTrends,
     required this.howToObtain,
+    this.examFeeLinks = const [],
+    this.examTrendsLinks = const [],
+    this.howToObtainLinks = const [],
   });
 }
