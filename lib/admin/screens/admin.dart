@@ -99,6 +99,22 @@ class _AdminPageState extends State<AdminPage> {
     _openMenu(index);
   }
 
+  Future<void> _openUserPage() async {
+    // 관리자 드로어 닫기
+    Navigator.of(context).pop();
+
+    await Future<void>.delayed(Duration.zero);
+
+    if (!mounted) return;
+
+    // 관리자 페이지를 유지한 채 사용자 화면을 위에 엽니다.
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const MainPage(),
+      ),
+    );
+  }
+
   List<Widget> _buildScreens() {
     return [
       AdminHomeScreen(
@@ -272,6 +288,34 @@ class _AdminPageState extends State<AdminPage> {
                           );
                         },
                       ),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      enabled: !_isSigningOut,
+                      leading: Icon(
+                        Icons.phone_android_rounded,
+                        color: context.colors.lavenderAccent,
+                      ),
+                      title: Text(
+                        '일반 사용자 화면',
+                        style: TextStyle(
+                          color: context.colors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      subtitle: Text(
+                        '사용자 화면을 직접 확인합니다.',
+                        style: TextStyle(
+                          color: context.colors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                      trailing: Icon(
+                        Icons.open_in_new_rounded,
+                        color: context.colors.iconSecondary,
+                        size: 20,
+                      ),
+                      onTap: _openUserPage,
                     ),
                     const Divider(height: 1),
                     ListTile(

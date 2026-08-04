@@ -1,17 +1,21 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AdminNotificationService {
   AdminNotificationService({
     FirebaseFirestore? firestore,
     FirebaseFunctions? functions,
+    FirebaseAuth? firebaseAuth,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
        _functions =
            functions ??
-           FirebaseFunctions.instanceFor(region: 'asia-northeast3');
+           FirebaseFunctions.instanceFor(region: 'asia-northeast3'),
+        _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
 
   final FirebaseFirestore _firestore;
   final FirebaseFunctions _functions;
+  final FirebaseAuth _firebaseAuth;
 
   Stream<List<AdminNotificationUser>> watchActiveUsers() {
     return _firestore
@@ -55,6 +59,15 @@ class AdminNotificationService {
     if (!sendToAll && selectedUids.isEmpty) {
       throw ArgumentError('알림을 받을 회원을 한 명 이상 선택해 주세요.');
     }
+
+    final administrator = _firebaseAuth.currentUser;
+
+    if (administrator == null) {
+      throw StateError('관리자 로그인이 필요합니다.');
+    }
+
+    // Callable Function 호출 전에 최신 Firebase ID 토큰을 확보
+    await administrator.getIdToken(true);
 
     final callable = _functions.httpsCallable('sendAdminNotification');
     final result = await callable.call<Object?>({

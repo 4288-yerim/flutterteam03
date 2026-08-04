@@ -139,6 +139,7 @@ const sendAdminNotification = onCall(
       region: "asia-northeast3",
       timeoutSeconds: 540,
       memory: "512MiB",
+      invoker: "public",
     },
     async (request) => {
       await requireAdministrator(request.auth?.uid);
