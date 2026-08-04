@@ -416,27 +416,29 @@ class CommunityService {
         .collection('comments')
         .where(
       'commentStatus',
-      isEqualTo: 'NORMAL',
+      whereIn: const ['NORMAL', 'DELETED'],
     )
         .snapshots()
         .map((snapshot) {
-      List<CommunityComment> comments = [];
+      final comments = <CommunityComment>[];
 
-      for (QueryDocumentSnapshot<
-          Map<String, dynamic>>
-      document in snapshot.docs) {
-        CommunityComment comment =
-        CommunityComment.fromDocument(
-          document,
-        );
+      for (final document in snapshot.docs) {
+        final comment =
+        CommunityComment.fromDocument(document);
 
-        comments.add(comment);
+        final isNormal =
+            comment.commentStatus.toUpperCase() ==
+                'NORMAL';
+
+        if (isNormal || comment.isModerationHidden) {
+          comments.add(comment);
+        }
       }
 
       comments.sort((a, b) {
-        int aTime =
+        final aTime =
             a.createdAt?.millisecondsSinceEpoch ?? 0;
-        int bTime =
+        final bTime =
             b.createdAt?.millisecondsSinceEpoch ?? 0;
 
         return aTime.compareTo(bTime);
@@ -454,41 +456,69 @@ class CommunityService {
     required String writerProfileImageUrl,
     String parentCommentId = '',
   }) async {
-    DocumentReference<Map<String, dynamic>>
-    postReference =
-    _firestore
-        .collection('posts')
-        .doc(postId);
+    final postReference =
+    _firestore.collection('posts').doc(postId);
 
-    DocumentReference<Map<String, dynamic>>
-    commentReference =
-    postReference
-        .collection('comments')
-        .doc();
+    final commentsReference =
+    postReference.collection('comments');
 
-    WriteBatch batch = _firestore.batch();
+    final commentReference =
+    commentsReference.doc();
 
-    batch.set(commentReference, {
-      'parentCommentId': parentCommentId,
-      'writerUid': writerUid,
-      'writerNickname': writerNickname,
-      'writerProfileImageUrl':
-      writerProfileImageUrl,
-      'content': content,
-      'likeCount': 0,
-      'isAccepted': false,
-      'commentStatus': 'NORMAL',
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-      'deletedAt': null,
+    await _firestore.runTransaction((transaction) async {
+      if (parentCommentId.isNotEmpty) {
+        final parentReference =
+        commentsReference.doc(parentCommentId);
+
+        final parentSnapshot =
+        await transaction.get(parentReference);
+
+        final parentData = parentSnapshot.data();
+
+        if (!parentSnapshot.exists ||
+            parentData == null ||
+            parentData['commentStatus']
+                ?.toString()
+                .toUpperCase() !=
+                'NORMAL') {
+          throw StateError(
+            '숨겨지거나 삭제된 댓글에는 답글을 작성할 수 없습니다.',
+          );
+        }
+
+        final parentOfParent =
+            parentData['parentCommentId']
+                ?.toString()
+                .trim() ??
+                '';
+
+        if (parentOfParent.isNotEmpty) {
+          throw StateError(
+            '대댓글에는 답글을 작성할 수 없습니다.',
+          );
+        }
+      }
+
+      transaction.set(commentReference, {
+        'parentCommentId': parentCommentId,
+        'writerUid': writerUid,
+        'writerNickname': writerNickname,
+        'writerProfileImageUrl':
+        writerProfileImageUrl,
+        'content': content,
+        'likeCount': 0,
+        'isAccepted': false,
+        'commentStatus': 'NORMAL',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'deletedAt': null,
+      });
+
+      transaction.update(postReference, {
+        'commentCount': FieldValue.increment(1),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     });
-
-    batch.update(postReference, {
-      'commentCount': FieldValue.increment(1),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-
-    await batch.commit();
 
     return commentReference.id;
   }
