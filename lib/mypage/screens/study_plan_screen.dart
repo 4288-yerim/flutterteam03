@@ -1573,6 +1573,28 @@ class _AddTaskFormState extends State<_AddTaskForm> {
                 }
               },
             ),
+            if (_startTime != null || _endTime != null) ...[
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _startTime = null;
+                      _endTime = null;
+                    });
+
+                    widget.onStartTimeChanged(null);
+                    widget.onEndTimeChanged(null);
+                  },
+                  icon: const Icon(
+                    Icons.restart_alt_rounded,
+                    size: 18,
+                  ),
+                  label: const Text('시간 초기화'),
+                ),
+              ),
+            ],
           ],
         ),
       ),
