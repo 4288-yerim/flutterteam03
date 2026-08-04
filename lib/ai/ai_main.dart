@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
+import 'dart:ui';
 import '../theme.dart';
 import '../notification/screens/notification.dart';
 import '../notification/widgets/notification_bell_button.dart';
@@ -58,7 +59,6 @@ class _WeakestTopicAgg {
   });
 }
 
-/// 이번주(월요일부터) 문제풀이 통계.
 class _WeeklyStats {
   final int solvedCount;
   final int correctCount;
@@ -71,9 +71,6 @@ class _WeeklyStats {
   }
 }
 
-/// 가장 최근에 저장한 자료 요약.
-/// 카드 미리보기(preview)용 축약 텍스트뿐 아니라, 탭했을 때 결과 화면을
-/// 바로 그려줄 수 있도록 전체 요약과 길이 정보까지 함께 들고 있는다.
 class _RecentSummary {
   final String certificateName;
   final String preview;
@@ -95,8 +92,8 @@ class _RecentSummary {
 class _PassRiskAnalysis {
   final String certificateName;
   final int passProbability;
-  final String riskLevel; // LOW / MEDIUM / HIGH
-  final double progressGap; // 경과 기간 대비 진도 격차
+  final String riskLevel;
+  final double progressGap;
   final double recentCompletionRate;
 
   _PassRiskAnalysis({
@@ -126,7 +123,7 @@ class _AiPageState extends State<AiPage> {
   String? _latestStudyPlanCertificateName;
 
   bool _isCheckingSubscription = false;
-
+  bool _isSubscriptionActive = false;
   bool _isInsightLoading = true;
   _WeakestTopic? _weakestTopic;
   _WeeklyStats? _weeklyStats;
@@ -134,6 +131,7 @@ class _AiPageState extends State<AiPage> {
   _PassRiskAnalysis? _passRiskAnalysis;
 
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _nicknameSub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _studyPlanSub;
 
   @override
   void initState() {
@@ -142,12 +140,14 @@ class _AiPageState extends State<AiPage> {
     FirebaseAuth.instance.authStateChanges().listen((user) {
       _listenNickname(user);
       _loadInsights(user);
+      _listenLatestStudyPlan(user);
     });
   }
 
   @override
   void dispose() {
     _nicknameSub?.cancel();
+    _studyPlanSub?.cancel();
     super.dispose();
   }
 
@@ -202,6 +202,52 @@ class _AiPageState extends State<AiPage> {
         );
   }
 
+  void _listenLatestStudyPlan(User? user) {
+    _studyPlanSub?.cancel();
+
+    if (user == null) return;
+
+    FirebaseFirestore.instance
+        .collection('users')
+        .where('uid', isEqualTo: user.uid)
+        .limit(1)
+        .get()
+        .then((userSnap) {
+      if (!mounted || userSnap.docs.isEmpty) return;
+      final userDocRef = userSnap.docs.first.reference;
+
+      _studyPlanSub = userDocRef
+          .collection('studyPlans')
+          .orderBy('createdAt', descending: true)
+          .limit(10)
+          .snapshots()
+          .listen(
+            (snap) {
+          if (!mounted) return;
+
+          String? name;
+          for (final doc in snap.docs) {
+            final data = doc.data();
+            if (data['steps'] is List) {
+              final certName = (data['certificateName'] as String?)?.trim();
+              if (certName != null && certName.isNotEmpty) {
+                name = certName;
+                break;
+              }
+            }
+          }
+
+          setState(() {
+            _latestStudyPlanCertificateName = name;
+          });
+        },
+        onError: (error) {
+          debugPrint('최근 학습 플랜 실시간 조회 실패: $error');
+        },
+      );
+    });
+  }
+
   Future<void> _onAnalyzePassRiskPressed() async {
     if (_isAnalyzingPassRisk) return;
 
@@ -216,7 +262,6 @@ class _AiPageState extends State<AiPage> {
     setState(() => _isAnalyzingPassRisk = true);
 
     try {
-      // 구독 여부 확인
       final userQuerySnapshot = await FirebaseFirestore.instance
           .collection('users')
           .where('uid', isEqualTo: user.uid)
@@ -272,11 +317,13 @@ class _AiPageState extends State<AiPage> {
     }
   }
 
-  void _goToSubscription() {
-    Navigator.push(
+  Future<void> _goToSubscription() async {
+    await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => SubscriptionPage()),
     );
+    if (!mounted) return;
+    _loadInsights(FirebaseAuth.instance.currentUser);
   }
 
   Future<void> _loadInsights(User? user) async {
@@ -323,6 +370,7 @@ class _AiPageState extends State<AiPage> {
         _fetchRecentSummary(userDocRef),
         _fetchPassRiskAnalysis(userDocRef),
         _fetchLatestStudyPlanCertificate(userDocRef),
+        _fetchIsSubscriptionActive(userDocRef),
       ]).timeout(Duration(seconds: 10));
 
       if (!mounted) return;
@@ -333,6 +381,7 @@ class _AiPageState extends State<AiPage> {
         _recentSummary = results[2] as _RecentSummary?;
         _passRiskAnalysis = results[3] as _PassRiskAnalysis?;
         _latestStudyPlanCertificateName = results[4] as String?;
+        _isSubscriptionActive = results[5] as bool;
         _isInsightLoading = false;
       });
     } catch (error) {
@@ -400,7 +449,6 @@ class _AiPageState extends State<AiPage> {
     );
   }
 
-  /// 이번주 월요일 0시 이후에 생성된 quiz_sessions를 집계한다.
   Future<_WeeklyStats?> _fetchWeeklyStats(
     DocumentReference<Map<String, dynamic>> userDocRef,
   ) async {
@@ -453,8 +501,6 @@ class _AiPageState extends State<AiPage> {
         ? ''
         : (summary.length > 40 ? '${summary.substring(0, 40)}…' : summary);
 
-    // 카드를 탭했을 때 결과 화면(MaterialSummaryResultPage)을 API 재호출 없이
-    // 바로 그릴 수 있도록, 저장 당시 함께 기록해둔 길이 정보도 같이 읽어온다.
     final originalLength = (data['originalLength'] as num?)?.toInt() ?? 0;
     final summaryLength =
         (data['summaryLength'] as num?)?.toInt() ?? (summary?.length ?? 0);
@@ -512,6 +558,22 @@ class _AiPageState extends State<AiPage> {
       }
     }
     return null;
+  }
+
+  Future<bool> _fetchIsSubscriptionActive(
+      DocumentReference<Map<String, dynamic>> userDocRef,
+      ) async {
+    final subscriptionDoc = await userDocRef
+        .collection('subscription')
+        .doc('current')
+        .get();
+
+    final status = subscriptionDoc.data()?['status']
+        ?.toString()
+        .trim()
+        .toUpperCase();
+
+    return status == 'ACTIVE';
   }
 
   void _onNotificationPressed() {
@@ -576,13 +638,16 @@ class _AiPageState extends State<AiPage> {
       final data = subscriptionDocument.data();
       final status = data?['status']?.toString().trim().toUpperCase();
 
-      Navigator.push(
+await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) =>
               status == 'ACTIVE' ? AiStudyPlanPage() : SubscriptionPage(),
         ),
       );
+
+      if (!mounted) return;
+      _loadInsights(FirebaseAuth.instance.currentUser);
     } catch (error, stackTrace) {
       debugPrint('구독 상태 확인 실패: $error\n$stackTrace');
       if (!mounted) return;
@@ -632,10 +697,6 @@ class _AiPageState extends State<AiPage> {
     );
   }
 
-  /// "최근 요약 자료" 카드를 눌렀을 때의 동작.
-  /// 저장된 요약이 있으면 MaterialSummaryResultPage에 initialResult로
-  /// 그대로 넘겨서 API 재호출 없이 바로 결과 화면을 보여준다.
-  /// 저장된 요약이 없으면(신규 사용자 등) 기존처럼 새로 요약하는 화면으로 보낸다.
   void _onRecentSummaryPressed() {
     final recent = _recentSummary;
 
@@ -673,11 +734,15 @@ class _AiPageState extends State<AiPage> {
         title: 'AI 학습도우미',
         actions: [NotificationBellButton(onPressed: _onNotificationPressed)],
       ),
-      body: AppMainBackground(
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(24, 22, 24, 36),
-            child: Column(
+        body: AppMainBackground(
+          child: SafeArea(
+            child: RefreshIndicator(
+              color: context.colors.pinkStart,
+              onRefresh: () => _loadInsights(FirebaseAuth.instance.currentUser),
+              child: SingleChildScrollView(
+                physics: AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(24, 22, 24, 36),
+                child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _AiWelcomeCard(
@@ -692,16 +757,19 @@ class _AiPageState extends State<AiPage> {
                   onRoadmapPressed: _onRoadmapPressed,
                   onQuestionPressed: () => _onQuestionPressed(context),
                   onSummaryPressed: _onSummaryPressed,
+                  isSubscribed: _isSubscriptionActive,
                 ),
                 SizedBox(height: 30),
                 _SectionTitle(title: '합격 예측 분석'),
                 SizedBox(height: 16),
                 _PassRiskCard(
                   isLoading: _isInsightLoading,
+                  isSubscribed: _isSubscriptionActive,
                   analysis: _passRiskAnalysis,
                   onPressed: _onPassRiskPressed,
                   isAnalyzing: _isAnalyzingPassRisk,
                   onAnalyzePressed: _onAnalyzePassRiskPressed,
+                  onSubscribePressed: _goToSubscription,
                 ),
                 SizedBox(height: 30),
                 _SectionTitle(title: '오늘의 맞춤 제안'),
@@ -729,10 +797,11 @@ class _AiPageState extends State<AiPage> {
                 ),
                 SizedBox(height: 30),
               ],
+                ),
+              ),
             ),
           ),
         ),
-      ),
     );
   }
 }
@@ -841,12 +910,14 @@ class _QuickMenuSection extends StatelessWidget {
   final VoidCallback onRoadmapPressed;
   final VoidCallback onQuestionPressed;
   final VoidCallback onSummaryPressed;
+  final bool isSubscribed;
 
   _QuickMenuSection({
     required this.onStudyPlanPressed,
     required this.onRoadmapPressed,
     required this.onQuestionPressed,
     required this.onSummaryPressed,
+    required this.isSubscribed,
   });
 
   @override
@@ -860,6 +931,7 @@ class _QuickMenuSection extends StatelessWidget {
             iconColor: Color(0xFF9D7BFF),
             iconBackgroundColor: context.colors.lavender,
             onPressed: onStudyPlanPressed,
+            isPremium: !isSubscribed,
           ),
         ),
         SizedBox(width: 8),
@@ -903,6 +975,7 @@ class _QuickMenuItem extends StatelessWidget {
   final Color iconColor;
   final Color iconBackgroundColor;
   final VoidCallback onPressed;
+  final bool isPremium;
 
   _QuickMenuItem({
     required this.icon,
@@ -910,6 +983,7 @@ class _QuickMenuItem extends StatelessWidget {
     required this.iconColor,
     required this.iconBackgroundColor,
     required this.onPressed,
+    this.isPremium = false,
   });
 
   @override
@@ -928,15 +1002,48 @@ class _QuickMenuItem extends StatelessWidget {
           ),
           child: Column(
             children: [
-              Container(
+              SizedBox(
                 width: 48,
                 height: 48,
-                decoration: BoxDecoration(
-                  color: iconBackgroundColor,
-                  shape: BoxShape.circle,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: iconBackgroundColor,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(icon, color: iconColor, size: 24),
+                    ),
+                    if (isPremium)
+                      Positioned(
+                        top: -4,
+                        right: -6,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [context.colors.pinkStart, context.colors.pinkDeep],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: context.colors.surface, width: 1.5),
+                          ),
+                          child: Text(
+                            'PRO',
+                            style: TextStyle(
+                              color: context.colors.onPrimary,
+                              fontSize: 7.5,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-                alignment: Alignment.center,
-                child: Icon(icon, color: iconColor, size: 24),
               ),
               SizedBox(height: 11),
               Text(
@@ -959,66 +1066,89 @@ class _QuickMenuItem extends StatelessWidget {
 
 class _PassRiskCard extends StatelessWidget {
   final bool isLoading;
+  final bool isSubscribed;
   final _PassRiskAnalysis? analysis;
   final VoidCallback onPressed;
   final bool isAnalyzing;
   final VoidCallback onAnalyzePressed;
+  final VoidCallback onSubscribePressed;
 
   _PassRiskCard({
     required this.isLoading,
+    required this.isSubscribed,
     required this.analysis,
     required this.onPressed,
     required this.isAnalyzing,
     required this.onAnalyzePressed,
+    required this.onSubscribePressed,
   });
 
-  Widget _analyzeButton(BuildContext context) {
+  Widget _gradientButton(
+      BuildContext context, {
+        required String label,
+        required VoidCallback? onTap,
+        required IconData icon,
+        bool loading = false,
+      }) {
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
-        onTap: isAnalyzing ? null : onAnalyzePressed,
+        onTap: loading ? null : onTap,
         borderRadius: BorderRadius.circular(18),
         child: Container(
           width: double.infinity,
-          padding: EdgeInsets.symmetric(vertical: 12),
+          padding: EdgeInsets.symmetric(vertical: 15),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            gradient: isAnalyzing
-                ? null
-                : LinearGradient(
-              colors: [context.colors.pinkStart, context.colors.pinkDeep],
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                context.colors.pinkStart,
+                context.colors.pinkDeep,
+                context.colors.pinkDeep,
+              ],
+              stops: [0, 0.55, 1],
             ),
-            color: isAnalyzing ? context.colors.pinkSoft : null,
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.18),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: context.colors.pinkDeep.withValues(alpha: 0.45),
+                blurRadius: 20,
+                offset: Offset(0, 10),
+              ),
+              BoxShadow(
+                color: context.colors.pinkStart.withValues(alpha: 0.25),
+                blurRadius: 6,
+                offset: Offset(0, 2),
+              ),
+            ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              isAnalyzing
+              loading
                   ? SizedBox(
-                width: 14,
-                height: 14,
+                width: 16,
+                height: 16,
                 child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: context.colors.pinkStart,
+                  strokeWidth: 2.2,
+                  color: Colors.white,
                 ),
               )
-                  : Icon(
-                Icons.auto_awesome_rounded,
-                size: 16,
-                color: context.colors.onPrimary,
-              ),
-              SizedBox(width: 6),
+                  : Icon(icon, size: 18, color: Colors.white),
+              SizedBox(width: 8),
               Text(
-                isAnalyzing
-                    ? '분석 중...'
-                    : (analysis == null ? 'AI 분석하기' : '다시 분석하기'),
+                label,
                 style: TextStyle(
-                  fontSize: 13.5,
+                  fontSize: 14.5,
                   fontWeight: FontWeight.w800,
-                  color: isAnalyzing
-                      ? context.colors.pinkStart
-                      : context.colors.onPrimary,
+                  color: Colors.white,
+                  letterSpacing: -0.2,
                 ),
               ),
             ],
@@ -1028,17 +1158,31 @@ class _PassRiskCard extends StatelessWidget {
     );
   }
 
+  Widget _shell(BuildContext context, {required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(18, 18, 18, 18),
+      decoration: BoxDecoration(
+        color: context.colors.surfaceTransparent.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: context.colors.border, width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 14,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return Container(
-        width: double.infinity,
-        height: 100,
-        decoration: BoxDecoration(
-          color: context.colors.surfaceTransparent.withValues(alpha: 0.85),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: context.colors.border, width: 1.2),
-        ),
+      return _shell(
+        context,
         child: Center(
           child: SizedBox(
             width: 22,
@@ -1052,21 +1196,160 @@ class _PassRiskCard extends StatelessWidget {
       );
     }
 
-    if (analysis == null) {
+    if (!isSubscribed) {
       return Container(
         width: double.infinity,
-        padding: EdgeInsets.fromLTRB(18, 18, 18, 16),
         decoration: BoxDecoration(
-          color: context.colors.surfaceTransparent.withValues(alpha: 0.85),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: context.colors.border, width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 14,
+              offset: Offset(0, 6),
+            ),
+          ],
         ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Stack(
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.fromLTRB(18, 18, 18, 16),
+                  color: context.colors.surfaceTransparent.withValues(alpha: 0.9),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: context.colors.mintAccent.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Icon(Icons.insights_rounded,
+                            color: context.colors.mintAccent, size: 26),
+                      ),
+                      SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('정보처리기사',
+                                style: TextStyle(
+                                  color: context.colors.textSecondary,
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                )),
+                            SizedBox(height: 4),
+                            Text('예상 합격 가능성 78%',
+                                style: TextStyle(
+                                  color: context.colors.textPrimary,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                )),
+                            SizedBox(height: 4),
+                            Text('위험도 안정',
+                                style: TextStyle(
+                                  color: context.colors.mintAccent,
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                )),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right_rounded,
+                          color: context.colors.textSecondary),
+                    ],
+                  ),
+                ),
+
+                Positioned.fill(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 3.2, sigmaY: 3.2),
+                    child: Container(
+                      color: context.colors.surface.withValues(alpha: 0.17),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [context.colors.pinkStart, context.colors.pinkDeep],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'PRO',
+                      style: TextStyle(
+                        color: context.colors.onPrimary,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.fromLTRB(18, 14, 18, 18),
+              decoration: BoxDecoration(
+                color: context.colors.surfaceTransparent.withValues(alpha: 0.9),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    '내 합격 가능성, 지금 확인해보세요',
+                    style: TextStyle(
+                      color: context.colors.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    '학습 진도와 정답률을 분석해서 시험 전에 미리 알려드려요.',
+                    style: TextStyle(
+                      color: context.colors.textSecondary,
+                      fontSize: 12.5,
+                      height: 1.4,
+                    ),
+                  ),
+                  SizedBox(height: 14),
+                  _gradientButton(
+                    context,
+                    label: '구독하고 내 결과 보기',
+                    icon: Icons.auto_awesome_rounded,
+                    onTap: onSubscribePressed,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (analysis == null) {
+      return _shell(
+        context,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
-                Icon(Icons.insights_outlined, color: context.colors.textMuted, size: 26),
+                Icon(Icons.insights_outlined,
+                    color: context.colors.textMuted, size: 26),
                 SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -1081,7 +1364,13 @@ class _PassRiskCard extends StatelessWidget {
               ],
             ),
             SizedBox(height: 14),
-            _analyzeButton(context),
+            _gradientButton(
+              context,
+              label: isAnalyzing ? '분석 중...' : 'AI 분석하기',
+              icon: Icons.auto_awesome_rounded,
+              onTap: onAnalyzePressed,
+              loading: isAnalyzing,
+            ),
           ],
         ),
       );
@@ -1089,14 +1378,8 @@ class _PassRiskCard extends StatelessWidget {
 
     final riskColor = _riskColor(context, analysis!.riskLevel);
 
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(18, 18, 18, 16),
-      decoration: BoxDecoration(
-        color: context.colors.surfaceTransparent.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: context.colors.border, width: 1.2),
-      ),
+    return _shell(
+      context,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1116,7 +1399,8 @@ class _PassRiskCard extends StatelessWidget {
                       shape: BoxShape.circle,
                     ),
                     alignment: Alignment.center,
-                    child: Icon(Icons.insights_rounded, color: riskColor, size: 26),
+                    child: Icon(Icons.insights_rounded,
+                        color: riskColor, size: 26),
                   ),
                   SizedBox(width: 14),
                   Expanded(
@@ -1154,13 +1438,20 @@ class _PassRiskCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Icon(Icons.chevron_right_rounded, color: context.colors.textSecondary),
+                  Icon(Icons.chevron_right_rounded,
+                      color: context.colors.textSecondary),
                 ],
               ),
             ),
           ),
           SizedBox(height: 14),
-          _analyzeButton(context),
+          _gradientButton(
+            context,
+            label: isAnalyzing ? '분석 중...' : '다시 분석하기',
+            icon: Icons.refresh_rounded,
+            onTap: onAnalyzePressed,
+            loading: isAnalyzing,
+          ),
         ],
       ),
     );
@@ -1324,7 +1615,6 @@ class _RecommendationCard extends StatelessWidget {
   }
 }
 
-/// 이번주 문제풀이 개수 / 정답률 카드.
 class _WeeklyStatsCard extends StatelessWidget {
   final bool isLoading;
   final _WeeklyStats? stats;
@@ -1432,7 +1722,6 @@ class _WeeklyStatsCard extends StatelessWidget {
   }
 }
 
-/// 최근에 저장한 자료 요약 바로가기 카드.
 class _RecentSummaryCard extends StatelessWidget {
   final bool isLoading;
   final _RecentSummary? summary;

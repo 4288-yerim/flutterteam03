@@ -967,8 +967,7 @@ exports.suggestCertificatesForJob = onCall(
       throw new HttpsError("invalid-argument", "직무를 입력해주세요.");
     }
 
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value());
-    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY.value() });
 
     const prompt = `"${job}"이(가) 실제 직무/직업명이 아니거나 자격증 추천이 불가능한 값이면 빈 배열 []만 반환해.
     실제 직무라면, 이 직무를 목표로 하는 사람에게 도움이 되는 한국 자격증을 최대 6개까지 추천해줘.
@@ -984,8 +983,11 @@ exports.suggestCertificatesForJob = onCall(
     [{"name": "자격증 이름", "description": "한 문장 설명"}]`;
 
     try {
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
+      const result = await ai.models.generateContent({
+        model: "gemini-3.1-flash-lite",
+        contents: prompt,
+      });
+      const text = result.text;
       const jsonMatch = text.match(/\[[\s\S]*\]/);
       const certs = JSON.parse(jsonMatch ? jsonMatch[0] : text);
 
@@ -1030,8 +1032,7 @@ exports.validateCertificateName = onCall(
     const name = (request.data?.name || "").trim();
     if (!name) return { valid: false };
 
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value());
-    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY.value() });
 
     const prompt = `"${name}"이(가) 실제로 존재하는 자격증, 수료증, 어학/IT 인증시험 이름인지 판단해줘.
 국가기술자격, 국가전문자격, 민간자격, 어학시험(TOEIC 등), IT 인증(정보처리기사 등) 모두 포함해서 폭넓게 판단해.
@@ -1039,8 +1040,11 @@ exports.validateCertificateName = onCall(
 {"valid": true} 또는 {"valid": false}`;
 
     try {
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
+      const result = await ai.models.generateContent({
+        model: "gemini-3.1-flash-lite",
+        contents: prompt,
+      });
+      const text = result.text;
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
       return { valid: parsed.valid === true };
@@ -1059,8 +1063,7 @@ exports.getCertificateStructure = onCall(
       throw new HttpsError("invalid-argument", "자격증 이름을 입력해주세요.");
     }
 
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value());
-    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY.value() });
 
     const prompt = `"${name}"이(가) 실제 존재하는 한국의 자격증/인증시험이 맞는지 먼저 판단해.
     존재하지 않거나 자격증이 아니면 {"valid": false}만 반환해.
@@ -1082,8 +1085,11 @@ exports.getCertificateStructure = onCall(
     - 과목이 명확히 나뉘지 않는 시험은 해당 배열에 전체 시험명을 하나의 항목으로 넣어.`;
 
     try {
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
+      const result = await ai.models.generateContent({
+        model: "gemini-3.1-flash-lite",
+        contents: prompt,
+      });
+      const text = result.text;
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
 
@@ -1119,8 +1125,7 @@ exports.generateQuestion = onCall(
       throw new HttpsError("invalid-argument", "필수 정보가 누락되었습니다.");
     }
 
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value());
-    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY.value() });
 
     const subjectText = subject ? `"${subject}" 과목의 ` : "";
     const prompt = `너는 "${certificationName}" 자격증 ${examType} 시험 문제를 출제하는 전문가야.
@@ -1140,8 +1145,11 @@ exports.generateQuestion = onCall(
     - 한국어로 작성해.`;
 
     try {
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
+      const result = await ai.models.generateContent({
+        model: "gemini-3.1-flash-lite",
+        contents: prompt,
+      });
+      const text = result.text;
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
 
@@ -1176,19 +1184,21 @@ exports.extractDocumentText = onCall(
       });
       const base64Pdf = Buffer.from(fileResponse.data).toString("base64");
 
-      const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value());
-      const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY.value() });
 
       const prompt = `첨부된 문서의 내용을 문제 출제에 쓸 수 있도록 핵심 개념, 용어, 수치, 정의를 빠짐없이 정리해줘.
       원문의 문장을 요약하지 말고, 출제 가능한 세부 정보를 최대한 많이 남겨줘.
       다른 설명 없이 정리된 텍스트만 출력해.`;
 
-      const result = await model.generateContent([
-        { inlineData: { mimeType: "application/pdf", data: base64Pdf } },
-        { text: prompt },
-      ]);
+      const result = await ai.models.generateContent({
+        model: "gemini-3.1-flash-lite",
+        contents: [
+          { inlineData: { mimeType: "application/pdf", data: base64Pdf } },
+          { text: prompt },
+        ],
+      });
 
-      const extractedText = result.response.text();
+      const extractedText = result.text;
 
       if (!extractedText || extractedText.trim().length < 30) {
         return { success: false, message: "문서에서 내용을 추출하지 못했어요." };
@@ -1212,8 +1222,7 @@ exports.generateQuestionsFromText = onCall(
       throw new HttpsError("invalid-argument", "추출된 텍스트가 없습니다.");
     }
 
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value());
-    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY.value() });
 
     const prompt = `아래는 학습 자료에서 정리한 내용이야:
     ---
@@ -1241,8 +1250,11 @@ exports.generateQuestionsFromText = onCall(
     - 한국어로 작성해.`;
 
     const tryGenerate = async () => {
-      const result = await model.generateContent(prompt);
-      let text = result.response.text();
+      const result = await ai.models.generateContent({
+        model: "gemini-3.1-flash-lite",
+        contents: prompt,
+      });
+      let text = result.text;
       text = text.replace(/```json/g, "").replace(/```/g, "").trim();
 
       const jsonMatch = text.match(/\[[\s\S]*\]/);
@@ -1318,8 +1330,7 @@ exports.generateQuestionsFromWrongAnswers = onCall(
       )
       .join("\n\n");
 
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value());
-    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY.value() });
 
     const prompt = `아래는 학습자가 과거에 틀렸던 문제들이야:
     ---
@@ -1345,9 +1356,12 @@ exports.generateQuestionsFromWrongAnswers = onCall(
     - 정확히 ${count}개를 만들어야 해.
     - 한국어로 작성해.`;
 
-    const tryGenerate = async () => {
-      const result = await model.generateContent(prompt);
-      let text = result.response.text();
+   const tryGenerate = async () => {
+         const result = await ai.models.generateContent({
+           model: "gemini-3.1-flash-lite",
+           contents: prompt,
+         });
+         let text = result.text;
       text = text.replace(/```json/g, "").replace(/```/g, "").trim();
 
       const jsonMatch = text.match(/\[[\s\S]*\]/);
@@ -1395,8 +1409,7 @@ exports.generateQuestionsForCertification = onCall(
       throw new HttpsError("invalid-argument", "필수 정보가 누락되었습니다.");
     }
 
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value());
-    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY.value() });
 
     const subjectText = subject ? `"${subject}" 과목의 ` : "";
     const prompt = `너는 "${certificationName}" 자격증 ${examType} 시험 문제를 출제하는 전문가야.
@@ -1420,8 +1433,11 @@ exports.generateQuestionsForCertification = onCall(
     - 한국어로 작성해.`;
 
     const tryGenerate = async () => {
-      const result = await model.generateContent(prompt);
-      let text = result.response.text();
+      const result = await ai.models.generateContent({
+        model: "gemini-3.1-flash-lite",
+        contents: prompt,
+      });
+      let text = result.text;
       text = text.replace(/```json/g, "").replace(/```/g, "").trim();
 
       const jsonMatch = text.match(/\[[\s\S]*\]/);
@@ -1491,8 +1507,7 @@ exports.summarizeMaterial = onCall(
       throw new HttpsError("internal", "업로드한 파일을 불러오지 못했습니다.");
     }
 
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value());
-    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY.value() });
 
     const matchInstruction = forceSummary
       ? `certificate_match는 항상 true로 응답해. (사용자가 이미 자료를 확인했고 계속 진행하기로 선택했음)`
@@ -1520,8 +1535,11 @@ exports.summarizeMaterial = onCall(
 }`;
 
     const tryGenerate = async () => {
-      const result = await model.generateContent([...fileParts, { text: prompt }]);
-      let text = result.response.text();
+      const result = await ai.models.generateContent({
+        model: "gemini-3.1-flash-lite",
+        contents: [...fileParts, { text: prompt }],
+      });
+      let text = result.text;
       text = text.replace(/```json/g, "").replace(/```/g, "").trim();
 
       const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -1581,8 +1599,7 @@ exports.estimateCertificateInfo = onCall(
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value());
-    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY.value() });
 
     const prompt = `오늘 날짜는 ${todayStr}이야.
     "${name}"이(가) 실제 존재하는 한국의 자격증/인증시험인지 판단하고,
@@ -1605,8 +1622,11 @@ exports.estimateCertificateInfo = onCall(
        - 그래도 도저히 패턴을 알 수 없는 자격증이면 null로 응답해 (이 경우 앱에서 "주관사 확인 필요" 안내를 대신 보여줌).`;
 
     try {
-      const result = await model.generateContent(prompt);
-      let text = result.response.text();
+      const result = await ai.models.generateContent({
+        model: "gemini-3.1-flash-lite",
+        contents: prompt,
+      });
+      let text = result.text;
       text = text.replace(/```json/g, "").replace(/```/g, "").trim();
 
       const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -1639,8 +1659,7 @@ exports.estimateCertificateDetailInfo = onCall(
        throw new HttpsError("invalid-argument", "자격증 이름을 입력해주세요.");
      }
 
-     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value());
-     const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+     const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY.value() });
 
      const prompt = `"${name}"이(가) 실제 존재하는 한국의 자격증/인증시험인지 판단하고,
      이 시험의 응시료, 출제 경향, 취득 방법 정보를 알려줘.
@@ -1674,8 +1693,11 @@ exports.estimateCertificateDetailInfo = onCall(
      - 모르는 항목은 추측해서 지어내지 말고 null 또는 빈 배열로 응답해.`;
 
      try {
-       const result = await model.generateContent(prompt);
-       let text = result.response.text();
+       const result = await ai.models.generateContent({
+         model: "gemini-3.1-flash-lite",
+         contents: prompt,
+       });
+       let text = result.text;
        text = text.replace(/```json/g, "").replace(/```/g, "").trim();
        const jsonMatch = text.match(/\{[\s\S]*\}/);
        const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
@@ -2100,8 +2122,102 @@ function daysBetween(a, b) {
   return Math.round((b.setHours(0,0,0,0) - a.setHours(0,0,0,0)) / (1000 * 60 * 60 * 24));
 }
 
+const GRADE_TO_GRDCD = {
+  '기술사': '10',
+  '기능장': '20',
+  '기사': '30',
+  '산업기사': '31',
+  '1급': '32',
+  '2급': '33',
+  '기능사': '40',
+};
+
+const GRADE_DIFFICULTY_FALLBACK = {
+  '기능사': 0.3,
+  '산업기사': 0.5,
+  '기사': 0.55,
+  '기능장': 0.75,
+  '기술사': 0.85,
+};
+
+function fallbackDifficultyByGrade(cert) {
+  const grade = cert.seriesnm;
+  if (grade && GRADE_DIFFICULTY_FALLBACK[grade] != null) {
+    return GRADE_DIFFICULTY_FALLBACK[grade];
+  }
+  return 0.5;
+}
+
+async function fetchPassRateFromApi(cert) {
+  const grdCd = GRADE_TO_GRDCD[cert.seriesnm];
+  if (!grdCd) return null; // 등급 매핑 안 되는 자격증(어학시험 등)은 조회 불가
+
+  const url = 'http://openapi.q-net.or.kr/api/service/rest/InquiryQualPassRateSVC/getList';
+  const baseYY = new Date().getFullYear() - 1;
+
+  const { data } = await axios.get(url, {
+    params: {
+      ServiceKey: QNET_SERVICE_KEY.value(), // 대문자 S — 실제 성공한 호출과 동일하게
+      grdCd,
+      baseYY,
+      numOfRows: 1000,
+      pageNo: 1,
+    },
+    timeout: 8000,
+  });
+
+  const items = data?.response?.body?.items?.item;
+  if (!items) return null;
+  const itemArr = Array.isArray(items) ? items : [items];
+
+  const matched = itemArr.filter((i) => i.jmFldNm === cert.jmfldnm);
+  if (matched.length === 0) return null;
+
+  let totalApplied = 0;
+  let totalPassed = 0;
+  for (const item of matched) {
+    totalApplied += Number(item.recptNoCnt || 0);
+    totalPassed += Number(item.examPassCnt || 0);
+  }
+  if (!totalApplied) return null;
+
+  return (totalPassed / totalApplied) * 100;
+}
+
+async function getDifficultyNorm(certificateId) {
+  const ref = db.collection('certifications').doc(certificateId);
+  const snap = await ref.get();
+  if (!snap.exists) return 0.5;
+
+  const cert = snap.data();
+  const ONE_MONTH = 30 * 24 * 60 * 60 * 1000;
+
+  if (cert.difficultyNorm != null && cert.difficultyUpdatedAt) {
+    const age = Date.now() - cert.difficultyUpdatedAt.toDate().getTime();
+    if (age < ONE_MONTH) return cert.difficultyNorm;
+  }
+
+  try {
+    const passRate = await fetchPassRateFromApi(cert); // cert 전체를 넘김 (jmfldnm, seriesnm 필요)
+    if (passRate == null) return fallbackDifficultyByGrade(cert);
+
+    const difficultyNorm = Math.min(1, Math.max(0, 1 - passRate / 100));
+
+    await ref.update({
+      passRate,
+      difficultyNorm,
+      difficultyUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return difficultyNorm;
+  } catch (e) {
+    console.error('합격률 API 호출 실패:', e.message);
+    return fallbackDifficultyByGrade(cert);
+  }
+}
+
 async function computeFeatures(uid, certificateName) {
-const planSnap = await db.collection('users').doc(uid)
+  const planSnap = await db.collection('users').doc(uid)
     .collection('studyPlans')
     .orderBy('createdAt', 'desc')
     .limit(20)
@@ -2129,114 +2245,157 @@ const planSnap = await db.collection('users').doc(uid)
   const today = new Date();
   const stepDates = steps.map((s, i) => parseStepDate(s.dayLabel, new Date(recommendedStartDate), i));
 
-  const totalDays = steps.length;
-  const elapsedDays = Math.min(
-    totalDays,
+  const totalSteps = steps.length;
+  const elapsedSteps = Math.min(
+    totalSteps,
     Math.max(0, stepDates.filter((d) => d <= today).length)
   );
-  const elapsedRatio = totalDays > 0 ? elapsedDays / totalDays : 0;
 
   const completedStepCount = steps.filter((s) => s.isCompleted === true).length;
-  const completionRate = totalDays > 0 ? completedStepCount / totalDays : 0;
+  const completionRate = totalSteps > 0 ? completedStepCount / totalSteps : 0;
+
+  // --- 여기부터 수정: 진짜 달력 기준 D-day로 계산 ---
+  const examDate = plan.examStartAt ? plan.examStartAt.toDate() : null;
+
+  // 학습 시작일부터 시험일까지의 "전체 달력 기간"과, 오늘까지 "경과한 달력 기간"
+  const totalCalendarDays = examDate
+    ? Math.max(1, Math.round((examDate - recommendedStartDate) / (1000 * 60 * 60 * 24)))
+    : totalSteps; // examDate가 없는 예외 케이스 대비 fallback
+
+  const elapsedCalendarDays = Math.min(
+    totalCalendarDays,
+    Math.max(0, Math.round((today - recommendedStartDate) / (1000 * 60 * 60 * 24)))
+  );
+
+  const elapsedRatio = totalCalendarDays > 0 ? elapsedCalendarDays / totalCalendarDays : 0;
   const progressGap = elapsedRatio - completionRate;
 
-  // 최근 7일 구간
+  const daysRemaining = examDate
+    ? Math.max(0, Math.round((examDate - today) / (1000 * 60 * 60 * 24)))
+    : Math.max(1, totalCalendarDays - elapsedCalendarDays);
+  const daysRemainingNorm = totalCalendarDays > 0
+    ? Math.max(0, daysRemaining / totalCalendarDays)
+    : 0;
+  // --- 여기까지 수정 ---
+
   const sevenDaysAgo = new Date(today); sevenDaysAgo.setDate(today.getDate() - 7);
   const recentIdx = steps.map((_, i) => i).filter((i) => stepDates[i] >= sevenDaysAgo && stepDates[i] <= today);
   const recentTotal = recentIdx.length;
   const recentCompleted = recentIdx.filter((i) => steps[i].isCompleted === true).length;
   const recentCompletionRate = recentTotal > 0 ? recentCompleted / recentTotal : completionRate;
 
-  // 최근 14일 구간 (일관성)
   const fourteenDaysAgo = new Date(today); fourteenDaysAgo.setDate(today.getDate() - 14);
   const last14Idx = steps.map((_, i) => i).filter((i) => stepDates[i] >= fourteenDaysAgo && stepDates[i] <= today);
   const last14Total = last14Idx.length;
   const last14Completed = last14Idx.filter((i) => steps[i].isCompleted === true).length;
-  const consistencyScore = last14Total > 0 ? last14Completed / last14Total : 0.5;
+  const consistencyScore = last14Total > 0
+    ? last14Completed / last14Total
+    : (elapsedRatio > 0 ? 0.15 : 0.5);
 
-  const daysRemaining = Math.max(1, totalDays - elapsedDays);
-  const daysRemainingNorm = daysRemaining / totalDays;
+  const remainingSteps = Math.max(0, totalSteps - completedStepCount);
+  const timePressure = Math.min(4, Math.max(0, remainingSteps / Math.max(daysRemaining, 1)));
 
-  // 실제 가용시간 데이터가 없어 "잔여 단계 수 / 잔여 일수"로 근사 (1일 1단계 기준)
-  const remainingSteps = Math.max(0, totalDays - completedStepCount);
-  const timePressure = Math.min(4, Math.max(0, remainingSteps / daysRemaining));
+   const difficultyNorm = plan.certificateId
+      ? await getDifficultyNorm(plan.certificateId)
+      : 0.5;
 
-  // 난이도 데이터가 없어 중간값으로 고정 (추후 studyPlans에 difficulty 필드 추가 시 대체 가능)
-  const difficultyNorm = 0.5;
+    const wrongSnap = await db.collection('users').doc(uid)
+      .collection('wrong_answers')
+      .where('certificationName', '==', certificateName)
+      .limit(100)
+      .get();
+    const subjectWeakRatio = Math.min(0.6, wrongSnap.size / 50 * 0.6);
 
-  // 오답 개수 기반 약점 비중 근사
-  const wrongSnap = await db.collection('users').doc(uid)
-    .collection('wrong_answers')
-    .where('certificationName', '==', certificateName)
-    .limit(100)
-    .get();
-  const subjectWeakRatio = Math.min(0.6, wrongSnap.size / 50 * 0.6);
+    const isColdStartUrgent = completedStepCount === 0 && daysRemaining <= 7;
 
-  return {
-    features: [
-      progressGap, recentCompletionRate, consistencyScore, timePressure,
-      difficultyNorm, daysRemainingNorm, elapsedRatio, subjectWeakRatio,
-    ],
-    debug: { totalDays, elapsedDays, completedStepCount, recentTotal, last14Total },
-  };
-}
-
-exports.analyzePassRisk = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
-  }
-  const certificateName = (request.data?.certificateName || '').trim();
-  if (!certificateName) {
-    throw new HttpsError('invalid-argument', 'certificateName이 필요합니다.');
+    return {
+      features: [
+        progressGap, recentCompletionRate, consistencyScore, timePressure,
+        difficultyNorm, daysRemainingNorm, elapsedRatio, subjectWeakRatio,
+      ],
+      isColdStartUrgent,
+      debug: {
+        totalSteps, elapsedSteps, completedStepCount, recentTotal, last14Total,
+        totalCalendarDays, elapsedCalendarDays, daysRemaining,
+      },
+    };
   }
 
-  const { features: rawFeatures } = await computeFeatures(request.auth.uid, certificateName);
+exports.analyzePassRisk = onCall(
+  { secrets: [QNET_SERVICE_KEY] },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
+    }
+    const certificateName = (request.data?.certificateName || '').trim();
+    if (!certificateName) {
+      throw new HttpsError('invalid-argument', 'certificateName이 필요합니다.');
+    }
 
-  const m = await loadModel();
-  const input = tf.tensor2d([normalize(rawFeatures)]);
+    const { features: rawFeatures, isColdStartUrgent } = await computeFeatures(request.auth.uid, certificateName);
 
-  const outputs = m.predict(input);
-  const outputArr = Array.isArray(outputs) ? outputs : [outputs];
-  let riskTensor, passTensor;
-  for (const t of outputArr) {
-    if (t.shape[t.shape.length - 1] === 3) riskTensor = t;
-    else passTensor = t;
+    const m = await loadModel();
+    const input = tf.tensor2d([normalize(rawFeatures)]);
+
+    const outputs = m.predict(input);
+    const outputArr = Array.isArray(outputs) ? outputs : [outputs];
+    let riskTensor, passTensor;
+    for (const t of outputArr) {
+      if (t.shape[t.shape.length - 1] === 3) riskTensor = t;
+      else passTensor = t;
+    }
+    if (!riskTensor || !passTensor) {
+      throw new HttpsError('internal', '모델 출력 형태가 예상과 다릅니다.');
+    }
+
+    const riskProbs = Array.from(await riskTensor.data());
+    const passProb = (await passTensor.data())[0];
+    input.dispose();
+    outputArr.forEach((t) => t.dispose());
+
+    const riskNames = ['LOW', 'MEDIUM', 'HIGH'];
+    let riskIdx = 0;
+    for (let i = 1; i < riskProbs.length; i++) {
+      if (riskProbs[i] > riskProbs[riskIdx]) riskIdx = i;
+    }
+
+    // ← 여기 추가: 모델 결과를 그대로 믿지 않고 명백한 위험 케이스 보정
+    let finalPassProb = passProb;
+    let finalRiskIdx = riskIdx;
+    if (isColdStartUrgent) {
+      finalPassProb = Math.min(passProb, 0.35);
+      finalRiskIdx = 2; // HIGH
+    }
+
+    const factors = {
+      progressGap: rawFeatures[0],
+      recentCompletionRate: rawFeatures[1],
+      consistencyScore: rawFeatures[2],
+      timePressure: rawFeatures[3],
+      difficultyNorm: rawFeatures[4],
+      daysRemainingNorm: rawFeatures[5],
+      elapsedRatio: rawFeatures[6],
+      subjectWeakRatio: rawFeatures[7],
+    };
+    if (isColdStartUrgent) {
+      factors.consistencyScore = 0;
+      factors.daysRemainingNorm = Math.min(factors.daysRemainingNorm, 0.15);
+    }
+
+    await db.collection('users').doc(request.auth.uid)
+      .collection('analysis').doc('passRisk')
+      .set({
+        passProbability: Math.round(finalPassProb * 100),
+        riskLevel: riskNames[finalRiskIdx],
+        certificateName,
+        factors,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+    return {
+      success: true,
+      passProbability: Math.round(finalPassProb * 100),
+      riskLevel: riskNames[finalRiskIdx],
+    };
   }
-  if (!riskTensor || !passTensor) {
-    throw new HttpsError('internal', '모델 출력 형태가 예상과 다릅니다.');
-  }
-
-  const riskProbs = Array.from(await riskTensor.data());
-  const passProb = (await passTensor.data())[0];
-  input.dispose();
-  outputArr.forEach((t) => t.dispose());
-
-  const riskNames = ['LOW', 'MEDIUM', 'HIGH'];
-  let riskIdx = 0;
-  for (let i = 1; i < riskProbs.length; i++) {
-    if (riskProbs[i] > riskProbs[riskIdx]) riskIdx = i;
-  }
-
-  const factors = {
-    progressGap: rawFeatures[0],
-    recentCompletionRate: rawFeatures[1],
-    consistencyScore: rawFeatures[2],
-    timePressure: rawFeatures[3],
-    difficultyNorm: rawFeatures[4],
-    daysRemainingNorm: rawFeatures[5],
-    elapsedRatio: rawFeatures[6],
-    subjectWeakRatio: rawFeatures[7],
-  };
-
-  await db.collection('users').doc(request.auth.uid)
-    .collection('analysis').doc('passRisk')
-    .set({
-      passProbability: Math.round(passProb * 100),
-      riskLevel: riskNames[riskIdx],
-      certificateName,
-      factors,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-  return { success: true, passProbability: Math.round(passProb * 100), riskLevel: riskNames[riskIdx] };
-});
+);
