@@ -210,6 +210,16 @@ class _ProfessionalScheduleCardState extends State<ProfessionalScheduleCard> {
 
     final registrationLabel = prefix.isEmpty ? '원서접수' : '$prefix 원서접수';
 
+    final upcomingStatus = _resolveUpcomingCountdown(
+      today: today,
+      schedule: schedule,
+      examLabel: examLabel,
+      registrationLabel: registrationLabel,
+    );
+    if (upcomingStatus != null) {
+      return upcomingStatus;
+    }
+
     /*
      * 원서접수, 시험, 합격자 발표 일정이 모두 끝났으면
      * 해당 회차 전체 종료
@@ -264,6 +274,41 @@ class _ProfessionalScheduleCardState extends State<ProfessionalScheduleCard> {
     }
 
     return null;
+  }
+
+  static _ProfessionalScheduleStatus? _resolveUpcomingCountdown({
+    required DateTime today,
+    required ProfessionalCertificateSchedule schedule,
+    required String examLabel,
+    required String registrationLabel,
+  }) {
+    if (_isDateWithinRange(
+          today,
+          schedule.examRegistrationStartAt,
+          schedule.examRegistrationEndAt,
+        ) ||
+        _isDateWithinRange(today, schedule.examStartAt, schedule.examEndAt)) {
+      return null;
+    }
+    final DateTime? countdownDate;
+    final String label;
+    if (schedule.examRegistrationStartAt != null &&
+        _dateOnly(schedule.examRegistrationStartAt!).isAfter(today)) {
+      countdownDate = schedule.examRegistrationStartAt;
+      label = registrationLabel;
+    } else if (schedule.examStartAt != null &&
+        (schedule.examRegistrationEndAt == null ||
+            _dateOnly(schedule.examRegistrationEndAt!).isBefore(today)) &&
+        !_dateOnly(schedule.examStartAt!).isBefore(today)) {
+      countdownDate = schedule.examStartAt;
+      label = examLabel;
+    } else {
+      return null;
+    }
+    return _ProfessionalScheduleStatus(
+      label: '$label D-${_dateOnly(countdownDate!).difference(today).inDays}',
+      isActive: false,
+    );
   }
 
   static bool _isEntireScheduleFinished(

@@ -66,7 +66,7 @@ class _TechnicalScheduleCardState extends State<TechnicalScheduleCard> {
         widget.writtenRegistrationEndAt,
       ))
         CertificateInfoItem(
-          label: '필기 원서접수',
+          label: _writtenScheduleLabel('원서접수'),
           value: _formatDateRange(
             widget.writtenRegistrationStartAt,
             widget.writtenRegistrationEndAt,
@@ -74,7 +74,7 @@ class _TechnicalScheduleCardState extends State<TechnicalScheduleCard> {
         ),
       if (_hasDate(widget.writtenExamStartAt, widget.writtenExamEndAt))
         CertificateInfoItem(
-          label: '필기시험',
+          label: _writtenScheduleLabel('시험'),
           value: _formatDateRange(
             widget.writtenExamStartAt,
             widget.writtenExamEndAt,
@@ -242,6 +242,11 @@ class _TechnicalScheduleCardState extends State<TechnicalScheduleCard> {
   _TechnicalScheduleStatus? _resolveScheduleStatus() {
     final today = _dateOnly(DateTime.now());
 
+    final upcomingStatus = _resolveUpcomingCountdown(today);
+    if (upcomingStatus != null) {
+      return upcomingStatus;
+    }
+
     /*
      * 회차 전체 종료 판단
      *
@@ -332,6 +337,80 @@ class _TechnicalScheduleCardState extends State<TechnicalScheduleCard> {
     }
 
     return null;
+  }
+
+  String _writtenScheduleLabel(String label) {
+    final hasPracticalExam = widget.practicalExamStartAt != null ||
+        widget.practicalExamEndAt != null;
+    return hasPracticalExam ? '필기 $label' : label;
+  }
+
+  _TechnicalScheduleStatus? _resolveUpcomingCountdown(DateTime today) {
+    final activeRanges = [
+      (widget.writtenRegistrationStartAt, widget.writtenRegistrationEndAt),
+      (widget.writtenExamStartAt, widget.writtenExamEndAt),
+      (widget.practicalRegistrationStartAt, widget.practicalRegistrationEndAt),
+      (widget.practicalExamStartAt, widget.practicalExamEndAt),
+    ];
+    if (activeRanges.any((range) => _isDateWithinRange(today, range.$1, range.$2))) {
+      return null;
+    }
+
+    final hasPracticalExam = widget.practicalExamStartAt != null ||
+        widget.practicalExamEndAt != null;
+    final sameExamStart = hasPracticalExam &&
+        widget.writtenExamStartAt != null &&
+        widget.writtenExamStartAt == widget.practicalExamStartAt;
+    final writtenPrefix = hasPracticalExam && !sameExamStart ? '필기 ' : '';
+    final practicalPrefix = hasPracticalExam && !sameExamStart ? '실기 ' : '';
+
+    final candidates = <(DateTime, String)>[];
+    _addCountdownCandidate(
+      candidates,
+      today: today,
+      registrationStart: widget.writtenRegistrationStartAt,
+      registrationEnd: widget.writtenRegistrationEndAt,
+      examStart: widget.writtenExamStartAt,
+      prefix: writtenPrefix,
+    );
+    _addCountdownCandidate(
+      candidates,
+      today: today,
+      registrationStart: widget.practicalRegistrationStartAt,
+      registrationEnd: widget.practicalRegistrationEndAt,
+      examStart: widget.practicalExamStartAt,
+      prefix: practicalPrefix,
+    );
+    if (candidates.isEmpty) return null;
+
+    candidates.sort((first, second) => first.$1.compareTo(second.$1));
+    final candidate = candidates.first;
+    final remainingDays = _dateOnly(candidate.$1).difference(today).inDays;
+    return _TechnicalScheduleStatus(
+      label: '${candidate.$2} D-$remainingDays',
+      isActive: false,
+    );
+  }
+
+  void _addCountdownCandidate(
+    List<(DateTime, String)> candidates, {
+    required DateTime today,
+    required DateTime? registrationStart,
+    required DateTime? registrationEnd,
+    required DateTime? examStart,
+    required String prefix,
+  }) {
+    if (registrationStart != null && _dateOnly(registrationStart).isAfter(today)) {
+      candidates.add((registrationStart, '${prefix}원서접수'));
+      return;
+    }
+    final registrationFinished = registrationEnd != null &&
+        _dateOnly(registrationEnd).isBefore(today);
+    if ((registrationFinished || registrationStart == null) &&
+        examStart != null &&
+        !_dateOnly(examStart).isBefore(today)) {
+      candidates.add((examStart, '${prefix}시험'));
+    }
   }
 
   bool _isEntireScheduleFinished(DateTime today) {

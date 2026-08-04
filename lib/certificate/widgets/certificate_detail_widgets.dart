@@ -1,5 +1,6 @@
 import 'package:add_2_calendar/add_2_calendar.dart';
 import 'package:flutter/material.dart';
+import 'package:table_calendar/table_calendar.dart';
 
 import '../../theme.dart';
 
@@ -9,6 +10,7 @@ class CertificateDetailHeader extends StatelessWidget {
   final String name;
   final String qualificationName;
   final bool isTechnical;
+  final bool isOther;
   final Widget? action;
 
   const CertificateDetailHeader({
@@ -16,16 +18,21 @@ class CertificateDetailHeader extends StatelessWidget {
     required this.name,
     required this.qualificationName,
     required this.isTechnical,
+    this.isOther = false,
     this.action,
   });
 
   @override
   Widget build(BuildContext context) {
-    final iconBackground = isTechnical
+    final iconBackground = isOther
+        ? context.colors.otherCertificateSoft
+        : isTechnical
         ? context.colors.softBlue
         : context.colors.mint;
 
-    final iconColor = isTechnical
+    final iconColor = isOther
+        ? context.colors.otherCertificateAccent
+        : isTechnical
         ? context.colors.info
         : context.colors.correct;
 
@@ -63,13 +70,17 @@ class CertificateDetailHeader extends StatelessWidget {
           Container(
             padding: EdgeInsets.symmetric(horizontal: 13, vertical: 7),
             decoration: BoxDecoration(
-              color: context.colors.pinkSoft,
+              color: isOther
+                  ? context.colors.otherCertificateSoft
+                  : context.colors.pinkSoft,
               borderRadius: BorderRadius.circular(30),
             ),
             child: Text(
               qualificationName,
               style: TextStyle(
-                color: context.colors.pinkDeep,
+                color: isOther
+                    ? context.colors.otherCertificateAccent
+                    : context.colors.pinkDeep,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
@@ -236,16 +247,170 @@ Future<CertificateGoalOption?> selectCertificateGoalExamDate({
   final selectableFirstDate = today.isAfter(firstDate) ? today : firstDate;
   if (selectableFirstDate.isAfter(lastDate)) return null;
 
-  final selectedDate = await showDatePicker(
+  final selectedDate = await showDialog<DateTime>(
     context: context,
-    initialDate: selectableFirstDate,
-    firstDate: selectableFirstDate,
-    lastDate: lastDate,
-    helpText: '시험 응시일 선택',
-    cancelText: '취소',
-    confirmText: '선택',
+    builder: (_) => _CertificateGoalDatePickerDialog(
+      firstDate: selectableFirstDate,
+      lastDate: lastDate,
+    ),
   );
   return selectedDate == null ? null : option.withExamDate(selectedDate);
+}
+
+class _CertificateGoalDatePickerDialog extends StatefulWidget {
+  final DateTime firstDate;
+  final DateTime lastDate;
+
+  const _CertificateGoalDatePickerDialog({
+    required this.firstDate,
+    required this.lastDate,
+  });
+
+  @override
+  State<_CertificateGoalDatePickerDialog> createState() =>
+      _CertificateGoalDatePickerDialogState();
+}
+
+class _CertificateGoalDatePickerDialogState
+    extends State<_CertificateGoalDatePickerDialog> {
+  late DateTime _focusedDay = widget.firstDate;
+  late DateTime _selectedDay = widget.firstDate;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 440),
+        padding: const EdgeInsets.fromLTRB(18, 22, 18, 18),
+        decoration: BoxDecoration(
+          color: context.colors.surfaceElevated,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: context.colors.border),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '시험 응시일 선택',
+              style: TextStyle(
+                color: context.colors.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Container(
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+              decoration: certificateCardDecoration(context: context),
+              child: TableCalendar<void>(
+                firstDay: widget.firstDate,
+                lastDay: widget.lastDate,
+                focusedDay: _focusedDay,
+                selectedDayPredicate: (day) =>
+                    DateUtils.isSameDay(day, _selectedDay),
+                headerStyle: HeaderStyle(
+                  titleCentered: true,
+                  formatButtonVisible: false,
+                  titleTextStyle: TextStyle(
+                    color: context.colors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                  leftChevronIcon: Icon(
+                    Icons.chevron_left_rounded,
+                    color: context.colors.textSecondary,
+                  ),
+                  rightChevronIcon: Icon(
+                    Icons.chevron_right_rounded,
+                    color: context.colors.textSecondary,
+                  ),
+                ),
+                calendarFormat: CalendarFormat.month,
+                startingDayOfWeek: StartingDayOfWeek.sunday,
+                rowHeight: 46,
+                daysOfWeekHeight: 30,
+                enabledDayPredicate: (day) =>
+                    !day.isBefore(widget.firstDate) &&
+                    !day.isAfter(widget.lastDate),
+                onDaySelected: (selectedDay, focusedDay) {
+                  setState(() {
+                    _selectedDay = selectedDay;
+                    _focusedDay = focusedDay;
+                  });
+                },
+                onPageChanged: (focusedDay) => _focusedDay = focusedDay,
+                daysOfWeekStyle: DaysOfWeekStyle(
+                  weekdayStyle: TextStyle(
+                    color: context.colors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  weekendStyle: TextStyle(
+                    color: context.colors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                calendarStyle: CalendarStyle(
+                  outsideDaysVisible: true,
+                  outsideTextStyle: TextStyle(
+                    color: context.colors.textMuted.withValues(alpha: 0.35),
+                  ),
+                  defaultTextStyle: TextStyle(
+                    color: context.colors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  weekendTextStyle: TextStyle(
+                    color: context.colors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  disabledTextStyle: TextStyle(color: context.colors.textDisabled),
+                  todayDecoration: BoxDecoration(
+                    color: context.colors.pinkSoft,
+                    shape: BoxShape.circle,
+                  ),
+                  todayTextStyle: TextStyle(
+                    color: context.colors.pinkDeep,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  selectedDecoration: BoxDecoration(
+                    color: context.colors.pinkDeep,
+                    shape: BoxShape.circle,
+                  ),
+                  selectedTextStyle: TextStyle(
+                    color: context.colors.onPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('취소'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(context, _selectedDay),
+                    child: const Text('선택'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 Future<bool?> showCertificateCalendarLinkDialog({
