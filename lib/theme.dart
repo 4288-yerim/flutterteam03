@@ -64,6 +64,8 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color correctSoft;
   final Color incorrect;
   final Color incorrectSoft;
+
+  Color get error => incorrect;
   // 주의가 필요한 상태와 그 상태의 연한 배경입니다.
   final Color warning;
   final Color warningSoft;

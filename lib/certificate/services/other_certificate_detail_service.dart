@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'certificate_detail_service.dart';
 import 'certificate_search_service.dart';
 import 'technical_certificate_service.dart';
+import 'certificate_category_content_service.dart';
 
 class OtherCertificateDetailService {
   OtherCertificateDetailService({FirebaseFirestore? firestore})
@@ -60,12 +61,19 @@ class OtherCertificateDetailService {
         details.doc('examFee').get(),
         details.doc('examTrends').get(),
         details.doc('howToObtain').get(),
+        details.doc('scheduleLinks').get(),
       ]);
       return OtherCertificateExamDetails(
-        writtenFee: _readFee(documents[0].data(), 'writtenFee'),
-        practicalFee: _readFee(documents[0].data(), 'practicalFee'),
+        writtenFee: _readFee(documents[0].data(), 'feeRound1') ??
+            _readFee(documents[0].data(), 'writtenFee'),
+        practicalFee: _readFee(documents[0].data(), 'feeRound2') ??
+            _readFee(documents[0].data(), 'practicalFee'),
+        examFeeLinks: _readLinks(documents[0].data()),
         examTrends: _readString(documents[1].data()?['contents']),
+        examTrendsLinks: _readLinks(documents[1].data()),
         howToObtain: _readString(documents[2].data()?['contents']),
+        howToObtainLinks: _readLinks(documents[2].data()),
+        scheduleLinks: _readLinks(documents[3].data()),
       );
     } on FirebaseException catch (error) {
       throw CertificateDetailException(error.message ?? '자격 정보를 불러오지 못했습니다.');
@@ -78,7 +86,17 @@ class OtherCertificateDetailService {
     return int.tryParse(value?.toString() ?? '');
   }
 
-  static String _readString(dynamic value) => value?.toString().trim() ?? '';
+  static String _readString(dynamic value) => value is List
+      ? value.map((item) => item.toString().trim()).where((item) => item.isNotEmpty).join('\n')
+      : value?.toString().trim() ?? '';
+
+  static List<CertificateContentLink> _readLinks(Map<String, dynamic>? data) {
+    final links = (data?['links'] as List? ?? const [])
+        .map(CertificateContentLink.fromMap)
+        .where((link) => link.label.isNotEmpty && link.url.isNotEmpty)
+        .toList();
+    return links;
+  }
 }
 
 class OtherCertificateExamDetails {
@@ -86,11 +104,19 @@ class OtherCertificateExamDetails {
   final int? practicalFee;
   final String examTrends;
   final String howToObtain;
+  final List<CertificateContentLink> examFeeLinks;
+  final List<CertificateContentLink> examTrendsLinks;
+  final List<CertificateContentLink> howToObtainLinks;
+  final List<CertificateContentLink> scheduleLinks;
 
   const OtherCertificateExamDetails({
     required this.writtenFee,
     required this.practicalFee,
     required this.examTrends,
     required this.howToObtain,
+    this.examFeeLinks = const [],
+    this.examTrendsLinks = const [],
+    this.howToObtainLinks = const [],
+    this.scheduleLinks = const [],
   });
 }

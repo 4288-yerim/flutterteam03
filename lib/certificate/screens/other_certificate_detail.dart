@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../theme.dart';
 import '../../appwidgets/goal_schedule_app_widget.dart';
@@ -7,11 +8,13 @@ import '../../widgets/app_main_background.dart';
 import '../../widgets/app_state_views.dart';
 import '../../widgets/app_top_bar.dart';
 import '../services/certificate_detail_service.dart';
+import '../services/certificate_category_content_service.dart';
 import '../services/certificate_search_service.dart';
 import '../services/other_certificate_detail_service.dart';
 import '../services/technical_certificate_service.dart';
 import '../widgets/certificate_common_widgets.dart';
 import '../widgets/certificate_detail_widgets.dart';
+import '../widgets/certificate_schedule_notice_content_card.dart';
 import '../widgets/other_certificate_detail_widgets.dart';
 import '../widgets/professional_certificate_widgets.dart';
 import '../widgets/technical_certificate_widgets.dart';
@@ -31,6 +34,8 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
   final OtherCertificateDetailService _service = OtherCertificateDetailService();
   final CertificateDetailService _certificateDetailService =
       CertificateDetailService();
+  final CertificateCategoryContentService _categoryContentService =
+      CertificateCategoryContentService();
   late final TabController _tabController;
 
   Certification? _certificate;
@@ -401,6 +406,10 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
           practicalFee: details?.practicalFee,
           examTrends: details?.examTrends ?? '',
           howToObtain: details?.howToObtain ?? '',
+          examFeeLinks: details?.examFeeLinks ?? const [],
+          examTrendsLinks: details?.examTrendsLinks ?? const [],
+          howToObtainLinks: details?.howToObtainLinks ?? const [],
+          onOpenLink: _openScheduleNoticeUrl,
         );
       default:
         return const OtherCertificateEmptyContent(message: '통계 정보는 준비 중입니다.');
@@ -410,7 +419,22 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
   Widget _buildScheduleTab() {
     return Column(
       children: [
-        const OtherCertificateScheduleNoticeCard(),
+        StreamBuilder<CertificateCategoryScheduleNotice>(
+          stream: _categoryContentService.watchScheduleNotice(
+            CertificateCategory.other,
+            fallback: CertificateCategoryScheduleNotice(
+              items: ['시험 일정은 종목별, 지역별로 상이할 수 있습니다.'],
+            ),
+          ),
+          builder: (context, snapshot) => CertificateScheduleNoticeContentCard(
+            items: snapshot.data?.items ?? const [],
+            links: [
+              ...(snapshot.data?.links ?? const []),
+              ...(_examDetails?.scheduleLinks ?? const []),
+            ],
+            onOpenLink: _openScheduleNoticeUrl,
+          ),
+        ),
         const SizedBox(height: 16),
         if (_schedules.isEmpty)
           const ProfessionalEmptyTab(
@@ -436,10 +460,20 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
                   practicalExamEndAt: schedule.practicalExamEndAt,
                   practicalPassStartAt: schedule.practicalPassStartAt,
                   practicalPassEndAt: schedule.practicalPassEndAt,
+                  links: schedule.links,
+                  onOpenLink: _openScheduleNoticeUrl,
                 ),
               )),
       ],
     );
+  }
+
+  Future<void> _openScheduleNoticeUrl(String value) async {
+    final uri = Uri.tryParse(value);
+    if (uri == null || (uri.scheme != 'https' && uri.scheme != 'http')) {
+      return;
+    }
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 }
 

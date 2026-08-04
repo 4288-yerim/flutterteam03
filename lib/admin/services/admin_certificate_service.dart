@@ -17,10 +17,45 @@ class AdminCertificateService {
     });
   }
 
+  Future<AdminCertificateCategoryOptions> getTechnicalCategoryOptions() async {
+    try {
+      final snapshot = await _firestore.collection('certifications').get();
+      final categoriesByField = <String, Set<String>>{};
+      for (final document in snapshot.docs) {
+        final data = document.data();
+        final field = _readString(data['obligfldnm']);
+        final category = _readString(data['mdobligfldnm']);
+        if (field.isEmpty) continue;
+        categoriesByField.putIfAbsent(field, () => <String>{});
+        if (category.isNotEmpty) categoriesByField[field]!.add(category);
+      }
+      final fields = categoriesByField.keys.toList()..sort();
+      return AdminCertificateCategoryOptions(
+        fields: fields,
+        categoriesByField: {
+          for (final entry in categoriesByField.entries)
+            entry.key: entry.value.toList()..sort(),
+        },
+      );
+    } on FirebaseException catch (error) {
+      throw AdminCertificateException(
+        error.message ?? '기존 자격증 분류를 불러오지 못했습니다.',
+      );
+    }
+  }
+
   Future<void> addCertificate(AdminCertificateDraft draft) async {
     final name = draft.name.trim();
     if (name.isEmpty) {
       throw const AdminCertificateException('자격증 이름을 입력해주세요.');
+    }
+    if (draft.qualificationCode.trim().isEmpty ||
+        draft.technicalFieldName.trim().isEmpty ||
+        draft.categoryName.trim().isEmpty) {
+      throw const AdminCertificateException('자격 구분, 직무 분야, 분류를 모두 입력해 주세요.');
+    }
+    if (name.contains('/')) {
+      throw const AdminCertificateException('자격증 이름에는 / 문자를 사용할 수 없습니다.');
     }
 
     final duplicate = await _firestore
@@ -32,7 +67,7 @@ class AdminCertificateService {
       throw const AdminCertificateException('같은 이름의 자격증이 이미 등록되어 있습니다.');
     }
 
-    final reference = _firestore.collection('certifications').doc();
+    final reference = _firestore.collection('certifications').doc('ADMIN$name');
     final itemCode = reference.id;
 
     await reference.set({
@@ -47,11 +82,122 @@ class AdminCertificateService {
       'mdobligfldcd': '',
       'mdobligfldnm': draft.categoryName,
       'source': 'ADMIN',
+      'isEnabled': false,
       'scheduleConfirmed': false,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
+
+  Future<AdminCertificate> getCertificate(String certificationId) async {
+    final document = await _firestore
+        .collection('certifications')
+        .doc(certificationId)
+        .get();
+    if (!document.exists) {
+      throw const AdminCertificateException('자격증 정보를 찾을 수 없습니다.');
+    }
+    return AdminCertificate.fromFirestore(document);
+  }
+
+  Future<AdminCertificateEditorData> getEditorData(
+    String certificationId,
+  ) async {
+    final certificate = await getCertificate(certificationId);
+    final reference = _firestore.collection('certifications').doc(certificationId);
+    final results = await Future.wait([
+      reference.collection('details').get(),
+      reference.collection('schedules').orderBy('sortdate').get(),
+    ]);
+    final details = results[0] as QuerySnapshot<Map<String, dynamic>>;
+    final schedules = results[1] as QuerySnapshot<Map<String, dynamic>>;
+    return AdminCertificateEditorData(
+      certificate: certificate,
+      details: {for (final document in details.docs) document.id: document.data()},
+      schedules: schedules.docs.map((document) => AdminCertificateScheduleDraft.fromMap(document.id, document.data())).toList(),
+    );
+  }
+
+  Future<void> setCertificateEnabled({
+    required String certificationId,
+    required bool isEnabled,
+  }) => _firestore.collection('certifications').doc(certificationId).update({
+        'isEnabled': isEnabled,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+  Future<void> saveEditorData(AdminCertificateEditorData data) async {
+    final reference = _firestore
+        .collection('certifications')
+        .doc(data.certificate.id);
+    final batch = _firestore.batch();
+    batch.update(reference, {
+      'jmfldnm': data.certificate.name.trim(),
+      'qualgbcd': data.certificate.qualificationCode,
+      'qualgbnm': data.certificate.qualificationName,
+      'obligfldnm': data.certificate.fieldName.trim(),
+      'mdobligfldnm': data.certificate.categoryName.trim(),
+      'seriesnm': data.certificate.seriesName.trim(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    batch.set(reference.collection('details').doc('examFee'), data.examFeeMap);
+    batch.set(reference.collection('details').doc('examTrends'), {
+      'infogb': '출제경향',
+      'contents': _splitLines(data.examTrends),
+      'links': data.examTrendsLinks,
+    });
+    batch.set(reference.collection('details').doc('howToObtain'), {
+      'infogb': '취득방법',
+      'contents': _splitLines(data.howToObtain),
+      'links': data.howToObtainLinks,
+    });
+    batch.set(reference.collection('details').doc('scheduleLinks'), {
+      'links': data.scheduleLinks,
+    });
+    final existingSchedules = await reference.collection('schedules').get();
+    for (final document in existingSchedules.docs) {
+      batch.delete(document.reference);
+    }
+    for (final schedule in data.schedules) {
+      batch.set(reference.collection('schedules').doc(schedule.id), schedule.toMap());
+    }
+    await batch.commit();
+  }
+
+  Future<void> deleteCertificate(String certificationId) async {
+    final reference = _firestore.collection('certifications').doc(certificationId);
+    final results = await Future.wait([
+      reference.collection('details').get(),
+      reference.collection('schedules').get(),
+    ]);
+    final batch = _firestore.batch();
+    for (final result in results) {
+      for (final document in (result as QuerySnapshot<Map<String, dynamic>>).docs) {
+        batch.delete(document.reference);
+      }
+    }
+    batch.delete(reference);
+    await batch.commit();
+  }
+
+
+  static List<String> _splitLines(String value) => value
+      .split('\n')
+      .map((line) => line.trim())
+      .where((line) => line.isNotEmpty)
+      .toList();
+
+  static String _readString(dynamic value) => value?.toString().trim() ?? '';
+}
+
+class AdminCertificateCategoryOptions {
+  const AdminCertificateCategoryOptions({
+    required this.fields,
+    required this.categoriesByField,
+  });
+
+  final List<String> fields;
+  final Map<String, List<String>> categoriesByField;
 }
 
 class AdminCertificateDraft {
@@ -90,6 +236,7 @@ class AdminCertificate {
     required this.itemCode,
     required this.source,
     required this.hasSource,
+    required this.isEnabled,
   });
 
   final String id;
@@ -102,6 +249,7 @@ class AdminCertificate {
   final String itemCode;
   final String source;
   final bool hasSource;
+  final bool isEnabled;
 
   bool get isTechnical => qualificationCode == 'T';
   bool get isProfessional => qualificationCode == 'S';
@@ -143,8 +291,119 @@ class AdminCertificate {
       itemCode: _readString(data['jmcd']),
       source: _readString(data['source']),
       hasSource: data.containsKey('source'),
+      isEnabled: data['isEnabled'] is bool ? data['isEnabled'] as bool : true,
     );
   }
 
   static String _readString(dynamic value) => value?.toString().trim() ?? '';
+}
+
+class AdminCertificateEditorData {
+  const AdminCertificateEditorData({
+    required this.certificate,
+    required this.details,
+    required this.schedules,
+  });
+
+  final AdminCertificate certificate;
+  final Map<String, Map<String, dynamic>> details;
+  final List<AdminCertificateScheduleDraft> schedules;
+
+  Map<String, dynamic> get examFeeMap {
+    final fee1 = _toFee(details['examFee']?['feeRound1']);
+    final fee2 = _toFee(details['examFee']?['feeRound2']);
+    final contents = <String>[
+      if (fee1 != null) '1차 : $fee1',
+      if (fee2 != null) '2차 : $fee2',
+    ].join(', ');
+    return {
+      'infogb': '응시수수료',
+      'contents': contents,
+      'feeRound1': fee1,
+      'feeRound2': fee2,
+      'links': _readLinks(details['examFee']),
+    };
+  }
+
+  String get examTrends => _readText(details['examTrends']?['contents']);
+  String get howToObtain => _readText(details['howToObtain']?['contents']);
+  List<Map<String, String>> get examTrendsLinks => _readLinks(details['examTrends']);
+  List<Map<String, String>> get howToObtainLinks => _readLinks(details['howToObtain']);
+  List<Map<String, String>> get scheduleLinks => _readLinks(details['scheduleLinks']);
+
+  static String _readText(dynamic value) => value is List
+      ? value.map((item) => item.toString().trim()).where((item) => item.isNotEmpty).join('\n')
+      : value?.toString().trim() ?? '';
+  static List<String> _splitLines(String value) => value
+      .split('\n')
+      .map((line) => line.trim())
+      .where((line) => line.isNotEmpty)
+      .toList();
+  static List<Map<String, String>> _readLinks(Map<String, dynamic>? detail) {
+    final links = (detail?['links'] as List? ?? const [])
+        .whereType<Map>()
+        .map((link) => {'label': _readText(link['label']), 'url': _readText(link['url'])})
+        .where((link) => link['label']!.isNotEmpty && link['url']!.isNotEmpty)
+        .toList();
+    return links;
+  }
+  static int? _toFee(dynamic value) {
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString().replaceAll(',', '').trim() ?? '');
+  }
+}
+
+class AdminCertificateScheduleDraft {
+  const AdminCertificateScheduleDraft({
+    required this.id,
+    required this.title,
+    this.writtenRegistrationStartAt,
+    this.writtenRegistrationEndAt,
+    this.writtenExamStartAt,
+    this.writtenExamEndAt,
+    this.practicalRegistrationStartAt,
+    this.practicalRegistrationEndAt,
+    this.practicalExamStartAt,
+    this.practicalExamEndAt,
+    this.links = const [],
+  });
+
+  final String id;
+  final String title;
+  final DateTime? writtenRegistrationStartAt;
+  final DateTime? writtenRegistrationEndAt;
+  final DateTime? writtenExamStartAt;
+  final DateTime? writtenExamEndAt;
+  final DateTime? practicalRegistrationStartAt;
+  final DateTime? practicalRegistrationEndAt;
+  final DateTime? practicalExamStartAt;
+  final DateTime? practicalExamEndAt;
+  final List<Map<String, String>> links;
+
+  factory AdminCertificateScheduleDraft.fromMap(String id, Map<String, dynamic> data) {
+    DateTime? date(dynamic value) => value is Timestamp ? value.toDate() : value is String ? DateTime.tryParse(value) : null;
+    return AdminCertificateScheduleDraft(
+      id: id,
+      title: data['implplannm']?.toString().trim() ?? '',
+      writtenRegistrationStartAt: date(data['docregstartat']), writtenRegistrationEndAt: date(data['docregendat']),
+      writtenExamStartAt: date(data['docexamstartat']), writtenExamEndAt: date(data['docexamendat']),
+      practicalRegistrationStartAt: date(data['pracregstartat']), practicalRegistrationEndAt: date(data['pracregendat']),
+      practicalExamStartAt: date(data['pracexamstartat']), practicalExamEndAt: date(data['pracexamendat']),
+      links: (data['links'] as List? ?? const []).whereType<Map>().map((link) => {'label': link['label']?.toString().trim() ?? '', 'url': link['url']?.toString().trim() ?? ''}).where((link) => link['label']!.isNotEmpty && link['url']!.isNotEmpty).toList(),
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+    'implplannm': title.trim(),
+    'docregstartat': writtenRegistrationStartAt,
+    'docregendat': writtenRegistrationEndAt,
+    'docexamstartat': writtenExamStartAt,
+    'docexamendat': writtenExamEndAt,
+    'pracregstartat': practicalRegistrationStartAt,
+    'pracregendat': practicalRegistrationEndAt,
+    'pracexamstartat': practicalExamStartAt,
+    'pracexamendat': practicalExamEndAt,
+    'sortdate': writtenExamStartAt ?? practicalExamStartAt ?? writtenRegistrationStartAt,
+    'links': links,
+  };
 }

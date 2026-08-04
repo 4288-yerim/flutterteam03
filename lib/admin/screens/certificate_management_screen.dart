@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme.dart';
 import '../services/admin_certificate_service.dart';
+import 'admin_certificate_detail_screen.dart';
 
 class CertificateManagementScreen extends StatefulWidget {
   const CertificateManagementScreen({super.key});
@@ -43,10 +44,7 @@ class _CertificateManagementScreenState
           )
               ? _selectedSubfilterKey
               : _CertificateSubfilterOption.allKey;
-          final certificateCategories = _certificateCategoryOptions(
-            allCertificates,
-            selectedSubfilterKey,
-          );
+          const certificateCategories = <_CertificateCategoryOption>[];
           final selectedCertificateCategoryKey = certificateCategories.any(
             (option) => option.key == _selectedCertificateCategoryKey,
           )
@@ -107,7 +105,18 @@ class _CertificateManagementScreenState
                 ...certificates.map(
                   (certificate) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: _CertificateCard(certificate: certificate),
+                    child: _CertificateCard(
+                      certificate: certificate,
+                      onTap: () async {
+                        await Navigator.of(context).push<bool>(
+                          MaterialPageRoute(
+                            builder: (_) => AdminCertificateDetailScreen(
+                              certificate: certificate,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
             ],
@@ -179,7 +188,7 @@ class _CertificateManagementScreenState
     final options = <_CertificateSubfilterOption>[
       const _CertificateSubfilterOption(
         key: _CertificateSubfilterOption.allKey,
-        label: '전체 카테고리',
+        label: '전체 직무 분야',
       ),
     ];
 
@@ -189,15 +198,14 @@ class _CertificateManagementScreenState
       case AdminCertificateScope.technical:
         final categories = <String>{
           for (final certificate in certificates)
-            if (certificate.isTechnical &&
-                certificate.technicalCategoryKey.isNotEmpty)
-              certificate.technicalCategoryKey,
+            if (certificate.isTechnical && certificate.fieldName.isNotEmpty)
+              certificate.fieldName,
         }.toList()
           ..sort();
         options.addAll(
           categories.map(
             (category) => _CertificateSubfilterOption(
-              key: 'technical:$category',
+              key: 'field:$category',
               label: category,
             ),
           ),
@@ -213,17 +221,28 @@ class _CertificateManagementScreenState
         options.addAll(
           categories.map(
             (category) => _CertificateSubfilterOption(
-              key: 'professional:$category',
+              key: 'field:$category',
               label: category,
             ),
           ),
         );
         return options;
       case AdminCertificateScope.other:
-        options.addAll(const [
-          _CertificateSubfilterOption(key: 'other:ai', label: 'AI 추가'),
-          _CertificateSubfilterOption(key: 'other:admin', label: '관리자 추가'),
-        ]);
+        final fields = <String>{
+          for (final certificate in certificates)
+            if (_selectedScope.matches(certificate) &&
+                certificate.fieldName.isNotEmpty)
+              certificate.fieldName,
+        }.toList()
+          ..sort();
+        options.addAll(
+          fields.map(
+            (field) => _CertificateSubfilterOption(
+              key: 'field:$field',
+              label: field,
+            ),
+          ),
+        );
         return options;
     }
   }
@@ -235,15 +254,11 @@ class _CertificateManagementScreenState
     if (selectedSubfilterKey == _CertificateSubfilterOption.allKey) {
       return true;
     }
-    if (selectedSubfilterKey == 'other:ai') return certificate.isAiAdded;
-    if (selectedSubfilterKey == 'other:admin') return certificate.isAdminAdded;
-    if (selectedSubfilterKey.startsWith('technical:')) {
-      return certificate.technicalCategoryKey ==
-          selectedSubfilterKey.substring('technical:'.length);
-    }
-    if (selectedSubfilterKey.startsWith('professional:')) {
-      return certificate.seriesName ==
-          selectedSubfilterKey.substring('professional:'.length);
+    if (selectedSubfilterKey.startsWith('field:')) {
+      final field = selectedSubfilterKey.substring('field:'.length);
+      return certificate.isProfessional
+          ? certificate.seriesName == field
+          : certificate.fieldName == field;
     }
     return true;
   }
@@ -342,7 +357,7 @@ class _CertificateSearchControls extends StatelessWidget {
               : Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: _AnchoredFilterDropdown<String>(
-                    label: '세부 카테고리',
+                    label: '직무 분야',
                     value: selectedSubfilterKey,
                     items: subfilters
                         .map(
@@ -629,20 +644,27 @@ class _AnchoredFilterDropdownState<T>
 }
 
 class _CertificateCard extends StatelessWidget {
-  const _CertificateCard({required this.certificate});
+  const _CertificateCard({required this.certificate, required this.onTap});
 
   final AdminCertificate certificate;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: context.colors.surfaceTransparent,
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: context.colors.border),
-      ),
-      child: Row(
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: context.colors.surfaceTransparent,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: context.colors.border),
+          ),
+          child: Row(
         children: [
           Container(
             width: 44,
@@ -689,6 +711,8 @@ class _CertificateCard extends StatelessWidget {
           const SizedBox(width: 10),
           _CategoryChip(certificate: certificate),
         ],
+          ),
+        ),
       ),
     );
   }

@@ -178,6 +178,9 @@ class ProfessionalCertificateSchedule {
   }
 
   static String _readString(dynamic value) {
+    if (value is List) {
+      return value.map((item) => item.toString().trim()).where((item) => item.isNotEmpty).join('\n');
+    }
     return value?.toString().trim() ?? '';
   }
 
