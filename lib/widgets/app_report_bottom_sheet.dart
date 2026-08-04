@@ -137,28 +137,47 @@ class _AppReportBottomSheetState extends State<AppReportBottomSheet> {
               const SizedBox(height: 20),
               ...widget.reasons.entries.map(_buildReasonItem),
               const SizedBox(height: 8),
-              TextField(
-                controller: _descriptionController,
-                maxLength: 500,
-                maxLines: 4,
-                style: TextStyle(color: context.colors.textPrimary),
-                decoration: InputDecoration(
-                  labelText: '상세 내용 (선택)',
-                  hintText: widget.descriptionHint,
-                  filled: true,
-                  fillColor: context.colors.incorrectSoft.withValues(
-                    alpha: 0.45,
+              Stack(
+                children: [
+                  TextField(
+                    controller: _descriptionController,
+                    maxLength: 500,
+                    maxLines: 4,
+                    onChanged: (_) => setState(() {}),
+                    style: TextStyle(color: context.colors.textPrimary),
+                    decoration: InputDecoration(
+                      labelText: '상세 내용 (선택)',
+                      hintText: widget.descriptionHint,
+                      counterText: '',
+                      filled: true,
+                      fillColor: context.colors.incorrectSoft.withValues(
+                        alpha: 0.45,
+                      ),
+                      alignLabelWithHint: true,
+                      contentPadding: const EdgeInsets.fromLTRB(12, 16, 12, 32),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: context.colors.incorrect),
+                      ),
+                    ),
                   ),
-                  alignLabelWithHint: true,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
+                  Positioned(
+                    right: 12,
+                    bottom: 9,
+                    child: Text(
+                      '${_descriptionController.text.length}/500',
+                      style: TextStyle(
+                        color: context.colors.textSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: context.colors.incorrect),
-                  ),
-                ),
+                ],
               ),
               const SizedBox(height: 12),
               SizedBox(
