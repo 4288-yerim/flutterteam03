@@ -116,35 +116,82 @@ class _InquiryManagementScreenState extends State<InquiryManagementScreen> {
   }
 
   Future<void> _showInquirySheet(AdminInquiry inquiry) async {
-    final answerController = TextEditingController(text: inquiry.answer ?? '');
+    final answerController = TextEditingController(
+      text: inquiry.answer ?? '',
+    );
+
     var isSaving = false;
+    var isClosing = false;
+    var allowPop = false;
     String? errorMessage;
 
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      showDragHandle: true,
+      isDismissible: true,
+      enableDrag: true,
+      showDragHandle: false,
       backgroundColor: context.colors.surfaceElevated,
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setSheetState) {
+          Future<void> closeSheet() async {
+            if (isSaving || isClosing) return;
+
+            isClosing = true;
+            FocusManager.instance.primaryFocus?.unfocus();
+
+            await Future<void>.delayed(kThemeAnimationDuration);
+
+            if (!sheetContext.mounted) return;
+
+            setSheetState(() {
+              allowPop = true;
+            });
+
+            await WidgetsBinding.instance.endOfFrame;
+
+            if (!sheetContext.mounted) return;
+            Navigator.of(sheetContext).pop(false);
+          }
+
           Future<void> saveAnswer() async {
-            if (isSaving) return;
+            if (isSaving || isClosing) return;
+
             final answer = answerController.text.trim();
+
             if (answer.isEmpty) {
-              setSheetState(() => errorMessage = '답변 내용을 입력해 주세요.');
+              setSheetState(() {
+                errorMessage = '답변 내용을 입력해 주세요.';
+              });
               return;
             }
+
+            FocusManager.instance.primaryFocus?.unfocus();
 
             setSheetState(() {
               isSaving = true;
               errorMessage = null;
             });
+
             try {
-              await _service.saveAnswer(inquiry: inquiry, answer: answer);
+              await _service.saveAnswer(
+                inquiry: inquiry,
+                answer: answer,
+              );
+
+              if (!sheetContext.mounted) return;
+
+              setSheetState(() {
+                allowPop = true;
+              });
+
+              await WidgetsBinding.instance.endOfFrame;
+
               if (!sheetContext.mounted) return;
               Navigator.of(sheetContext).pop(true);
             } catch (error) {
               if (!sheetContext.mounted) return;
+
               setSheetState(() {
                 isSaving = false;
                 errorMessage = error is ArgumentError
@@ -154,92 +201,108 @@ class _InquiryManagementScreenState extends State<InquiryManagementScreen> {
             }
           }
 
-          return SafeArea(
-            child: AnimatedPadding(
-              duration: const Duration(milliseconds: 180),
-              padding: EdgeInsets.fromLTRB(
-                22,
-                0,
-                22,
-                MediaQuery.viewInsetsOf(context).bottom + 24,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            inquiry.isAnswered ? '문의 답변 수정' : '문의 답변',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
+          return PopScope<bool>(
+            canPop: allowPop,
+            onPopInvokedWithResult: (didPop, result) {
+              if (!didPop) {
+                closeSheet();
+              }
+            },
+            child: SafeArea(
+              child: AnimatedPadding(
+                duration: const Duration(milliseconds: 180),
+                padding: EdgeInsets.fromLTRB(
+                  22,
+                  0,
+                  22,
+                  MediaQuery.viewInsetsOf(context).bottom + 24,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              inquiry.isAnswered ? '문의 답변 수정' : '문의 답변',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                              ),
                             ),
                           ),
-                        ),
-                        _StatusBadge(answered: inquiry.isAnswered),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    _InquiryDetailSection(inquiry: inquiry),
-                    const SizedBox(height: 20),
-                    Text(
-                      '답변',
-                      style: TextStyle(
-                        color: context.colors.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
+                          _StatusBadge(answered: inquiry.isAnswered),
+                          const SizedBox(width: 6),
+                          IconButton(
+                            tooltip: '닫기',
+                            onPressed: isSaving ? null : closeSheet,
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: answerController,
-                      enabled: !isSaving,
-                      minLines: 5,
-                      maxLines: 9,
-                      maxLength: 2000,
-                      textInputAction: TextInputAction.newline,
-                      decoration: const InputDecoration(
-                        hintText: '사용자에게 전달할 답변을 입력해 주세요.',
-                        alignLabelWithHint: true,
-                      ),
-                    ),
-                    if (errorMessage != null) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 18),
+                      _InquiryDetailSection(inquiry: inquiry),
+                      const SizedBox(height: 20),
                       Text(
-                        errorMessage!,
+                        '답변',
                         style: TextStyle(
-                          color: context.colors.incorrect,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                          color: context.colors.textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: answerController,
+                        enabled: !isSaving,
+                        minLines: 5,
+                        maxLines: 9,
+                        maxLength: 2000,
+                        textInputAction: TextInputAction.newline,
+                        decoration: const InputDecoration(
+                          hintText: '사용자에게 전달할 답변을 입력해 주세요.',
+                          alignLabelWithHint: true,
+                        ),
+                      ),
+                      if (errorMessage != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          errorMessage!,
+                          style: TextStyle(
+                            color: context.colors.incorrect,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 14),
+                      FilledButton.icon(
+                        onPressed: isSaving ? null : saveAnswer,
+                        icon: isSaving
+                            ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        )
+                            : const Icon(Icons.send_rounded, size: 19),
+                        label: Text(
+                          isSaving
+                              ? '저장 중...'
+                              : inquiry.isAnswered
+                              ? '답변 수정'
+                              : '답변 등록',
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: context.colors.lavenderAccent,
+                          padding: const EdgeInsets.symmetric(vertical: 15),
                         ),
                       ),
                     ],
-                    const SizedBox(height: 14),
-                    FilledButton.icon(
-                      onPressed: isSaving ? null : saveAnswer,
-                      icon: isSaving
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.send_rounded, size: 19),
-                      label: Text(
-                        isSaving
-                            ? '저장 중...'
-                            : inquiry.isAnswered
-                            ? '답변 수정'
-                            : '답변 등록',
-                      ),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: context.colors.lavenderAccent,
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -248,11 +311,16 @@ class _InquiryManagementScreenState extends State<InquiryManagementScreen> {
       ),
     );
 
-    answerController.dispose();
     if (saved == true && mounted) {
+      await Future<void>.delayed(kThemeAnimationDuration);
+
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(inquiry.isAnswered ? '답변을 수정했습니다.' : '답변을 등록했습니다.'),
+          content: Text(
+            inquiry.isAnswered ? '답변을 수정했습니다.' : '답변을 등록했습니다.',
+          ),
         ),
       );
     }
