@@ -12,6 +12,7 @@ class ReportManagementScreen extends StatefulWidget {
 
 class _ReportManagementScreenState extends State<ReportManagementScreen> {
   final AdminReportService _service = AdminReportService();
+  final Set<String> _reopeningReportIds = <String>{};
   bool _pendingOnly = true;
 
   @override
@@ -63,11 +64,13 @@ class _ReportManagementScreenState extends State<ReportManagementScreen> {
               )
             else
               ...reports.map(
-                (report) => Padding(
+                    (report) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: _ReportCard(
                     report: report,
                     onProcess: () => _showProcessSheet(report),
+                    isReopening: _reopeningReportIds.contains(report.id),
+                    onReopen: () => _confirmReopen(report),
                   ),
                 ),
               ),
@@ -101,7 +104,7 @@ class _ReportManagementScreenState extends State<ReportManagementScreen> {
                 report: report,
                 decision: decision,
                 hideContent:
-                    decision == AdminReportDecision.approve && hideContent,
+                decision == AdminReportDecision.approve && hideContent,
               );
               if (!sheetContext.mounted) return;
               Navigator.of(sheetContext).pop(decision);
@@ -200,12 +203,12 @@ class _ReportManagementScreenState extends State<ReportManagementScreen> {
                                 : () => process(AdminReportDecision.approve),
                             icon: isProcessing
                                 ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
                                 : const Icon(Icons.check_rounded),
                             label: Text(isProcessing ? '처리 중...' : '승인'),
                             style: FilledButton.styleFrom(
@@ -235,6 +238,51 @@ class _ReportManagementScreenState extends State<ReportManagementScreen> {
           ),
         ),
       );
+    }
+  }
+
+  Future<void> _confirmReopen(AdminReport report) async {
+    if (_reopeningReportIds.contains(report.id)) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('신고 처리 취소'),
+        content: Text(
+          report.contentWasHidden
+              ? '신고를 미처리 상태로 되돌리고, 이 신고로 숨긴 콘텐츠도 복구합니다.'
+              : '신고를 미처리 상태로 되돌립니다. 다시 승인하거나 반려할 수 있습니다.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('닫기'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('처리 취소'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _reopeningReportIds.add(report.id));
+    try {
+      await _service.reopenReport(report);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('신고 처리를 취소했습니다.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_processErrorMessage(error))));
+    } finally {
+      if (mounted) {
+        setState(() => _reopeningReportIds.remove(report.id));
+      }
     }
   }
 
@@ -303,10 +351,17 @@ class _ReportHeader extends StatelessWidget {
 }
 
 class _ReportCard extends StatelessWidget {
-  const _ReportCard({required this.report, required this.onProcess});
+  const _ReportCard({
+    required this.report,
+    required this.onProcess,
+    required this.onReopen,
+    required this.isReopening,
+  });
 
   final AdminReport report;
   final VoidCallback onProcess;
+  final VoidCallback onReopen;
+  final bool isReopening;
 
   @override
   Widget build(BuildContext context) {
@@ -373,6 +428,21 @@ class _ReportCard extends StatelessWidget {
           if (!report.isPending) ...[
             const SizedBox(height: 10),
             _ProcessedSummary(report: report),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: isReopening ? null : onReopen,
+                icon: isReopening
+                    ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+                    : const Icon(Icons.undo_rounded, size: 18),
+                label: Text(isReopening ? '취소 중...' : '처리 취소'),
+              ),
+            ),
           ],
           if (report.isPending) ...[
             const SizedBox(height: 16),

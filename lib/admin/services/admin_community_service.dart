@@ -1,14 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AdminCommunityService {
   AdminCommunityService({
     FirebaseFirestore? firestore,
+    FirebaseFunctions? functions,
     FirebaseAuth? firebaseAuth,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _functions =
+           functions ??
+           FirebaseFunctions.instanceFor(region: 'asia-northeast3'),
        _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
 
   final FirebaseFirestore _firestore;
+  final FirebaseFunctions _functions;
   final FirebaseAuth _firebaseAuth;
 
   Stream<List<AdminCommunityPost>> watchPosts() {
@@ -42,163 +48,70 @@ class AdminCommunityService {
         });
   }
 
-  Future<void> hidePost(AdminCommunityPost post) async {
-    final adminUid = _requireAdminUid();
-    if (!post.isVisible) {
-      throw StateError('이미 숨김 처리된 게시글입니다.');
-    }
-
-    await post.reference.update({
-      'postStatus': 'DELETED',
-      'visibility': 'PRIVATE',
-      'deletedAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-      'moderationStatus': 'HIDDEN',
-      'moderatedBy': adminUid,
-      'moderatedAt': FieldValue.serverTimestamp(),
-    });
+  Future<void> hidePost(AdminCommunityPost post) {
+    return _moderatePost(postId: post.id, action: 'HIDE');
   }
 
-  Future<void> restorePost(AdminCommunityPost post) async {
-    final adminUid = _requireAdminUid();
-    if (!post.wasHiddenByAdmin) {
-      throw StateError('관리자가 숨긴 게시글만 복구할 수 있습니다.');
-    }
-
-    await post.reference.update({
-      'postStatus': 'NORMAL',
-      'visibility': 'PUBLIC',
-      'deletedAt': null,
-      'updatedAt': FieldValue.serverTimestamp(),
-      'moderationStatus': 'RESTORED',
-      'moderatedBy': adminUid,
-      'moderatedAt': FieldValue.serverTimestamp(),
-    });
+  Future<void> restorePost(AdminCommunityPost post) {
+    return _moderatePost(postId: post.id, action: 'RESTORE');
   }
 
   Future<void> hideComment({
     required String postId,
     required AdminCommunityComment comment,
-  }) async {
-    final adminUid = _requireAdminUid();
-
-    if (comment.status != 'NORMAL') {
-      throw StateError('이미 숨김 처리된 댓글입니다.');
-    }
-
-    final postReference =
-    _firestore.collection('posts').doc(postId);
-
-    final batchId = postReference
-        .collection('comments')
-        .doc()
-        .id;
-
-    await _firestore.runTransaction((transaction) async {
-      final latest =
-      await transaction.get(comment.reference);
-
-      if (!latest.exists) {
-        throw StateError('댓글을 찾을 수 없습니다.');
-      }
-
-      final latestData = latest.data()!;
-      final latestStatus = _text(
-        latestData['commentStatus'],
-        fallback: 'NORMAL',
-      ).toUpperCase();
-
-      if (latestStatus != 'NORMAL') {
-        throw StateError('이미 숨김 처리된 댓글입니다.');
-      }
-
-      final isRootComment =
-          _text(latestData['parentCommentId']).isEmpty;
-      final wasAccepted =
-          latestData['isAccepted'] == true;
-
-      transaction.update(comment.reference, {
-        'commentStatus': 'DELETED',
-        'isAccepted': false,
-        'deletedAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-        'moderationStatus': 'HIDDEN',
-        'moderationBatchId': batchId,
-        'moderationReportId': null,
-        'moderatedBy': adminUid,
-        'moderatedAt': FieldValue.serverTimestamp(),
-      });
-
-      final postUpdates = <String, Object?>{
-        'commentCount': FieldValue.increment(-1),
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-
-      if (isRootComment && wasAccepted) {
-        postUpdates['questionStatus'] = 'WAITING';
-      }
-
-      transaction.update(
-        postReference,
-        postUpdates,
-      );
-    });
+  }) {
+    return _moderateComment(
+      postId: postId,
+      commentId: comment.id,
+      action: 'HIDE',
+    );
   }
 
   Future<void> restoreComment({
     required String postId,
     required AdminCommunityComment comment,
-  }) async {
-    final adminUid = _requireAdminUid();
-    if (!comment.wasHiddenByAdmin) {
-      throw StateError('관리자가 숨긴 댓글만 복구할 수 있습니다.');
-    }
-
-    final postReference = _firestore.collection('posts').doc(postId);
-    final commentsReference = postReference.collection('comments');
-    final batchId = comment.moderationBatchId;
-    final documents = <DocumentSnapshot<Map<String, dynamic>>>[];
-
-    if (batchId.isEmpty) {
-      documents.add(await comment.reference.get());
-    } else {
-      final snapshot = await commentsReference
-          .where('moderationBatchId', isEqualTo: batchId)
-          .get();
-      documents.addAll(snapshot.docs);
-    }
-
-    final restorable = documents.where((document) {
-      if (!document.exists) return false;
-      return _text(document.data()?['moderationStatus']).toUpperCase() ==
-          'HIDDEN';
-    }).toList();
-    if (restorable.isEmpty) {
-      throw StateError('복구할 댓글을 찾을 수 없습니다.');
-    }
-
-    final batch = _firestore.batch();
-    for (final document in restorable) {
-      batch.update(document.reference, {
-        'commentStatus': 'NORMAL',
-        'deletedAt': null,
-        'updatedAt': FieldValue.serverTimestamp(),
-        'moderationStatus': 'RESTORED',
-        'moderatedBy': adminUid,
-        'moderatedAt': FieldValue.serverTimestamp(),
-      });
-    }
-    batch.update(postReference, {
-      'commentCount': FieldValue.increment(restorable.length),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-    await batch.commit();
+  }) {
+    return _moderateComment(
+      postId: postId,
+      commentId: comment.id,
+      action: 'RESTORE',
+    );
   }
 
-  String _requireAdminUid() {
-    final uid = _firebaseAuth.currentUser?.uid;
-    if (uid == null) throw StateError('관리자 로그인이 필요합니다.');
-    return uid;
+  Future<void> _moderatePost({
+    required String postId,
+    required String action,
+  }) async {
+    await _callModeration({
+      'targetType': 'POST',
+      'postId': postId,
+      'action': action,
+    });
+  }
+
+  Future<void> _moderateComment({
+    required String postId,
+    required String commentId,
+    required String action,
+  }) async {
+    await _callModeration({
+      'targetType': 'COMMENT',
+      'postId': postId,
+      'commentId': commentId,
+      'action': action,
+    });
+  }
+
+  Future<void> _callModeration(Map<String, Object?> data) async {
+    final administrator = _firebaseAuth.currentUser;
+    if (administrator == null) {
+      throw StateError('관리자 로그인이 필요합니다.');
+    }
+    await administrator.getIdToken(true);
+    final operationId = _firestore.collection('adminOperations').doc().id;
+    await _functions
+        .httpsCallable('moderateAdminCommunityContent')
+        .call<Object?>({'operationId': operationId, ...data});
   }
 }
 
@@ -303,8 +216,8 @@ class AdminCommunityComment {
 }
 
 String _text(Object? value, {String fallback = ''}) {
-  final text = value?.toString().trim() ?? '';
-  return text.isEmpty ? fallback : text;
+  final result = value?.toString().trim() ?? '';
+  return result.isEmpty ? fallback : result;
 }
 
 int _integer(Object? value) {

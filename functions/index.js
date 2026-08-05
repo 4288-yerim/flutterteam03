@@ -12,6 +12,7 @@ Object.assign(
   require("./material/material"),
   require("./studyPlan/rebalance"),
   require("./studyPlan/passRisk"),
+  require("./admin"),
   require("./notifications"),
 );
 
