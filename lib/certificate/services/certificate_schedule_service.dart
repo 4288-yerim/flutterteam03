@@ -22,11 +22,25 @@ class CertificateScheduleService {
           .collection(_collectionName)
           .get();
 
+      // 기존 문서는 isEnabled 필드가 없으므로 활성으로 간주한다. 관리자가
+      // 비활성화한 문서는 일정 문서에 저장된 자격증 ID/jmcd와 대조해 제외한다.
+      final certificates = await _firestore.collection('certifications').get();
+      final disabledKeys = <String>{
+        for (final document in certificates.docs)
+          if (document.data()['isEnabled'] == false) ...[
+            document.id,
+            _readString(document.data(), const ['jmcd']),
+          ],
+      }..removeWhere((key) => key.isEmpty);
+
       final schedules = <CertificateSchedule>[];
 
       for (final document in snapshot.docs) {
         final documentId = document.id;
         final data = document.data();
+        if (_isDisabledScheduleDocument(documentId, data, disabledKeys)) {
+          continue;
+        }
 
         if (documentId.startsWith(_technicalDocumentPrefix)) {
           schedules.addAll(
@@ -75,6 +89,21 @@ class CertificateScheduleService {
         '자격증 일정 정보를 불러오지 못했습니다.',
       );
     }
+  }
+
+  bool _isDisabledScheduleDocument(
+    String documentId,
+    Map<String, dynamic> data,
+    Set<String> disabledKeys,
+  ) {
+    if (disabledKeys.isEmpty) return false;
+    final candidates = <String>{
+      documentId,
+      documentId.replaceFirst(_technicalDocumentPrefix, ''),
+      documentId.replaceFirst(_professionalDocumentPrefix, ''),
+      _readString(data, const ['certificateId', 'certificationId', 'jmcd']),
+    }..removeWhere((value) => value.isEmpty);
+    return candidates.any(disabledKeys.contains);
   }
 
   String _buildProfessionalDisplayName({

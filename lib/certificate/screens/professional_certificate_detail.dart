@@ -8,11 +8,13 @@ import '../../widgets/app_main_background.dart';
 import '../../widgets/app_state_views.dart';
 import '../../widgets/app_top_bar.dart';
 import '../services/certificate_detail_service.dart';
+import '../services/certificate_category_content_service.dart';
 import '../services/certificate_search_service.dart';
 import '../services/professional_certificate_service.dart';
 import '../services/technical_certificate_service.dart';
 import '../widgets/certificate_common_widgets.dart';
 import '../widgets/certificate_detail_widgets.dart';
+import '../widgets/certificate_schedule_notice_content_card.dart';
 import '../widgets/professional_certificate_widgets.dart';
 import '../widgets/technical_certificate_widgets.dart';
 
@@ -34,6 +36,8 @@ class _ProfessionalCertificateDetailPageState
     with SingleTickerProviderStateMixin {
   final CertificateDetailService _certificateDetailService =
       CertificateDetailService();
+  final CertificateCategoryContentService _categoryContentService =
+      CertificateCategoryContentService();
 
   final ProfessionalCertificateService _professionalCertificateService =
       ProfessionalCertificateService();
@@ -52,6 +56,12 @@ class _ProfessionalCertificateDetailPageState
   Certification? _certificate;
 
   List<ProfessionalCertificateSchedule> _schedules = [];
+
+  bool get _hasPracticalSchedule => _schedules.any(_isPracticalSchedule);
+
+  bool _isPracticalSchedule(ProfessionalCertificateSchedule schedule) =>
+      schedule.description.contains('실기') ||
+      schedule.description.contains('면접');
 
   bool _isLoadingExamSubjects = false;
   bool _hasRequestedExamSubjects = false;
@@ -267,6 +277,14 @@ class _ProfessionalCertificateDetailPageState
     }
   }
 
+  Future<void> _openScheduleNoticeUrl(String value) async {
+    final uri = Uri.tryParse(value);
+    if (uri == null || (uri.scheme != 'https' && uri.scheme != 'http')) {
+      return;
+    }
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
   Future<void> _openGoalSettingSheet() async {
     final certificate = _certificate;
 
@@ -359,10 +377,9 @@ class _ProfessionalCertificateDetailPageState
                         separatorBuilder: (_, _) => SizedBox(height: 10),
                         itemBuilder: (context, index) {
                           final schedule = schedules[index];
-                          final scheduleExamType =
-                              schedule.description.contains('필기')
-                                  ? 'WRITTEN'
-                                  : 'PRACTICAL';
+                          final scheduleExamType = _isPracticalSchedule(schedule)
+                              ? 'PRACTICAL'
+                              : 'WRITTEN';
                           final isAlreadyRegistered = registeredGoalKeys.contains(
                             CertificateDetailService.goalScheduleKey(
                               scheduleId: schedule.id,
@@ -534,14 +551,14 @@ class _ProfessionalCertificateDetailPageState
     }
 
     final examStartDate = result.examStartAt ?? result.examEndAt!;
-    final examType = result.description.contains('필기')
-        ? 'WRITTEN'
-        : 'PRACTICAL';
+    final examType = _isPracticalSchedule(result) ? 'PRACTICAL' : 'WRITTEN';
     final option = CertificateGoalOption(
       scheduleId: result.id,
       targetRound: result.description,
       examType: examType,
-      examTypeName: examType == 'WRITTEN' ? '필기' : '실기·면접',
+      examTypeName: examType == 'WRITTEN'
+          ? (_hasPracticalSchedule ? '필기' : '통합')
+          : '실기/면접',
       examDate: examStartDate,
       examStartDate: examStartDate,
       examEndDate: result.examStartAt == null ? null : result.examEndAt,
@@ -569,9 +586,7 @@ class _ProfessionalCertificateDetailPageState
       return;
     }
 
-    final examType = schedule.description.contains('필기')
-        ? 'WRITTEN'
-        : 'PRACTICAL';
+    final examType = _isPracticalSchedule(schedule) ? 'PRACTICAL' : 'WRITTEN';
 
     setState(() {
       _isRegisteringGoal = true;
@@ -588,6 +603,7 @@ class _ProfessionalCertificateDetailPageState
         targetExamEndDate: option.examEndDate ?? option.examStartDate,
         targetRound: schedule.description,
         targetExamType: examType,
+        targetExamTypeName: option.examTypeName,
 
         targetRegistrationStartDate: schedule.examRegistrationStartAt,
         targetRegistrationEndDate: schedule.examRegistrationEndAt,
@@ -930,32 +946,103 @@ class _ProfessionalCertificateDetailPageState
   }
 
   Widget _buildScheduleTab() {
+    return StreamBuilder<CertificateCategoryScheduleNotice>(
+      stream: _categoryContentService.watchScheduleNotice(
+        CertificateCategory.professional,
+        fallback: CertificateCategoryScheduleNotice(
+          items: ['원서 접수 시간은 원서 접수 첫날 09:00부터 마지막 날 18:00까지입니다.'],
+        ),
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return _buildLegacyScheduleTab();
+        }
+        return Column(
+          children: [
+              CertificateScheduleNoticeContentCard(
+                items: snapshot.data?.items ?? const [],
+                links: snapshot.data?.links ?? const [],
+                onOpenLink: _openScheduleNoticeUrl,
+            ),
+            const SizedBox(height: 14),
+            if (_schedules.isEmpty)
+              ProfessionalEmptyTab(
+                icon: Icons.event_busy_outlined,
+                title: '등록된 시험 일정이 없습니다.',
+                description: '전문자격 시험 일정이 등록되면 이곳에서 확인할 수 있습니다.',
+              )
+            else
+              ...List.generate(_schedules.length, (index) {
+                return Padding(
+                  padding: EdgeInsets.only(
+                    bottom: index == _schedules.length - 1 ? 0 : 14,
+                  ),
+                  child: ProfessionalScheduleCard(
+                    schedule: _schedules[index],
+                    showExamTypeLabels: _hasPracticalSchedule,
+                  ),
+                );
+              }),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildLegacyScheduleTab() {
     return Column(
       children: [
         Container(
           width: double.infinity,
-          padding: EdgeInsets.all(18),
+          padding: EdgeInsets.all(20),
           decoration: certificateCardDecoration(context: context),
-          child: Row(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.info_outline_rounded,
-                color: context.colors.pinkDeep,
-                size: 21,
+              Row(
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: context.colors.pinkDeep,
+                    size: 21,
+                  ),
+                  SizedBox(width: 9),
+                  Text(
+                    '\uC2DC\uD5D8 \uC77C\uC815 \uC548\uB0B4',
+                    style: TextStyle(
+                      color: context.colors.textPrimary,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 17),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+              Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Icon(
+                  Icons.circle,
+                  size: 5,
+                  color: context.colors.textSecondary,
+                ),
               ),
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  '원서접수시간은 원서접수 첫날 09:00부터 '
+                  '원서 접수 시간은 원서 접수 첫날 09:00부터 '
                   '마지막 날 18:00까지입니다.',
                   style: TextStyle(
                     color: context.colors.textPrimary,
                     fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w500,
                     height: 1.55,
                   ),
                 ),
+              ),
+                ],
               ),
             ],
           ),
@@ -973,7 +1060,10 @@ class _ProfessionalCertificateDetailPageState
               padding: EdgeInsets.only(
                 bottom: index == _schedules.length - 1 ? 0 : 14,
               ),
-              child: ProfessionalScheduleCard(schedule: _schedules[index]),
+              child: ProfessionalScheduleCard(
+                schedule: _schedules[index],
+                showExamTypeLabels: _hasPracticalSchedule,
+              ),
             );
           }),
       ],

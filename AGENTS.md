@@ -81,10 +81,6 @@ Never commit `.env`, tokens, service credentials, private certificates, or other
 
 Keep changes limited to the requested feature.
 
-Agents may modify `lib/home/**`, `lib/certificate/**`, and
-`lib/notification/**` without additional approval. Obtain explicit user
-approval before modifying any other path under `lib/`.
-
 Treat an explicit user request to modify a feature as approval to edit the files reasonably required for that feature. Before editing unrelated files or expanding the scope beyond the requested feature, explain why and obtain approval.
 
 Do not modify generated files unless the current task explicitly requires it.

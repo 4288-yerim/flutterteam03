@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
 import 'certificate_detail_service.dart';
+import 'certificate_category_content_service.dart';
 
 class TechnicalCertificateService {
   TechnicalCertificateService({
@@ -91,16 +92,19 @@ class TechnicalCertificateService {
           examFeeDocument.data() ?? {},
         )
             : null,
+        examFeeLinks: _readLinks(examFeeDocument.data()),
         examTrends: examTrendsDocument.exists
             ? _readString(
           examTrendsDocument.data()?['contents'],
         )
             : '',
+        examTrendsLinks: _readLinks(examTrendsDocument.data()),
         howToObtain: howToObtainDocument.exists
             ? _readString(
           howToObtainDocument.data()?['contents'],
         )
             : '',
+        howToObtainLinks: _readLinks(howToObtainDocument.data()),
       );
     } on FirebaseException catch (error) {
       throw CertificateDetailException(
@@ -111,6 +115,14 @@ class TechnicalCertificateService {
         '시험 정보를 불러오는 중 오류가 발생했습니다.',
       );
     }
+  }
+
+  static List<CertificateContentLink> _readLinks(Map<String, dynamic>? data) {
+    final links = (data?['links'] as List? ?? const [])
+        .map(CertificateContentLink.fromMap)
+        .where((link) => link.label.isNotEmpty && link.url.isNotEmpty)
+        .toList();
+    return links;
   }
 
   Future<List<TechnicalExamSubject>> getExamSubjects({
@@ -236,11 +248,11 @@ class TechnicalCertificateService {
       return StoredPracticalMaterials.fromMap(document.data() ?? {});
     } on FirebaseException catch (error) {
       throw CertificateDetailException(
-        error.message ?? '저장된 실기시험 지참 준비물을 불러오지 못했습니다.',
+        error.message ?? '저장된 실기/면접 시험 지참 준비물을 불러오지 못했습니다.',
       );
     } catch (_) {
       throw const CertificateDetailException(
-        '저장된 실기시험 지참 준비물을 불러오는 중 오류가 발생했습니다.',
+        '저장된 실기/면접 시험 지참 준비물을 불러오는 중 오류가 발생했습니다.',
       );
     }
   }
@@ -257,7 +269,7 @@ class TechnicalCertificateService {
 
     if (normalizedJmCd.isEmpty) {
       throw const CertificateDetailException(
-        '종목코드가 없어 실기시험 지참 준비물을 조회할 수 없습니다.',
+        '종목코드가 없어 실기/면접 시험 지참 준비물을 조회할 수 없습니다.',
       );
     }
 
@@ -321,7 +333,7 @@ class TechnicalCertificateService {
       if (resultCode.isNotEmpty && resultCode != '00') {
         throw CertificateDetailException(
           resultMessage.isEmpty
-              ? '실기시험 지참 준비물을 조회하지 못했습니다.'
+              ? '실기/면접 시험 지참 준비물을 조회하지 못했습니다.'
               : resultMessage,
         );
       }
@@ -348,12 +360,12 @@ class TechnicalCertificateService {
       );
     } catch (_) {
       throw const CertificateDetailException(
-        '실기시험 지참 준비물을 불러오는 중 오류가 발생했습니다.',
+        '실기/면접 시험 지참 준비물을 불러오는 중 오류가 발생했습니다.',
       );
     }
   }
 
-  Future<List<TechnicalExamStatistic>> getWrittenStatistics({
+  Future<List<CertificateExamStatistic>> getWrittenStatistics({
     required String jmCd,
   }) {
     return _getExamStatistics(
@@ -363,13 +375,13 @@ class TechnicalCertificateService {
     );
   }
 
-  Future<List<TechnicalExamStatistic>> getPracticalStatistics({
+  Future<List<CertificateExamStatistic>> getPracticalStatistics({
     required String jmCd,
   }) {
     return _getExamStatistics(
       jmCd: jmCd,
       path: _practicalStatisticsPath,
-      statisticsName: '실기시험',
+      statisticsName: '실기/면접 시험',
     );
   }
 
@@ -418,7 +430,7 @@ class TechnicalCertificateService {
     }).where((item) => item.totalCount > 0).toList();
   }
 
-  Future<List<TechnicalExamStatistic>> _getExamStatistics({
+  Future<List<CertificateExamStatistic>> _getExamStatistics({
     required String jmCd,
     required String path,
     required String statisticsName,
@@ -437,7 +449,7 @@ class TechnicalCertificateService {
     final item = items.first;
     return List.generate(5, (index) {
       final fieldIndex = index + 1;
-      return TechnicalExamStatistic(
+      return CertificateExamStatistic(
         year: statisticsBaseYear - index,
         registrationCount: _readXmlInt(item, 'ilrcnt$fieldIndex'),
         examineeCount: _readXmlInt(item, 'ilecnt$fieldIndex'),
@@ -542,19 +554,22 @@ class TechnicalCertificateService {
     if (value == null) {
       return '';
     }
+    if (value is List) {
+      return value.map((item) => item.toString().trim()).where((item) => item.isNotEmpty).join('\n');
+    }
 
     return value.toString().trim();
   }
 
 }
 
-class TechnicalExamStatistic {
+class CertificateExamStatistic {
   final int year;
   final int registrationCount;
   final int examineeCount;
   final int passerCount;
 
-  const TechnicalExamStatistic({
+  const CertificateExamStatistic({
     required this.year,
     required this.registrationCount,
     required this.examineeCount,
@@ -1084,6 +1099,7 @@ class TechnicalCertificateSchedule {
   final DateTime? practicalPassEndAt;
 
   final DateTime? sortDate;
+  final List<CertificateContentLink> links;
 
   const TechnicalCertificateSchedule({
     required this.id,
@@ -1102,6 +1118,7 @@ class TechnicalCertificateSchedule {
     required this.practicalPassStartAt,
     required this.practicalPassEndAt,
     required this.sortDate,
+    this.links = const [],
   });
 
   DateTime? get lastPassAnnouncementDate =>
@@ -1170,6 +1187,10 @@ class TechnicalCertificateSchedule {
       _readDate(data['pracpassendat']),
       sortDate:
       _readDate(data['sortdate']),
+      links: (data['links'] as List? ?? const [])
+          .map(CertificateContentLink.fromMap)
+          .where((link) => link.label.isNotEmpty && link.url.isNotEmpty)
+          .toList(),
     );
   }
 
@@ -1251,10 +1272,16 @@ class TechnicalCertificateExamDetails {
   final TechnicalCertificateExamFee? examFee;
   final String examTrends;
   final String howToObtain;
+  final List<CertificateContentLink> examFeeLinks;
+  final List<CertificateContentLink> examTrendsLinks;
+  final List<CertificateContentLink> howToObtainLinks;
 
   const TechnicalCertificateExamDetails({
     required this.examFee,
     required this.examTrends,
     required this.howToObtain,
+    this.examFeeLinks = const [],
+    this.examTrendsLinks = const [],
+    this.howToObtainLinks = const [],
   });
 }

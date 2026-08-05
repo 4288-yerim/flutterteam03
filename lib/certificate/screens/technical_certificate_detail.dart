@@ -9,10 +9,12 @@ import '../../widgets/app_main_background.dart';
 import '../../widgets/app_state_views.dart';
 import '../../widgets/app_top_bar.dart';
 import '../services/certificate_detail_service.dart';
+import '../services/certificate_category_content_service.dart';
 import '../services/technical_certificate_service.dart';
 import '../services/certificate_search_service.dart';
 import '../widgets/certificate_common_widgets.dart';
 import '../widgets/certificate_detail_widgets.dart';
+import '../widgets/certificate_schedule_notice_content_card.dart';
 import '../widgets/technical_certificate_widgets.dart';
 
 class TechnicalCertificateDetailPage extends StatefulWidget {
@@ -46,14 +48,6 @@ class _TechnicalCertificateDetailPageState
     '&gId=',
   );
 
-  static final Uri _scheduleNoticeUri = Uri.parse(
-    'https://www.q-net.or.kr/man004.do'
-    '?id=man00401'
-    '&notiType=10'
-    '&gSite='
-    '&gId=',
-  );
-
   static final Uri _noScheduleUri = Uri.parse(
     'https://www.q-net.or.kr/crf021.do'
     '?id=crf02103'
@@ -64,6 +58,8 @@ class _TechnicalCertificateDetailPageState
 
   final CertificateDetailService _certificateDetailService =
       CertificateDetailService();
+  final CertificateCategoryContentService _categoryContentService =
+      CertificateCategoryContentService();
 
   final TechnicalCertificateService _technicalCertificateService =
       TechnicalCertificateService();
@@ -78,6 +74,26 @@ class _TechnicalCertificateDetailPageState
   Certification? _certificate;
 
   List<TechnicalCertificateSchedule> _schedules = [];
+
+  bool get _hasPracticalSchedule => _schedules.any(_scheduleHasPractical);
+
+  bool get _hasCombinedExamSchedule => _schedules.any((schedule) =>
+      _scheduleHasWritten(schedule) && _scheduleHasPractical(schedule));
+
+  bool _scheduleHasWritten(TechnicalCertificateSchedule schedule) =>
+      schedule.writtenRegistrationStartAt != null ||
+      schedule.writtenRegistrationEndAt != null ||
+      schedule.writtenExamStartAt != null ||
+      schedule.writtenExamEndAt != null ||
+      schedule.writtenPassAt != null;
+
+  bool _scheduleHasPractical(TechnicalCertificateSchedule schedule) =>
+      schedule.practicalRegistrationStartAt != null ||
+      schedule.practicalRegistrationEndAt != null ||
+      schedule.practicalExamStartAt != null ||
+      schedule.practicalExamEndAt != null ||
+      schedule.practicalPassStartAt != null ||
+      schedule.practicalPassEndAt != null;
 
   TechnicalCertificateExamDetails? _examDetails;
 
@@ -101,11 +117,11 @@ class _TechnicalCertificateDetailPageState
 
   bool _isLoadingWrittenStatistics = false;
   String? _writtenStatisticsError;
-  List<TechnicalExamStatistic> _writtenStatistics = [];
+  List<CertificateExamStatistic> _writtenStatistics = [];
 
   bool _isLoadingPracticalStatistics = false;
   String? _practicalStatisticsError;
-  List<TechnicalExamStatistic> _practicalStatistics = [];
+  List<CertificateExamStatistic> _practicalStatistics = [];
 
   @override
   void initState() {
@@ -327,7 +343,7 @@ class _TechnicalCertificateDetailPageState
         _practicalMaterials = [];
         _hasRequestedPracticalMaterials = true;
         _isLoadingPracticalMaterials = false;
-        _practicalMaterialError = '실기시험 지참 준비물을 불러오지 못했습니다.';
+        _practicalMaterialError = '실기/면접 시험 지참 준비물을 불러오지 못했습니다.';
       });
     }
   }
@@ -405,7 +421,7 @@ class _TechnicalCertificateDetailPageState
       if (!mounted) return;
       setState(() {
         _practicalStatistics = [];
-        _practicalStatisticsError = '실기시험 통계를 불러오지 못했습니다.';
+        _practicalStatisticsError = '실기/면접 시험 통계를 불러오지 못했습니다.';
         _isLoadingPracticalStatistics = false;
       });
     }
@@ -756,7 +772,7 @@ class _TechnicalCertificateDetailPageState
             scheduleId: schedule.id,
             targetRound: schedule.title,
             examType: 'WRITTEN',
-            examTypeName: '필기',
+            examTypeName: _hasPracticalSchedule ? '필기' : '통합',
 
             examDate: writtenExamDisplayStartDate,
             examStartDate: writtenExamDisplayStartDate,
@@ -789,7 +805,7 @@ class _TechnicalCertificateDetailPageState
             scheduleId: schedule.id,
             targetRound: schedule.title,
             examType: 'PRACTICAL',
-            examTypeName: '실기',
+            examTypeName: '실기/면접',
 
             examDate: practicalExamDisplayStartDate,
             examStartDate: practicalExamDisplayStartDate,
@@ -859,6 +875,7 @@ class _TechnicalCertificateDetailPageState
         targetExamEndDate: option.examEndDate ?? option.examStartDate,
         targetRound: option.targetRound,
         targetExamType: option.examType,
+        targetExamTypeName: option.examTypeName,
 
         targetRegistrationStartDate: registrationStartDate,
         targetRegistrationEndDate: registrationEndDate,
@@ -1022,13 +1039,14 @@ class _TechnicalCertificateDetailPageState
     }
   }
 
-  Future<void> _openScheduleNotice() async {
+  Future<void> _openScheduleNoticeUrl(String value) async {
+    final uri = Uri.tryParse(value);
+    if (uri == null || (uri.scheme != 'https' && uri.scheme != 'http')) {
+      _showScheduleNoticeLinkError();
+      return;
+    }
     try {
-      final opened = await launchUrl(
-        _scheduleNoticeUri,
-        mode: LaunchMode.externalApplication,
-      );
-
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (!opened && mounted) {
         _showScheduleNoticeLinkError();
       }
@@ -1277,7 +1295,28 @@ class _TechnicalCertificateDetailPageState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CertificateScheduleNoticeCard(onOpenNotice: _openScheduleNotice),
+        StreamBuilder<CertificateCategoryScheduleNotice>(
+          stream: _categoryContentService.watchScheduleNotice(
+            CertificateCategory.technical,
+            fallback: CertificateCategoryScheduleNotice(
+              items: [
+                '원서 접수 시간은 원서 접수 첫날 10:00부터 마지막 날 18:00까지입니다.',
+                '필기시험 합격예정자 및 최종합격자 발표 시간은 해당 발표일 09:00입니다.',
+                '시험 일정은 종목별, 지역별로 상이할 수 있습니다.',
+                '접수 일정 전에 공지되는 해당 회별 수험자 안내(Q-Net 공지사항 게시)를 반드시 확인해야 합니다.',
+                '빈자리 원서 접수 기간이 운영될 수 있으나, 자격증 상세보기에는 표시되지 않을 수 있습니다.',
+              ],
+            ),
+          ),
+          builder: (context, snapshot) {
+            final notice = snapshot.data;
+            return CertificateScheduleNoticeContentCard(
+              items: notice?.items ?? const [],
+              links: notice?.links ?? const [],
+              onOpenLink: _openScheduleNoticeUrl,
+            );
+          },
+        ),
         SizedBox(height: 16),
         if (_schedules.isEmpty)
           _TechnicalDetailEmptyTab(
@@ -1295,7 +1334,7 @@ class _TechnicalCertificateDetailPageState
             padding: EdgeInsets.only(
               bottom: index == _schedules.length - 1 ? 0 : 14,
             ),
-            child: TechnicalScheduleCard(
+            child: CertificateScheduleCard(
               title: schedule.title,
               writtenRegistrationStartAt: schedule.writtenRegistrationStartAt,
               writtenRegistrationEndAt: schedule.writtenRegistrationEndAt,
@@ -1311,6 +1350,9 @@ class _TechnicalCertificateDetailPageState
               practicalExamEndAt: schedule.practicalExamEndAt,
               practicalPassStartAt: schedule.practicalPassStartAt,
               practicalPassEndAt: schedule.practicalPassEndAt,
+              showExamTypeLabels: _hasCombinedExamSchedule,
+              links: schedule.links,
+              onOpenLink: _openScheduleNoticeUrl,
             ),
           );
           }),
@@ -1322,7 +1364,7 @@ class _TechnicalCertificateDetailPageState
     final examDetails = _examDetails;
     final examFee = examDetails?.examFee;
 
-    return TechnicalExamInformationCard(
+    return CertificateExamInformationCard(
       writtenFee: examFee?.hasWrittenFee == true ? examFee!.writtenFee : null,
       practicalFee: examFee?.hasPracticalFee == true
           ? examFee!.practicalFee
@@ -1360,7 +1402,7 @@ class _TechnicalCertificateDetailPageState
   }
 
   Widget _buildStatisticsTab() {
-    return TechnicalCertificateStatisticsSection(
+    return CertificateStatisticsSection(
       baseYear: TechnicalCertificateService.statisticsBaseYear,
       isLoadingWritten: _isLoadingWrittenStatistics,
       writtenError: _writtenStatisticsError,

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../theme.dart';
+import '../../widgets/app_dropdown.dart';
 import '../services/admin_certificate_service.dart';
+import '../widgets/admin_certificate_theme.dart';
+import 'admin_certificate_detail_screen.dart';
 
 class CertificateManagementScreen extends StatefulWidget {
   const CertificateManagementScreen({super.key});
@@ -27,10 +30,11 @@ class _CertificateManagementScreenState
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-      child: StreamBuilder<List<AdminCertificate>>(
+    return AdminCertificateTheme(
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: StreamBuilder<List<AdminCertificate>>(
         stream: _service.watchCertificates(),
         builder: (context, snapshot) {
           if (snapshot.hasError) return _buildError();
@@ -43,10 +47,7 @@ class _CertificateManagementScreenState
           )
               ? _selectedSubfilterKey
               : _CertificateSubfilterOption.allKey;
-          final certificateCategories = _certificateCategoryOptions(
-            allCertificates,
-            selectedSubfilterKey,
-          );
+          const certificateCategories = <_CertificateCategoryOption>[];
           final selectedCertificateCategoryKey = certificateCategories.any(
             (option) => option.key == _selectedCertificateCategoryKey,
           )
@@ -107,12 +108,24 @@ class _CertificateManagementScreenState
                 ...certificates.map(
                   (certificate) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: _CertificateCard(certificate: certificate),
+                    child: _CertificateCard(
+                      certificate: certificate,
+                      onTap: () async {
+                        await Navigator.of(context).push<bool>(
+                          MaterialPageRoute(
+                            builder: (_) => AdminCertificateDetailScreen(
+                              certificate: certificate,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
             ],
           );
         },
+        ),
       ),
     );
   }
@@ -179,7 +192,7 @@ class _CertificateManagementScreenState
     final options = <_CertificateSubfilterOption>[
       const _CertificateSubfilterOption(
         key: _CertificateSubfilterOption.allKey,
-        label: '전체 카테고리',
+        label: '전체 직무 분야',
       ),
     ];
 
@@ -189,15 +202,14 @@ class _CertificateManagementScreenState
       case AdminCertificateScope.technical:
         final categories = <String>{
           for (final certificate in certificates)
-            if (certificate.isTechnical &&
-                certificate.technicalCategoryKey.isNotEmpty)
-              certificate.technicalCategoryKey,
+            if (certificate.isTechnical && certificate.fieldName.isNotEmpty)
+              certificate.fieldName,
         }.toList()
           ..sort();
         options.addAll(
           categories.map(
             (category) => _CertificateSubfilterOption(
-              key: 'technical:$category',
+              key: 'field:$category',
               label: category,
             ),
           ),
@@ -213,17 +225,28 @@ class _CertificateManagementScreenState
         options.addAll(
           categories.map(
             (category) => _CertificateSubfilterOption(
-              key: 'professional:$category',
+              key: 'field:$category',
               label: category,
             ),
           ),
         );
         return options;
       case AdminCertificateScope.other:
-        options.addAll(const [
-          _CertificateSubfilterOption(key: 'other:ai', label: 'AI 추가'),
-          _CertificateSubfilterOption(key: 'other:admin', label: '관리자 추가'),
-        ]);
+        final fields = <String>{
+          for (final certificate in certificates)
+            if (_selectedScope.matches(certificate) &&
+                certificate.fieldName.isNotEmpty)
+              certificate.fieldName,
+        }.toList()
+          ..sort();
+        options.addAll(
+          fields.map(
+            (field) => _CertificateSubfilterOption(
+              key: 'field:$field',
+              label: field,
+            ),
+          ),
+        );
         return options;
     }
   }
@@ -235,15 +258,11 @@ class _CertificateManagementScreenState
     if (selectedSubfilterKey == _CertificateSubfilterOption.allKey) {
       return true;
     }
-    if (selectedSubfilterKey == 'other:ai') return certificate.isAiAdded;
-    if (selectedSubfilterKey == 'other:admin') return certificate.isAdminAdded;
-    if (selectedSubfilterKey.startsWith('technical:')) {
-      return certificate.technicalCategoryKey ==
-          selectedSubfilterKey.substring('technical:'.length);
-    }
-    if (selectedSubfilterKey.startsWith('professional:')) {
-      return certificate.seriesName ==
-          selectedSubfilterKey.substring('professional:'.length);
+    if (selectedSubfilterKey.startsWith('field:')) {
+      final field = selectedSubfilterKey.substring('field:'.length);
+      return certificate.isProfessional
+          ? certificate.seriesName == field
+          : certificate.fieldName == field;
     }
     return true;
   }
@@ -273,7 +292,7 @@ extension on AdminCertificateScope {
         AdminCertificateScope.all => '전체 자격증',
         AdminCertificateScope.technical => '국가기술자격',
         AdminCertificateScope.professional => '국가전문자격',
-        AdminCertificateScope.other => '그외',
+        AdminCertificateScope.other => '그 외',
       };
 
   bool matches(AdminCertificate certificate) => switch (this) {
@@ -320,12 +339,12 @@ class _CertificateSearchControls extends StatelessWidget {
     );
     return Column(
       children: [
-        _AnchoredFilterDropdown<AdminCertificateScope>(
+        AppAdminDropdown<AdminCertificateScope>(
           label: '자격증 분류',
           value: selectedScope,
           items: AdminCertificateScope.values
               .map(
-                (scope) => _FilterDropdownItem(
+                (scope) => AppDropdownItem(
                   value: scope,
                   label: scope.label,
                 ),
@@ -341,12 +360,12 @@ class _CertificateSearchControls extends StatelessWidget {
               ? const SizedBox.shrink()
               : Padding(
                   padding: const EdgeInsets.only(top: 12),
-                  child: _AnchoredFilterDropdown<String>(
-                    label: '세부 카테고리',
+                  child: AppAdminDropdown<String>(
+                    label: '직무 분야',
                     value: selectedSubfilterKey,
                     items: subfilters
                         .map(
-                          (subfilter) => _FilterDropdownItem(
+                          (subfilter) => AppDropdownItem(
                             value: subfilter.key,
                             label: subfilter.label,
                           ),
@@ -364,12 +383,12 @@ class _CertificateSearchControls extends StatelessWidget {
               ? const SizedBox.shrink()
               : Padding(
                   padding: const EdgeInsets.only(top: 12),
-                  child: _AnchoredFilterDropdown<String>(
+                  child: AppAdminDropdown<String>(
                     label: '자격증 카테고리',
                     value: selectedCertificateCategoryKey,
                     items: certificateCategories
                         .map(
-                          (category) => _FilterDropdownItem(
+                          (category) => AppDropdownItem(
                             value: category.key,
                             label: category.label,
                           ),
@@ -436,224 +455,40 @@ class _CertificateCategoryOption {
   final String label;
 }
 
-class _FilterDropdownItem<T> {
-  const _FilterDropdownItem({required this.value, required this.label});
-
-  final T value;
-  final String label;
-}
-
-class _AnchoredFilterDropdown<T> extends StatefulWidget {
-  const _AnchoredFilterDropdown({
-    required this.label,
-    required this.value,
-    required this.items,
-    required this.onChanged,
-  });
-
-  final String label;
-  final T value;
-  final List<_FilterDropdownItem<T>> items;
-  final ValueChanged<T> onChanged;
-
-  @override
-  State<_AnchoredFilterDropdown<T>> createState() =>
-      _AnchoredFilterDropdownState<T>();
-}
-
-class _AnchoredFilterDropdownState<T>
-    extends State<_AnchoredFilterDropdown<T>> {
-  final LayerLink _layerLink = LayerLink();
-  final GlobalKey _targetKey = GlobalKey();
-  OverlayEntry? _menuEntry;
-
-  bool get _isOpen => _menuEntry != null;
-
-  @override
-  void dispose() {
-    _menuEntry?.remove();
-    _menuEntry = null;
-    super.dispose();
-  }
-
-  void _toggleMenu() {
-    if (_isOpen) {
-      _closeMenu();
-      return;
-    }
-    _openMenu();
-  }
-
-  void _openMenu() {
-    final renderBox =
-        _targetKey.currentContext?.findRenderObject() as RenderBox?;
-    if (renderBox == null) return;
-
-    final width = renderBox.size.width;
-    _menuEntry = OverlayEntry(
-      builder: (context) => Stack(
-        children: [
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: _closeMenu,
-            ),
-          ),
-          CompositedTransformFollower(
-            link: _layerLink,
-            targetAnchor: Alignment.bottomLeft,
-            followerAnchor: Alignment.topLeft,
-            offset: const Offset(0, 8),
-            child: Material(
-              elevation: 8,
-              color: context.colors.surfaceElevated,
-              borderRadius: BorderRadius.circular(16),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: width, maxHeight: 280),
-                child: SizedBox(
-                  width: width,
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    itemCount: widget.items.length,
-                    separatorBuilder: (_, _) => Divider(
-                      height: 1,
-                      color: context.colors.divider,
-                    ),
-                    itemBuilder: (context, index) {
-                      final item = widget.items[index];
-                      final selected = item.value == widget.value;
-                      return ListTile(
-                        dense: true,
-                        selected: selected,
-                        selectedTileColor: context.colors.lavender,
-                        title: Text(
-                          item.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: context.colors.textPrimary,
-                            fontWeight:
-                                selected ? FontWeight.w800 : FontWeight.w500,
-                          ),
-                        ),
-                        trailing: selected
-                            ? Icon(
-                                Icons.check_rounded,
-                                color: context.colors.lavenderAccent,
-                              )
-                            : null,
-                        onTap: () {
-                          _closeMenu();
-                          widget.onChanged(item.value);
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-    Overlay.of(context, rootOverlay: true).insert(_menuEntry!);
-    setState(() {});
-  }
-
-  void _closeMenu() {
-    _menuEntry?.remove();
-    _menuEntry = null;
-    if (mounted) setState(() {});
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    String selectedLabel = '';
-    for (final item in widget.items) {
-      if (item.value == widget.value) {
-        selectedLabel = item.label;
-        break;
-      }
-    }
-    final borderColor =
-        _isOpen ? context.colors.lavenderAccent : context.colors.border;
-
-    return CompositedTransformTarget(
-      link: _layerLink,
-      child: Material(
-        key: _targetKey,
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: _toggleMenu,
-          borderRadius: BorderRadius.circular(16),
-          child: InputDecorator(
-            decoration: InputDecoration(
-              labelText: widget.label,
-              filled: true,
-              fillColor: context.colors.surfaceTransparent,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: borderColor),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: borderColor),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    selectedLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Icon(
-                  _isOpen
-                      ? Icons.keyboard_arrow_up_rounded
-                      : Icons.keyboard_arrow_down_rounded,
-                  color: context.colors.iconSecondary,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _CertificateCard extends StatelessWidget {
-  const _CertificateCard({required this.certificate});
+  const _CertificateCard({required this.certificate, required this.onTap});
 
   final AdminCertificate certificate;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: context.colors.surfaceTransparent,
+    final palette = _categoryPalette(context, certificate);
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: context.colors.border),
-      ),
-      child: Row(
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: context.colors.surfaceTransparent,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: context.colors.border),
+          ),
+          child: Row(
         children: [
           Container(
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: context.colors.lavender,
+              color: palette.background,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(
               Icons.workspace_premium_outlined,
-              color: context.colors.lavenderAccent,
+              color: palette.foreground,
             ),
           ),
           const SizedBox(width: 13),
@@ -689,6 +524,8 @@ class _CertificateCard extends StatelessWidget {
           const SizedBox(width: 10),
           _CategoryChip(certificate: certificate),
         ],
+          ),
+        ),
       ),
     );
   }
@@ -708,33 +545,48 @@ class _CategoryChip extends StatelessWidget {
         : certificate.isTechnical
         ? '국가기술자격'
         : '국가전문자격';
-    final backgroundColor = isOther
-        ? context.colors.otherCertificateSoft
-        : certificate.isTechnical
-        ? context.colors.softBlue
-        : context.colors.mint;
-    final foregroundColor = isOther
-        ? context.colors.otherCertificateAccent
-        : certificate.isTechnical
-        ? context.colors.info
-        : context.colors.correct;
+    final palette = _categoryPalette(context, certificate);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: backgroundColor,
+        color: palette.background,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: foregroundColor,
+          color: palette.foreground,
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
       ),
     );
   }
+}
+
+({Color background, Color foreground}) _categoryPalette(
+  BuildContext context,
+  AdminCertificate certificate,
+) {
+  final isOther = certificate.isOther ||
+      (!certificate.isTechnical && !certificate.isProfessional);
+  if (isOther) {
+    return (
+      background: context.colors.otherCertificateSoft,
+      foreground: context.colors.otherCertificateAccent,
+    );
+  }
+  if (certificate.isTechnical) {
+    return (
+      background: context.colors.softBlue,
+      foreground: context.colors.info,
+    );
+  }
+  return (
+    background: context.colors.mint,
+    foreground: context.colors.correct,
+  );
 }
 
 class _CertificateMessageView extends StatelessWidget {

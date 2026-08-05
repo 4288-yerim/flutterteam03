@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -15,20 +16,13 @@ class AppIconService {
   static const alias60 = '.Icon60';
   static const aliasGood = '.IconGood';
 
+  static Future<void>? _openUpdate;
+  static int? _lastHandledOpenDay;
+
   static int _todayEpochDay() {
     final now = DateTime.now();
     return DateTime(now.year, now.month, now.day).millisecondsSinceEpoch ~/
         (1000 * 60 * 60 * 24);
-  }
-
-  static String _aliasForInactiveDays(int days) {
-    if (days >= 60) return alias60;
-    if (days >= 30) return alias30;
-    if (days >= 21) return alias21;
-    if (days >= 14) return alias14;
-    if (days >= 7) return alias7;
-    if (days >= 3) return alias3;
-    return aliasDefault;
   }
 
   static Future<void> _switchTo(String alias) async {
@@ -41,8 +35,49 @@ class AppIconService {
 
   /// 앱이 열릴 때(resumed, 최초 실행 포함) 호출
   static Future<void> onAppOpened() async {
-    final prefs = await SharedPreferences.getInstance();
     final today = _todayEpochDay();
+    if (_lastHandledOpenDay == today) return;
+
+    final pendingUpdate = _openUpdate;
+    if (pendingUpdate != null) {
+      await pendingUpdate;
+      if (_lastHandledOpenDay == today) return;
+    }
+
+    final update = _updateForAppOpen(today);
+    _openUpdate = update;
+    try {
+      await update;
+      _lastHandledOpenDay = today;
+    } finally {
+      _openUpdate = null;
+    }
+  }
+
+  static Future<String?> testInactiveDays(int days) async {
+    if (!kDebugMode) return null;
+
+    try {
+      return await _channel.invokeMethod<String>('testInactiveDays', {
+        'days': days,
+      });
+    } on PlatformException {
+      return null;
+    }
+  }
+
+  static Future<String?> testGoodIcon() async {
+    if (!kDebugMode) return null;
+
+    try {
+      return await _channel.invokeMethod<String>('testGoodIcon');
+    } on PlatformException {
+      return null;
+    }
+  }
+
+  static Future<void> _updateForAppOpen(int today) async {
+    final prefs = await SharedPreferences.getInstance();
     final lastDay = prefs.getInt(_lastOpenedDateKey);
     int streak = prefs.getInt(_streakKey) ?? 0;
 
@@ -70,22 +105,4 @@ class AppIconService {
     }
   }
 
-  /// workmanager 백그라운드 작업에서 호출: 하루 이상 미접속이면 경과일수 아이콘으로 전환
-  static Future<void> checkAndUpdateIcon() async {
-    final prefs = await SharedPreferences.getInstance();
-    final today = _todayEpochDay();
-    final lastDay = prefs.getInt(_lastOpenedDateKey);
-    if (lastDay == null) return;
-
-    final gap = today - lastDay;
-
-    if (gap <= 1) {
-      // 아직 오늘 열 기회가 남아있음 (어제까지는 정상 접속) -> 건드리지 않음
-      return;
-    }
-
-    // 하루 이상 완전히 빠짐 -> streak 초기화 + 경과일수 아이콘 적용
-    await prefs.setInt(_streakKey, 0);
-    await _switchTo(_aliasForInactiveDays(gap));
-  }
 }

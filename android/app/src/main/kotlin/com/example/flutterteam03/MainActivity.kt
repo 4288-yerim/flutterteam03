@@ -1,45 +1,68 @@
-package com.example.flutterteam03  // 실제 패키지명으로
+package com.example.flutterteam03
 
-import android.content.ComponentName
-import android.content.pm.PackageManager
+import android.content.pm.ApplicationInfo
+import android.os.Bundle
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
-    private val CHANNEL = "app_icon_switcher"
-
-    private val aliases = listOf(
-        ".IconDefault", ".Icon3", ".Icon7", ".Icon14",
-        ".Icon21", ".Icon30", ".Icon60", ".IconGood"
-    )
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        AppIconWorker.schedule(this)
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
-            if (call.method == "switchIcon") {
-                val target = call.argument<String>("alias") ?: ".IconDefault"
-                switchIcon(target)
-                result.success(null)
-            } else {
-                result.notImplemented()
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "switchIcon" -> {
+                        val target = call.argument<String>("alias")
+                            ?: AppIconSwitcher.ALIAS_DEFAULT
+                        if (AppIconSwitcher.prepareIconSwitch(this, target)) {
+                            result.success(null)
+                        } else {
+                            result.error("INVALID_ALIAS", "Unknown launcher alias: $target", null)
+                        }
+                    }
+
+                    "testInactiveDays" -> {
+                        if (!isDebuggable()) {
+                            result.notImplemented()
+                            return@setMethodCallHandler
+                        }
+
+                        val days = call.argument<Int>("days") ?: 0
+                        val target = AppIconSwitcher.aliasForInactiveDays(days.coerceAtLeast(0))
+                        AppIconSwitcher.prepareIconSwitch(this, target)
+                        result.success(target)
+                    }
+
+                    "testGoodIcon" -> {
+                        if (!isDebuggable()) {
+                            result.notImplemented()
+                            return@setMethodCallHandler
+                        }
+
+                        AppIconSwitcher.prepareIconSwitch(this, AppIconSwitcher.ALIAS_GOOD)
+                        result.success(AppIconSwitcher.ALIAS_GOOD)
+                    }
+
+                    else -> result.notImplemented()
+                }
             }
-        }
     }
 
-    private fun switchIcon(targetAlias: String) {
-        val pm = packageManager
-        for (alias in aliases) {
-            val state = if (alias == targetAlias) {
-                PackageManager.COMPONENT_ENABLED_STATE_ENABLED
-            } else {
-                PackageManager.COMPONENT_ENABLED_STATE_DISABLED
-            }
-            pm.setComponentEnabledSetting(
-                ComponentName(packageName, "$packageName$alias"),
-                state,
-                PackageManager.DONT_KILL_APP
-            )
-        }
+    override fun onStop() {
+        super.onStop()
+        AppIconSwitcher.completePendingSwitch(this)
+    }
+
+    private fun isDebuggable(): Boolean =
+        applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+
+    companion object {
+        private const val CHANNEL = "app_icon_switcher"
     }
 }

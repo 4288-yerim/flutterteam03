@@ -2,11 +2,12 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import '../../theme.dart';
-
+import '../../services/app_icon_service.dart';
 import '../../services/theme_mode_service.dart';
+import '../../theme.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
@@ -24,6 +25,8 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
   bool _isLoadingSettings = true;
   bool _isSavingSettings = false;
   bool _showSavingOverlay = false;
+  bool _isTestingAppIcon = false;
+  String? _selectedTestIcon;
   Timer? _savingOverlayTimer;
 
   // 기존 DB 설계 필드
@@ -316,6 +319,10 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
                           _buildNotificationSettingSection(),
                           SizedBox(height: 26),
                           _buildPrivacySettingSection(),
+                          if (kDebugMode) ...[
+                            SizedBox(height: 26),
+                            _buildAppIconTestSection(),
+                          ],
                         ],
                       ),
               ),
@@ -913,6 +920,116 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildAppIconTestSection() {
+    const options = <(String, int)>[
+      ('기본', 0),
+      ('3일', 3),
+      ('7일', 7),
+      ('14일', 14),
+      ('21일', 21),
+      ('30일', 30),
+      ('60일', 60),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SettingSectionTitle(
+          icon: Icons.science_outlined,
+          title: '앱 아이콘 테스트',
+          description: '개발 빌드에서 미접속 일수별 아이콘을 즉시 확인합니다.',
+        ),
+        SizedBox(height: 12),
+        AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                '아이콘을 선택한 다음 홈 화면으로 이동해 확인하세요. 실제 접속 기록은 변경되지 않습니다.',
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.4,
+                  color: context.colors.textSecondary,
+                ),
+              ),
+              SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final option in options)
+                    _buildIconTestChip(
+                      label: option.$1,
+                      selected: _selectedTestIcon == option.$1,
+                      onPressed: () => _testInactiveIcon(option.$1, option.$2),
+                    ),
+                  _buildIconTestChip(
+                    label: '연속 접속',
+                    selected: _selectedTestIcon == '연속 접속',
+                    onPressed: _testGoodIcon,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIconTestChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onPressed,
+  }) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: _isTestingAppIcon ? null : (_) => onPressed(),
+      selectedColor: context.colors.pinkSoft,
+      side: BorderSide(
+        color: selected ? context.colors.pinkStart : context.colors.divider,
+      ),
+      labelStyle: TextStyle(
+        color: selected
+            ? context.colors.pinkStart
+            : context.colors.textSecondary,
+        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+      ),
+    );
+  }
+
+  Future<void> _testInactiveIcon(String label, int days) async {
+    await _runIconTest(
+      label,
+      () => AppIconService.testInactiveDays(days),
+    );
+  }
+
+  Future<void> _testGoodIcon() async {
+    await _runIconTest('연속 접속', AppIconService.testGoodIcon);
+  }
+
+  Future<void> _runIconTest(
+    String label,
+    Future<String?> Function() test,
+  ) async {
+    setState(() => _isTestingAppIcon = true);
+    final alias = await test();
+    if (!mounted) return;
+
+    setState(() {
+      _isTestingAppIcon = false;
+      if (alias != null) _selectedTestIcon = label;
+    });
+
+    _showMessage(
+      alias == null
+          ? '아이콘 변경에 실패했습니다.'
+          : '$label 아이콘을 적용했습니다. 홈 화면에서 확인해 주세요.',
     );
   }
 

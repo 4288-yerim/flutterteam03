@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../theme.dart';
 import '../../appwidgets/goal_schedule_app_widget.dart';
@@ -7,14 +8,15 @@ import '../../widgets/app_main_background.dart';
 import '../../widgets/app_state_views.dart';
 import '../../widgets/app_top_bar.dart';
 import '../services/certificate_detail_service.dart';
+import '../services/certificate_category_content_service.dart';
 import '../services/certificate_search_service.dart';
 import '../services/other_certificate_detail_service.dart';
 import '../services/technical_certificate_service.dart';
 import '../widgets/certificate_common_widgets.dart';
 import '../widgets/certificate_detail_widgets.dart';
+import '../widgets/certificate_schedule_notice_content_card.dart';
 import '../widgets/other_certificate_detail_widgets.dart';
 import '../widgets/professional_certificate_widgets.dart';
-import '../widgets/technical_certificate_widgets.dart';
 
 class OtherCertificateDetailPage extends StatefulWidget {
   final String certificationId;
@@ -31,6 +33,8 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
   final OtherCertificateDetailService _service = OtherCertificateDetailService();
   final CertificateDetailService _certificateDetailService =
       CertificateDetailService();
+  final CertificateCategoryContentService _categoryContentService =
+      CertificateCategoryContentService();
   late final TabController _tabController;
 
   Certification? _certificate;
@@ -40,6 +44,26 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
   String? _errorMessage;
   int _selectedTabIndex = 0;
   bool _isRegisteringGoal = false;
+
+  bool get _hasPracticalSchedule => _schedules.any(_scheduleHasPractical);
+
+  bool get _hasCombinedExamSchedule => _schedules.any((schedule) =>
+      _scheduleHasWritten(schedule) && _scheduleHasPractical(schedule));
+
+  bool _scheduleHasWritten(TechnicalCertificateSchedule schedule) =>
+      schedule.writtenRegistrationStartAt != null ||
+      schedule.writtenRegistrationEndAt != null ||
+      schedule.writtenExamStartAt != null ||
+      schedule.writtenExamEndAt != null ||
+      schedule.writtenPassAt != null;
+
+  bool _scheduleHasPractical(TechnicalCertificateSchedule schedule) =>
+      schedule.practicalRegistrationStartAt != null ||
+      schedule.practicalRegistrationEndAt != null ||
+      schedule.practicalExamStartAt != null ||
+      schedule.practicalExamEndAt != null ||
+      schedule.practicalPassStartAt != null ||
+      schedule.practicalPassEndAt != null;
 
   @override
   void initState() {
@@ -105,7 +129,7 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
         today: today,
         schedule: schedule,
         examType: 'WRITTEN',
-        examTypeName: '필기',
+        examTypeName: _hasPracticalSchedule ? '필기' : '통합',
         examStartDate: schedule.writtenExamStartAt,
         examEndDate: schedule.writtenExamEndAt,
         registrationStartDate: schedule.writtenRegistrationStartAt,
@@ -118,7 +142,7 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
         today: today,
         schedule: schedule,
         examType: 'PRACTICAL',
-        examTypeName: '실기',
+        examTypeName: '실기/면접',
         examStartDate: schedule.practicalExamStartAt,
         examEndDate: schedule.practicalExamEndAt,
         registrationStartDate: schedule.practicalRegistrationStartAt,
@@ -232,6 +256,7 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
         targetExamEndDate: option.examEndDate ?? option.examStartDate,
         targetRound: option.targetRound,
         targetExamType: option.examType,
+        targetExamTypeName: option.examTypeName,
         targetRegistrationStartDate: option.registrationStartDate,
         targetRegistrationEndDate: option.registrationEndDate,
         targetPassAnnouncementDate: option.passAnnouncementDate,
@@ -264,7 +289,7 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
       backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
       appBar: AppTopBar(
-        title: '자격증 상세',
+        title: _certificate == null ? '자격증 상세' : '${_certificate!.name} 상세',
         centerTitle: true,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
@@ -396,11 +421,15 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
         return _buildScheduleTab();
       case 1:
         final details = _examDetails;
-        return OtherCertificateExamInformationCard(
+        return CertificateExamInformationCard(
           writtenFee: details?.writtenFee,
           practicalFee: details?.practicalFee,
           examTrends: details?.examTrends ?? '',
           howToObtain: details?.howToObtain ?? '',
+          examFeeLinks: details?.examFeeLinks ?? const [],
+          examTrendsLinks: details?.examTrendsLinks ?? const [],
+          howToObtainLinks: details?.howToObtainLinks ?? const [],
+          onOpenLink: _openScheduleNoticeUrl,
         );
       default:
         return const OtherCertificateEmptyContent(message: '통계 정보는 준비 중입니다.');
@@ -410,7 +439,22 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
   Widget _buildScheduleTab() {
     return Column(
       children: [
-        const OtherCertificateScheduleNoticeCard(),
+        StreamBuilder<CertificateCategoryScheduleNotice>(
+          stream: _categoryContentService.watchScheduleNotice(
+            CertificateCategory.other,
+            fallback: CertificateCategoryScheduleNotice(
+              items: ['시험 일정은 종목별, 지역별로 상이할 수 있습니다.'],
+            ),
+          ),
+          builder: (context, snapshot) => CertificateScheduleNoticeContentCard(
+            items: snapshot.data?.items ?? const [],
+            links: [
+              ...(snapshot.data?.links ?? const []),
+              ...(_examDetails?.scheduleLinks ?? const []),
+            ],
+            onOpenLink: _openScheduleNoticeUrl,
+          ),
+        ),
         const SizedBox(height: 16),
         if (_schedules.isEmpty)
           const ProfessionalEmptyTab(
@@ -421,7 +465,7 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
         else
           ..._schedules.map((schedule) => Padding(
                 padding: const EdgeInsets.only(bottom: 14),
-                child: TechnicalScheduleCard(
+                child: CertificateScheduleCard(
                   title: schedule.title,
                   writtenRegistrationStartAt: schedule.writtenRegistrationStartAt,
                   writtenRegistrationEndAt: schedule.writtenRegistrationEndAt,
@@ -436,10 +480,21 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
                   practicalExamEndAt: schedule.practicalExamEndAt,
                   practicalPassStartAt: schedule.practicalPassStartAt,
                   practicalPassEndAt: schedule.practicalPassEndAt,
+                  showExamTypeLabels: _hasCombinedExamSchedule,
+                  links: schedule.links,
+                  onOpenLink: _openScheduleNoticeUrl,
                 ),
               )),
       ],
     );
+  }
+
+  Future<void> _openScheduleNoticeUrl(String value) async {
+    final uri = Uri.tryParse(value);
+    if (uri == null || (uri.scheme != 'https' && uri.scheme != 'http')) {
+      return;
+    }
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 }
 
