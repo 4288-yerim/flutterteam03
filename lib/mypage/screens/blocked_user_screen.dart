@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../services/user_profile_cache_service.dart';
 import '../../theme.dart';
 
 import '../../widgets/app_dialog.dart';
@@ -28,7 +29,7 @@ class _BlockedUserScreenState extends State<BlockedUserScreen> {
     _loadBlockedUsers();
   }
 
-  Future<void> _loadBlockedUsers() async {
+  Future<void> _loadBlockedUsers({bool forceRefresh = false}) async {
     final String? currentUid = FirebaseAuth.instance.currentUser?.uid;
 
     if (currentUid == null) {
@@ -61,21 +62,19 @@ class _BlockedUserScreenState extends State<BlockedUserScreen> {
 
       for (final QueryDocumentSnapshot<Map<String, dynamic>> blockedDocument
           in blockedSnapshot.docs) {
-        final DocumentSnapshot<Map<String, dynamic>> userDocument =
-            await FirebaseFirestore.instance
-                .collection('users')
-                .doc(blockedDocument.id)
-                .get();
+        final profile = await UserProfileCacheService.instance.getProfile(
+          blockedDocument.id,
+          forceRefresh: forceRefresh,
+        );
 
         final Map<String, dynamic> blockedData = blockedDocument.data();
 
-        final Map<String, dynamic>? userData = userDocument.data();
+        final String nickname = profile?.isDeleted == true
+            ? '탈퇴한 사용자'
+            : (profile?.nickname.trim() ?? '알 수 없는 사용자');
 
-        final String nickname =
-            (userData?['nickname'] as String? ?? '알 수 없는 사용자').trim();
-
-        final String? savedProfileImageUrl =
-            (userData?['profileImageUrl'] as String?)?.trim();
+        final String savedProfileImageUrl =
+            profile?.profileImageUrl.trim() ?? '';
 
         final Timestamp? createdAt = blockedData['createdAt'] as Timestamp?;
 
@@ -87,8 +86,7 @@ class _BlockedUserScreenState extends State<BlockedUserScreen> {
           BlockedUserItem(
             uid: blockedDocument.id,
             nickname: nickname.isEmpty ? '알 수 없는 사용자' : nickname,
-            profileImageUrl:
-                savedProfileImageUrl != null && savedProfileImageUrl.isNotEmpty
+            profileImageUrl: savedProfileImageUrl.isNotEmpty
                 ? savedProfileImageUrl
                 : null,
             createdAt: createdAt?.toDate(),
@@ -250,7 +248,7 @@ class _BlockedUserScreenState extends State<BlockedUserScreen> {
 
     return RefreshIndicator(
       color: context.colors.pinkStart,
-      onRefresh: _loadBlockedUsers,
+      onRefresh: () => _loadBlockedUsers(forceRefresh: true),
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
         children: [

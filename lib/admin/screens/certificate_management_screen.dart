@@ -4,6 +4,7 @@ import '../../theme.dart';
 import '../../widgets/app_dropdown.dart';
 import '../services/admin_certificate_service.dart';
 import '../widgets/admin_certificate_theme.dart';
+import '../widgets/admin_theme.dart';
 import 'admin_certificate_detail_screen.dart';
 
 class CertificateManagementScreen extends StatefulWidget {
@@ -35,96 +36,100 @@ class _CertificateManagementScreenState
         behavior: HitTestBehavior.translucent,
         onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
         child: StreamBuilder<List<AdminCertificate>>(
-        stream: _service.watchCertificates(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) return _buildError();
-          if (!snapshot.hasData) return _buildLoading();
+          stream: _service.watchCertificates(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) return _buildError();
+            if (!snapshot.hasData) return _buildLoading();
 
-          final allCertificates = snapshot.data!;
-          final subfilters = _subfilterOptions(allCertificates);
-          final selectedSubfilterKey = subfilters.any(
-            (option) => option.key == _selectedSubfilterKey,
-          )
-              ? _selectedSubfilterKey
-              : _CertificateSubfilterOption.allKey;
-          const certificateCategories = <_CertificateCategoryOption>[];
-          final selectedCertificateCategoryKey = certificateCategories.any(
-            (option) => option.key == _selectedCertificateCategoryKey,
-          )
-              ? _selectedCertificateCategoryKey
-              : _CertificateCategoryOption.allKey;
-          final certificates = _filteredCertificates(
-            allCertificates,
-            selectedSubfilterKey,
-            selectedCertificateCategoryKey,
-          );
-          return ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 32),
-            children: [
-              _CertificateSearchControls(
-                controller: _searchController,
-                selectedScope: _selectedScope,
-                subfilters: subfilters,
-                selectedSubfilterKey: selectedSubfilterKey,
-                certificateCategories: certificateCategories,
-                selectedCertificateCategoryKey: selectedCertificateCategoryKey,
-                onSearchChanged: (_) => setState(() {}),
-                onScopeChanged: (scope) {
-                  setState(() {
-                    _selectedScope = scope;
-                    _selectedSubfilterKey = _CertificateSubfilterOption.allKey;
-                    _selectedCertificateCategoryKey =
-                        _CertificateCategoryOption.allKey;
-                  });
-                },
-                onSubfilterChanged: (key) {
-                  setState(() {
-                    _selectedSubfilterKey = key;
-                    _selectedCertificateCategoryKey =
-                        _CertificateCategoryOption.allKey;
-                  });
-                },
-                onCertificateCategoryChanged: (key) {
-                  setState(() => _selectedCertificateCategoryKey = key);
-                },
-              ),
-              const SizedBox(height: 18),
-              Text(
-                '조회 자격증 ${certificates.length}개',
-                style: TextStyle(
-                  color: context.colors.textPrimary,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 12),
-              if (certificates.isEmpty)
-                _CertificateMessageView(
-                  icon: Icons.search_off_rounded,
-                  message: '검색 조건에 맞는 자격증이 없습니다.',
+            final allCertificates = snapshot.data!;
+            final subfilters = _subfilterOptions(allCertificates);
+            final selectedSubfilterKey =
+                subfilters.any((option) => option.key == _selectedSubfilterKey)
+                ? _selectedSubfilterKey
+                : _CertificateSubfilterOption.allKey;
+            const certificateCategories = <_CertificateCategoryOption>[];
+            final selectedCertificateCategoryKey =
+                certificateCategories.any(
+                  (option) => option.key == _selectedCertificateCategoryKey,
                 )
-              else
-                ...certificates.map(
-                  (certificate) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _CertificateCard(
-                      certificate: certificate,
-                      onTap: () async {
-                        await Navigator.of(context).push<bool>(
-                          MaterialPageRoute(
-                            builder: (_) => AdminCertificateDetailScreen(
-                              certificate: certificate,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                ? _selectedCertificateCategoryKey
+                : _CertificateCategoryOption.allKey;
+            final certificates = _filteredCertificates(
+              allCertificates,
+              selectedSubfilterKey,
+              selectedCertificateCategoryKey,
+            );
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 32),
+              children: [
+                _CertificateSearchControls(
+                  controller: _searchController,
+                  selectedScope: _selectedScope,
+                  subfilters: subfilters,
+                  selectedSubfilterKey: selectedSubfilterKey,
+                  certificateCategories: certificateCategories,
+                  selectedCertificateCategoryKey:
+                      selectedCertificateCategoryKey,
+                  onSearchChanged: (_) => setState(() {}),
+                  onScopeChanged: (scope) {
+                    setState(() {
+                      _selectedScope = scope;
+                      _selectedSubfilterKey =
+                          _CertificateSubfilterOption.allKey;
+                      _selectedCertificateCategoryKey =
+                          _CertificateCategoryOption.allKey;
+                    });
+                  },
+                  onSubfilterChanged: (key) {
+                    setState(() {
+                      _selectedSubfilterKey = key;
+                      _selectedCertificateCategoryKey =
+                          _CertificateCategoryOption.allKey;
+                    });
+                  },
+                  onCertificateCategoryChanged: (key) {
+                    setState(() => _selectedCertificateCategoryKey = key);
+                  },
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  '조회 자격증 ${certificates.length}개',
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
-            ],
-          );
-        },
+                const SizedBox(height: 12),
+                if (certificates.isEmpty)
+                  _CertificateMessageView(
+                    icon: Icons.search_off_rounded,
+                    message: '검색 조건에 맞는 자격증이 없습니다.',
+                  )
+                else
+                  ...certificates.map(
+                    (certificate) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _CertificateCard(
+                        certificate: certificate,
+                        onTap: () async {
+                          await Navigator.of(context).push<bool>(
+                            MaterialPageRoute(
+                              builder: (_) => AdminTheme(
+                                child: AdminCertificateDetailScreen(
+                                  certificate: certificate,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -167,15 +172,16 @@ class _CertificateManagementScreenState
               ? certificate.qualificationCode
               : certificate.qualificationName,
     };
-    final options = categories.entries
-        .map(
-          (entry) => _CertificateCategoryOption(
-            key: entry.key,
-            label: entry.value,
-          ),
-        )
-        .toList()
-      ..sort((first, second) => first.label.compareTo(second.label));
+    final options =
+        categories.entries
+            .map(
+              (entry) => _CertificateCategoryOption(
+                key: entry.key,
+                label: entry.value,
+              ),
+            )
+            .toList()
+          ..sort((first, second) => first.label.compareTo(second.label));
 
     return [
       const _CertificateCategoryOption(
@@ -204,8 +210,7 @@ class _CertificateManagementScreenState
           for (final certificate in certificates)
             if (certificate.isTechnical && certificate.fieldName.isNotEmpty)
               certificate.fieldName,
-        }.toList()
-          ..sort();
+        }.toList()..sort();
         options.addAll(
           categories.map(
             (category) => _CertificateSubfilterOption(
@@ -220,8 +225,7 @@ class _CertificateManagementScreenState
           for (final certificate in certificates)
             if (certificate.isProfessional && certificate.seriesName.isNotEmpty)
               certificate.seriesName,
-        }.toList()
-          ..sort();
+        }.toList()..sort();
         options.addAll(
           categories.map(
             (category) => _CertificateSubfilterOption(
@@ -237,14 +241,11 @@ class _CertificateManagementScreenState
             if (_selectedScope.matches(certificate) &&
                 certificate.fieldName.isNotEmpty)
               certificate.fieldName,
-        }.toList()
-          ..sort();
+        }.toList()..sort();
         options.addAll(
           fields.map(
-            (field) => _CertificateSubfilterOption(
-              key: 'field:$field',
-              label: field,
-            ),
+            (field) =>
+                _CertificateSubfilterOption(key: 'field:$field', label: field),
           ),
         );
         return options;
@@ -289,21 +290,22 @@ enum AdminCertificateScope { all, technical, professional, other }
 
 extension on AdminCertificateScope {
   String get label => switch (this) {
-        AdminCertificateScope.all => '전체 자격증',
-        AdminCertificateScope.technical => '국가기술자격',
-        AdminCertificateScope.professional => '국가전문자격',
-        AdminCertificateScope.other => '그 외',
-      };
+    AdminCertificateScope.all => '전체 자격증',
+    AdminCertificateScope.technical => '국가기술자격',
+    AdminCertificateScope.professional => '국가전문자격',
+    AdminCertificateScope.other => '그 외',
+  };
 
   bool matches(AdminCertificate certificate) => switch (this) {
-        AdminCertificateScope.all => true,
-        AdminCertificateScope.technical =>
-          !certificate.isOther && certificate.isTechnical,
-        AdminCertificateScope.professional =>
-          !certificate.isOther && certificate.isProfessional,
-        AdminCertificateScope.other => certificate.isOther ||
-            (!certificate.isTechnical && !certificate.isProfessional),
-      };
+    AdminCertificateScope.all => true,
+    AdminCertificateScope.technical =>
+      !certificate.isOther && certificate.isTechnical,
+    AdminCertificateScope.professional =>
+      !certificate.isOther && certificate.isProfessional,
+    AdminCertificateScope.other =>
+      certificate.isOther ||
+          (!certificate.isTechnical && !certificate.isProfessional),
+  };
 }
 
 class _CertificateSearchControls extends StatelessWidget {
@@ -343,12 +345,7 @@ class _CertificateSearchControls extends StatelessWidget {
           label: '자격증 분류',
           value: selectedScope,
           items: AdminCertificateScope.values
-              .map(
-                (scope) => AppDropdownItem(
-                  value: scope,
-                  label: scope.label,
-                ),
-              )
+              .map((scope) => AppDropdownItem(value: scope, label: scope.label))
               .toList(),
           onChanged: onScopeChanged,
         ),
@@ -444,10 +441,7 @@ class _CertificateSubfilterOption {
 }
 
 class _CertificateCategoryOption {
-  const _CertificateCategoryOption({
-    required this.key,
-    required this.label,
-  });
+  const _CertificateCategoryOption({required this.key, required this.label});
 
   static const allKey = 'all';
 
@@ -478,52 +472,52 @@ class _CertificateCard extends StatelessWidget {
             border: Border.all(color: context.colors.border),
           ),
           child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: palette.background,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(
-              Icons.workspace_premium_outlined,
-              color: palette.foreground,
-            ),
-          ),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  certificate.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: context.colors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: palette.background,
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                if (certificate.detailText.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    certificate.detailText,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: context.colors.textSecondary,
-                      fontSize: 13,
+                child: Icon(
+                  Icons.workspace_premium_outlined,
+                  color: palette.foreground,
+                ),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      certificate.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          _CategoryChip(certificate: certificate),
-        ],
+                    if (certificate.detailText.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        certificate.detailText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: context.colors.textSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              _CategoryChip(certificate: certificate),
+            ],
           ),
         ),
       ),
@@ -538,7 +532,8 @@ class _CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isOther = certificate.isOther ||
+    final isOther =
+        certificate.isOther ||
         (!certificate.isTechnical && !certificate.isProfessional);
     final label = isOther
         ? '그 외'
@@ -569,7 +564,8 @@ class _CategoryChip extends StatelessWidget {
   BuildContext context,
   AdminCertificate certificate,
 ) {
-  final isOther = certificate.isOther ||
+  final isOther =
+      certificate.isOther ||
       (!certificate.isTechnical && !certificate.isProfessional);
   if (isOther) {
     return (
@@ -583,10 +579,7 @@ class _CategoryChip extends StatelessWidget {
       foreground: context.colors.info,
     );
   }
-  return (
-    background: context.colors.mint,
-    foreground: context.colors.correct,
-  );
+  return (background: context.colors.mint, foreground: context.colors.correct);
 }
 
 class _CertificateMessageView extends StatelessWidget {

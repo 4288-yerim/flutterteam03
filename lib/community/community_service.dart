@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../services/user_profile_cache_service.dart';
 // 댓글 좋아요·수정·삭제 적용본
 import 'community_comment_models.dart';
 import 'community_models.dart';
@@ -7,9 +8,20 @@ import 'community_models.dart';
 class CommunityService {
   final FirebaseFirestore _firestore;
 
-  CommunityService({
-    FirebaseFirestore? firestore,
-  }) : _firestore = firestore ?? FirebaseFirestore.instance;
+  CommunityService({FirebaseFirestore? firestore})
+    : _firestore = firestore ?? FirebaseFirestore.instance;
+
+  Future<String> resolveCurrentNickname({
+    required String uid,
+    required String fallback,
+    bool forceRefresh = false,
+  }) {
+    return UserProfileCacheService.instance.resolveNickname(
+      uid: uid,
+      fallback: fallback,
+      forceRefresh: forceRefresh,
+    );
+  }
 
   Stream<List<CommunityPost>> watchPosts() {
     return _firestore
@@ -18,64 +30,49 @@ class CommunityService {
         .where('visibility', isEqualTo: 'PUBLIC')
         .snapshots()
         .map((snapshot) {
-      List<CommunityPost> posts = [];
+          List<CommunityPost> posts = [];
 
-      for (QueryDocumentSnapshot<Map<String, dynamic>> document
-      in snapshot.docs) {
-        CommunityPost post =
-        CommunityPost.fromDocument(document);
+          for (QueryDocumentSnapshot<Map<String, dynamic>> document
+              in snapshot.docs) {
+            CommunityPost post = CommunityPost.fromDocument(document);
 
-        posts.add(post);
-      }
+            posts.add(post);
+          }
 
-      posts.sort((a, b) {
-        int aTime =
-            a.createdAt?.millisecondsSinceEpoch ?? 0;
-        int bTime =
-            b.createdAt?.millisecondsSinceEpoch ?? 0;
+          posts.sort((a, b) {
+            int aTime = a.createdAt?.millisecondsSinceEpoch ?? 0;
+            int bTime = b.createdAt?.millisecondsSinceEpoch ?? 0;
 
-        return bTime.compareTo(aTime);
-      });
+            return bTime.compareTo(aTime);
+          });
 
-      return posts;
-    });
+          return posts;
+        });
   }
 
   Stream<CommunityPost?> watchPost(String postId) {
     return _firestore
         .collection('posts')
-        .where(
-      FieldPath.documentId,
-      isEqualTo: postId,
-    )
+        .where(FieldPath.documentId, isEqualTo: postId)
         .limit(1)
         .snapshots()
         .map((snapshot) {
-      if (snapshot.docs.isEmpty) {
-        return null;
-      }
+          if (snapshot.docs.isEmpty) {
+            return null;
+          }
 
-      CommunityPost post =
-      CommunityPost.fromDocument(
-        snapshot.docs.first,
-      );
+          CommunityPost post = CommunityPost.fromDocument(snapshot.docs.first);
 
-      if (post.postStatus != 'NORMAL' ||
-          post.visibility != 'PUBLIC') {
-        return null;
-      }
+          if (post.postStatus != 'NORMAL' || post.visibility != 'PUBLIC') {
+            return null;
+          }
 
-      return post;
-    });
+          return post;
+        });
   }
 
-  Future<void> increaseViewCount(
-      String postId,
-      ) async {
-    await _firestore
-        .collection('posts')
-        .doc(postId)
-        .update({
+  Future<void> increaseViewCount(String postId) async {
+    await _firestore.collection('posts').doc(postId).update({
       'viewCount': FieldValue.increment(1),
     });
   }
@@ -90,8 +87,7 @@ class CommunityService {
     required String reasonType,
     String? description,
   }) async {
-    String reportId =
-        'POST_${postId}_${reporterUid}_$targetUid';
+    String reportId = 'POST_${postId}_${reporterUid}_$targetUid';
 
     await _firestore.collection('reports').doc(reportId).set({
       'reporterNicname': reporterNickname,
@@ -156,38 +152,33 @@ class CommunityService {
     required String writerNickname,
     required String writerProfileImageUrl,
     required bool isCertifiedWriter,
-    List<CommunityCertificateTag> certificateTags =
-    const [],
-    List<Map<String, dynamic>> imageAttachments =
-    const [],
-    List<Map<String, dynamic>> fileAttachments =
-    const [],
+    List<CommunityCertificateTag> certificateTags = const [],
+    List<Map<String, dynamic>> imageAttachments = const [],
+    List<Map<String, dynamic>> fileAttachments = const [],
   }) async {
     bool verifiedWriter = isCertifiedWriter;
 
     if (boardType == CommunityBoardType.passReview) {
       List<CommunityCertificateTag> certifiedTags =
-      await getCertifiedCertificateTags(writerUid);
+          await getCertifiedCertificateTags(writerUid);
 
       bool canWritePassReview =
           certificateTags.length == 1 &&
-              certifiedTags.any((certifiedTag) {
-                return certifiedTag.certificateId ==
-                    certificateTags.first.certificateId;
-              });
+          certifiedTags.any((certifiedTag) {
+            return certifiedTag.certificateId ==
+                certificateTags.first.certificateId;
+          });
 
       if (!canWritePassReview) {
-        throw StateError(
-          '합격 인증된 자격증의 합격 후기만 작성할 수 있습니다.',
-        );
+        throw StateError('합격 인증된 자격증의 합격 후기만 작성할 수 있습니다.');
       }
 
       verifiedWriter = true;
     }
 
-    DocumentReference<Map<String, dynamic>>
-    document =
-    _firestore.collection('posts').doc(postId);
+    DocumentReference<Map<String, dynamic>> document = _firestore
+        .collection('posts')
+        .doc(postId);
 
     await document.set({
       'boardType': boardType.code,
@@ -195,11 +186,9 @@ class CommunityService {
       'content': content,
       'writerUid': writerUid,
       'writerNickname': writerNickname,
-      'writerProfileImageUrl':
-      writerProfileImageUrl,
+      'writerProfileImageUrl': writerProfileImageUrl,
       'isCertifiedWriter': verifiedWriter,
-      'certificateTags':
-      certificateTags.map((tag) {
+      'certificateTags': certificateTags.map((tag) {
         return tag.toMap();
       }).toList(),
       'imageAttachments': imageAttachments,
@@ -208,13 +197,10 @@ class CommunityService {
       'commentCount': 0,
       'likeCount': 0,
       'bookmarkCount': 0,
-      'questionStatus':
-      boardType == CommunityBoardType.question
+      'questionStatus': boardType == CommunityBoardType.question
           ? 'WAITING'
           : '',
-      'recruitStatus':
-      boardType ==
-          CommunityBoardType.groupRecruit
+      'recruitStatus': boardType == CommunityBoardType.groupRecruit
           ? 'RECRUITING'
           : '',
       'postStatus': 'NORMAL',
@@ -237,26 +223,25 @@ class CommunityService {
     required List<Map<String, dynamic>> imageAttachments,
     required List<Map<String, dynamic>> fileAttachments,
   }) async {
-    DocumentReference<Map<String, dynamic>> postReference =
-    _firestore.collection('posts').doc(postId);
+    DocumentReference<Map<String, dynamic>> postReference = _firestore
+        .collection('posts')
+        .doc(postId);
 
-    DocumentSnapshot<Map<String, dynamic>> postSnapshot =
-    await postReference.get();
+    DocumentSnapshot<Map<String, dynamic>> postSnapshot = await postReference
+        .get();
 
     if (!postSnapshot.exists) {
       throw StateError('게시글을 찾을 수 없습니다.');
     }
 
-    Map<String, dynamic> postData =
-        postSnapshot.data() ?? {};
+    Map<String, dynamic> postData = postSnapshot.data() ?? {};
 
     if (postData['writerUid']?.toString() != writerUid) {
       throw StateError('작성자만 게시글을 수정할 수 있습니다.');
     }
 
     if (boardType == CommunityBoardType.passReview) {
-      String writerUid =
-          postData['writerUid']?.toString() ?? '';
+      String writerUid = postData['writerUid']?.toString() ?? '';
 
       List<CommunityCertificateTag> postTags = [];
       dynamic tagValue = postData['certificateTags'];
@@ -265,33 +250,27 @@ class CommunityService {
         for (dynamic item in tagValue) {
           if (item is Map) {
             postTags.add(
-              CommunityCertificateTag.fromMap(
-                Map<String, dynamic>.from(item),
-              ),
+              CommunityCertificateTag.fromMap(Map<String, dynamic>.from(item)),
             );
           }
         }
       }
 
       List<CommunityCertificateTag> certifiedTags =
-      await getCertifiedCertificateTags(writerUid);
+          await getCertifiedCertificateTags(writerUid);
 
       bool canWritePassReview =
           postTags.length == 1 &&
-              certifiedTags.any((certifiedTag) {
-                return certifiedTag.certificateId ==
-                    postTags.first.certificateId;
-              });
+          certifiedTags.any((certifiedTag) {
+            return certifiedTag.certificateId == postTags.first.certificateId;
+          });
 
       if (!canWritePassReview) {
-        throw StateError(
-          '합격 인증된 자격증의 합격 후기만 작성할 수 있습니다.',
-        );
+        throw StateError('합격 인증된 자격증의 합격 후기만 작성할 수 있습니다.');
       }
     }
 
-    String previousBoardType =
-        postData['boardType']?.toString() ?? '';
+    String previousBoardType = postData['boardType']?.toString() ?? '';
 
     Map<String, dynamic> updates = {
       'boardType': boardType.code,
@@ -303,18 +282,15 @@ class CommunityService {
     };
 
     if (boardType == CommunityBoardType.question) {
-      if (previousBoardType !=
-          CommunityBoardType.question.code) {
+      if (previousBoardType != CommunityBoardType.question.code) {
         updates['questionStatus'] = 'WAITING';
       }
     } else {
       updates['questionStatus'] = '';
     }
 
-    if (boardType ==
-        CommunityBoardType.groupRecruit) {
-      if (previousBoardType !=
-          CommunityBoardType.groupRecruit.code) {
+    if (boardType == CommunityBoardType.groupRecruit) {
+      if (previousBoardType != CommunityBoardType.groupRecruit.code) {
         updates['recruitStatus'] = 'RECRUITING';
       }
     } else {
@@ -339,67 +315,51 @@ class CommunityService {
       throw ArgumentError('올바르지 않은 모집 상태입니다.');
     }
 
-    DocumentReference<Map<String, dynamic>> postReference =
-    _firestore.collection('posts').doc(postId);
+    DocumentReference<Map<String, dynamic>> postReference = _firestore
+        .collection('posts')
+        .doc(postId);
 
-    await _firestore.runTransaction(
-          (transaction) async {
-        DocumentSnapshot<Map<String, dynamic>>
-        postSnapshot =
-        await transaction.get(postReference);
+    await _firestore.runTransaction((transaction) async {
+      DocumentSnapshot<Map<String, dynamic>> postSnapshot = await transaction
+          .get(postReference);
 
-        if (!postSnapshot.exists) {
-          throw StateError('게시글을 찾을 수 없습니다.');
-        }
+      if (!postSnapshot.exists) {
+        throw StateError('게시글을 찾을 수 없습니다.');
+      }
 
-        Map<String, dynamic> postData =
-            postSnapshot.data() ?? {};
+      Map<String, dynamic> postData = postSnapshot.data() ?? {};
 
-        if (postData['writerUid']?.toString() !=
-            writerUid) {
-          throw StateError(
-            '작성자만 모집 상태를 변경할 수 있습니다.',
-          );
-        }
+      if (postData['writerUid']?.toString() != writerUid) {
+        throw StateError('작성자만 모집 상태를 변경할 수 있습니다.');
+      }
 
-        if (postData['boardType']?.toString() !=
-            CommunityBoardType.groupRecruit.code) {
-          throw StateError('스터디 모집글이 아닙니다.');
-        }
+      if (postData['boardType']?.toString() !=
+          CommunityBoardType.groupRecruit.code) {
+        throw StateError('스터디 모집글이 아닙니다.');
+      }
 
-        String currentStatus =
-            postData['recruitStatus']?.toString() ?? '';
+      String currentStatus = postData['recruitStatus']?.toString() ?? '';
 
-        // 이전 데이터의 OPEN은 RECRUITING으로 호환합니다.
-        if (currentStatus == 'OPEN' ||
-            currentStatus.isEmpty) {
-          currentStatus = 'RECRUITING';
-        }
+      // 이전 데이터의 OPEN은 RECRUITING으로 호환합니다.
+      if (currentStatus == 'OPEN' || currentStatus.isEmpty) {
+        currentStatus = 'RECRUITING';
+      }
 
-        String? allowedNextStatus =
-        nextStatusByCurrent[currentStatus];
+      String? allowedNextStatus = nextStatusByCurrent[currentStatus];
 
-        if (allowedNextStatus != nextStatus) {
-          throw StateError(
-            '현재 모집 상태에서 변경할 수 없습니다.',
-          );
-        }
+      if (allowedNextStatus != nextStatus) {
+        throw StateError('현재 모집 상태에서 변경할 수 없습니다.');
+      }
 
-        transaction.update(postReference, {
-          'recruitStatus': nextStatus,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      },
-    );
+      transaction.update(postReference, {
+        'recruitStatus': nextStatus,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
   }
 
-  Future<void> deletePost(
-      String postId,
-      ) async {
-    await _firestore
-        .collection('posts')
-        .doc(postId)
-        .update({
+  Future<void> deletePost(String postId) async {
+    await _firestore.collection('posts').doc(postId).update({
       'postStatus': 'DELETED',
       'visibility': 'PRIVATE',
       'updatedAt': FieldValue.serverTimestamp(),
@@ -407,45 +367,35 @@ class CommunityService {
     });
   }
 
-  Stream<List<CommunityComment>> watchComments(
-      String postId,
-      ) {
+  Stream<List<CommunityComment>> watchComments(String postId) {
     return _firestore
         .collection('posts')
         .doc(postId)
         .collection('comments')
-        .where(
-      'commentStatus',
-      whereIn: const ['NORMAL', 'DELETED'],
-    )
+        .where('commentStatus', whereIn: const ['NORMAL', 'DELETED'])
         .snapshots()
         .map((snapshot) {
-      final comments = <CommunityComment>[];
+          final comments = <CommunityComment>[];
 
-      for (final document in snapshot.docs) {
-        final comment =
-        CommunityComment.fromDocument(document);
+          for (final document in snapshot.docs) {
+            final comment = CommunityComment.fromDocument(document);
 
-        final isNormal =
-            comment.commentStatus.toUpperCase() ==
-                'NORMAL';
+            final isNormal = comment.commentStatus.toUpperCase() == 'NORMAL';
 
-        if (isNormal || comment.isModerationHidden) {
-          comments.add(comment);
-        }
-      }
+            if (isNormal || comment.isModerationHidden) {
+              comments.add(comment);
+            }
+          }
 
-      comments.sort((a, b) {
-        final aTime =
-            a.createdAt?.millisecondsSinceEpoch ?? 0;
-        final bTime =
-            b.createdAt?.millisecondsSinceEpoch ?? 0;
+          comments.sort((a, b) {
+            final aTime = a.createdAt?.millisecondsSinceEpoch ?? 0;
+            final bTime = b.createdAt?.millisecondsSinceEpoch ?? 0;
 
-        return aTime.compareTo(bTime);
-      });
+            return aTime.compareTo(bTime);
+          });
 
-      return comments;
-    });
+          return comments;
+        });
   }
 
   Future<String> addComment({
@@ -456,46 +406,31 @@ class CommunityService {
     required String writerProfileImageUrl,
     String parentCommentId = '',
   }) async {
-    final postReference =
-    _firestore.collection('posts').doc(postId);
+    final postReference = _firestore.collection('posts').doc(postId);
 
-    final commentsReference =
-    postReference.collection('comments');
+    final commentsReference = postReference.collection('comments');
 
-    final commentReference =
-    commentsReference.doc();
+    final commentReference = commentsReference.doc();
 
     await _firestore.runTransaction((transaction) async {
       if (parentCommentId.isNotEmpty) {
-        final parentReference =
-        commentsReference.doc(parentCommentId);
+        final parentReference = commentsReference.doc(parentCommentId);
 
-        final parentSnapshot =
-        await transaction.get(parentReference);
+        final parentSnapshot = await transaction.get(parentReference);
 
         final parentData = parentSnapshot.data();
 
         if (!parentSnapshot.exists ||
             parentData == null ||
-            parentData['commentStatus']
-                ?.toString()
-                .toUpperCase() !=
-                'NORMAL') {
-          throw StateError(
-            '숨겨지거나 삭제된 댓글에는 답글을 작성할 수 없습니다.',
-          );
+            parentData['commentStatus']?.toString().toUpperCase() != 'NORMAL') {
+          throw StateError('숨겨지거나 삭제된 댓글에는 답글을 작성할 수 없습니다.');
         }
 
         final parentOfParent =
-            parentData['parentCommentId']
-                ?.toString()
-                .trim() ??
-                '';
+            parentData['parentCommentId']?.toString().trim() ?? '';
 
         if (parentOfParent.isNotEmpty) {
-          throw StateError(
-            '대댓글에는 답글을 작성할 수 없습니다.',
-          );
+          throw StateError('대댓글에는 답글을 작성할 수 없습니다.');
         }
       }
 
@@ -503,8 +438,7 @@ class CommunityService {
         'parentCommentId': parentCommentId,
         'writerUid': writerUid,
         'writerNickname': writerNickname,
-        'writerProfileImageUrl':
-        writerProfileImageUrl,
+        'writerProfileImageUrl': writerProfileImageUrl,
         'content': content,
         'likeCount': 0,
         'isAccepted': false,
@@ -535,20 +469,16 @@ class CommunityService {
       throw ArgumentError('댓글 내용을 입력해 주세요.');
     }
 
-    DocumentReference<Map<String, dynamic>>
-    commentReference =
-    _firestore
+    DocumentReference<Map<String, dynamic>> commentReference = _firestore
         .collection('posts')
         .doc(postId)
         .collection('comments')
         .doc(commentId);
 
-    DocumentSnapshot<Map<String, dynamic>>
-    commentSnapshot =
-    await commentReference.get();
+    DocumentSnapshot<Map<String, dynamic>> commentSnapshot =
+        await commentReference.get();
 
-    Map<String, dynamic>? commentData =
-    commentSnapshot.data();
+    Map<String, dynamic>? commentData = commentSnapshot.data();
 
     if (!commentSnapshot.exists ||
         commentData == null ||
@@ -556,8 +486,7 @@ class CommunityService {
       throw StateError('댓글을 찾을 수 없습니다.');
     }
 
-    if (commentData['writerUid']?.toString() !=
-        writerUid) {
+    if (commentData['writerUid']?.toString() != writerUid) {
       throw StateError('본인이 작성한 댓글만 수정할 수 있습니다.');
     }
 
@@ -572,64 +501,47 @@ class CommunityService {
     required String commentId,
     required String writerUid,
   }) async {
-    DocumentReference<Map<String, dynamic>>
-    postReference =
-    _firestore
+    DocumentReference<Map<String, dynamic>> postReference = _firestore
         .collection('posts')
         .doc(postId);
 
-    CollectionReference<Map<String, dynamic>>
-    commentsReference =
-    postReference.collection('comments');
+    CollectionReference<Map<String, dynamic>> commentsReference = postReference
+        .collection('comments');
 
-    DocumentReference<Map<String, dynamic>>
-    commentReference =
-    commentsReference.doc(commentId);
+    DocumentReference<Map<String, dynamic>> commentReference = commentsReference
+        .doc(commentId);
 
-    DocumentSnapshot<Map<String, dynamic>>
-    commentSnapshot =
-    await commentReference.get();
+    DocumentSnapshot<Map<String, dynamic>> commentSnapshot =
+        await commentReference.get();
 
     if (!commentSnapshot.exists) {
       return;
     }
 
-    Map<String, dynamic>? commentData =
-    commentSnapshot.data();
+    Map<String, dynamic>? commentData = commentSnapshot.data();
 
-    if (commentData == null ||
-        commentData['commentStatus'] != 'NORMAL') {
+    if (commentData == null || commentData['commentStatus'] != 'NORMAL') {
       return;
     }
 
-    if (commentData['writerUid']?.toString() !=
-        writerUid) {
+    if (commentData['writerUid']?.toString() != writerUid) {
       throw StateError('본인이 작성한 댓글만 삭제할 수 있습니다.');
     }
 
-    QuerySnapshot<Map<String, dynamic>>
-    replySnapshot =
-    await commentsReference
-        .where(
-      'parentCommentId',
-      isEqualTo: commentId,
-    )
+    QuerySnapshot<Map<String, dynamic>> replySnapshot = await commentsReference
+        .where('parentCommentId', isEqualTo: commentId)
         .get();
 
-    List<QueryDocumentSnapshot<
-        Map<String, dynamic>>> normalReplies = [];
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> normalReplies = [];
 
-    for (QueryDocumentSnapshot<
-        Map<String, dynamic>>
-    document in replySnapshot.docs) {
-      if (document.data()['commentStatus'] ==
-          'NORMAL') {
+    for (QueryDocumentSnapshot<Map<String, dynamic>> document
+        in replySnapshot.docs) {
+      if (document.data()['commentStatus'] == 'NORMAL') {
         normalReplies.add(document);
       }
     }
 
-    bool wasAccepted =
-        commentData['isAccepted'] == true;
+    bool wasAccepted = commentData['isAccepted'] == true;
 
     WriteBatch batch = _firestore.batch();
 
@@ -640,34 +552,25 @@ class CommunityService {
       'deletedAt': FieldValue.serverTimestamp(),
     });
 
-    for (QueryDocumentSnapshot<
-        Map<String, dynamic>>
-    reply in normalReplies) {
+    for (QueryDocumentSnapshot<Map<String, dynamic>> reply in normalReplies) {
       batch.update(reply.reference, {
         'commentStatus': 'DELETED',
         'isAccepted': false,
         'updatedAt': FieldValue.serverTimestamp(),
-        'deletedAt':
-        FieldValue.serverTimestamp(),
+        'deletedAt': FieldValue.serverTimestamp(),
       });
     }
 
     Map<String, dynamic> postUpdateData = {
-      'commentCount': FieldValue.increment(
-        -(1 + normalReplies.length),
-      ),
+      'commentCount': FieldValue.increment(-(1 + normalReplies.length)),
       'updatedAt': FieldValue.serverTimestamp(),
     };
 
     if (wasAccepted) {
-      postUpdateData['questionStatus'] =
-      'WAITING';
+      postUpdateData['questionStatus'] = 'WAITING';
     }
 
-    batch.update(
-      postReference,
-      postUpdateData,
-    );
+    batch.update(postReference, postUpdateData);
 
     await batch.commit();
   }
@@ -676,44 +579,30 @@ class CommunityService {
     required String postId,
     required String commentId,
   }) async {
-    DocumentReference<Map<String, dynamic>>
-    postReference =
-    _firestore
+    DocumentReference<Map<String, dynamic>> postReference = _firestore
         .collection('posts')
         .doc(postId);
 
-    CollectionReference<Map<String, dynamic>>
-    commentsReference =
-    postReference.collection('comments');
+    CollectionReference<Map<String, dynamic>> commentsReference = postReference
+        .collection('comments');
 
-    QuerySnapshot<Map<String, dynamic>>
-    acceptedComments =
-    await commentsReference
-        .where(
-      'isAccepted',
-      isEqualTo: true,
-    )
-        .get();
+    QuerySnapshot<Map<String, dynamic>> acceptedComments =
+        await commentsReference.where('isAccepted', isEqualTo: true).get();
 
     WriteBatch batch = _firestore.batch();
 
-    for (QueryDocumentSnapshot<
-        Map<String, dynamic>>
-    document in acceptedComments.docs) {
+    for (QueryDocumentSnapshot<Map<String, dynamic>> document
+        in acceptedComments.docs) {
       batch.update(document.reference, {
         'isAccepted': false,
         'updatedAt': FieldValue.serverTimestamp(),
       });
     }
 
-    batch.update(
-      commentsReference.doc(commentId),
-      {
-        'isAccepted': true,
-        'updatedAt':
-        FieldValue.serverTimestamp(),
-      },
-    );
+    batch.update(commentsReference.doc(commentId), {
+      'isAccepted': true,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
 
     batch.update(postReference, {
       'questionStatus': 'RESOLVED',
@@ -734,8 +623,8 @@ class CommunityService {
         .doc(postId)
         .snapshots()
         .map((snapshot) {
-      return snapshot.exists;
-    });
+          return snapshot.exists;
+        });
   }
 
   Stream<bool> watchBookmarkStatus({
@@ -749,126 +638,106 @@ class CommunityService {
         .doc(postId)
         .snapshots()
         .map((snapshot) {
-      return snapshot.exists;
-    });
+          return snapshot.exists;
+        });
   }
 
   Future<void> toggleLike({
     required String postId,
     required String userUid,
   }) async {
-    DocumentReference<Map<String, dynamic>>
-    postReference =
-    _firestore.collection('posts').doc(postId);
+    DocumentReference<Map<String, dynamic>> postReference = _firestore
+        .collection('posts')
+        .doc(postId);
 
-    DocumentReference<Map<String, dynamic>>
-    likeReference =
-    _firestore
+    DocumentReference<Map<String, dynamic>> likeReference = _firestore
         .collection('postLikes')
         .doc(userUid)
         .collection('items')
         .doc(postId);
 
-    await _firestore.runTransaction(
-          (transaction) async {
-        DocumentSnapshot<Map<String, dynamic>>
-        postSnapshot =
-        await transaction.get(postReference);
+    await _firestore.runTransaction((transaction) async {
+      DocumentSnapshot<Map<String, dynamic>> postSnapshot = await transaction
+          .get(postReference);
 
-        if (!postSnapshot.exists) {
-          throw StateError('게시글을 찾을 수 없습니다.');
-        }
+      if (!postSnapshot.exists) {
+        throw StateError('게시글을 찾을 수 없습니다.');
+      }
 
-        DocumentSnapshot<Map<String, dynamic>>
-        likeSnapshot =
-        await transaction.get(likeReference);
+      DocumentSnapshot<Map<String, dynamic>> likeSnapshot = await transaction
+          .get(likeReference);
 
-        int currentCount = _readCount(
-          postSnapshot.data()?['likeCount'],
-        );
+      int currentCount = _readCount(postSnapshot.data()?['likeCount']);
 
-        if (likeSnapshot.exists) {
-          transaction.delete(likeReference);
-          transaction.update(postReference, {
-            'likeCount':
-            currentCount > 0 ? currentCount - 1 : 0,
-            'updatedAt':
-            FieldValue.serverTimestamp(),
-          });
-          return;
-        }
-
-        transaction.set(likeReference, {
-          'postId': postId,
-          'userUid': userUid,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-
+      if (likeSnapshot.exists) {
+        transaction.delete(likeReference);
         transaction.update(postReference, {
-          'likeCount': currentCount + 1,
+          'likeCount': currentCount > 0 ? currentCount - 1 : 0,
           'updatedAt': FieldValue.serverTimestamp(),
         });
-      },
-    );
+        return;
+      }
+
+      transaction.set(likeReference, {
+        'postId': postId,
+        'userUid': userUid,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      transaction.update(postReference, {
+        'likeCount': currentCount + 1,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
   }
 
   Future<void> toggleBookmark({
     required String postId,
     required String userUid,
   }) async {
-    DocumentReference<Map<String, dynamic>>
-    postReference =
-    _firestore.collection('posts').doc(postId);
+    DocumentReference<Map<String, dynamic>> postReference = _firestore
+        .collection('posts')
+        .doc(postId);
 
-    DocumentReference<Map<String, dynamic>>
-    bookmarkReference =
-    _firestore
+    DocumentReference<Map<String, dynamic>> bookmarkReference = _firestore
         .collection('postBookmarks')
         .doc(userUid)
         .collection('items')
         .doc(postId);
 
-    await _firestore.runTransaction(
-          (transaction) async {
-        DocumentSnapshot<Map<String, dynamic>>
-        postSnapshot =
-        await transaction.get(postReference);
+    await _firestore.runTransaction((transaction) async {
+      DocumentSnapshot<Map<String, dynamic>> postSnapshot = await transaction
+          .get(postReference);
 
-        if (!postSnapshot.exists) {
-          throw StateError('게시글을 찾을 수 없습니다.');
-        }
+      if (!postSnapshot.exists) {
+        throw StateError('게시글을 찾을 수 없습니다.');
+      }
 
-        DocumentSnapshot<Map<String, dynamic>>
-        bookmarkSnapshot =
-        await transaction.get(bookmarkReference);
+      DocumentSnapshot<Map<String, dynamic>> bookmarkSnapshot =
+          await transaction.get(bookmarkReference);
 
-        int currentCount = _readCount(
-          postSnapshot.data()?['bookmarkCount'],
-        );
+      int currentCount = _readCount(postSnapshot.data()?['bookmarkCount']);
 
-        if (bookmarkSnapshot.exists) {
-          transaction.delete(bookmarkReference);
-          transaction.update(postReference, {
-            'bookmarkCount':
-            currentCount > 0 ? currentCount - 1 : 0,
-            'updatedAt':
-            FieldValue.serverTimestamp(),
-          });
-          return;
-        }
-
-        transaction.set(bookmarkReference, {
-          'postId': postId,
-          'userUid': userUid,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-
+      if (bookmarkSnapshot.exists) {
+        transaction.delete(bookmarkReference);
         transaction.update(postReference, {
-          'bookmarkCount': currentCount + 1,
+          'bookmarkCount': currentCount > 0 ? currentCount - 1 : 0,
           'updatedAt': FieldValue.serverTimestamp(),
         });
-      },
-    );
+        return;
+      }
+
+      transaction.set(bookmarkReference, {
+        'postId': postId,
+        'userUid': userUid,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      transaction.update(postReference, {
+        'bookmarkCount': currentCount + 1,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
   }
 
   Stream<bool> watchCommentLikeStatus({
@@ -882,8 +751,8 @@ class CommunityService {
         .doc(commentId)
         .snapshots()
         .map((snapshot) {
-      return snapshot.exists;
-    });
+          return snapshot.exists;
+        });
   }
 
   Future<void> toggleCommentLike({
@@ -891,62 +760,50 @@ class CommunityService {
     required String commentId,
     required String userUid,
   }) async {
-    DocumentReference<Map<String, dynamic>>
-    commentReference =
-    _firestore
+    DocumentReference<Map<String, dynamic>> commentReference = _firestore
         .collection('posts')
         .doc(postId)
         .collection('comments')
         .doc(commentId);
 
-    DocumentReference<Map<String, dynamic>>
-    likeReference =
-    _firestore
+    DocumentReference<Map<String, dynamic>> likeReference = _firestore
         .collection('commentLikes')
         .doc(userUid)
         .collection('items')
         .doc(commentId);
 
-    await _firestore.runTransaction(
-          (transaction) async {
-        DocumentSnapshot<Map<String, dynamic>>
-        commentSnapshot =
-        await transaction.get(commentReference);
+    await _firestore.runTransaction((transaction) async {
+      DocumentSnapshot<Map<String, dynamic>> commentSnapshot = await transaction
+          .get(commentReference);
 
-        if (!commentSnapshot.exists) {
-          throw StateError('댓글을 찾을 수 없습니다.');
-        }
+      if (!commentSnapshot.exists) {
+        throw StateError('댓글을 찾을 수 없습니다.');
+      }
 
-        DocumentSnapshot<Map<String, dynamic>>
-        likeSnapshot =
-        await transaction.get(likeReference);
+      DocumentSnapshot<Map<String, dynamic>> likeSnapshot = await transaction
+          .get(likeReference);
 
-        int currentCount = _readCount(
-          commentSnapshot.data()?['likeCount'],
-        );
+      int currentCount = _readCount(commentSnapshot.data()?['likeCount']);
 
-        if (likeSnapshot.exists) {
-          transaction.delete(likeReference);
-          transaction.update(commentReference, {
-            'likeCount':
-            currentCount > 0 ? currentCount - 1 : 0,
-            'updatedAt':
-            FieldValue.serverTimestamp(),
-          });
-          return;
-        }
-
-        transaction.set(likeReference, {
-          'postId': postId,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-
+      if (likeSnapshot.exists) {
+        transaction.delete(likeReference);
         transaction.update(commentReference, {
-          'likeCount': currentCount + 1,
+          'likeCount': currentCount > 0 ? currentCount - 1 : 0,
           'updatedAt': FieldValue.serverTimestamp(),
         });
-      },
-    );
+        return;
+      }
+
+      transaction.set(likeReference, {
+        'postId': postId,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      transaction.update(commentReference, {
+        'likeCount': currentCount + 1,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
   }
 
   Future<bool> submitReport({
@@ -958,70 +815,58 @@ class CommunityService {
     required String reasonText,
     String commentId = '',
   }) async {
-    String targetId =
-    commentId.isEmpty ? postId : commentId;
+    String targetId = commentId.isEmpty ? postId : commentId;
 
-    String reportDocumentId =
-        '${reporterUid}_${reportType}_$targetId';
+    String reportDocumentId = '${reporterUid}_${reportType}_$targetId';
 
-    DocumentReference<Map<String, dynamic>>
-    reportReference =
-    _firestore
+    DocumentReference<Map<String, dynamic>> reportReference = _firestore
         .collection('communityReports')
         .doc(reportDocumentId);
 
-    return _firestore.runTransaction<bool>(
-          (transaction) async {
-        DocumentSnapshot<Map<String, dynamic>>
-        reportSnapshot =
-        await transaction.get(reportReference);
+    return _firestore.runTransaction<bool>((transaction) async {
+      DocumentSnapshot<Map<String, dynamic>> reportSnapshot = await transaction
+          .get(reportReference);
 
-        if (reportSnapshot.exists) {
-          return false;
-        }
+      if (reportSnapshot.exists) {
+        return false;
+      }
 
-        transaction.set(reportReference, {
-          'reportType': reportType,
-          'postId': postId,
-          'commentId': commentId,
-          'reporterUid': reporterUid,
-          'targetWriterUid': targetWriterUid,
-          'reasonCode': reasonCode,
-          'reasonText': reasonText,
-          'reportStatus': 'PENDING',
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+      transaction.set(reportReference, {
+        'reportType': reportType,
+        'postId': postId,
+        'commentId': commentId,
+        'reporterUid': reporterUid,
+        'targetWriterUid': targetWriterUid,
+        'reasonCode': reasonCode,
+        'reasonText': reasonText,
+        'reportStatus': 'PENDING',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
-        return true;
-      },
-    );
+      return true;
+    });
   }
 
-  Stream<List<CommunityCertificateTag>>
-  watchCertificateTagSuggestions() {
+  Stream<List<CommunityCertificateTag>> watchCertificateTagSuggestions() {
     return watchPosts().map((posts) {
       return collectCertificateTags(posts);
     });
   }
 
-  Future<Set<CommunityBoardType>>
-  getFavoriteCommunityBoards(
-      String userUid,
-      ) async {
+  Future<Set<CommunityBoardType>> getFavoriteCommunityBoards(
+    String userUid,
+  ) async {
     if (userUid.isEmpty) {
       return {};
     }
 
-    DocumentSnapshot<Map<String, dynamic>>
-    snapshot =
-    await _firestore
+    DocumentSnapshot<Map<String, dynamic>> snapshot = await _firestore
         .collection('communityPreferences')
         .doc(userUid)
         .get();
 
-    dynamic value =
-    snapshot.data()?['favoriteBoardCodes'];
+    dynamic value = snapshot.data()?['favoriteBoardCodes'];
 
     if (value is! List) {
       return {};
@@ -1030,8 +875,7 @@ class CommunityService {
     Set<CommunityBoardType> result = {};
 
     for (dynamic item in value) {
-      CommunityBoardType boardType =
-      CommunityBoardTypeX.fromCode(
+      CommunityBoardType boardType = CommunityBoardTypeX.fromCode(
         item?.toString() ?? '',
       );
 
@@ -1048,15 +892,11 @@ class CommunityService {
     required CommunityBoardType boardType,
     required bool isFavorite,
   }) async {
-    if (userUid.isEmpty ||
-        boardType == CommunityBoardType.all) {
+    if (userUid.isEmpty || boardType == CommunityBoardType.all) {
       return;
     }
 
-    await _firestore
-        .collection('communityPreferences')
-        .doc(userUid)
-        .set({
+    await _firestore.collection('communityPreferences').doc(userUid).set({
       'userUid': userUid,
       'favoriteBoardCodes': isFavorite
           ? FieldValue.arrayUnion([boardType.code])
@@ -1065,12 +905,10 @@ class CommunityService {
     }, SetOptions(merge: true));
   }
 
-  Future<List<CommunityCertificateTag>>
-  getCertifiedCertificateTags(
-      String userUid,
-      ) async {
-    Map<String, dynamic> userData =
-    await _readUserData(userUid);
+  Future<List<CommunityCertificateTag>> getCertifiedCertificateTags(
+    String userUid,
+  ) async {
+    Map<String, dynamic> userData = await _readUserData(userUid);
 
     Map<String, CommunityCertificateTag> tagMap = {};
 
@@ -1084,41 +922,33 @@ class CommunityService {
           continue;
         }
 
-        Map<String, dynamic> data =
-        Map<String, dynamic>.from(item);
+        Map<String, dynamic> data = Map<String, dynamic>.from(item);
 
         String status =
             data['status']?.toString().toUpperCase() ??
-                data['verificationStatus']
-                    ?.toString()
-                    .toUpperCase() ??
-                'APPROVED';
+            data['verificationStatus']?.toString().toUpperCase() ??
+            'APPROVED';
 
-        if (status != 'APPROVED' &&
-            status != 'VERIFIED') {
+        if (status != 'APPROVED' && status != 'VERIFIED') {
           continue;
         }
 
         String certificateId =
-            data['certificateId']?.toString() ??
-                data['id']?.toString() ??
-                '';
+            data['certificateId']?.toString() ?? data['id']?.toString() ?? '';
 
         String certificateName =
             data['certificateName']?.toString() ??
-                data['name']?.toString() ??
-                '';
+            data['name']?.toString() ??
+            '';
 
-        if (certificateId.isEmpty ||
-            certificateName.isEmpty) {
+        if (certificateId.isEmpty || certificateName.isEmpty) {
           continue;
         }
 
-        tagMap[certificateId] =
-            CommunityCertificateTag(
-              certificateId: certificateId,
-              certificateName: certificateName,
-            );
+        tagMap[certificateId] = CommunityCertificateTag(
+          certificateId: certificateId,
+          certificateName: certificateName,
+        );
       }
     }
 
@@ -1126,132 +956,78 @@ class CommunityService {
     addTags(userData['approvedCertificates']);
 
     try {
-      QuerySnapshot<Map<String, dynamic>>
-      certificateSnapshot =
-      await _firestore
+      QuerySnapshot<Map<String, dynamic>> certificateSnapshot = await _firestore
           .collection('users')
           .doc(userUid)
           .collection('certificates')
           .get();
 
-      for (QueryDocumentSnapshot<Map<String, dynamic>>
-      document in certificateSnapshot.docs) {
+      for (QueryDocumentSnapshot<Map<String, dynamic>> document
+          in certificateSnapshot.docs) {
         Map<String, dynamic> data = document.data();
 
         String status =
             data['status']?.toString().toUpperCase() ??
-                data['verificationStatus']
-                    ?.toString()
-                    .toUpperCase() ??
-                '';
+            data['verificationStatus']?.toString().toUpperCase() ??
+            '';
 
-        if (status != 'APPROVED' &&
-            status != 'VERIFIED') {
+        if (status != 'APPROVED' && status != 'VERIFIED') {
           continue;
         }
 
-        String certificateId =
-            data['certificateId']?.toString() ??
-                document.id;
+        String certificateId = data['certificateId']?.toString() ?? document.id;
 
         String certificateName =
             data['certificateName']?.toString() ??
-                data['name']?.toString() ??
-                '';
+            data['name']?.toString() ??
+            '';
 
-        if (certificateId.isEmpty ||
-            certificateName.isEmpty) {
+        if (certificateId.isEmpty || certificateName.isEmpty) {
           continue;
         }
 
-        tagMap[certificateId] =
-            CommunityCertificateTag(
-              certificateId: certificateId,
-              certificateName: certificateName,
-            );
+        tagMap[certificateId] = CommunityCertificateTag(
+          certificateId: certificateId,
+          certificateName: certificateName,
+        );
       }
     } catch (error) {
       // 인증 자격증 하위 컬렉션이 없는 기존 회원은
       // users 문서의 인증 목록만 사용합니다.
     }
 
-    List<CommunityCertificateTag> result =
-    tagMap.values.toList();
+    List<CommunityCertificateTag> result = tagMap.values.toList();
 
     result.sort((a, b) {
-      return a.certificateName.compareTo(
-        b.certificateName,
-      );
+      return a.certificateName.compareTo(b.certificateName);
     });
 
     return result;
   }
 
   Future<Map<String, dynamic>> getUserCommunityProfile(
-      String userUid,
-      ) async {
-    Map<String, dynamic> userData =
-    await _readUserData(userUid);
-
-    List<CommunityCertificateTag> certifiedTags =
-    await getCertifiedCertificateTags(userUid);
+    String userUid, {
+    bool forceRefresh = false,
+  }) async {
+    final UserProfileSummary? profile = await UserProfileCacheService.instance
+        .getProfile(userUid, forceRefresh: forceRefresh);
+    final List<CommunityCertificateTag> certifiedTags =
+        await getCertifiedCertificateTags(userUid);
 
     return {
-      'nickname': _firstProfileValue(
-        userData,
-        const [
-          'nickname',
-          'nickName',
-          'userNickname',
-          'name',
-          'displayName',
-        ],
-        fallback: '사용자',
-      ),
-      'profileImageUrl': _firstProfileValue(
-        userData,
-        const [
-          'profileImageUrl',
-          'profileUrl',
-          'photoUrl',
-          'photoURL',
-        ],
-      ),
-      'introduction': _firstProfileValue(
-        userData,
-        const [
-          'introduction',
-          'bio',
-        ],
-      ),
+      'nickname': profile?.isDeleted == true
+          ? '탈퇴한 사용자'
+          : profile?.nickname.isNotEmpty == true
+          ? profile!.nickname
+          : '사용자',
+      'profileImageUrl': profile?.profileImageUrl ?? '',
+      'introduction': profile?.introduction ?? '',
       'certifiedTags': certifiedTags,
     };
   }
 
-  String _firstProfileValue(
-      Map<String, dynamic> data,
-      List<String> keys, {
-        String fallback = '',
-      }) {
-    for (String key in keys) {
-      String value =
-          data[key]?.toString().trim() ?? '';
-
-      if (value.isNotEmpty &&
-          value.toLowerCase() != 'null') {
-        return value;
-      }
-    }
-
-    return fallback;
-  }
-
-  Future<Map<String, dynamic>> _readUserData(
-      String userUid,
-      ) async {
-    DocumentSnapshot<Map<String, dynamic>>
-    directSnapshot =
-    await _firestore
+  Future<Map<String, dynamic>> _readUserData(String userUid) async {
+    DocumentSnapshot<Map<String, dynamic>> directSnapshot = await _firestore
         .collection('users')
         .doc(userUid)
         .get();
@@ -1260,14 +1036,9 @@ class CommunityService {
       return directSnapshot.data() ?? {};
     }
 
-    QuerySnapshot<Map<String, dynamic>>
-    querySnapshot =
-    await _firestore
+    QuerySnapshot<Map<String, dynamic>> querySnapshot = await _firestore
         .collection('users')
-        .where(
-      'uid',
-      isEqualTo: userUid,
-    )
+        .where('uid', isEqualTo: userUid)
         .limit(1)
         .get();
 
@@ -1297,21 +1068,16 @@ class CommunityService {
     required String keyword,
     required String certificateId,
   }) {
-    String normalizedKeyword =
-    keyword.trim().toLowerCase();
+    String normalizedKeyword = keyword.trim().toLowerCase();
 
-    List<CommunityPost> result =
-    posts.where((post) {
-      if (boardType != CommunityBoardType.all &&
-          post.boardType != boardType) {
+    List<CommunityPost> result = posts.where((post) {
+      if (boardType != CommunityBoardType.all && post.boardType != boardType) {
         return false;
       }
 
       if (certificateId.isNotEmpty) {
-        bool hasCertificate =
-        post.certificateTags.any((tag) {
-          return tag.certificateId ==
-              certificateId;
+        bool hasCertificate = post.certificateTags.any((tag) {
+          return tag.certificateId == certificateId;
         });
 
         if (!hasCertificate) {
@@ -1332,35 +1098,23 @@ class CommunityService {
         }),
       ].join(' ').toLowerCase();
 
-      return searchableText.contains(
-        normalizedKeyword,
-      );
+      return searchableText.contains(normalizedKeyword);
     }).toList();
 
     result.sort((a, b) {
       switch (sort) {
         case CommunityPostSort.views:
-          return b.viewCount.compareTo(
-            a.viewCount,
-          );
+          return b.viewCount.compareTo(a.viewCount);
 
         case CommunityPostSort.likes:
-          return b.likeCount.compareTo(
-            a.likeCount,
-          );
+          return b.likeCount.compareTo(a.likeCount);
 
         case CommunityPostSort.comments:
-          return b.commentCount.compareTo(
-            a.commentCount,
-          );
+          return b.commentCount.compareTo(a.commentCount);
 
         case CommunityPostSort.latest:
-          int aTime =
-              a.createdAt?.millisecondsSinceEpoch ??
-                  0;
-          int bTime =
-              b.createdAt?.millisecondsSinceEpoch ??
-                  0;
+          int aTime = a.createdAt?.millisecondsSinceEpoch ?? 0;
+          int bTime = b.createdAt?.millisecondsSinceEpoch ?? 0;
 
           return bTime.compareTo(aTime);
       }
@@ -1371,80 +1125,61 @@ class CommunityService {
 
   List<CommunityPost> filterMyFeedPosts({
     required List<CommunityPost> posts,
-    required List<CommunityCertificateTag>
-    certificateTags,
-    required Set<CommunityBoardType>
-    favoriteBoards,
+    required List<CommunityCertificateTag> certificateTags,
+    required Set<CommunityBoardType> favoriteBoards,
   }) {
-    Set<String> certificateIds =
-    certificateTags.map((tag) {
-      return tag.certificateId;
-    }).where((certificateId) {
-      return certificateId.isNotEmpty;
-    }).toSet();
+    Set<String> certificateIds = certificateTags
+        .map((tag) {
+          return tag.certificateId;
+        })
+        .where((certificateId) {
+          return certificateId.isNotEmpty;
+        })
+        .toSet();
 
     return posts.where((post) {
-      bool isFavoriteBoard =
-      favoriteBoards.contains(post.boardType);
+      bool isFavoriteBoard = favoriteBoards.contains(post.boardType);
 
-      bool hasMyCertificate =
-      post.certificateTags.any((tag) {
-        return certificateIds.contains(
-          tag.certificateId,
-        );
+      bool hasMyCertificate = post.certificateTags.any((tag) {
+        return certificateIds.contains(tag.certificateId);
       });
 
       return isFavoriteBoard || hasMyCertificate;
     }).toList();
   }
 
-  List<CommunityPost> getPopularPosts(
-      List<CommunityPost> posts,
-      ) {
+  List<CommunityPost> getPopularPosts(List<CommunityPost> posts) {
     DateTime now = DateTime.now();
 
-    List<CommunityPost> recentPosts =
-    posts.where((post) {
+    List<CommunityPost> recentPosts = posts.where((post) {
       DateTime? createdAt = post.createdAt;
 
       if (createdAt == null) {
         return false;
       }
 
-      Duration difference =
-      now.difference(createdAt);
+      Duration difference = now.difference(createdAt);
 
-      return !difference.isNegative &&
-          difference.inDays < 7;
+      return !difference.isNegative && difference.inDays < 7;
     }).toList();
 
-    List<CommunityPost> result =
-    List<CommunityPost>.from(
+    List<CommunityPost> result = List<CommunityPost>.from(
       recentPosts.isEmpty ? posts : recentPosts,
     );
 
     result.sort((a, b) {
-      int aScore = a.likeCount * 5 +
-          a.commentCount * 3 +
-          a.viewCount;
+      int aScore = a.likeCount * 5 + a.commentCount * 3 + a.viewCount;
 
-      int bScore = b.likeCount * 5 +
-          b.commentCount * 3 +
-          b.viewCount;
+      int bScore = b.likeCount * 5 + b.commentCount * 3 + b.viewCount;
 
-      int scoreCompare =
-      bScore.compareTo(aScore);
+      int scoreCompare = bScore.compareTo(aScore);
 
       if (scoreCompare != 0) {
         return scoreCompare;
       }
 
-      int aTime =
-          a.createdAt?.millisecondsSinceEpoch ??
-              0;
-      int bTime =
-          b.createdAt?.millisecondsSinceEpoch ??
-              0;
+      int aTime = a.createdAt?.millisecondsSinceEpoch ?? 0;
+      int bTime = b.createdAt?.millisecondsSinceEpoch ?? 0;
 
       return bTime.compareTo(aTime);
     });
@@ -1456,18 +1191,14 @@ class CommunityService {
     return result;
   }
 
-  List<CommunityCertificateTag>
-  collectCertificateTags(
-      List<CommunityPost> posts,
-      ) {
-    Map<String, CommunityCertificateTag>
-    tagMap = {};
+  List<CommunityCertificateTag> collectCertificateTags(
+    List<CommunityPost> posts,
+  ) {
+    Map<String, CommunityCertificateTag> tagMap = {};
 
     for (CommunityPost post in posts) {
-      for (CommunityCertificateTag tag
-      in post.certificateTags) {
-        if (tag.certificateId.isEmpty ||
-            tag.certificateName.isEmpty) {
+      for (CommunityCertificateTag tag in post.certificateTags) {
+        if (tag.certificateId.isEmpty || tag.certificateName.isEmpty) {
           continue;
         }
 
@@ -1475,13 +1206,10 @@ class CommunityService {
       }
     }
 
-    List<CommunityCertificateTag> result =
-    tagMap.values.toList();
+    List<CommunityCertificateTag> result = tagMap.values.toList();
 
     result.sort((a, b) {
-      return a.certificateName.compareTo(
-        b.certificateName,
-      );
+      return a.certificateName.compareTo(b.certificateName);
     });
 
     return result;

@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme.dart';
+import '../../services/user_profile_cache_service.dart';
 
 import '../../community/community_post_detail.dart';
 import '../../widgets/app_card.dart';
@@ -26,7 +27,9 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
     _future = _loadBookmarks();
   }
 
-  Future<List<_SavedPostItem>> _loadBookmarks() async {
+  Future<List<_SavedPostItem>> _loadBookmarks({
+    bool forceRefresh = false,
+  }) async {
     final User? user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
@@ -41,6 +44,7 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
             .get();
 
     final List<_SavedPostItem> items = [];
+    final Set<String> refreshedWriterUids = <String>{};
 
     for (final QueryDocumentSnapshot<Map<String, dynamic>> bookmarkDocument
         in bookmarkSnapshot.docs) {
@@ -74,13 +78,21 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
         continue;
       }
 
+      final String writerUid = postData['writerUid']?.toString() ?? '';
+      final String writerNickname = await UserProfileCacheService.instance
+          .resolveNickname(
+            uid: writerUid,
+            fallback: postData['writerNickname']?.toString() ?? '사용자',
+            forceRefresh: forceRefresh && refreshedWriterUids.add(writerUid),
+          );
+
       items.add(
         _SavedPostItem(
           postId: postId,
           boardName: _boardLabel(postData['boardType']?.toString() ?? 'FREE'),
           title: postData['title']?.toString() ?? '제목 없는 게시글',
           content: postData['content']?.toString() ?? '',
-          writerNickname: postData['writerNickname']?.toString() ?? '사용자',
+          writerNickname: writerNickname,
           likeCount: (postData['likeCount'] as num?)?.toInt() ?? 0,
           commentCount: (postData['commentCount'] as num?)?.toInt() ?? 0,
           createdAt: postData['createdAt'],
@@ -100,7 +112,7 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
 
   Future<void> _refresh() async {
     setState(() {
-      _future = _loadBookmarks();
+      _future = _loadBookmarks(forceRefresh: true);
     });
 
     await _future;

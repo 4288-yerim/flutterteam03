@@ -30,7 +30,8 @@ class OtherCertificateDetailPage extends StatefulWidget {
 
 class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
     with SingleTickerProviderStateMixin {
-  final OtherCertificateDetailService _service = OtherCertificateDetailService();
+  final OtherCertificateDetailService _service =
+      OtherCertificateDetailService();
   final CertificateDetailService _certificateDetailService =
       CertificateDetailService();
   final CertificateCategoryContentService _categoryContentService =
@@ -40,6 +41,9 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
   Certification? _certificate;
   List<TechnicalCertificateSchedule> _schedules = [];
   OtherCertificateExamDetails? _examDetails;
+  String _overview = '';
+  OtherCertificateStatistics _statistics =
+      const OtherCertificateStatistics.empty();
   bool _isLoading = true;
   String? _errorMessage;
   int _selectedTabIndex = 0;
@@ -47,8 +51,10 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
 
   bool get _hasPracticalSchedule => _schedules.any(_scheduleHasPractical);
 
-  bool get _hasCombinedExamSchedule => _schedules.any((schedule) =>
-      _scheduleHasWritten(schedule) && _scheduleHasPractical(schedule));
+  bool get _hasCombinedExamSchedule => _schedules.any(
+    (schedule) =>
+        _scheduleHasWritten(schedule) && _scheduleHasPractical(schedule),
+  );
 
   bool _scheduleHasWritten(TechnicalCertificateSchedule schedule) =>
       schedule.writtenRegistrationStartAt != null ||
@@ -97,12 +103,18 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
       final results = await Future.wait([
         _service.getSchedules(widget.certificationId),
         _service.getExamDetails(widget.certificationId),
+        _service.getStatistics(widget.certificationId),
+        _certificateDetailService.getCertificationOverview(
+          widget.certificationId,
+        ),
       ]);
       if (!mounted) return;
       setState(() {
         _certificate = certificate;
         _schedules = results[0] as List<TechnicalCertificateSchedule>;
         _examDetails = results[1] as OtherCertificateExamDetails;
+        _statistics = results[2] as OtherCertificateStatistics;
+        _overview = results[3] as String;
         _isLoading = false;
       });
     } on CertificateDetailException catch (error) {
@@ -175,19 +187,21 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
         _dateOnly(filterDate).isBefore(today)) {
       return;
     }
-    options.add(CertificateGoalOption(
-      scheduleId: schedule.id,
-      targetRound: schedule.title,
-      examType: examType,
-      examTypeName: examTypeName,
-      examDate: displayStartDate,
-      examStartDate: displayStartDate,
-      examEndDate: examEndDate,
-      registrationStartDate: registrationStartDate,
-      registrationEndDate: registrationEndDate,
-      passAnnouncementDate: passAnnouncementDate,
-      passAnnouncementEndDate: passAnnouncementEndDate,
-    ));
+    options.add(
+      CertificateGoalOption(
+        scheduleId: schedule.id,
+        targetRound: schedule.title,
+        examType: examType,
+        examTypeName: examTypeName,
+        examDate: displayStartDate,
+        examStartDate: displayStartDate,
+        examEndDate: examEndDate,
+        registrationStartDate: registrationStartDate,
+        registrationEndDate: registrationEndDate,
+        passAnnouncementDate: passAnnouncementDate,
+        passAnnouncementEndDate: passAnnouncementEndDate,
+      ),
+    );
   }
 
   Future<void> _openGoalSettingSheet() async {
@@ -209,7 +223,7 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
         builder: (sheetContext) => _OtherGoalSelectionSheet(
           options: options,
           registeredGoalKeys: registeredKeys,
-        ), /* SafeArea(
+        ) /* SafeArea(
           child: ListView(
             shrinkWrap: true,
             padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
@@ -231,13 +245,19 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
               }),
             ],
           ),
-        ), */
+        ), */,
       );
       if (option == null || !mounted) return;
-      final selectedDate = await selectCertificateGoalExamDate(context: context, option: option);
+      final selectedDate = await selectCertificateGoalExamDate(
+        context: context,
+        option: option,
+      );
       if (selectedDate != null && mounted) await _registerGoal(selectedDate);
     } on CertificateGoalException catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
     }
   }
 
@@ -250,7 +270,9 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
         certificateId: widget.certificationId,
         scheduleId: option.scheduleId,
         certificateName: certificate.name,
-        qualificationType: certificate.isProfessional ? 'PROFESSIONAL' : 'TECHNICAL',
+        qualificationType: certificate.isProfessional
+            ? 'PROFESSIONAL'
+            : 'TECHNICAL',
         targetExamDate: option.examDate,
         targetExamStartDate: option.examStartDate,
         targetExamEndDate: option.examEndDate ?? option.examStartDate,
@@ -265,14 +287,30 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
       );
       await GoalScheduleAppWidget.sync();
       if (!mounted) return;
-      final linkCalendar = await showCertificateCalendarLinkDialog(context: context, option: option);
+      final linkCalendar = await showCertificateCalendarLinkDialog(
+        context: context,
+        option: option,
+      );
       if (linkCalendar == true) {
-        final added = await addCertificateGoalToDeviceCalendar(certificateName: certificate.name, option: option);
-        if (added) await _certificateDetailService.updateGoalCalendarLinked(goalId: goalId, calendarLinked: true);
+        final added = await addCertificateGoalToDeviceCalendar(
+          certificateName: certificate.name,
+          option: option,
+        );
+        if (added)
+          await _certificateDetailService.updateGoalCalendarLinked(
+            goalId: goalId,
+            calendarLinked: true,
+          );
       }
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('목표 자격증을 등록했습니다.')));
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('목표 자격증을 등록했습니다.')));
     } on CertificateGoalException catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
     } finally {
       if (mounted) setState(() => _isRegisteringGoal = false);
     }
@@ -293,7 +331,11 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
         centerTitle: true,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: context.colors.textPrimary, size: 21),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: context.colors.textPrimary,
+            size: 21,
+          ),
         ),
       ),
       body: AppMainBackground(child: _buildBody()),
@@ -302,9 +344,17 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
 
   Widget _buildBody() {
     if (_isLoading) return AppLoadingView(message: '자격증 정보를 불러오는 중입니다.');
-    if (_errorMessage != null) return CertificateLoadError(message: _errorMessage!, onRetry: _loadDetail);
+    if (_errorMessage != null)
+      return CertificateLoadError(
+        message: _errorMessage!,
+        onRetry: _loadDetail,
+      );
     final certificate = _certificate;
-    if (certificate == null) return CertificateLoadError(message: '자격증 정보를 찾을 수 없습니다.', onRetry: _loadDetail);
+    if (certificate == null)
+      return CertificateLoadError(
+        message: '자격증 정보를 찾을 수 없습니다.',
+        onRetry: _loadDetail,
+      );
 
     return ListView(
       padding: EdgeInsets.fromLTRB(24, 18, 24, 40),
@@ -329,7 +379,10 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
         SizedBox(height: 20),
         AnimatedSwitcher(
           duration: Duration(milliseconds: 200),
-          child: KeyedSubtree(key: ValueKey(_selectedTabIndex), child: _buildTab()),
+          child: KeyedSubtree(
+            key: ValueKey(_selectedTabIndex),
+            child: _buildTab(),
+          ),
         ),
       ],
     );
@@ -401,11 +454,17 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
         dividerColor: Colors.transparent,
         indicatorSize: TabBarIndicatorSize.tab,
         labelPadding: EdgeInsets.zero,
-        indicator: BoxDecoration(color: context.colors.pinkSoft, borderRadius: BorderRadius.circular(12)),
+        indicator: BoxDecoration(
+          color: context.colors.pinkSoft,
+          borderRadius: BorderRadius.circular(12),
+        ),
         labelColor: context.colors.pinkDeep,
         unselectedLabelColor: context.colors.textSecondary,
         labelStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
-        unselectedLabelStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+        ),
         tabs: const [
           Tab(height: 44, text: '시험 일정'),
           Tab(height: 44, text: '자격 정보'),
@@ -422,6 +481,7 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
       case 1:
         final details = _examDetails;
         return CertificateExamInformationCard(
+          overview: _overview,
           writtenFee: details?.writtenFee,
           practicalFee: details?.practicalFee,
           examTrends: details?.examTrends ?? '',
@@ -432,8 +492,32 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
           onOpenLink: _openScheduleNoticeUrl,
         );
       default:
-        return const OtherCertificateEmptyContent(message: '통계 정보는 준비 중입니다.');
+        return _buildStatisticsTab();
     }
+  }
+
+  Widget _buildStatisticsTab() {
+    if (!_statistics.hasDocuments) {
+      return const OtherCertificateEmptyContent(message: '등록된 통계 정보가 없습니다.');
+    }
+    return CertificateStatisticsSection(
+      baseYear: _statistics.baseYear,
+      showWritten: _statistics.hasWrittenDocument,
+      isLoadingWritten: false,
+      writtenError: null,
+      writtenStatistics: _statistics.writtenStatistics,
+      onRetryWritten: _loadDetail,
+      showPractical: _statistics.hasPracticalDocument,
+      isLoadingPractical: false,
+      practicalError: null,
+      practicalStatistics: _statistics.practicalStatistics,
+      onRetryPractical: _loadDetail,
+      showIntegrated: _statistics.hasIntegratedDocument,
+      isLoadingIntegrated: false,
+      integratedError: null,
+      integratedStatistics: _statistics.integratedStatistics,
+      onRetryIntegrated: _loadDetail,
+    );
   }
 
   Widget _buildScheduleTab() {
@@ -463,28 +547,31 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
             description: '시험 일정이 등록되면 이곳에서 확인할 수 있습니다.',
           )
         else
-          ..._schedules.map((schedule) => Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: CertificateScheduleCard(
-                  title: schedule.title,
-                  writtenRegistrationStartAt: schedule.writtenRegistrationStartAt,
-                  writtenRegistrationEndAt: schedule.writtenRegistrationEndAt,
-                  writtenExamStartAt: schedule.writtenExamStartAt,
-                  writtenExamEndAt: schedule.writtenExamEndAt,
-                  writtenPassAt: schedule.writtenPassAt,
-                  documentSubmitStartAt: schedule.documentSubmitStartAt,
-                  documentSubmitEndAt: schedule.documentSubmitEndAt,
-                  practicalRegistrationStartAt: schedule.practicalRegistrationStartAt,
-                  practicalRegistrationEndAt: schedule.practicalRegistrationEndAt,
-                  practicalExamStartAt: schedule.practicalExamStartAt,
-                  practicalExamEndAt: schedule.practicalExamEndAt,
-                  practicalPassStartAt: schedule.practicalPassStartAt,
-                  practicalPassEndAt: schedule.practicalPassEndAt,
-                  showExamTypeLabels: _hasCombinedExamSchedule,
-                  links: schedule.links,
-                  onOpenLink: _openScheduleNoticeUrl,
-                ),
-              )),
+          ..._schedules.map(
+            (schedule) => Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: CertificateScheduleCard(
+                title: schedule.title,
+                writtenRegistrationStartAt: schedule.writtenRegistrationStartAt,
+                writtenRegistrationEndAt: schedule.writtenRegistrationEndAt,
+                writtenExamStartAt: schedule.writtenExamStartAt,
+                writtenExamEndAt: schedule.writtenExamEndAt,
+                writtenPassAt: schedule.writtenPassAt,
+                documentSubmitStartAt: schedule.documentSubmitStartAt,
+                documentSubmitEndAt: schedule.documentSubmitEndAt,
+                practicalRegistrationStartAt:
+                    schedule.practicalRegistrationStartAt,
+                practicalRegistrationEndAt: schedule.practicalRegistrationEndAt,
+                practicalExamStartAt: schedule.practicalExamStartAt,
+                practicalExamEndAt: schedule.practicalExamEndAt,
+                practicalPassStartAt: schedule.practicalPassStartAt,
+                practicalPassEndAt: schedule.practicalPassEndAt,
+                showExamTypeLabels: _hasCombinedExamSchedule,
+                links: schedule.links,
+                onOpenLink: _openScheduleNoticeUrl,
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -575,12 +662,13 @@ class _OtherGoalSelectionSheetState extends State<_OtherGoalSelectionSheet> {
                 separatorBuilder: (_, _) => SizedBox(height: 10),
                 itemBuilder: (context, index) {
                   final option = widget.options[index];
-                  final isAlreadyRegistered = widget.registeredGoalKeys.contains(
-                    CertificateDetailService.goalScheduleKey(
-                      scheduleId: option.scheduleId,
-                      examType: option.examType,
-                    ),
-                  );
+                  final isAlreadyRegistered = widget.registeredGoalKeys
+                      .contains(
+                        CertificateDetailService.goalScheduleKey(
+                          scheduleId: option.scheduleId,
+                          examType: option.examType,
+                        ),
+                      );
                   final isSelected = _selectedOption == option;
                   return InkWell(
                     onTap: isAlreadyRegistered
@@ -654,7 +742,9 @@ class _OtherGoalSelectionSheetState extends State<_OtherGoalSelectionSheet> {
                                     spacing: 8,
                                     runSpacing: 8,
                                     children: [
-                                      _GoalTypeBadge(label: option.examTypeName),
+                                      _GoalTypeBadge(
+                                        label: option.examTypeName,
+                                      ),
                                       if (getCertificateRegistrationStatus(
                                             registrationStartDate:
                                                 option.registrationStartDate,

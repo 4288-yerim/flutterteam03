@@ -11,6 +11,8 @@ import '../widgets/app_button.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
+import '../widgets/cached_user_profile_builder.dart';
+import '../services/user_profile_cache_service.dart';
 import '../widgets/loading_overlay.dart';
 import 'study_quiz_add.dart';
 
@@ -441,6 +443,7 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
     String subject = quizData['subject']?.toString() ?? '과목 미지정';
 
     String senderNickname = quizData['senderNickname']?.toString() ?? '방장';
+    String senderUid = quizData['senderUid']?.toString() ?? '';
 
     int point = _getInt(quizData, 'point');
 
@@ -609,8 +612,10 @@ class _StudyQuizPageState extends State<StudyQuizPage> {
                   ),
                   SizedBox(width: 5),
                   Expanded(
-                    child: Text(
-                      '$senderNickname 님이 발송',
+                    child: CachedNicknameText(
+                      uid: senderUid,
+                      fallback: senderNickname,
+                      suffix: ' 님이 발송',
                       style: TextStyle(
                         fontSize: 12,
                         color: context.colors.textSecondary,
@@ -937,72 +942,17 @@ class _QuizSolvePageState extends State<_QuizSolvePage> {
   }
 
   Future<Map<String, String>> _getCurrentUserProfile(User currentUser) async {
-    String nickname = '';
-    String profileImageUrl = '';
-
-    DocumentSnapshot<Map<String, dynamic>> memberSnapshot =
-        await FirebaseFirestore.instance
-            .collection('studyGroups')
-            .doc(widget.studyId)
-            .collection('members')
-            .doc(currentUser.uid)
-            .get();
-
-    if (memberSnapshot.exists) {
-      nickname = memberSnapshot.data()?['nickname']?.toString().trim() ?? '';
-
-      profileImageUrl =
-          memberSnapshot.data()?['profileImageUrl']?.toString().trim() ?? '';
-    }
-
-    if (nickname.isEmpty || profileImageUrl.isEmpty) {
-      DocumentSnapshot<Map<String, dynamic>> directUserSnapshot =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(currentUser.uid)
-              .get();
-
-      Map<String, dynamic> userData = {};
-
-      if (directUserSnapshot.exists) {
-        userData = directUserSnapshot.data() ?? {};
-      } else {
-        QuerySnapshot<Map<String, dynamic>> userSnapshot =
-            await FirebaseFirestore.instance
-                .collection('users')
-                .where('uid', isEqualTo: currentUser.uid)
-                .limit(1)
-                .get();
-
-        if (userSnapshot.docs.isNotEmpty) {
-          userData = userSnapshot.docs.first.data();
-        }
-      }
-
-      if (nickname.isEmpty) {
-        nickname = userData['nickname']?.toString().trim() ?? '';
-      }
-
-      if (profileImageUrl.isEmpty) {
-        profileImageUrl = userData['profileImageUrl']?.toString().trim() ?? '';
-
-        if (profileImageUrl.isEmpty) {
-          profileImageUrl = userData['photoUrl']?.toString().trim() ?? '';
-        }
-      }
-    }
-
-    if (nickname.isEmpty) {
-      nickname = currentUser.displayName?.trim() ?? '';
-    }
-
-    if (profileImageUrl.isEmpty) {
-      profileImageUrl = currentUser.photoURL?.trim() ?? '';
-    }
-
-    if (nickname.isEmpty) {
-      nickname = '사용자';
-    }
+    final UserProfileSummary? profile = await UserProfileCacheService.instance
+        .getProfile(currentUser.uid);
+    final String nickname = profile?.nickname.trim().isNotEmpty == true
+        ? profile!.nickname.trim()
+        : currentUser.displayName?.trim().isNotEmpty == true
+        ? currentUser.displayName!.trim()
+        : '사용자';
+    final String profileImageUrl =
+        profile?.profileImageUrl.trim().isNotEmpty == true
+        ? profile!.profileImageUrl.trim()
+        : currentUser.photoURL?.trim() ?? '';
 
     return {'nickname': nickname, 'profileImageUrl': profileImageUrl};
   }
@@ -2062,6 +2012,7 @@ class _QuizResultSheet extends StatelessWidget {
     Map<String, dynamic> answerData,
   ) {
     String nickname = answerData['userNickname']?.toString() ?? '사용자';
+    String userUid = answerData['userUid']?.toString() ?? '';
 
     bool isCorrect = answerData['isCorrect'] == true;
 
@@ -2095,8 +2046,9 @@ class _QuizResultSheet extends StatelessWidget {
           ),
           SizedBox(width: 10),
           Expanded(
-            child: Text(
-              nickname,
+            child: CachedNicknameText(
+              uid: userUid,
+              fallback: nickname,
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,

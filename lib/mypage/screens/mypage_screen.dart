@@ -605,10 +605,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                             title: '구독 관리',
                             subtitle: 'AI 구독 상태를 확인하고 결제 및 해지를 관리합니다.',
                             onTap: () {
-                              _openPage(
-                                context,
-                                SubscriptionPage(),
-                              );
+                              _openPage(context, SubscriptionPage());
                             },
                           ),
                           _MenuDivider(),

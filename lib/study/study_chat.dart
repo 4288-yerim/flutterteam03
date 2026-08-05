@@ -12,6 +12,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../theme.dart';
+import '../services/user_profile_cache_service.dart';
+import '../widgets/cached_user_profile_builder.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
@@ -53,10 +55,12 @@ class _StudyChatPageState extends State<StudyChatPage> {
   String _myProfileImageUrl = '';
 
   String _replyMessageId = '';
+  String _replySenderUid = '';
   String _replySenderNickname = '';
   String _replyMessage = '';
   String _pendingMessageId = '';
   String _pendingMessage = '';
+  String _pendingReplySenderUid = '';
   String _pendingReplySenderNickname = '';
   String _pendingReplyMessage = '';
 
@@ -120,73 +124,17 @@ class _StudyChatPageState extends State<StudyChatPage> {
   }
 
   Future<Map<String, String>> _getUserProfile(User currentUser) async {
-    String nickname = '';
-    String profileImageUrl = '';
-
-    DocumentSnapshot<Map<String, dynamic>> memberSnapshot =
-        await FirebaseFirestore.instance
-            .collection('studyGroups')
-            .doc(widget.studyId)
-            .collection('members')
-            .doc(currentUser.uid)
-            .get();
-
-    if (memberSnapshot.exists) {
-      Map<String, dynamic> memberData = memberSnapshot.data() ?? {};
-
-      nickname = memberData['nickname']?.toString().trim() ?? '';
-
-      profileImageUrl = memberData['profileImageUrl']?.toString().trim() ?? '';
-    }
-
-    if (nickname.isEmpty || profileImageUrl.isEmpty) {
-      DocumentSnapshot<Map<String, dynamic>> directUserSnapshot =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(currentUser.uid)
-              .get();
-
-      Map<String, dynamic> userData = {};
-
-      if (directUserSnapshot.exists) {
-        userData = directUserSnapshot.data() ?? {};
-      } else {
-        QuerySnapshot<Map<String, dynamic>> userSnapshot =
-            await FirebaseFirestore.instance
-                .collection('users')
-                .where('uid', isEqualTo: currentUser.uid)
-                .limit(1)
-                .get();
-
-        if (userSnapshot.docs.isNotEmpty) {
-          userData = userSnapshot.docs.first.data();
-        }
-      }
-
-      if (nickname.isEmpty) {
-        nickname = userData['nickname']?.toString().trim() ?? '';
-      }
-
-      if (profileImageUrl.isEmpty) {
-        profileImageUrl = userData['profileImageUrl']?.toString().trim() ?? '';
-
-        if (profileImageUrl.isEmpty) {
-          profileImageUrl = userData['photoUrl']?.toString().trim() ?? '';
-        }
-      }
-    }
-
-    if (nickname.isEmpty) {
-      nickname = currentUser.displayName?.trim() ?? '';
-    }
-
-    if (profileImageUrl.isEmpty) {
-      profileImageUrl = currentUser.photoURL?.trim() ?? '';
-    }
-
-    if (nickname.isEmpty) {
-      nickname = '사용자';
-    }
+    final UserProfileSummary? profile = await UserProfileCacheService.instance
+        .getProfile(currentUser.uid);
+    final String nickname = profile?.nickname.trim().isNotEmpty == true
+        ? profile!.nickname.trim()
+        : currentUser.displayName?.trim().isNotEmpty == true
+        ? currentUser.displayName!.trim()
+        : '사용자';
+    final String profileImageUrl =
+        profile?.profileImageUrl.trim().isNotEmpty == true
+        ? profile!.profileImageUrl.trim()
+        : currentUser.photoURL?.trim() ?? '';
 
     return {'nickname': nickname, 'profileImageUrl': profileImageUrl};
   }
@@ -369,6 +317,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
 
     setState(() {
       _replyMessageId = messageId;
+      _replySenderUid = messageData['senderUid']?.toString() ?? '';
 
       _replySenderNickname = messageData['senderNickname']?.toString() ?? '사용자';
 
@@ -379,6 +328,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
   void _cancelReply() {
     setState(() {
       _replyMessageId = '';
+      _replySenderUid = '';
       _replySenderNickname = '';
       _replyMessage = '';
     });
@@ -437,15 +387,18 @@ class _StudyChatPageState extends State<StudyChatPage> {
           .doc();
 
       String pendingReplyMessageId = _replyMessageId;
+      String pendingReplySenderUid = _replySenderUid;
       String pendingReplySenderNickname = _replySenderNickname;
       String pendingReplyMessage = _replyMessage;
 
       setState(() {
         _pendingMessageId = messageDocument.id;
         _pendingMessage = message;
+        _pendingReplySenderUid = pendingReplySenderUid;
         _pendingReplySenderNickname = pendingReplySenderNickname;
         _pendingReplyMessage = pendingReplyMessage;
         _replyMessageId = '';
+        _replySenderUid = '';
         _replySenderNickname = '';
         _replyMessage = '';
       });
@@ -465,6 +418,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
         'fileName': '',
         'fileSize': 0,
         'replyMessageId': pendingReplyMessageId,
+        'replySenderUid': pendingReplySenderUid,
         'replySenderNickname': pendingReplySenderNickname,
         'replyMessage': pendingReplyMessage,
         'readBy': [currentUser.uid],
@@ -490,6 +444,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
           _isSending = false;
           _pendingMessageId = '';
           _pendingMessage = '';
+          _pendingReplySenderUid = '';
           _pendingReplySenderNickname = '';
           _pendingReplyMessage = '';
         });
@@ -744,6 +699,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
         'imagePath': storagePath,
         'imageName': pickedFile!.name,
         'replyMessageId': _replyMessageId,
+        'replySenderUid': _replySenderUid,
         'replySenderNickname': _replySenderNickname,
         'replyMessage': _replyMessage,
         'readBy': [currentUser.uid],
@@ -763,6 +719,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
       if (mounted) {
         setState(() {
           _replyMessageId = '';
+          _replySenderUid = '';
           _replySenderNickname = '';
           _replyMessage = '';
         });
@@ -984,6 +941,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
         'fileName': pickedFile.name,
         'fileSize': fileBytes.lengthInBytes,
         'replyMessageId': _replyMessageId,
+        'replySenderUid': _replySenderUid,
         'replySenderNickname': _replySenderNickname,
         'replyMessage': _replyMessage,
         'readBy': [currentUser.uid],
@@ -1003,6 +961,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
       if (mounted) {
         setState(() {
           _replyMessageId = '';
+          _replySenderUid = '';
           _replySenderNickname = '';
           _replyMessage = '';
         });
@@ -1630,38 +1589,55 @@ class _StudyChatPageState extends State<StudyChatPage> {
 
                         bool isRead = readBy.contains(memberDocument.id);
 
-                        return ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: _buildProfileImage(
-                            nickname,
-                            profileImageUrl,
-                            21,
-                          ),
-                          title: Text(nickname),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                isRead
-                                    ? Icons.check_circle
-                                    : Icons.schedule_rounded,
-                                size: 18,
-                                color: isRead
-                                    ? Theme.of(context).colorScheme.tertiary
-                                    : context.colors.textSecondary,
+                        return CachedUserProfileBuilder(
+                          uid: memberDocument.id,
+                          builder: (context, profile) {
+                            final currentNickname =
+                                profile?.nickname.trim().isNotEmpty == true
+                                ? profile!.nickname
+                                : nickname;
+                            final currentProfileImageUrl =
+                                profile?.profileImageUrl.trim().isNotEmpty ==
+                                    true
+                                ? profile!.profileImageUrl
+                                : profileImageUrl;
+
+                            return ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: _buildProfileImage(
+                                currentNickname,
+                                currentProfileImageUrl,
+                                21,
                               ),
-                              SizedBox(width: 5),
-                              Text(
-                                isRead ? '읽음' : '안 읽음',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isRead
-                                      ? Theme.of(context).colorScheme.tertiary
-                                      : context.colors.textSecondary,
-                                ),
+                              title: Text(currentNickname),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isRead
+                                        ? Icons.check_circle
+                                        : Icons.schedule_rounded,
+                                    size: 18,
+                                    color: isRead
+                                        ? Theme.of(context).colorScheme.tertiary
+                                        : context.colors.textSecondary,
+                                  ),
+                                  SizedBox(width: 5),
+                                  Text(
+                                    isRead ? '읽음' : '안 읽음',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isRead
+                                          ? Theme.of(
+                                              context,
+                                            ).colorScheme.tertiary
+                                          : context.colors.textSecondary,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
+                            );
+                          },
                         );
                       },
                     );
@@ -1755,8 +1731,8 @@ class _StudyChatPageState extends State<StudyChatPage> {
                       padding: EdgeInsets.fromLTRB(18, 14, 18, 30),
                       itemCount: memberList.length,
                       itemBuilder: (context, index) {
-                        Map<String, dynamic> memberData = memberList[index]
-                            .data();
+                        final memberDocument = memberList[index];
+                        Map<String, dynamic> memberData = memberDocument.data();
 
                         String nickname =
                             memberData['nickname']?.toString() ?? '스터디원';
@@ -1767,18 +1743,33 @@ class _StudyChatPageState extends State<StudyChatPage> {
                         String role =
                             memberData['role']?.toString() ?? 'MEMBER';
 
-                        return ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: _buildProfileImage(
-                            nickname,
-                            profileImageUrl,
-                            23,
-                          ),
-                          title: Text(
-                            nickname,
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          subtitle: Text(role == 'OWNER' ? '방장' : '그룹원'),
+                        return CachedUserProfileBuilder(
+                          uid: memberDocument.id,
+                          builder: (context, profile) {
+                            final currentNickname =
+                                profile?.nickname.trim().isNotEmpty == true
+                                ? profile!.nickname
+                                : nickname;
+                            final currentProfileImageUrl =
+                                profile?.profileImageUrl.trim().isNotEmpty ==
+                                    true
+                                ? profile!.profileImageUrl
+                                : profileImageUrl;
+
+                            return ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: _buildProfileImage(
+                                currentNickname,
+                                currentProfileImageUrl,
+                                23,
+                              ),
+                              title: Text(
+                                currentNickname,
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              subtitle: Text(role == 'OWNER' ? '방장' : '그룹원'),
+                            );
+                          },
                         );
                       },
                     );
@@ -1793,6 +1784,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
   }
 
   Widget _buildReplyPreview(
+    String replySenderUid,
     String replySenderNickname,
     String replyMessage,
     bool isMyMessage,
@@ -1826,8 +1818,9 @@ class _StudyChatPageState extends State<StudyChatPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  replySenderNickname,
+                CachedNicknameText(
+                  uid: replySenderUid,
+                  fallback: replySenderNickname,
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
@@ -2279,6 +2272,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
 
     String replySenderNickname =
         messageData['replySenderNickname']?.toString() ?? '';
+    String replySenderUid = messageData['replySenderUid']?.toString() ?? '';
 
     String replyMessage = messageData['replyMessage']?.toString() ?? '';
 
@@ -2344,6 +2338,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
           children: [
             if (replyMessage.isNotEmpty && !isDeleted)
               _buildReplyPreview(
+                replySenderUid,
                 replySenderNickname,
                 replyMessage,
                 isMyMessage,
@@ -2369,39 +2364,56 @@ class _StudyChatPageState extends State<StudyChatPage> {
       );
     }
 
-    return Padding(
-      padding: EdgeInsets.only(right: 45, bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildProfileImage(senderNickname, senderProfileImageUrl, 18),
-          SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  senderNickname,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: context.colors.textSecondary,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+    return CachedUserProfileBuilder(
+      uid: senderUid,
+      builder: (context, profile) {
+        final currentNickname = profile?.nickname.trim().isNotEmpty == true
+            ? profile!.nickname
+            : senderNickname;
+        final currentProfileImageUrl =
+            profile?.profileImageUrl.trim().isNotEmpty == true
+            ? profile!.profileImageUrl
+            : senderProfileImageUrl;
+
+        return Padding(
+          padding: EdgeInsets.only(right: 45, bottom: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildProfileImage(currentNickname, currentProfileImageUrl, 18),
+              SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Flexible(child: bubble),
-                    SizedBox(width: 6),
-                    _buildMessageInfo(messageData, activeMemberUidList, false),
+                    Text(
+                      currentNickname,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: context.colors.textSecondary,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Flexible(child: bubble),
+                        SizedBox(width: 6),
+                        _buildMessageInfo(
+                          messageData,
+                          activeMemberUidList,
+                          false,
+                        ),
+                      ],
+                    ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -2420,6 +2432,7 @@ class _StudyChatPageState extends State<StudyChatPage> {
         children: [
           if (_pendingReplyMessage.isNotEmpty)
             _buildReplyPreview(
+              _pendingReplySenderUid,
               _pendingReplySenderNickname,
               _pendingReplyMessage,
               true,
@@ -2540,8 +2553,10 @@ class _StudyChatPageState extends State<StudyChatPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '$_replySenderNickname 님에게 답장',
+                CachedNicknameText(
+                  uid: _replySenderUid,
+                  fallback: _replySenderNickname,
+                  suffix: ' 님에게 답장',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,

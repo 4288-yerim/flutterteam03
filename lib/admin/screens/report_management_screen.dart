@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme.dart';
+import '../../widgets/cached_user_profile_builder.dart';
 import '../services/admin_report_service.dart';
 
 class ReportManagementScreen extends StatefulWidget {
@@ -64,7 +65,7 @@ class _ReportManagementScreenState extends State<ReportManagementScreen> {
               )
             else
               ...reports.map(
-                    (report) => Padding(
+                (report) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: _ReportCard(
                     report: report,
@@ -104,7 +105,7 @@ class _ReportManagementScreenState extends State<ReportManagementScreen> {
                 report: report,
                 decision: decision,
                 hideContent:
-                decision == AdminReportDecision.approve && hideContent,
+                    decision == AdminReportDecision.approve && hideContent,
               );
               if (!sheetContext.mounted) return;
               Navigator.of(sheetContext).pop(decision);
@@ -203,12 +204,12 @@ class _ReportManagementScreenState extends State<ReportManagementScreen> {
                                 : () => process(AdminReportDecision.approve),
                             icon: isProcessing
                                 ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
-                            )
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
                                 : const Icon(Icons.check_rounded),
                             label: Text(isProcessing ? '처리 중...' : '승인'),
                             style: FilledButton.styleFrom(
@@ -421,9 +422,15 @@ class _ReportCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 10),
-          Text(
-            '신고자: ${report.reporterNickname}',
-            style: TextStyle(color: context.colors.textMuted, fontSize: 13),
+          CachedNicknameBuilder(
+            uid: report.reporterUid,
+            fallback: report.reporterNickname,
+            builder: (context, nickname) {
+              return Text(
+                '신고자: $nickname',
+                style: TextStyle(color: context.colors.textMuted, fontSize: 13),
+              );
+            },
           ),
           if (!report.isPending) ...[
             const SizedBox(height: 10),
@@ -435,10 +442,10 @@ class _ReportCard extends StatelessWidget {
                 onPressed: isReopening ? null : onReopen,
                 icon: isReopening
                     ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : const Icon(Icons.undo_rounded, size: 18),
                 label: Text(isReopening ? '취소 중...' : '처리 취소'),
               ),
@@ -511,9 +518,15 @@ class _ReportDetailBox extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 10),
-          Text(
-            '신고자: ${report.reporterNickname} · ${_dateLabel(report.createdAt)}',
-            style: TextStyle(color: context.colors.textMuted, fontSize: 12),
+          CachedNicknameBuilder(
+            uid: report.reporterUid,
+            fallback: report.reporterNickname,
+            builder: (context, nickname) {
+              return Text(
+                '신고자: $nickname · ${_dateLabel(report.createdAt)}',
+                style: TextStyle(color: context.colors.textMuted, fontSize: 12),
+              );
+            },
           ),
         ],
       ),

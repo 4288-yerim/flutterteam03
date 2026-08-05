@@ -49,6 +49,28 @@ class CertificateDetailService {
     }
   }
 
+  Future<String> getCertificationOverview(String certificationId) async {
+    try {
+      final document = await _certificationsCollection
+          .doc(certificationId)
+          .collection('details')
+          .doc('overview')
+          .get();
+      final contents = document.data()?['contents'];
+      if (contents is List) {
+        return contents
+            .map((item) => item.toString().trim())
+            .where((item) => item.isNotEmpty)
+            .join('\n');
+      }
+      return contents?.toString().trim() ?? '';
+    } on FirebaseException catch (error) {
+      throw CertificateDetailException(
+        error.message ?? '자격 개요를 불러오지 못했습니다.',
+      );
+    }
+  }
+
   Future<List<TechnicalCertificateSchedule>>
   getTechnicalSchedules(
       String certificationId,

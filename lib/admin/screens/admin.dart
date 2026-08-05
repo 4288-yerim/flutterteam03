@@ -9,6 +9,7 @@ import '../../auth/services/auth_service.dart';
 import '../../main_page.dart';
 import '../../widgets/app_confirm_dialog.dart';
 import '../../widgets/app_main_background.dart';
+import '../widgets/admin_theme.dart';
 import 'admin_home_screen.dart';
 import 'study_management_screen.dart';
 import 'certificate_management_screen.dart';
@@ -109,11 +110,9 @@ class _AdminPageState extends State<AdminPage> {
     if (!mounted) return;
 
     // 관리자 페이지를 유지한 채 사용자 화면을 위에 엽니다.
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const MainPage(),
-      ),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const MainPage()));
   }
 
   List<Widget> _buildScreens() {
@@ -135,7 +134,7 @@ class _AdminPageState extends State<AdminPage> {
     ];
   }
 
-  Future<void> _signOut() async {
+  Future<void> _signOut(BuildContext context) async {
     bool shouldSignOut = false;
 
     await AppConfirmDialog.show<void>(
@@ -145,6 +144,17 @@ class _AdminPageState extends State<AdminPage> {
       description: '현재 계정에서 로그아웃하시겠습니까?',
       primaryLabel: '로그아웃',
       secondaryLabel: '취소',
+      accentGradient: LinearGradient(
+        colors: [
+          Color.lerp(
+            context.colors.lavenderAccent,
+            context.colors.surface,
+            0.18,
+          )!,
+          context.colors.lavenderAccent,
+        ],
+      ),
+      accentShadowColor: context.colors.lavenderAccent,
       onSecondaryPressed: () => Navigator.of(context).pop(),
       onPrimaryPressed: () {
         shouldSignOut = true;
@@ -165,7 +175,7 @@ class _AdminPageState extends State<AdminPage> {
         return;
       }
 
-      Navigator.of(context).pushAndRemoveUntil(
+      Navigator.of(this.context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const WelcomeScreen()),
         (route) => false,
       );
@@ -175,7 +185,7 @@ class _AdminPageState extends State<AdminPage> {
       }
 
       setState(() => _isSigningOut = false);
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(this.context).showSnackBar(
         const SnackBar(content: Text('로그아웃에 실패했습니다. 잠시 후 다시 시도해 주세요.')),
       );
     }
@@ -183,28 +193,30 @@ class _AdminPageState extends State<AdminPage> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: _adminAccessCheck,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
+    return AdminTheme(
+      child: FutureBuilder<bool>(
+        future: _adminAccessCheck,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
 
-        if (snapshot.data != true) {
-          _redirectUnauthorizedUser();
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
+          if (snapshot.data != true) {
+            _redirectUnauthorizedUser();
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
 
-        return _buildAdminPage();
-      },
+          return _buildAdminPage(context);
+        },
+      ),
     );
   }
 
-  Widget _buildAdminPage() {
+  Widget _buildAdminPage(BuildContext context) {
     final _AdminMenuItem selectedMenu = _menus[_selectedIndex];
 
     return PopScope(
@@ -340,7 +352,7 @@ class _AdminPageState extends State<AdminPage> {
                               height: 24,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: context.colors.incorrect,
+                                color: context.colors.lavenderAccent,
                               ),
                             )
                           : Icon(
@@ -356,7 +368,7 @@ class _AdminPageState extends State<AdminPage> {
                       ),
                       onTap: () {
                         Navigator.pop(context);
-                        _signOut();
+                        _signOut(context);
                       },
                     ),
                     const SizedBox(height: 8),
@@ -400,7 +412,9 @@ class _AdminPageState extends State<AdminPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircularProgressIndicator(color: context.colors.incorrect),
+                    CircularProgressIndicator(
+                      color: context.colors.lavenderAccent,
+                    ),
                     SizedBox(height: 18),
                     Text(
                       '로그아웃 중...',

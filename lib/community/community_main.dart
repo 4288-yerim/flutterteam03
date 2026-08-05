@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../theme.dart';
+import '../services/user_profile_cache_service.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_state_views.dart';
@@ -305,7 +306,12 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
     return RefreshIndicator(
       color: context.colors.pinkStart,
       onRefresh: () async {
+        UserProfileCacheService.instance.invalidateAll(
+          allPosts.map((CommunityPost post) => post.writerUid),
+        );
+
         setState(() {
+          _writerProfileFutures.clear();
           _streamVersion++;
         });
 

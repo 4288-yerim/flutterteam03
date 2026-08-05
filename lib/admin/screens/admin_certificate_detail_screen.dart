@@ -187,6 +187,7 @@ class _AdminCertificateDetailScreenState
                           MaterialPageRoute(
                             builder: (_) =>
                                 AdminCertificateStatisticsEditScreen(
+                                  certificationId: _certificate.id,
                                   certificateName: name,
                                 ),
                           ),
@@ -295,7 +296,7 @@ class _AdminActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = accentColor ?? context.colors.pinkDeep;
+    final color = accentColor ?? context.colors.lavenderAccent;
     final isDisabled = onTap == null;
     final backgroundColor = isDestructive
         ? context.colors.incorrectSoft

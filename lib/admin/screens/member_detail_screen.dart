@@ -2,12 +2,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme.dart';
+import '../../utils/nickname_validator.dart';
 
 import '../../widgets/app_confirm_dialog.dart';
+import '../../widgets/app_dropdown.dart';
 import '../../widgets/app_main_background.dart';
 import '../services/admin_member_service.dart';
 import '../services/admin_report_service.dart';
 import '../widgets/member_detail_widgets.dart';
+import '../widgets/admin_theme.dart';
 import 'member_community_activity_screen.dart';
 
 class MemberDetailScreen extends StatefulWidget {
@@ -43,6 +46,10 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
       primaryLabel: suspend ? '정지' : '정지 해제',
       secondaryLabel: '취소',
       isDestructive: suspend,
+      accentGradient: LinearGradient(
+        colors: [context.colors.lavender, context.colors.lavenderAccent],
+      ),
+      accentShadowColor: context.colors.lavenderAccent,
       onSecondaryPressed: () => Navigator.pop(context),
       onPrimaryPressed: () {
         confirmed = true;
@@ -185,23 +192,14 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
                   const SizedBox(height: 22),
                   TextFormField(
                     controller: nicknameController,
-                    maxLength: 12,
+                    maxLength: NicknameValidator.maxLength,
                     textInputAction: TextInputAction.next,
                     decoration: fieldDecoration(
                       label: '닉네임',
                       hint: '닉네임을 입력해 주세요.',
                       icon: Icons.badge_outlined,
                     ),
-                    validator: (value) {
-                      final nickname = value?.trim() ?? '';
-                      if (nickname.isEmpty) {
-                        return '닉네임을 입력해 주세요.';
-                      }
-                      if (nickname.length > 12) {
-                        return '닉네임은 12자 이하로 입력해 주세요.';
-                      }
-                      return null;
-                    },
+                    validator: NicknameValidator.validate,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -375,7 +373,8 @@ class _DetailBody extends StatelessWidget {
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => MemberReportSummaryScreen(member: member),
+              builder: (_) =>
+                  AdminTheme(child: MemberReportSummaryScreen(member: member)),
             ),
           ),
         ),
@@ -499,22 +498,59 @@ class _DetailBody extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => MemberCommunityActivityScreen(
-          memberNickname: detail.member.nickname,
-          initialType: initialType,
-          posts: detail.posts,
-          comments: detail.comments,
+        builder: (_) => AdminTheme(
+          child: MemberCommunityActivityScreen(
+            memberNickname: detail.member.nickname,
+            initialType: initialType,
+            posts: detail.posts,
+            comments: detail.comments,
+          ),
         ),
       ),
     );
   }
 }
 
-class MemberReportSummaryScreen extends StatelessWidget {
+enum _MemberReportTypeFilter { all, post, comment, studyMember }
+
+enum _MemberReportStatusFilter { all, resolved, rejected }
+
+class MemberReportSummaryScreen extends StatefulWidget {
   const MemberReportSummaryScreen({super.key, required this.member});
 
   final AdminMember member;
-  static final AdminReportService _reportService = AdminReportService();
+
+  @override
+  State<MemberReportSummaryScreen> createState() =>
+      _MemberReportSummaryScreenState();
+}
+
+class _MemberReportSummaryScreenState extends State<MemberReportSummaryScreen> {
+  final AdminReportService _reportService = AdminReportService();
+  _MemberReportTypeFilter _typeFilter = _MemberReportTypeFilter.all;
+  _MemberReportStatusFilter _statusFilter = _MemberReportStatusFilter.all;
+
+  AdminMember get member => widget.member;
+
+  List<AdminReport> _filteredReports(List<AdminReport> reports) {
+    return reports
+        .where((report) {
+          final matchesType = switch (_typeFilter) {
+            _MemberReportTypeFilter.all => true,
+            _MemberReportTypeFilter.post => report.targetType == 'POST',
+            _MemberReportTypeFilter.comment => report.targetType == 'COMMENT',
+            _MemberReportTypeFilter.studyMember =>
+              report.targetType == 'STUDY_MEMBER',
+          };
+          final matchesStatus = switch (_statusFilter) {
+            _MemberReportStatusFilter.all => true,
+            _MemberReportStatusFilter.resolved => report.status == 'RESOLVED',
+            _MemberReportStatusFilter.rejected => report.status == 'REJECTED',
+          };
+          return matchesType && matchesStatus;
+        })
+        .toList(growable: false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -585,8 +621,60 @@ class MemberReportSummaryScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: AppAdminDropdown<_MemberReportTypeFilter>(
+                    label: '신고 유형',
+                    value: _typeFilter,
+                    items: const [
+                      AppDropdownItem(
+                        value: _MemberReportTypeFilter.all,
+                        label: '전체 유형',
+                      ),
+                      AppDropdownItem(
+                        value: _MemberReportTypeFilter.post,
+                        label: '게시글',
+                      ),
+                      AppDropdownItem(
+                        value: _MemberReportTypeFilter.comment,
+                        label: '댓글',
+                      ),
+                      AppDropdownItem(
+                        value: _MemberReportTypeFilter.studyMember,
+                        label: '스터디원',
+                      ),
+                    ],
+                    onChanged: (value) => setState(() => _typeFilter = value),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: AppAdminDropdown<_MemberReportStatusFilter>(
+                    label: '처리 상태',
+                    value: _statusFilter,
+                    items: const [
+                      AppDropdownItem(
+                        value: _MemberReportStatusFilter.all,
+                        label: '전체 상태',
+                      ),
+                      AppDropdownItem(
+                        value: _MemberReportStatusFilter.resolved,
+                        label: '승인',
+                      ),
+                      AppDropdownItem(
+                        value: _MemberReportStatusFilter.rejected,
+                        label: '반려',
+                      ),
+                    ],
+                    onChanged: (value) => setState(() => _statusFilter = value),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             StreamBuilder<List<AdminReport>>(
-              stream: _reportService.watchContentReportsForMember(member.uid),
+              stream: _reportService.watchReportsForMember(member.uid),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return const _ReportHistoryMessage(
@@ -597,11 +685,11 @@ class MemberReportSummaryScreen extends StatelessWidget {
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                final reports = snapshot.data!;
+                final reports = _filteredReports(snapshot.data!);
                 if (reports.isEmpty) {
                   return const _ReportHistoryMessage(
                     icon: Icons.inbox_outlined,
-                    message: '신고당한 게시글 또는 댓글이 없습니다.',
+                    message: '선택한 조건에 맞는 신고 내역이 없습니다.',
                   );
                 }
                 return Column(
@@ -615,35 +703,35 @@ class MemberReportSummaryScreen extends StatelessWidget {
               },
             ),
             if (member.uid.isEmpty)
-            AdminMemberDetailSurface(
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 38),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.inbox_outlined,
-                    color: context.colors.textMuted,
-                    size: 34,
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    '표시할 신고 내역이 없습니다.',
-                    style: TextStyle(
-                      color: context.colors.textSecondary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    '신고 내역 데이터는 추후 연결될 예정입니다.',
-                    style: TextStyle(
+              AdminMemberDetailSurface(
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 38),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.inbox_outlined,
                       color: context.colors.textMuted,
-                      fontSize: 12,
+                      size: 34,
                     ),
-                  ),
-                ],
+                    SizedBox(height: 10),
+                    Text(
+                      '표시할 신고 내역이 없습니다.',
+                      style: TextStyle(
+                        color: context.colors.textSecondary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      '신고 내역 데이터는 추후 연결될 예정입니다.',
+                      style: TextStyle(
+                        color: context.colors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -686,7 +774,12 @@ class _MemberContentReportCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isPost = report.targetType == 'POST';
+    final (typeLabel, typeIcon) = switch (report.targetType) {
+      'POST' => ('게시글', Icons.article_outlined),
+      'COMMENT' => ('댓글', Icons.chat_bubble_outline_rounded),
+      'STUDY_MEMBER' => ('스터디원', Icons.groups_outlined),
+      _ => ('기타', Icons.report_outlined),
+    };
     final (statusLabel, statusColor) = switch (report.status) {
       'PENDING' => ('미처리', context.colors.warning),
       'RESOLVED' => ('승인', context.colors.correct),
@@ -701,20 +794,19 @@ class _MemberContentReportCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(
-                isPost ? Icons.article_outlined : Icons.chat_bubble_outline,
-                color: context.colors.lavenderAccent,
-                size: 19,
-              ),
+              Icon(typeIcon, color: context.colors.lavenderAccent, size: 19),
               const SizedBox(width: 7),
               Text(
-                isPost ? '게시글' : '댓글',
+                typeLabel,
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
               const Spacer(),
               Text(
                 statusLabel,
-                style: TextStyle(color: statusColor, fontWeight: FontWeight.w800),
+                style: TextStyle(
+                  color: statusColor,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ],
           ),
@@ -750,15 +842,16 @@ class _MemberContentReportCard extends StatelessWidget {
   }
 }
 
-String _memberReportReasonLabel(String reason) => switch (reason.toUpperCase()) {
-  'SPAM' => '스팸/홍보',
-  'ABUSE' => '욕설/괴롭힘',
-  'INAPPROPRIATE' => '부적절한 콘텐츠',
-  'FALSE_INFORMATION' => '거짓 정보',
-  'FRAUD' => '사기/허위 정보',
-  'COPYRIGHT' => '저작권 침해',
-  _ => '기타',
-};
+String _memberReportReasonLabel(String reason) =>
+    switch (reason.toUpperCase()) {
+      'SPAM' => '스팸/홍보',
+      'ABUSE' => '욕설/괴롭힘',
+      'INAPPROPRIATE' => '부적절한 콘텐츠',
+      'FALSE_INFORMATION' => '거짓 정보',
+      'FRAUD' => '사기/허위 정보',
+      'COPYRIGHT' => '저작권 침해',
+      _ => '기타',
+    };
 
 class _ReportCountCard extends StatelessWidget {
   const _ReportCountCard({

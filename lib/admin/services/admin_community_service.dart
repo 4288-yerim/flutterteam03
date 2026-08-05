@@ -121,6 +121,7 @@ class AdminCommunityPost {
     required this.boardType,
     required this.title,
     required this.content,
+    required this.writerUid,
     required this.writerNickname,
     required this.status,
     required this.visibility,
@@ -141,6 +142,7 @@ class AdminCommunityPost {
       boardType: _text(data['boardType'], fallback: 'FREE').toUpperCase(),
       title: _text(data['title'], fallback: '제목 없는 게시글'),
       content: _text(data['content']),
+      writerUid: _text(data['writerUid'] ?? data['uid']),
       writerNickname: _text(data['writerNickname'], fallback: '사용자'),
       status: _text(data['postStatus'], fallback: 'NORMAL').toUpperCase(),
       visibility: _text(data['visibility'], fallback: 'PUBLIC').toUpperCase(),
@@ -157,6 +159,7 @@ class AdminCommunityPost {
   final String boardType;
   final String title;
   final String content;
+  final String writerUid;
   final String writerNickname;
   final String status;
   final String visibility;
@@ -175,6 +178,7 @@ class AdminCommunityComment {
   const AdminCommunityComment({
     required this.id,
     required this.parentCommentId,
+    required this.writerUid,
     required this.writerNickname,
     required this.content,
     required this.status,
@@ -191,6 +195,7 @@ class AdminCommunityComment {
     return AdminCommunityComment(
       id: document.id,
       parentCommentId: _text(data['parentCommentId']),
+      writerUid: _text(data['writerUid'] ?? data['uid']),
       writerNickname: _text(data['writerNickname'], fallback: '사용자'),
       content: _text(data['content'], fallback: '내용 없음'),
       status: _text(data['commentStatus'], fallback: 'NORMAL').toUpperCase(),
@@ -203,6 +208,7 @@ class AdminCommunityComment {
 
   final String id;
   final String parentCommentId;
+  final String writerUid;
   final String writerNickname;
   final String content;
   final String status;

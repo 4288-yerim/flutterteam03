@@ -4,7 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import '../services/user_profile_cache_service.dart';
 import '../widgets/app_dialog.dart';
+import '../widgets/cached_user_profile_builder.dart';
 import 'package:flutterteam03/widgets/app_state_views.dart';
 
 import '../widgets/app_card.dart';
@@ -212,36 +214,9 @@ class StudyDetailPage extends StatelessWidget {
 
   /// users 컬렉션에서 실제 회원 닉네임과 프로필 이미지 조회
   Future<Map<String, String>> _getUserProfile(String uid) async {
-    String nickname = '';
-    String profileImageUrl = '';
-
-    DocumentSnapshot<Map<String, dynamic>> directUserSnapshot =
-        await FirebaseFirestore.instance.collection('users').doc(uid).get();
-
-    Map<String, dynamic> userData = {};
-
-    if (directUserSnapshot.exists) {
-      userData = directUserSnapshot.data() ?? {};
-    } else {
-      QuerySnapshot<Map<String, dynamic>> userSnapshot = await FirebaseFirestore
-          .instance
-          .collection('users')
-          .where('uid', isEqualTo: uid)
-          .limit(1)
-          .get();
-
-      if (userSnapshot.docs.isNotEmpty) {
-        userData = userSnapshot.docs.first.data();
-      }
-    }
-
-    nickname = userData['nickname']?.toString().trim() ?? '';
-
-    profileImageUrl = userData['profileImageUrl']?.toString().trim() ?? '';
-
-    if (profileImageUrl.isEmpty) {
-      profileImageUrl = userData['photoUrl']?.toString().trim() ?? '';
-    }
+    final profile = await UserProfileCacheService.instance.getProfile(uid);
+    String nickname = profile?.nickname ?? '';
+    String profileImageUrl = profile?.profileImageUrl ?? '';
 
     User? currentUser = FirebaseAuth.instance.currentUser;
 
@@ -1158,11 +1133,17 @@ class StudyDetailPage extends StatelessWidget {
   }
 
   /// 그룹원 추방 확인창
-  void _showKickMemberDialog({
+  Future<void> _showKickMemberDialog({
     required BuildContext context,
     required String memberUid,
     required String nickname,
-  }) {
+  }) async {
+    final currentNickname = await UserProfileCacheService.instance
+        .resolveNickname(uid: memberUid, fallback: nickname);
+    if (!context.mounted) {
+      return;
+    }
+
     bool isProcessing = false;
 
     showDialog<void>(
@@ -1185,7 +1166,7 @@ class StudyDetailPage extends StatelessWidget {
 
                 Navigator.pop(dialogContext);
 
-                _showMessage(context, '$nickname 님을 스터디에서 추방했습니다.');
+                _showMessage(context, '$currentNickname 님을 스터디에서 추방했습니다.');
               } catch (error) {
                 debugPrint('그룹원 추방 오류: $error');
 
@@ -1216,7 +1197,7 @@ class StudyDetailPage extends StatelessWidget {
                 ],
               ),
               content: Text(
-                '$nickname 님을 스터디에서 추방하시겠습니까?\n\n'
+                '$currentNickname 님을 스터디에서 추방하시겠습니까?\n\n'
                 '추방된 사용자는 이 스터디에 참여할 수 없습니다.',
                 style: TextStyle(height: 1.5),
               ),
@@ -1455,8 +1436,9 @@ class StudyDetailPage extends StatelessWidget {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      nickname,
+                                    CachedNicknameText(
+                                      uid: memberDocument.id,
+                                      fallback: nickname,
                                       style: TextStyle(
                                         fontSize: 15,
                                         fontWeight: FontWeight.bold,
@@ -1789,8 +1771,9 @@ class StudyDetailPage extends StatelessWidget {
                                     Row(
                                       children: [
                                         Flexible(
-                                          child: Text(
-                                            nickname,
+                                          child: CachedNicknameText(
+                                            uid: memberDocument.id,
+                                            fallback: nickname,
                                             overflow: TextOverflow.ellipsis,
                                             style: TextStyle(
                                               fontSize: 15,
@@ -2078,8 +2061,9 @@ class StudyDetailPage extends StatelessWidget {
                                         Row(
                                           children: [
                                             Flexible(
-                                              child: Text(
-                                                nickname,
+                                              child: CachedNicknameText(
+                                                uid: memberDocument.id,
+                                                fallback: nickname,
                                                 overflow: TextOverflow.ellipsis,
                                                 style: TextStyle(
                                                   fontSize: 15,
@@ -2421,8 +2405,9 @@ class StudyDetailPage extends StatelessWidget {
                 Row(
                   children: [
                     Flexible(
-                      child: Text(
-                        nickname,
+                      child: CachedNicknameText(
+                        uid: memberUid,
+                        fallback: nickname,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 15,
@@ -3447,6 +3432,9 @@ class StudyDetailPage extends StatelessWidget {
       reporterNickname = '사용자';
     }
 
+    final currentReportedNickname = await UserProfileCacheService.instance
+        .resolveNickname(uid: reportedUid, fallback: reportedNickname);
+
     String reportId = 'STUDY_MEMBER_${studyId}_${currentUser.uid}_$reportedUid';
     DocumentReference<Map<String, dynamic>> reportReference = FirebaseFirestore
         .instance
@@ -3466,8 +3454,8 @@ class StudyDetailPage extends StatelessWidget {
         'reporterUid': currentUser.uid,
         'targetType': 'STUDY_MEMBER',
         'targetId': null,
-        'targettitle': reportedNickname,
-        'targetNickname': reportedNickname,
+        'targettitle': currentReportedNickname,
+        'targetNickname': currentReportedNickname,
         'targetUid': reportedUid,
         'reasonType': reasonType,
         'description': detail.isEmpty ? null : detail,
@@ -3646,7 +3634,10 @@ class StudyDetailPage extends StatelessWidget {
 
                         return DropdownMenuItem<String>(
                           value: memberDocument.id,
-                          child: Text(nickname),
+                          child: CachedNicknameText(
+                            uid: memberDocument.id,
+                            fallback: nickname,
+                          ),
                         );
                       }).toList(),
                       onChanged: isSaving
@@ -4232,6 +4223,8 @@ class StudyDetailPage extends StatelessWidget {
         String ownerNickname =
             currentStudyData['ownerNickname']?.toString() ?? '방장 정보 없음';
 
+        String ownerUid = currentStudyData['ownerUid']?.toString() ?? '';
+
         int currentMemberCount = _getInt(
           currentStudyData,
           'currentMemberCount',
@@ -4514,11 +4507,17 @@ class StudyDetailPage extends StatelessWidget {
                           ),
                         ),
                         SizedBox(height: 20),
-                        _buildInfoRow(
-                          context,
-                          Icons.person_outline,
-                          '방장',
-                          ownerNickname,
+                        CachedNicknameBuilder(
+                          uid: ownerUid,
+                          fallback: ownerNickname,
+                          builder: (context, currentOwnerNickname) {
+                            return _buildInfoRow(
+                              context,
+                              Icons.person_outline,
+                              '방장',
+                              currentOwnerNickname,
+                            );
+                          },
                         ),
                         _buildInfoRow(
                           context,

@@ -2,6 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../services/user_profile_cache_service.dart';
+import '../../utils/nickname_validator.dart';
+
 class AdminMemberService {
   AdminMemberService({
     FirebaseFirestore? firestore,
@@ -60,21 +63,24 @@ class AdminMemberService {
     required String uid,
     required String nickname,
     required String bio,
-  }) {
+  }) async {
     final trimmedNickname = nickname.trim();
     final trimmedBio = bio.trim();
-    if (trimmedNickname.isEmpty || trimmedNickname.length > 12) {
-      throw ArgumentError('닉네임은 1자 이상 12자 이하로 입력해야 합니다.');
+    final String? nicknameError = NicknameValidator.validate(trimmedNickname);
+    if (nicknameError != null) {
+      throw ArgumentError(nicknameError);
     }
     if (trimmedBio.length > 100) {
       throw ArgumentError('소개글은 100자 이하로 입력해야 합니다.');
     }
 
-    return _firestore.collection('users').doc(uid).update({
+    await _firestore.collection('users').doc(uid).update({
       'nickname': trimmedNickname,
       'bio': trimmedBio,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    UserProfileCacheService.instance.updateNickname(uid, trimmedNickname);
   }
 
   Future<AdminMemberDetail> fetchMemberDetail(AdminMember member) async {

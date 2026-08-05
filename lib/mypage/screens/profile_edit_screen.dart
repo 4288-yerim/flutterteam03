@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme.dart';
+import '../../services/user_profile_cache_service.dart';
+import '../../utils/nickname_validator.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -206,24 +208,12 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           const SizedBox(height: 8),
           TextFormField(
             controller: _nicknameController,
-            maxLength: 12,
+            maxLength: NicknameValidator.maxLength,
             decoration: _inputDecoration(
               hintText: '닉네임을 입력해 주세요.',
               prefixIcon: Icons.badge_outlined,
             ),
-            validator: (value) {
-              final String nickname = value?.trim() ?? '';
-
-              if (nickname.isEmpty) {
-                return '닉네임을 입력해 주세요.';
-              }
-
-              if (nickname.length < 2) {
-                return '닉네임은 2자 이상 입력해 주세요.';
-              }
-
-              return null;
-            },
+            validator: NicknameValidator.validate,
           ),
         ],
       ),
@@ -633,6 +623,11 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         'bio': _introductionController.text.trim(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      UserProfileCacheService.instance.updateNickname(
+        uid,
+        _nicknameController.text,
+      );
 
       if (!mounted) {
         return;

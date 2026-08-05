@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../services/user_profile_cache_service.dart';
 import '../theme.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_card.dart';
@@ -1026,9 +1027,11 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception('로그인 정보가 없습니다.');
 
-      final String ownerNickname = user.displayName?.trim().isNotEmpty == true
-          ? user.displayName!.trim()
-          : '익명 사용자';
+      final String ownerNickname = await UserProfileCacheService.instance
+          .resolveNickname(
+            uid: user.uid,
+            fallback: user.displayName ?? '익명 사용자',
+          );
 
       final studyDocument = FirebaseFirestore.instance
           .collection('studyGroups')

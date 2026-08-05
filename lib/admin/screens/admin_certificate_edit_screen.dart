@@ -20,6 +20,7 @@ class _AdminCertificateEditScreenState extends State<AdminCertificateEditScreen>
   final _formKey = GlobalKey<FormState>();
   final _feeRound1 = TextEditingController();
   final _feeRound2 = TextEditingController();
+  final _overview = TextEditingController();
   final _trends = TextEditingController();
   final _obtain = TextEditingController();
   List<_LinkEditor> _feeLinks = [];
@@ -39,6 +40,7 @@ class _AdminCertificateEditScreenState extends State<AdminCertificateEditScreen>
       if (!mounted) return;
       _feeRound1.text = data.details['examFee']?['feeRound1']?.toString() ?? '';
       _feeRound2.text = data.details['examFee']?['feeRound2']?.toString() ?? '';
+      _overview.text = data.overview;
       _trends.text = data.examTrends;
       _obtain.text = data.howToObtain;
       setState(() {
@@ -56,7 +58,7 @@ class _AdminCertificateEditScreenState extends State<AdminCertificateEditScreen>
 
   @override
   void dispose() {
-    for (final controller in [_feeRound1, _feeRound2, _trends, _obtain]) { controller.dispose(); }
+    for (final controller in [_feeRound1, _feeRound2, _overview, _trends, _obtain]) { controller.dispose(); }
     for (final editor in [..._feeLinks, ..._trendLinks, ..._obtainLinks, ..._scheduleLinks]) { editor.dispose(); }
     super.dispose();
   }
@@ -88,6 +90,8 @@ class _AdminCertificateEditScreenState extends State<AdminCertificateEditScreen>
   }
 
   List<Widget> _informationSections() => [
+    _section('자격 개요', [_field(_overview, '내용', lines: 8)]),
+    const SizedBox(height: 16),
     _section('응시 수수료', [_field(_feeRound1, '필기/통합 수수료', number: true), const SizedBox(height: 10), _field(_feeRound2, '실기/면접 수수료', number: true), const SizedBox(height: 14), _linkFields(_feeLinks)]),
     const SizedBox(height: 16),
     _section('시험 경향', [_field(_trends, '내용', lines: 5), const SizedBox(height: 14), _linkFields(_trendLinks)]),
@@ -179,6 +183,7 @@ class _AdminCertificateEditScreenState extends State<AdminCertificateEditScreen>
     }
     setState(() => _saving = true);
     final details = Map<String, Map<String, dynamic>>.from(_data!.details);
+    details['overview'] = {...?details['overview'], 'contents': _overview.text.trim()};
     details['examFee'] = {'feeRound1': _feeRound1.text.trim(), 'feeRound2': _feeRound2.text.trim(), 'links': _maps(_feeLinks)};
     details['examTrends'] = {'contents': _trends.text, 'links': _maps(_trendLinks)};
     details['howToObtain'] = {'contents': _obtain.text, 'links': _maps(_obtainLinks)};
