@@ -3,6 +3,8 @@ import 'package:table_calendar/table_calendar.dart';
 
 import '../../certificate/widgets/certificate_common_widgets.dart';
 import '../../theme.dart';
+import '../../widgets/app_dropdown.dart';
+import 'admin_certificate_theme.dart';
 
 class AdminScheduleDatePickerDialog extends StatefulWidget {
   const AdminScheduleDatePickerDialog({super.key, required this.initialDate});
@@ -20,7 +22,8 @@ class _AdminScheduleDatePickerDialogState
   late DateTime _selectedDay = widget.initialDate;
 
   @override
-  Widget build(BuildContext context) => Dialog(
+  Widget build(BuildContext context) => AdminCertificateTheme(
+    child: Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         child: Container(
@@ -55,6 +58,8 @@ class _AdminScheduleDatePickerDialogState
                   headerStyle: HeaderStyle(
                     titleCentered: true,
                     formatButtonVisible: false,
+                    titleTextFormatter: (date, _) =>
+                        '${date.year}년 ${date.month}월',
                     titleTextStyle: TextStyle(
                       color: context.colors.textPrimary,
                       fontSize: 18,
@@ -73,6 +78,7 @@ class _AdminScheduleDatePickerDialogState
                   startingDayOfWeek: StartingDayOfWeek.sunday,
                   rowHeight: 46,
                   daysOfWeekHeight: 30,
+                  onHeaderTapped: (_) => _showYearMonthPicker(),
                   onDaySelected: (selected, focused) => setState(() {
                     _selectedDay = selected;
                     _focusedDay = focused;
@@ -106,15 +112,15 @@ class _AdminScheduleDatePickerDialogState
                       fontWeight: FontWeight.w500,
                     ),
                     todayDecoration: BoxDecoration(
-                      color: context.colors.pinkSoft,
+                      color: context.colors.lavender,
                       shape: BoxShape.circle,
                     ),
                     todayTextStyle: TextStyle(
-                      color: context.colors.pinkDeep,
+                      color: context.colors.lavenderAccent,
                       fontWeight: FontWeight.w700,
                     ),
                     selectedDecoration: BoxDecoration(
-                      color: context.colors.pinkDeep,
+                      color: context.colors.lavenderAccent,
                       shape: BoxShape.circle,
                     ),
                     selectedTextStyle: TextStyle(
@@ -145,5 +151,103 @@ class _AdminScheduleDatePickerDialogState
             ],
           ),
         ),
+      ),
+    );
+
+  Future<void> _showYearMonthPicker() async {
+    var selectedYear = _focusedDay.year;
+    final selectedMonth = await showDialog<DateTime>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('연·월 선택'),
+          content: SizedBox(
+            width: 360,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppAdminDropdown<int>(
+                  label: '연도',
+                  value: selectedYear,
+                  initialCenteredValue: DateTime.now().year,
+                  items: [
+                    for (var year = 2000; year <= 2100; year++)
+                      AppDropdownItem(value: year, label: '$year년'),
+                  ],
+                  onChanged: (year) {
+                    setDialogState(() => selectedYear = year);
+                  },
+                ),
+                const SizedBox(height: 18),
+                GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 4,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                  childAspectRatio: 1.8,
+                  children: [
+                    for (var month = 1; month <= 12; month++)
+                      _MonthButton(
+                        month: month,
+                        selected: selectedYear == _focusedDay.year &&
+                            month == _focusedDay.month,
+                        onPressed: () => Navigator.pop(
+                          dialogContext,
+                          DateTime(selectedYear, month),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('취소'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (selectedMonth == null || !mounted) return;
+    setState(() => _focusedDay = selectedMonth);
+  }
+}
+
+class _MonthButton extends StatelessWidget {
+  const _MonthButton({
+    required this.month,
+    required this.selected,
+    required this.onPressed,
+  });
+
+  final int month;
+  final bool selected;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = ButtonStyle(
+      padding: WidgetStateProperty.all(EdgeInsets.zero),
+      minimumSize: WidgetStateProperty.all(const Size(0, 40)),
+      textStyle: WidgetStateProperty.all(
+        const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+      ),
+    );
+    final label = Text('$month월', maxLines: 1, softWrap: false);
+    if (selected) {
+      return FilledButton(
+        style: style,
+        onPressed: onPressed,
+        child: label,
       );
+    }
+    return OutlinedButton(
+      style: style,
+      onPressed: onPressed,
+      child: label,
+    );
+  }
 }

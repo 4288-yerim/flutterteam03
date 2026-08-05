@@ -5,6 +5,7 @@ import '../../theme.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
+import '../widgets/admin_certificate_theme.dart';
 
 class CertificateCategoryContentEditScreen extends StatefulWidget {
   const CertificateCategoryContentEditScreen({super.key});
@@ -98,10 +99,11 @@ class _CertificateCategoryContentEditScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      extendBodyBehindAppBar: true,
-      appBar: AppTopBar(
+    return AdminCertificateTheme(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        extendBodyBehindAppBar: true,
+        appBar: AppTopBar(
         title: '자격증 안내 수정',
         centerTitle: true,
         leading: IconButton(
@@ -113,7 +115,7 @@ class _CertificateCategoryContentEditScreenState
           ),
         ),
       ),
-      body: AppMainBackground(
+        body: AppMainBackground(
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 32),
@@ -133,6 +135,7 @@ class _CertificateCategoryContentEditScreenState
             ),
           ),
         ),
+        ),
       ),
     );
   }
@@ -151,10 +154,10 @@ class _CertificateCategoryContentEditScreenState
         indicatorSize: TabBarIndicatorSize.tab,
         labelPadding: EdgeInsets.zero,
         indicator: BoxDecoration(
-          color: context.colors.pinkSoft,
+          color: context.colors.lavender,
           borderRadius: BorderRadius.circular(12),
         ),
-        labelColor: context.colors.pinkDeep,
+        labelColor: context.colors.lavenderAccent,
         unselectedLabelColor: context.colors.textSecondary,
         labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
         unselectedLabelStyle: const TextStyle(
@@ -233,10 +236,12 @@ class _CertificateCategoryContentEditScreenState
                   ),
                 );
               }),
-              OutlinedButton.icon(
+              AppButton(
                 onPressed: () => setState(editor.addItem),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('안내 문구 추가'),
+                type: AppButtonType.outlineAdmin,
+                icon: Icons.add_rounded,
+                text: '안내 문구 추가',
+                height: 44,
               ),
               const SizedBox(height: 24),
               Text(
@@ -261,17 +266,24 @@ class _CertificateCategoryContentEditScreenState
                       ])),
                       IconButton(
                         tooltip: '링크 삭제',
-                        onPressed: editor.linkEditors.length == 1
-                            ? null : () => setState(() => editor.removeLink(index)),
+                        onPressed: () => setState(() {
+                          if (editor.linkEditors.length == 1) {
+                            editor.clearLink(index);
+                          } else {
+                            editor.removeLink(index);
+                          }
+                        }),
                         icon: Icon(Icons.remove_circle_outline_rounded,
                             color: context.colors.incorrect),
                       ),
                     ]),
                   )),
-              OutlinedButton.icon(
+              AppButton(
                 onPressed: () => setState(editor.addLink),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('링크 추가'),
+                type: AppButtonType.outlineAdmin,
+                icon: Icons.add_rounded,
+                text: '링크 추가',
+                height: 44,
               ),
             ],
           ),
@@ -279,7 +291,7 @@ class _CertificateCategoryContentEditScreenState
         const SizedBox(height: 16),
         AppButton(
           text: isSaving ? '저장 중...' : '저장',
-          type: AppButtonType.primaryPink,
+          type: AppButtonType.primaryAdmin,
           height: 52,
           onPressed: isSaving ? null : () => _save(category),
         ),
@@ -348,6 +360,8 @@ class _CategoryNoticeEditor {
 
   void removeLink(int index) => linkEditors.removeAt(index).dispose();
 
+  void clearLink(int index) => linkEditors[index].clear();
+
   bool get hasValidLinks => linkEditors.every((editor) {
         final label = editor.label.text.trim();
         final url = editor.url.text.trim();
@@ -385,6 +399,11 @@ class _LinkEditor {
 
   final TextEditingController label;
   final TextEditingController url;
+
+  void clear() {
+    label.clear();
+    url.clear();
+  }
 
   void dispose() {
     label.dispose();

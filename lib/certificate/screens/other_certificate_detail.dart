@@ -17,7 +17,6 @@ import '../widgets/certificate_detail_widgets.dart';
 import '../widgets/certificate_schedule_notice_content_card.dart';
 import '../widgets/other_certificate_detail_widgets.dart';
 import '../widgets/professional_certificate_widgets.dart';
-import '../widgets/technical_certificate_widgets.dart';
 
 class OtherCertificateDetailPage extends StatefulWidget {
   final String certificationId;
@@ -45,6 +44,26 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
   String? _errorMessage;
   int _selectedTabIndex = 0;
   bool _isRegisteringGoal = false;
+
+  bool get _hasPracticalSchedule => _schedules.any(_scheduleHasPractical);
+
+  bool get _hasCombinedExamSchedule => _schedules.any((schedule) =>
+      _scheduleHasWritten(schedule) && _scheduleHasPractical(schedule));
+
+  bool _scheduleHasWritten(TechnicalCertificateSchedule schedule) =>
+      schedule.writtenRegistrationStartAt != null ||
+      schedule.writtenRegistrationEndAt != null ||
+      schedule.writtenExamStartAt != null ||
+      schedule.writtenExamEndAt != null ||
+      schedule.writtenPassAt != null;
+
+  bool _scheduleHasPractical(TechnicalCertificateSchedule schedule) =>
+      schedule.practicalRegistrationStartAt != null ||
+      schedule.practicalRegistrationEndAt != null ||
+      schedule.practicalExamStartAt != null ||
+      schedule.practicalExamEndAt != null ||
+      schedule.practicalPassStartAt != null ||
+      schedule.practicalPassEndAt != null;
 
   @override
   void initState() {
@@ -110,7 +129,7 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
         today: today,
         schedule: schedule,
         examType: 'WRITTEN',
-        examTypeName: '필기',
+        examTypeName: _hasPracticalSchedule ? '필기' : '통합',
         examStartDate: schedule.writtenExamStartAt,
         examEndDate: schedule.writtenExamEndAt,
         registrationStartDate: schedule.writtenRegistrationStartAt,
@@ -123,7 +142,7 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
         today: today,
         schedule: schedule,
         examType: 'PRACTICAL',
-        examTypeName: '실기',
+        examTypeName: '실기/면접',
         examStartDate: schedule.practicalExamStartAt,
         examEndDate: schedule.practicalExamEndAt,
         registrationStartDate: schedule.practicalRegistrationStartAt,
@@ -237,6 +256,7 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
         targetExamEndDate: option.examEndDate ?? option.examStartDate,
         targetRound: option.targetRound,
         targetExamType: option.examType,
+        targetExamTypeName: option.examTypeName,
         targetRegistrationStartDate: option.registrationStartDate,
         targetRegistrationEndDate: option.registrationEndDate,
         targetPassAnnouncementDate: option.passAnnouncementDate,
@@ -269,7 +289,7 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
       backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
       appBar: AppTopBar(
-        title: '자격증 상세',
+        title: _certificate == null ? '자격증 상세' : '${_certificate!.name} 상세',
         centerTitle: true,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
@@ -401,7 +421,7 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
         return _buildScheduleTab();
       case 1:
         final details = _examDetails;
-        return OtherCertificateExamInformationCard(
+        return CertificateExamInformationCard(
           writtenFee: details?.writtenFee,
           practicalFee: details?.practicalFee,
           examTrends: details?.examTrends ?? '',
@@ -445,7 +465,7 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
         else
           ..._schedules.map((schedule) => Padding(
                 padding: const EdgeInsets.only(bottom: 14),
-                child: TechnicalScheduleCard(
+                child: CertificateScheduleCard(
                   title: schedule.title,
                   writtenRegistrationStartAt: schedule.writtenRegistrationStartAt,
                   writtenRegistrationEndAt: schedule.writtenRegistrationEndAt,
@@ -460,6 +480,7 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
                   practicalExamEndAt: schedule.practicalExamEndAt,
                   practicalPassStartAt: schedule.practicalPassStartAt,
                   practicalPassEndAt: schedule.practicalPassEndAt,
+                  showExamTypeLabels: _hasCombinedExamSchedule,
                   links: schedule.links,
                   onOpenLink: _openScheduleNoticeUrl,
                 ),
