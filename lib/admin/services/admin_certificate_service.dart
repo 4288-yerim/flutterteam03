@@ -241,6 +241,11 @@ class AdminCertificateService {
       'seriesnm': data.certificate.seriesName.trim(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+    batch.set(
+      reference.collection('details').doc('overview'),
+      {'contents': data.overview},
+      SetOptions(merge: true),
+    );
     batch.set(reference.collection('details').doc('examFee'), data.examFeeMap);
     batch.set(reference.collection('details').doc('examTrends'), {
       'infogb': '출제경향',
@@ -430,6 +435,7 @@ class AdminCertificateEditorData {
 
   String get examTrends => _readText(details['examTrends']?['contents']);
   String get howToObtain => _readText(details['howToObtain']?['contents']);
+  String get overview => _readText(details['overview']?['contents']);
   List<Map<String, String>> get examTrendsLinks => _readLinks(details['examTrends']);
   List<Map<String, String>> get howToObtainLinks => _readLinks(details['howToObtain']);
   List<Map<String, String>> get scheduleLinks => _readLinks(details['scheduleLinks']);

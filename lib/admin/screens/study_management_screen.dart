@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme.dart';
+import '../../widgets/cached_user_profile_builder.dart';
 import '../services/admin_study_service.dart';
 
 class StudyManagementScreen extends StatefulWidget {
@@ -278,8 +279,9 @@ class _StudyCard extends StatelessWidget {
               ),
               const SizedBox(width: 5),
               Expanded(
-                child: Text(
-                  group.ownerNickname,
+                child: CachedNicknameText(
+                  uid: group.ownerUid,
+                  fallback: group.ownerNickname,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

@@ -4,6 +4,7 @@ import '../../theme.dart';
 
 import '../services/admin_member_service.dart';
 import '../widgets/member_management_widgets.dart';
+import '../widgets/admin_theme.dart';
 import 'member_detail_screen.dart';
 
 class MemberManagementScreen extends StatefulWidget {
@@ -117,7 +118,9 @@ class _MemberManagementScreenState extends State<MemberManagementScreen> {
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) => MemberDetailScreen(member: member),
+                            builder: (_) => AdminTheme(
+                              child: MemberDetailScreen(member: member),
+                            ),
                           ),
                         );
                       },

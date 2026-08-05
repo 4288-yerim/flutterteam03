@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme.dart';
+import '../../widgets/app_dropdown.dart';
 
 import '../services/admin_member_service.dart';
 
@@ -80,72 +81,42 @@ class AdminMemberSearchControls extends StatelessWidget {
           children: [
             Expanded(
               flex: 9,
-              child: DropdownButtonFormField<AdminMemberStatusFilter>(
-                initialValue: selectedFilter,
-                isExpanded: true,
-                decoration: _dropdownDecoration(context, '회원 상태'),
-                items: AdminMemberStatusFilter.values.map((filter) {
-                  return DropdownMenuItem(
-                    value: filter,
-                    child: Text(
-                      '${adminMemberFilterLabel(filter)} '
-                      '(${counts[filter] ?? 0})',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) onFilterChanged(value);
-                },
+              child: AppAdminDropdown<AdminMemberStatusFilter>(
+                label: '회원 상태',
+                value: selectedFilter,
+                items: AdminMemberStatusFilter.values
+                    .map(
+                      (filter) => AppDropdownItem(
+                        value: filter,
+                        label:
+                            '${adminMemberFilterLabel(filter)} '
+                            '(${counts[filter] ?? 0})',
+                      ),
+                    )
+                    .toList(),
+                onChanged: onFilterChanged,
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
               flex: 11,
-              child: DropdownButtonFormField<AdminMemberViewFilter>(
-                initialValue: selectedViewFilter,
-                isExpanded: true,
-                decoration: _dropdownDecoration(context, '정렬·조건'),
-                items: AdminMemberViewFilter.values.map((filter) {
-                  return DropdownMenuItem(
-                    value: filter,
-                    child: Text(
-                      adminMemberViewFilterLabel(filter),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) onViewFilterChanged(value);
-                },
+              child: AppAdminDropdown<AdminMemberViewFilter>(
+                label: '정렬·조건',
+                value: selectedViewFilter,
+                items: AdminMemberViewFilter.values
+                    .map(
+                      (filter) => AppDropdownItem(
+                        value: filter,
+                        label: adminMemberViewFilterLabel(filter),
+                      ),
+                    )
+                    .toList(),
+                onChanged: onViewFilterChanged,
               ),
             ),
           ],
         ),
       ],
-    );
-  }
-
-  InputDecoration _dropdownDecoration(BuildContext context, String label) {
-    return InputDecoration(
-      labelText: label,
-      filled: true,
-      fillColor: context.colors.surfaceTransparent,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: context.colors.border),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: context.colors.border),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: context.colors.lavenderAccent),
-      ),
     );
   }
 }

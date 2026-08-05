@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme.dart';
+import '../../widgets/app_dropdown.dart';
 import '../services/admin_notice_service.dart';
 
 class NoticeManagementScreen extends StatefulWidget {
@@ -120,13 +121,6 @@ class _NoticeManagementScreenState extends State<NoticeManagementScreen> {
   }
 
   Future<void> _openNoticeEditor([AdminNotice? notice]) async {
-    final titleController = TextEditingController(text: notice?.title ?? '');
-    final contentController = TextEditingController(
-      text: notice?.content ?? '',
-    );
-    final targetUidsController = TextEditingController(
-      text: notice?.targetUids.join(', ') ?? '',
-    );
     var noticeType = notice?.noticeType ?? 'APP';
     var targetType = notice?.targetType ?? 'ALL';
     var status = notice?.status == 'ENDED'
@@ -142,257 +136,259 @@ class _NoticeManagementScreenState extends State<NoticeManagementScreen> {
       isScrollControlled: true,
       showDragHandle: true,
       backgroundColor: context.colors.surfaceElevated,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setSheetState) {
-          Future<void> pickSchedule() async {
-            final now = DateTime.now();
-            final selectedDate = await showDatePicker(
-              context: context,
-              initialDate: scheduledAt?.isAfter(now) == true
-                  ? scheduledAt!
-                  : now.add(const Duration(days: 1)),
-              firstDate: now,
-              lastDate: now.add(const Duration(days: 365)),
-            );
-            if (selectedDate == null || !context.mounted) return;
-            final selectedTime = await showTimePicker(
-              context: context,
-              initialTime: TimeOfDay.fromDateTime(
-                scheduledAt ?? now.add(const Duration(hours: 1)),
-              ),
-            );
-            if (selectedTime == null) return;
-            setSheetState(() {
-              scheduledAt = DateTime(
-                selectedDate.year,
-                selectedDate.month,
-                selectedDate.day,
-                selectedTime.hour,
-                selectedTime.minute,
-              );
-            });
-          }
+      builder: (sheetContext) => _NoticeEditorControllerScope(
+        initialTitle: notice?.title ?? '',
+        initialContent: notice?.content ?? '',
+        initialTargetUids: notice?.targetUids.join(', ') ?? '',
+        builder:
+            (
+              context,
+              titleController,
+              contentController,
+              targetUidsController,
+            ) => StatefulBuilder(
+              builder: (context, setSheetState) {
+                Future<void> pickSchedule() async {
+                  final now = DateTime.now();
+                  final selectedDate = await showDatePicker(
+                    context: context,
+                    initialDate: scheduledAt?.isAfter(now) == true
+                        ? scheduledAt!
+                        : now.add(const Duration(days: 1)),
+                    firstDate: now,
+                    lastDate: now.add(const Duration(days: 365)),
+                  );
+                  if (selectedDate == null || !context.mounted) return;
+                  final selectedTime = await showTimePicker(
+                    context: context,
+                    initialTime: TimeOfDay.fromDateTime(
+                      scheduledAt ?? now.add(const Duration(hours: 1)),
+                    ),
+                  );
+                  if (selectedTime == null) return;
+                  setSheetState(() {
+                    scheduledAt = DateTime(
+                      selectedDate.year,
+                      selectedDate.month,
+                      selectedDate.day,
+                      selectedTime.hour,
+                      selectedTime.minute,
+                    );
+                  });
+                }
 
-          Future<void> save() async {
-            if (isSaving) return;
-            setSheetState(() {
-              isSaving = true;
-              errorMessage = null;
-            });
-            try {
-              await _service.saveNotice(
-                noticeId: notice?.id,
-                draft: NoticeDraft(
-                  title: titleController.text,
-                  content: contentController.text,
-                  noticeType: noticeType,
-                  targetType: targetType,
-                  targetUids: _parseUids(targetUidsController.text),
-                  isPinned: isPinned,
-                  status: status,
-                  publishedAt: status == 'SCHEDULED'
-                      ? scheduledAt
-                      : status == 'PUBLISHED'
-                      ? notice?.publishedAt
-                      : null,
-                  expiredAt: null,
-                ),
-              );
-              if (sheetContext.mounted) Navigator.of(sheetContext).pop(true);
-            } catch (error) {
-              if (!sheetContext.mounted) return;
-              setSheetState(() {
-                isSaving = false;
-                errorMessage = error is ArgumentError
-                    ? error.message?.toString()
-                    : '공지 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.';
-              });
-            }
-          }
+                Future<void> save() async {
+                  if (isSaving) return;
+                  setSheetState(() {
+                    isSaving = true;
+                    errorMessage = null;
+                  });
+                  try {
+                    await _service.saveNotice(
+                      noticeId: notice?.id,
+                      draft: NoticeDraft(
+                        title: titleController.text,
+                        content: contentController.text,
+                        noticeType: noticeType,
+                        targetType: targetType,
+                        targetUids: _parseUids(targetUidsController.text),
+                        isPinned: isPinned,
+                        status: status,
+                        publishedAt: status == 'SCHEDULED'
+                            ? scheduledAt
+                            : status == 'PUBLISHED'
+                            ? notice?.publishedAt
+                            : null,
+                        expiredAt: null,
+                      ),
+                    );
+                    if (sheetContext.mounted) {
+                      Navigator.of(sheetContext).pop(true);
+                    }
+                  } catch (error) {
+                    if (!sheetContext.mounted) return;
+                    setSheetState(() {
+                      isSaving = false;
+                      errorMessage = error is ArgumentError
+                          ? error.message?.toString()
+                          : '공지 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+                    });
+                  }
+                }
 
-          return SafeArea(
-            child: AnimatedPadding(
-              duration: const Duration(milliseconds: 180),
-              padding: EdgeInsets.fromLTRB(
-                22,
-                0,
-                22,
-                MediaQuery.viewInsetsOf(context).bottom + 24,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      notice == null ? '공지 작성' : '공지 수정',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                      ),
+                return SafeArea(
+                  child: AnimatedPadding(
+                    duration: const Duration(milliseconds: 180),
+                    padding: EdgeInsets.fromLTRB(
+                      22,
+                      0,
+                      22,
+                      MediaQuery.viewInsetsOf(context).bottom + 24,
                     ),
-                    const SizedBox(height: 18),
-                    TextField(
-                      controller: titleController,
-                      enabled: !isSaving,
-                      maxLength: 100,
-                      decoration: const InputDecoration(labelText: '공지 제목'),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: contentController,
-                      enabled: !isSaving,
-                      minLines: 6,
-                      maxLines: 10,
-                      maxLength: 5000,
-                      decoration: const InputDecoration(
-                        labelText: '공지 내용',
-                        alignLabelWithHint: true,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            initialValue: noticeType,
-                            decoration: const InputDecoration(
-                              labelText: '공지 종류',
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            notice == null ? '공지 작성' : '공지 수정',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
                             ),
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'APP',
-                                child: Text('일반'),
+                          ),
+                          const SizedBox(height: 18),
+                          TextField(
+                            controller: titleController,
+                            enabled: !isSaving,
+                            maxLength: 100,
+                            decoration: const InputDecoration(
+                              labelText: '공지 제목',
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: contentController,
+                            enabled: !isSaving,
+                            minLines: 6,
+                            maxLines: 10,
+                            maxLength: 5000,
+                            decoration: const InputDecoration(
+                              labelText: '공지 내용',
+                              alignLabelWithHint: true,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: AppAdminDropdown<String>(
+                                  label: '공지 종류',
+                                  value: noticeType,
+                                  enabled: !isSaving,
+                                  items: const [
+                                    AppDropdownItem(value: 'APP', label: '일반'),
+                                    AppDropdownItem(
+                                      value: 'EXAM',
+                                      label: '시험·접수',
+                                    ),
+                                    AppDropdownItem(
+                                      value: 'UPDATE',
+                                      label: '업데이트',
+                                    ),
+                                  ],
+                                  onChanged: (value) =>
+                                      setSheetState(() => noticeType = value),
+                                ),
                               ),
-                              DropdownMenuItem(
-                                value: 'EXAM',
-                                child: Text('시험·접수'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'UPDATE',
-                                child: Text('업데이트'),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: AppAdminDropdown<String>(
+                                  label: '게시 상태',
+                                  value: status,
+                                  enabled: !isSaving,
+                                  items: const [
+                                    AppDropdownItem(
+                                      value: 'DRAFT',
+                                      label: '작성 중',
+                                    ),
+                                    AppDropdownItem(
+                                      value: 'SCHEDULED',
+                                      label: '예약 게시',
+                                    ),
+                                    AppDropdownItem(
+                                      value: 'PUBLISHED',
+                                      label: '즉시 게시',
+                                    ),
+                                  ],
+                                  onChanged: (value) =>
+                                      setSheetState(() => status = value),
+                                ),
                               ),
                             ],
-                            onChanged: isSaving
-                                ? null
-                                : (value) => setSheetState(
-                                    () => noticeType = value ?? 'APP',
-                                  ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            initialValue: status,
-                            decoration: const InputDecoration(
-                              labelText: '게시 상태',
+                          if (status == 'SCHEDULED') ...[
+                            const SizedBox(height: 10),
+                            OutlinedButton.icon(
+                              onPressed: isSaving ? null : pickSchedule,
+                              icon: const Icon(Icons.schedule_rounded),
+                              label: Text(
+                                scheduledAt == null
+                                    ? '예약 게시 일시 선택'
+                                    : _formatDateTime(scheduledAt!),
+                              ),
                             ),
+                          ],
+                          const SizedBox(height: 10),
+                          AppAdminDropdown<String>(
+                            label: '공지 대상',
+                            value: targetType,
+                            enabled: !isSaving,
                             items: const [
-                              DropdownMenuItem(
-                                value: 'DRAFT',
-                                child: Text('작성 중'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'SCHEDULED',
-                                child: Text('예약 게시'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'PUBLISHED',
-                                child: Text('즉시 게시'),
+                              AppDropdownItem(value: 'ALL', label: '전체 회원'),
+                              AppDropdownItem(
+                                value: 'SPECIFIC_USERS',
+                                label: '특정 회원',
                               ),
                             ],
+                            onChanged: (value) =>
+                                setSheetState(() => targetType = value),
+                          ),
+                          if (targetType == 'SPECIFIC_USERS') ...[
+                            const SizedBox(height: 10),
+                            TextField(
+                              controller: targetUidsController,
+                              enabled: !isSaving,
+                              minLines: 2,
+                              maxLines: 4,
+                              decoration: const InputDecoration(
+                                labelText: '수신자 UID',
+                                hintText: 'UID를 쉼표 또는 줄바꿈으로 구분',
+                              ),
+                            ),
+                          ],
+                          SwitchListTile.adaptive(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('상단 고정'),
+                            value: isPinned,
                             onChanged: isSaving
                                 ? null
-                                : (value) => setSheetState(
-                                    () => status = value ?? 'DRAFT',
-                                  ),
+                                : (value) =>
+                                      setSheetState(() => isPinned = value),
                           ),
-                        ),
-                      ],
-                    ),
-                    if (status == 'SCHEDULED') ...[
-                      const SizedBox(height: 10),
-                      OutlinedButton.icon(
-                        onPressed: isSaving ? null : pickSchedule,
-                        icon: const Icon(Icons.schedule_rounded),
-                        label: Text(
-                          scheduledAt == null
-                              ? '예약 게시 일시 선택'
-                              : _formatDateTime(scheduledAt!),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
-                      initialValue: targetType,
-                      decoration: const InputDecoration(labelText: '공지 대상'),
-                      items: const [
-                        DropdownMenuItem(value: 'ALL', child: Text('전체 회원')),
-                        DropdownMenuItem(
-                          value: 'SPECIFIC_USERS',
-                          child: Text('특정 회원'),
-                        ),
-                      ],
-                      onChanged: isSaving
-                          ? null
-                          : (value) => setSheetState(
-                              () => targetType = value ?? 'ALL',
+                          if (errorMessage != null) ...[
+                            Text(
+                              errorMessage!,
+                              style: TextStyle(
+                                color: context.colors.incorrect,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                    ),
-                    if (targetType == 'SPECIFIC_USERS') ...[
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: targetUidsController,
-                        enabled: !isSaving,
-                        minLines: 2,
-                        maxLines: 4,
-                        decoration: const InputDecoration(
-                          labelText: '수신자 UID',
-                          hintText: 'UID를 쉼표 또는 줄바꿈으로 구분',
-                        ),
+                            const SizedBox(height: 10),
+                          ],
+                          FilledButton.icon(
+                            onPressed: isSaving ? null : save,
+                            icon: isSaving
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.save_outlined),
+                            label: Text(isSaving ? '저장 중...' : '저장'),
+                          ),
+                        ],
                       ),
-                    ],
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('상단 고정'),
-                      value: isPinned,
-                      onChanged: isSaving
-                          ? null
-                          : (value) => setSheetState(() => isPinned = value),
                     ),
-                    if (errorMessage != null) ...[
-                      Text(
-                        errorMessage!,
-                        style: TextStyle(
-                          color: context.colors.incorrect,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                    FilledButton.icon(
-                      onPressed: isSaving ? null : save,
-                      icon: isSaving
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.save_outlined),
-                      label: Text(isSaving ? '저장 중...' : '저장'),
-                    ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             ),
-          );
-        },
       ),
     );
 
-    titleController.dispose();
-    contentController.dispose();
-    targetUidsController.dispose();
     if (saved == true && mounted) _showMessage('공지를 저장했습니다.');
   }
 
@@ -497,6 +493,65 @@ class _NoticeManagementScreenState extends State<NoticeManagementScreen> {
   }
 }
 
+class _NoticeEditorControllerScope extends StatefulWidget {
+  const _NoticeEditorControllerScope({
+    required this.initialTitle,
+    required this.initialContent,
+    required this.initialTargetUids,
+    required this.builder,
+  });
+
+  final String initialTitle;
+  final String initialContent;
+  final String initialTargetUids;
+  final Widget Function(
+    BuildContext context,
+    TextEditingController titleController,
+    TextEditingController contentController,
+    TextEditingController targetUidsController,
+  )
+  builder;
+
+  @override
+  State<_NoticeEditorControllerScope> createState() =>
+      _NoticeEditorControllerScopeState();
+}
+
+class _NoticeEditorControllerScopeState
+    extends State<_NoticeEditorControllerScope> {
+  late final TextEditingController _titleController;
+  late final TextEditingController _contentController;
+  late final TextEditingController _targetUidsController;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.initialTitle);
+    _contentController = TextEditingController(text: widget.initialContent);
+    _targetUidsController = TextEditingController(
+      text: widget.initialTargetUids,
+    );
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _contentController.dispose();
+    _targetUidsController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.builder(
+      context,
+      _titleController,
+      _contentController,
+      _targetUidsController,
+    );
+  }
+}
+
 enum _NoticeFilter { all, draft, scheduled, published, ended }
 
 class _NoticeHeader extends StatelessWidget {
@@ -555,6 +610,13 @@ class _NoticeHeader extends StatelessWidget {
                 selected: selectedFilter == filter,
                 label: Text(_filterLabel(filter)),
                 onSelected: (_) => onFilterChanged(filter),
+                color: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.pressed) ||
+                      states.contains(WidgetState.selected)) {
+                    return context.colors.lavender;
+                  }
+                  return null;
+                }),
                 selectedColor: context.colors.lavender,
               );
             }).toList(),

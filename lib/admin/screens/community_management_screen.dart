@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../theme.dart';
+import '../../widgets/app_dropdown.dart';
+import '../../widgets/cached_user_profile_builder.dart';
 import '../services/admin_community_service.dart';
 
 class CommunityManagementScreen extends StatefulWidget {
@@ -35,9 +37,9 @@ class _CommunityManagementScreenState extends State<CommunityManagementScreen> {
       final matchesBoard = _boardType == 'ALL' || post.boardType == _boardType;
       final matchesSearch =
           query.isEmpty ||
-              post.title.toLowerCase().contains(query) ||
-              post.content.toLowerCase().contains(query) ||
-              post.writerNickname.toLowerCase().contains(query);
+          post.title.toLowerCase().contains(query) ||
+          post.content.toLowerCase().contains(query) ||
+          post.writerNickname.toLowerCase().contains(query);
       return matchesStatus && matchesBoard && matchesSearch;
     }).toList();
   }
@@ -77,22 +79,22 @@ class _CommunityManagementScreenState extends State<CommunityManagementScreen> {
     required String primaryLabel,
   }) async {
     return await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(title),
-        content: Text(description),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('취소'),
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: Text(title),
+            content: Text(description),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('취소'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: Text(primaryLabel),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(primaryLabel),
-          ),
-        ],
-      ),
-    ) ??
+        ) ??
         false;
   }
 
@@ -163,14 +165,14 @@ class _CommunityManagementScreenState extends State<CommunityManagementScreen> {
               )
             else
               ...posts.map(
-                    (post) => Padding(
+                (post) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: _PostCard(
                     post: post,
                     isProcessing: _processingPostId == post.id,
                     onComments: () => _openComments(post),
                     onVisibilityChanged:
-                    !post.isVisible && !post.wasHiddenByAdmin
+                        !post.isVisible && !post.wasHiddenByAdmin
                         ? null
                         : () => _changePostVisibility(post),
                   ),
@@ -252,19 +254,18 @@ class _Header extends StatelessWidget {
               ),
               SizedBox(
                 width: 170,
-                child: DropdownButtonFormField<String>(
-                  initialValue: boardType,
-                  isDense: true,
-                  decoration: const InputDecoration(labelText: '게시판'),
+                child: AppAdminDropdown<String>(
+                  label: '게시판',
+                  value: boardType,
                   items: _boardLabels.entries
                       .map(
-                        (entry) => DropdownMenuItem(
-                      value: entry.key,
-                      child: Text(entry.value),
-                    ),
-                  )
+                        (entry) => AppDropdownItem(
+                          value: entry.key,
+                          label: entry.value,
+                        ),
+                      )
                       .toList(),
-                  onChanged: onBoardChanged,
+                  onChanged: (value) => onBoardChanged(value),
                 ),
               ),
             ],
@@ -352,8 +353,11 @@ class _PostCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 12),
-          Text(
-            '${post.writerNickname} · 조회 ${post.viewCount} · 좋아요 ${post.likeCount} · 댓글 ${post.commentCount}',
+          CachedNicknameText(
+            uid: post.writerUid,
+            fallback: post.writerNickname,
+            suffix:
+                ' · 조회 ${post.viewCount} · 좋아요 ${post.likeCount} · 댓글 ${post.commentCount}',
             style: TextStyle(color: context.colors.textMuted, fontSize: 12),
           ),
           const SizedBox(height: 14),
@@ -370,16 +374,16 @@ class _PostCard extends StatelessWidget {
                 onPressed: isProcessing ? null : onVisibilityChanged,
                 icon: isProcessing
                     ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : Icon(
-                  post.isVisible
-                      ? Icons.visibility_off_outlined
-                      : Icons.restore_rounded,
-                  size: 18,
-                ),
+                        post.isVisible
+                            ? Icons.visibility_off_outlined
+                            : Icons.restore_rounded,
+                        size: 18,
+                      ),
                 label: Text(
                   post.isVisible
                       ? '게시글 숨김'
@@ -409,9 +413,9 @@ class _CommentsSheet extends StatelessWidget {
   final AdminCommunityPost post;
 
   Future<void> _toggle(
-      BuildContext context,
-      AdminCommunityComment comment,
-      ) async {
+    BuildContext context,
+    AdminCommunityComment comment,
+  ) async {
     final restore = comment.wasHiddenByAdmin;
     try {
       if (restore) {
@@ -513,8 +517,9 @@ class _CommentsSheet extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                comment.writerNickname,
+                              CachedNicknameText(
+                                uid: comment.writerUid,
+                                fallback: comment.writerNickname,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w800,
                                 ),

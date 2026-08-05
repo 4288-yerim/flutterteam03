@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_state_views.dart';
 import '../widgets/app_top_bar.dart';
+import '../widgets/cached_user_profile_builder.dart';
 
 class StudyJoinRequestService {
   const StudyJoinRequestService._();
@@ -264,8 +265,9 @@ class _StudyJoinRequestsPageState extends State<StudyJoinRequestsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          nickname == null || nickname.isEmpty
+                        CachedNicknameText(
+                          uid: document.id,
+                          fallback: nickname == null || nickname.isEmpty
                               ? '신청자'
                               : nickname,
                           style: const TextStyle(

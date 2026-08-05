@@ -124,6 +124,12 @@ class _GoalCertificateScreenState extends State<GoalCertificateScreen>
     }
 
     final cert = result.certificate!;
+    if (cert['isEnabled'] == false) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('현재 선택할 수 없는 자격증이에요.')));
+      return;
+    }
     final id = cert['jmcd'] as String?;
     final name = cert['jmfldnm'] as String?;
     if (id == null || name == null) return;

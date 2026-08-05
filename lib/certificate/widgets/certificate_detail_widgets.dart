@@ -90,7 +90,7 @@ class CertificateDetailHeader extends StatelessWidget {
             child: Text(
               qualificationName,
               style: TextStyle(
-              color: badgeColor,
+                color: badgeColor,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
@@ -377,7 +377,9 @@ class _CertificateGoalDatePickerDialogState
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
-                  disabledTextStyle: TextStyle(color: context.colors.textDisabled),
+                  disabledTextStyle: TextStyle(
+                    color: context.colors.textDisabled,
+                  ),
                   todayDecoration: BoxDecoration(
                     color: context.colors.pinkSoft,
                     shape: BoxShape.circle,
@@ -583,7 +585,10 @@ CertificateRegistrationStatus? getCertificateRegistrationStatus({
     return CertificateRegistrationStatus(label: '원서 접수 진행중', isActive: true);
   }
 
-  return const CertificateRegistrationStatus(label: '원서 접수 종료', isActive: false);
+  return const CertificateRegistrationStatus(
+    label: '원서 접수 종료',
+    isActive: false,
+  );
 }
 
 DateTime _certificateDateOnly(DateTime date) {
@@ -603,6 +608,7 @@ class CertificateRegistrationStatus {
 }
 
 class CertificateExamInformationCard extends StatelessWidget {
+  final String overview;
   final int? writtenFee;
   final int? practicalFee;
   final String examTrends;
@@ -616,6 +622,7 @@ class CertificateExamInformationCard extends StatelessWidget {
 
   const CertificateExamInformationCard({
     super.key,
+    this.overview = '',
     required this.writtenFee,
     required this.practicalFee,
     required this.examTrends,
@@ -631,6 +638,14 @@ class CertificateExamInformationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sections = <Widget>[
+      if (overview.trim().isNotEmpty)
+        _CertificateExamInformationSection(
+          title: '자격 개요',
+          child: Text(
+            _formatStructuredContents(overview),
+            style: _bodyStyle(context),
+          ),
+        ),
       if (writtenFee != null || practicalFee != null)
         _CertificateExamInformationSection(
           title: '응시 수수료',
@@ -645,10 +660,7 @@ class CertificateExamInformationCard extends StatelessWidget {
               if (writtenFee != null && practicalFee != null)
                 const SizedBox(height: 10),
               if (practicalFee != null)
-                _CertificateExamFeeRow(
-                  label: '실기/면접',
-                  fee: practicalFee!,
-                ),
+                _CertificateExamFeeRow(label: '실기/면접', fee: practicalFee!),
               _links(examFeeLinks),
             ],
           ),
@@ -708,10 +720,7 @@ class CertificateExamInformationCard extends StatelessWidget {
         child: Center(
           child: Text(
             '등록된 자격 정보가 없습니다.',
-            style: TextStyle(
-              color: context.colors.textSecondary,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: context.colors.textSecondary, fontSize: 14),
           ),
         ),
       );
@@ -748,17 +757,35 @@ class CertificateExamInformationCard extends StatelessWidget {
   }
 
   static TextStyle _bodyStyle(BuildContext context) => TextStyle(
-        color: context.colors.textPrimary,
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
-        height: 1.65,
-      );
+    color: context.colors.textPrimary,
+    fontSize: 14,
+    fontWeight: FontWeight.w500,
+    height: 1.65,
+  );
 
   static String _formatStructuredContents(String contents) {
     var formatted = contents.trim();
     const circledNumbers = [
-      '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩',
-      '⑪', '⑫', '⑬', '⑭', '⑮', '⑯', '⑰', '⑱', '⑲', '⑳',
+      '①',
+      '②',
+      '③',
+      '④',
+      '⑤',
+      '⑥',
+      '⑦',
+      '⑧',
+      '⑨',
+      '⑩',
+      '⑪',
+      '⑫',
+      '⑬',
+      '⑭',
+      '⑮',
+      '⑯',
+      '⑰',
+      '⑱',
+      '⑲',
+      '⑳',
     ];
     for (final number in circledNumbers) {
       formatted = formatted.replaceAll(number, '\n$number ');
@@ -786,20 +813,20 @@ class _CertificateExamInformationSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: context.colors.textPrimary,
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 13),
-          child,
-        ],
-      );
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        title,
+        style: TextStyle(
+          color: context.colors.textPrimary,
+          fontSize: 17,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      const SizedBox(height: 13),
+      child,
+    ],
+  );
 }
 
 class _CertificateExamFeeRow extends StatelessWidget {
@@ -810,31 +837,28 @@ class _CertificateExamFeeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              label,
-              maxLines: 1,
-              softWrap: false,
-              style: TextStyle(
-                color: context.colors.textPrimary,
-                fontSize: 13,
-              ),
-            ),
+    children: [
+      SizedBox(
+        width: 80,
+        child: Text(
+          label,
+          maxLines: 1,
+          softWrap: false,
+          style: TextStyle(color: context.colors.textPrimary, fontSize: 13),
+        ),
+      ),
+      Expanded(
+        child: Text(
+          '${fee.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ',')}원',
+          style: TextStyle(
+            color: context.colors.textPrimary,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
           ),
-          Expanded(
-            child: Text(
-              '${fee.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ',')}원',
-              style: TextStyle(
-                color: context.colors.textPrimary,
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      );
+        ),
+      ),
+    ],
+  );
 }
 
 class _CertificateExamInformationAction extends StatelessWidget {
@@ -850,42 +874,45 @@ class _CertificateExamInformationAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(description, style: CertificateExamInformationCard._bodyStyle(context)),
-          const SizedBox(height: 12),
-          InkWell(
-            onTap: onTap,
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        description,
+        style: CertificateExamInformationCard._bodyStyle(context),
+      ),
+      const SizedBox(height: 12),
+      InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+          decoration: BoxDecoration(
+            color: context.colors.pinkSoft,
             borderRadius: BorderRadius.circular(10),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
-              decoration: BoxDecoration(
-                color: context.colors.pinkSoft,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      color: context.colors.pinkDeep,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(width: 7),
-                  Icon(
-                    Icons.open_in_new_rounded,
-                    color: context.colors.pinkDeep,
-                    size: 17,
-                  ),
-                ],
-              ),
-            ),
           ),
-        ],
-      );
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: context.colors.pinkDeep,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 7),
+              Icon(
+                Icons.open_in_new_rounded,
+                color: context.colors.pinkDeep,
+                size: 17,
+              ),
+            ],
+          ),
+        ),
+      ),
+    ],
+  );
 }
 
 class CertificateScheduleCard extends StatefulWidget {
@@ -1029,7 +1056,9 @@ class _CertificateScheduleCardState extends State<CertificateScheduleCard> {
                               ),
                               if (index != items.length - 1)
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
                                   child: Divider(
                                     height: 1,
                                     color: context.colors.border,
@@ -1060,66 +1089,63 @@ class _CertificateScheduleCardState extends State<CertificateScheduleCard> {
   }
 
   List<CertificateInfoItem> _scheduleItems() => [
-        if (_hasDate(
+    if (_hasDate(
+      widget.writtenRegistrationStartAt,
+      widget.writtenRegistrationEndAt,
+    ))
+      CertificateInfoItem(
+        label: _writtenLabel('원서 접수'),
+        value: _dateRange(
           widget.writtenRegistrationStartAt,
           widget.writtenRegistrationEndAt,
-        ))
-          CertificateInfoItem(
-            label: _writtenLabel('원서 접수'),
-            value: _dateRange(
-              widget.writtenRegistrationStartAt,
-              widget.writtenRegistrationEndAt,
-            ),
-          ),
-        if (_hasDate(widget.writtenExamStartAt, widget.writtenExamEndAt))
-          CertificateInfoItem(
-            label: _writtenLabel('시험'),
-            value: _dateRange(
-              widget.writtenExamStartAt,
-              widget.writtenExamEndAt,
-            ),
-          ),
-        if (widget.writtenPassAt != null)
-          CertificateInfoItem(
-            label: _writtenLabel('합격 발표'),
-            value: _date(widget.writtenPassAt!),
-          ),
-        if (_hasDate(widget.documentSubmitStartAt, widget.documentSubmitEndAt))
-          CertificateInfoItem(
-            label: '서류 제출',
-            value: _dateRange(
-              widget.documentSubmitStartAt,
-              widget.documentSubmitEndAt,
-            ),
-          ),
-        if (_hasDate(
+        ),
+      ),
+    if (_hasDate(widget.writtenExamStartAt, widget.writtenExamEndAt))
+      CertificateInfoItem(
+        label: _writtenLabel('시험'),
+        value: _dateRange(widget.writtenExamStartAt, widget.writtenExamEndAt),
+      ),
+    if (widget.writtenPassAt != null)
+      CertificateInfoItem(
+        label: _writtenLabel('합격 발표'),
+        value: _date(widget.writtenPassAt!),
+      ),
+    if (_hasDate(widget.documentSubmitStartAt, widget.documentSubmitEndAt))
+      CertificateInfoItem(
+        label: '서류 제출',
+        value: _dateRange(
+          widget.documentSubmitStartAt,
+          widget.documentSubmitEndAt,
+        ),
+      ),
+    if (_hasDate(
+      widget.practicalRegistrationStartAt,
+      widget.practicalRegistrationEndAt,
+    ))
+      CertificateInfoItem(
+        label: '실기/면접 원서 접수',
+        value: _dateRange(
           widget.practicalRegistrationStartAt,
           widget.practicalRegistrationEndAt,
-        ))
-          CertificateInfoItem(
-            label: '실기/면접 원서 접수',
-            value: _dateRange(
-              widget.practicalRegistrationStartAt,
-              widget.practicalRegistrationEndAt,
-            ),
-          ),
-        if (_hasDate(widget.practicalExamStartAt, widget.practicalExamEndAt))
-          CertificateInfoItem(
-            label: '실기/면접 시험',
-            value: _dateRange(
-              widget.practicalExamStartAt,
-              widget.practicalExamEndAt,
-            ),
-          ),
-        if (_hasDate(widget.practicalPassStartAt, widget.practicalPassEndAt))
-          CertificateInfoItem(
-            label: '실기/면접 합격 발표',
-            value: _dateRange(
-              widget.practicalPassStartAt,
-              widget.practicalPassEndAt,
-            ),
-          ),
-      ];
+        ),
+      ),
+    if (_hasDate(widget.practicalExamStartAt, widget.practicalExamEndAt))
+      CertificateInfoItem(
+        label: '실기/면접 시험',
+        value: _dateRange(
+          widget.practicalExamStartAt,
+          widget.practicalExamEndAt,
+        ),
+      ),
+    if (_hasDate(widget.practicalPassStartAt, widget.practicalPassEndAt))
+      CertificateInfoItem(
+        label: '실기/면접 합격 발표',
+        value: _dateRange(
+          widget.practicalPassStartAt,
+          widget.practicalPassEndAt,
+        ),
+      ),
+  ];
 
   _CertificateScheduleCardStatus? _resolveStatus() {
     final today = _certificateDateOnly(DateTime.now());
@@ -1128,27 +1154,22 @@ class _CertificateScheduleCardState extends State<CertificateScheduleCard> {
     if (_entireScheduleFinished(today)) {
       return const _CertificateScheduleCardStatus('종료', false);
     }
-    if (_within(today, widget.practicalExamStartAt, widget.practicalExamEndAt)) {
-      return const _CertificateScheduleCardStatus(
-        '실기/면접 시험 진행중',
-        true,
-      );
+    if (_within(
+      today,
+      widget.practicalExamStartAt,
+      widget.practicalExamEndAt,
+    )) {
+      return const _CertificateScheduleCardStatus('실기/면접 시험 진행중', true);
     }
     if (_within(
       today,
       widget.practicalRegistrationStartAt,
       widget.practicalRegistrationEndAt,
     )) {
-      return const _CertificateScheduleCardStatus(
-        '실기/면접 원서 접수 중',
-        true,
-      );
+      return const _CertificateScheduleCardStatus('실기/면접 원서 접수 중', true);
     }
     if (_within(today, widget.writtenExamStartAt, widget.writtenExamEndAt)) {
-      return _CertificateScheduleCardStatus(
-        '${_writtenLabel('시험')} 진행중',
-        true,
-      );
+      return _CertificateScheduleCardStatus('${_writtenLabel('시험')} 진행중', true);
     }
     if (_within(
       today,
@@ -1160,27 +1181,22 @@ class _CertificateScheduleCardState extends State<CertificateScheduleCard> {
         true,
       );
     }
-    if (_finished(today, widget.practicalExamStartAt, widget.practicalExamEndAt)) {
-      return const _CertificateScheduleCardStatus(
-        '실기/면접 시험 종료',
-        false,
-      );
+    if (_finished(
+      today,
+      widget.practicalExamStartAt,
+      widget.practicalExamEndAt,
+    )) {
+      return const _CertificateScheduleCardStatus('실기/면접 시험 종료', false);
     }
     if (_finished(
       today,
       widget.practicalRegistrationStartAt,
       widget.practicalRegistrationEndAt,
     )) {
-      return const _CertificateScheduleCardStatus(
-        '실기/면접 원서 접수 종료',
-        false,
-      );
+      return const _CertificateScheduleCardStatus('실기/면접 원서 접수 종료', false);
     }
     if (_finished(today, widget.writtenExamStartAt, widget.writtenExamEndAt)) {
-      return _CertificateScheduleCardStatus(
-        '${_writtenLabel('시험')} 종료',
-        false,
-      );
+      return _CertificateScheduleCardStatus('${_writtenLabel('시험')} 종료', false);
     }
     if (_finished(
       today,
@@ -1240,7 +1256,8 @@ class _CertificateScheduleCardState extends State<CertificateScheduleCard> {
       candidates.add((registrationStart, '$prefix원서 접수'));
       return;
     }
-    final registrationFinished = registrationEnd != null &&
+    final registrationFinished =
+        registrationEnd != null &&
         _certificateDateOnly(registrationEnd).isBefore(today);
     if ((registrationFinished || registrationStart == null) &&
         examStart != null &&
@@ -1312,70 +1329,95 @@ class _CertificateScheduleCardStatus {
 class CertificateStatisticsSection extends StatelessWidget {
   final int baseYear;
 
+  final bool showWritten;
   final bool isLoadingWritten;
   final String? writtenError;
   final List<CertificateExamStatistic> writtenStatistics;
   final VoidCallback onRetryWritten;
 
+  final bool showPractical;
   final bool isLoadingPractical;
   final String? practicalError;
   final List<CertificateExamStatistic> practicalStatistics;
   final VoidCallback onRetryPractical;
 
+  final bool showIntegrated;
+  final bool isLoadingIntegrated;
+  final String? integratedError;
+  final List<CertificateExamStatistic> integratedStatistics;
+  final VoidCallback? onRetryIntegrated;
+
   const CertificateStatisticsSection({
     super.key,
     required this.baseYear,
+    this.showWritten = true,
     required this.isLoadingWritten,
     required this.writtenError,
     required this.writtenStatistics,
     required this.onRetryWritten,
+    this.showPractical = true,
     required this.isLoadingPractical,
     required this.practicalError,
     required this.practicalStatistics,
     required this.onRetryPractical,
+    this.showIntegrated = false,
+    this.isLoadingIntegrated = false,
+    this.integratedError,
+    this.integratedStatistics = const [],
+    this.onRetryIntegrated,
   });
 
   @override
   Widget build(BuildContext context) {
     final hasTableData =
-        writtenStatistics.isNotEmpty || practicalStatistics.isNotEmpty;
+        (showWritten && writtenStatistics.isNotEmpty) ||
+        (showPractical && practicalStatistics.isNotEmpty) ||
+        (showIntegrated && integratedStatistics.isNotEmpty);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '$baseYear년 기준 최근 5개년 통계',
-          style: TextStyle(
-            color: context.colors.textSecondary,
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
+        if (showWritten)
+          _CertificateExamStatisticsCard(
+            title: '필기시험 현황',
+            icon: Icons.edit_note_rounded,
+            isLoading: isLoadingWritten,
+            errorMessage: writtenError,
+            statistics: writtenStatistics,
+            emptyMessage: '해당 종목의 필기시험 통계가 없습니다.',
+            onRetry: onRetryWritten,
           ),
-        ),
-        SizedBox(height: 12),
-        _CertificateExamStatisticsCard(
-          title: '필기시험 현황',
-          icon: Icons.edit_note_rounded,
-          isLoading: isLoadingWritten,
-          errorMessage: writtenError,
-          statistics: writtenStatistics,
-          emptyMessage: '해당 종목의 필기시험 통계가 없습니다.',
-          onRetry: onRetryWritten,
-        ),
-        SizedBox(height: 14),
-        _CertificateExamStatisticsCard(
-          title: '실기/면접 시험 현황',
-          icon: Icons.build_outlined,
-          isLoading: isLoadingPractical,
-          errorMessage: practicalError,
-          statistics: practicalStatistics,
-          emptyMessage: '해당 종목의 실기/면접 시험 통계가 없습니다.',
-          onRetry: onRetryPractical,
-        ),
+        if (showWritten && (showPractical || showIntegrated))
+          SizedBox(height: 14),
+        if (showPractical)
+          _CertificateExamStatisticsCard(
+            title: '실기/면접 시험 현황',
+            icon: Icons.build_outlined,
+            isLoading: isLoadingPractical,
+            errorMessage: practicalError,
+            statistics: practicalStatistics,
+            emptyMessage: '해당 종목의 실기/면접 시험 통계가 없습니다.',
+            onRetry: onRetryPractical,
+          ),
+        if (showPractical && showIntegrated) SizedBox(height: 14),
+        if (showIntegrated)
+          _CertificateExamStatisticsCard(
+            title: '통합시험 현황',
+            icon: Icons.assignment_outlined,
+            isLoading: isLoadingIntegrated,
+            errorMessage: integratedError,
+            statistics: integratedStatistics,
+            emptyMessage: '해당 종목의 통합시험 통계가 없습니다.',
+            onRetry: onRetryIntegrated ?? onRetryWritten,
+          ),
         if (hasTableData) ...[
           SizedBox(height: 14),
           _CertificateExamStatisticsTablesCard(
-            writtenStatistics: writtenStatistics,
-            practicalStatistics: practicalStatistics,
+            writtenStatistics: showWritten ? writtenStatistics : const [],
+            practicalStatistics: showPractical ? practicalStatistics : const [],
+            integratedStatistics: showIntegrated
+                ? integratedStatistics
+                : const [],
           ),
         ],
       ],
@@ -1431,10 +1473,12 @@ class _CertificateExamStatisticsCard extends StatelessWidget {
 class _CertificateExamStatisticsTablesCard extends StatelessWidget {
   final List<CertificateExamStatistic> writtenStatistics;
   final List<CertificateExamStatistic> practicalStatistics;
+  final List<CertificateExamStatistic> integratedStatistics;
 
   const _CertificateExamStatisticsTablesCard({
     required this.writtenStatistics,
     required this.practicalStatistics,
+    required this.integratedStatistics,
   });
 
   @override
@@ -1457,6 +1501,14 @@ class _CertificateExamStatisticsTablesCard extends StatelessWidget {
               title: '실기/면접',
               statistics: practicalStatistics,
             ),
+          if (integratedStatistics.isNotEmpty &&
+              (writtenStatistics.isNotEmpty || practicalStatistics.isNotEmpty))
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 22),
+              child: Divider(height: 1, color: context.colors.border),
+            ),
+          if (integratedStatistics.isNotEmpty)
+            _ExamStatisticsTable(title: '통합', statistics: integratedStatistics),
         ],
       ),
     );

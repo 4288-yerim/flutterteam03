@@ -96,6 +96,7 @@ class _TechnicalCertificateDetailPageState
       schedule.practicalPassEndAt != null;
 
   TechnicalCertificateExamDetails? _examDetails;
+  String _overview = '';
 
   bool _isLoadingExamSubjects = false;
   bool _hasRequestedExamSubjects = false;
@@ -177,6 +178,9 @@ class _TechnicalCertificateDetailPageState
       final examDetailsFuture = _technicalCertificateService
           .getTechnicalExamDetails(widget.certificationId);
 
+      final overviewFuture = _certificateDetailService
+          .getCertificationOverview(widget.certificationId);
+
       final certificate = await certificateFuture;
 
       if (!certificate.isTechnical) {
@@ -197,6 +201,7 @@ class _TechnicalCertificateDetailPageState
 
       final schedules = await schedulesFuture;
       final examDetails = await examDetailsFuture;
+      final overview = await overviewFuture;
       final storedPracticalMaterials = await storedPracticalMaterialsFuture;
 
       if (!mounted) {
@@ -207,6 +212,7 @@ class _TechnicalCertificateDetailPageState
         _certificate = certificate;
         _schedules = schedules;
         _examDetails = examDetails;
+        _overview = overview;
         _hasStoredPracticalMaterials = storedPracticalMaterials != null;
         _storedPracticalMaterialsYear =
             storedPracticalMaterials?.implementationYear;
@@ -1365,6 +1371,7 @@ class _TechnicalCertificateDetailPageState
     final examFee = examDetails?.examFee;
 
     return CertificateExamInformationCard(
+      overview: _overview,
       writtenFee: examFee?.hasWrittenFee == true ? examFee!.writtenFee : null,
       practicalFee: examFee?.hasPracticalFee == true
           ? examFee!.practicalFee

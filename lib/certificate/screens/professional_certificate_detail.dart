@@ -54,6 +54,7 @@ class _ProfessionalCertificateDetailPageState
 
   String? _loadError;
   Certification? _certificate;
+  String _overview = '';
 
   List<ProfessionalCertificateSchedule> _schedules = [];
 
@@ -115,11 +116,20 @@ class _ProfessionalCertificateDetailPageState
       final schedulesFuture = _professionalCertificateService
           .getProfessionalSchedules(widget.certificationId);
 
-      final results = await Future.wait([certificateFuture, schedulesFuture]);
+      final overviewFuture = _certificateDetailService
+          .getCertificationOverview(widget.certificationId);
+
+      final results = await Future.wait([
+        certificateFuture,
+        schedulesFuture,
+        overviewFuture,
+      ]);
 
       final certificate = results[0] as Certification;
 
       final schedules = results[1] as List<ProfessionalCertificateSchedule>;
+
+      final overview = results[2] as String;
 
       if (!mounted) {
         return;
@@ -128,6 +138,7 @@ class _ProfessionalCertificateDetailPageState
       setState(() {
         _certificate = certificate;
         _schedules = schedules;
+        _overview = overview;
         _isLoading = false;
       });
     } on CertificateDetailException catch (error) {
@@ -868,6 +879,30 @@ class _ProfessionalCertificateDetailPageState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (_overview.trim().isNotEmpty) ...[
+            Text(
+              '자격 개요',
+              style: TextStyle(
+                color: context.colors.textPrimary,
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            SizedBox(height: 13),
+            Text(
+              _overview,
+              style: TextStyle(
+                color: context.colors.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                height: 1.65,
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Divider(height: 1, color: context.colors.border),
+            ),
+          ],
           Row(
             children: [
               Icon(

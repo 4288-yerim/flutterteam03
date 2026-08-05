@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme.dart';
+import '../../widgets/cached_user_profile_builder.dart';
 import '../services/home_service.dart';
 
 class HomeGoalCardSlider extends StatefulWidget {
@@ -1349,8 +1350,9 @@ class _HomeStudyGroupItemState extends State<_HomeStudyGroupItem> {
                             child: Row(
                               children: [
                                 Flexible(
-                                  child: Text(
-                                    member.nickname,
+                                  child: CachedNicknameText(
+                                    uid: member.uid,
+                                    fallback: member.nickname,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(

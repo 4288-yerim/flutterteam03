@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutterteam03/widgets/app_state_views.dart';
 
 import '../theme.dart';
+import '../services/user_profile_cache_service.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_card.dart';
@@ -557,6 +558,10 @@ class _StudyTimerPageState extends State<StudyTimerPage>
       return false;
     }
 
+    final currentProfile = await UserProfileCacheService.instance.getProfile(
+      currentUser.uid,
+    );
+
     DocumentReference<Map<String, dynamic>> groupDocument = FirebaseFirestore
         .instance
         .collection('studyGroups')
@@ -576,6 +581,10 @@ class _StudyTimerPageState extends State<StudyTimerPage>
 
       if (memberData['nickname'] != null) {
         _nickname = memberData['nickname'].toString();
+      }
+
+      if (currentProfile?.nickname.isNotEmpty == true) {
+        _nickname = currentProfile!.nickname;
       }
 
       if (status == 'ACTIVE' || memberData['role']?.toString() == 'OWNER') {
@@ -609,6 +618,10 @@ class _StudyTimerPageState extends State<StudyTimerPage>
     }
 
     String ownerNickname = groupData['ownerNickname']?.toString() ?? '방장';
+
+    if (currentProfile?.nickname.isNotEmpty == true) {
+      ownerNickname = currentProfile!.nickname;
+    }
 
     _nickname = ownerNickname;
 

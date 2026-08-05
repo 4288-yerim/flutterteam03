@@ -17,6 +17,7 @@ class AppAdminDropdown<T> extends StatelessWidget {
     required this.items,
     required this.onChanged,
     this.initialCenteredValue,
+    this.enabled = true,
   });
 
   final String label;
@@ -24,6 +25,7 @@ class AppAdminDropdown<T> extends StatelessWidget {
   final List<AppDropdownItem<T>> items;
   final ValueChanged<T> onChanged;
   final T? initialCenteredValue;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +35,7 @@ class AppAdminDropdown<T> extends StatelessWidget {
       items: items,
       onChanged: onChanged,
       initialCenteredValue: initialCenteredValue,
+      enabled: enabled,
       selectedColor: context.colors.lavender,
       accentColor: context.colors.lavenderAccent,
     );
@@ -47,6 +50,7 @@ class AppUserDropdown<T> extends StatelessWidget {
     required this.items,
     required this.onChanged,
     this.initialCenteredValue,
+    this.enabled = true,
   });
 
   final String label;
@@ -54,6 +58,7 @@ class AppUserDropdown<T> extends StatelessWidget {
   final List<AppDropdownItem<T>> items;
   final ValueChanged<T> onChanged;
   final T? initialCenteredValue;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -63,6 +68,7 @@ class AppUserDropdown<T> extends StatelessWidget {
       items: items,
       onChanged: onChanged,
       initialCenteredValue: initialCenteredValue,
+      enabled: enabled,
       selectedColor: context.colors.pinkSoft,
       accentColor: context.colors.pinkDeep,
     );
@@ -76,6 +82,7 @@ class _AppDropdown<T> extends StatefulWidget {
     required this.items,
     required this.onChanged,
     required this.initialCenteredValue,
+    required this.enabled,
     required this.selectedColor,
     required this.accentColor,
   });
@@ -85,6 +92,7 @@ class _AppDropdown<T> extends StatefulWidget {
   final List<AppDropdownItem<T>> items;
   final ValueChanged<T> onChanged;
   final T? initialCenteredValue;
+  final bool enabled;
   final Color selectedColor;
   final Color accentColor;
 
@@ -131,24 +139,22 @@ class _AppDropdownState<T> extends State<_AppDropdown<T>> {
       (item) => item.value == widget.initialCenteredValue,
     );
     final separatorCount = widget.items.isEmpty ? 0 : widget.items.length - 1;
-    final contentHeight = verticalPadding +
+    final contentHeight =
+        verticalPadding +
         (widget.items.length * itemHeight) +
         (separatorCount * separatorHeight);
-    final viewportHeight = contentHeight
-        .clamp(0.0, maxMenuHeight)
+    final viewportHeight = contentHeight.clamp(0.0, maxMenuHeight).toDouble();
+    final maxOffset = (contentHeight - viewportHeight)
+        .clamp(0.0, double.infinity)
         .toDouble();
-    final maxOffset = (contentHeight - viewportHeight).clamp(
-      0.0,
-      double.infinity,
-    ).toDouble();
     final initialOffset = centeredIndex < 0
         ? 0.0
         : (6 +
-                centeredIndex * (itemHeight + separatorHeight) +
-                itemHeight / 2 -
-                viewportHeight / 2)
-            .clamp(0.0, maxOffset)
-            .toDouble();
+                  centeredIndex * (itemHeight + separatorHeight) +
+                  itemHeight / 2 -
+                  viewportHeight / 2)
+              .clamp(0.0, maxOffset)
+              .toDouble();
     _menuScrollController = ScrollController(
       initialScrollOffset: initialOffset,
     );
@@ -182,10 +188,8 @@ class _AppDropdownState<T> extends State<_AppDropdown<T>> {
                     shrinkWrap: true,
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     itemCount: widget.items.length,
-                    separatorBuilder: (_, _) => Divider(
-                      height: 1,
-                      color: context.colors.divider,
-                    ),
+                    separatorBuilder: (_, _) =>
+                        Divider(height: 1, color: context.colors.divider),
                     itemBuilder: (context, index) {
                       final item = widget.items[index];
                       final selected = item.value == widget.value;
@@ -248,8 +252,7 @@ class _AppDropdownState<T> extends State<_AppDropdown<T>> {
         break;
       }
     }
-    final borderColor =
-        _isOpen ? widget.accentColor : context.colors.border;
+    final borderColor = _isOpen ? widget.accentColor : context.colors.border;
 
     return CompositedTransformTarget(
       link: _layerLink,
@@ -258,17 +261,20 @@ class _AppDropdownState<T> extends State<_AppDropdown<T>> {
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
-          onTap: _toggleMenu,
+          onTap: widget.enabled ? _toggleMenu : null,
           borderRadius: BorderRadius.circular(16),
           child: InputDecorator(
             isEmpty: selectedLabel.isEmpty,
             decoration: InputDecoration(
+              enabled: widget.enabled,
               labelText: selectedLabel.isEmpty ? null : widget.label,
               hintText: selectedLabel.isEmpty ? widget.label : null,
               filled: true,
               fillColor: context.colors.surfaceTransparent,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 13,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide(color: borderColor),

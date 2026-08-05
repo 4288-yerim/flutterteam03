@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme.dart';
+import '../../services/user_profile_cache_service.dart';
 
 import '../../community/community_post_detail.dart';
 import '../../widgets/app_card.dart';
@@ -28,12 +29,14 @@ class _LikedContentScreenState extends State<LikedContentScreen> {
     _reload();
   }
 
-  void _reload() {
-    _postFuture = _loadLikedPosts();
-    _commentFuture = _loadLikedComments();
+  void _reload({bool forceRefresh = false}) {
+    _postFuture = _loadLikedPosts(forceRefresh: forceRefresh);
+    _commentFuture = _loadLikedComments(forceRefresh: forceRefresh);
   }
 
-  Future<List<_LikedPostItem>> _loadLikedPosts() async {
+  Future<List<_LikedPostItem>> _loadLikedPosts({
+    bool forceRefresh = false,
+  }) async {
     final User? user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
@@ -48,6 +51,7 @@ class _LikedContentScreenState extends State<LikedContentScreen> {
             .get();
 
     final List<_LikedPostItem> items = [];
+    final Set<String> refreshedWriterUids = <String>{};
 
     for (final QueryDocumentSnapshot<Map<String, dynamic>> likeDocument
         in likeSnapshot.docs) {
@@ -73,13 +77,21 @@ class _LikedContentScreenState extends State<LikedContentScreen> {
         continue;
       }
 
+      final String writerUid = postData['writerUid']?.toString() ?? '';
+      final String writerNickname = await UserProfileCacheService.instance
+          .resolveNickname(
+            uid: writerUid,
+            fallback: postData['writerNickname']?.toString() ?? '사용자',
+            forceRefresh: forceRefresh && refreshedWriterUids.add(writerUid),
+          );
+
       items.add(
         _LikedPostItem(
           postId: postId,
           title: postData['title']?.toString() ?? '제목 없는 게시글',
           content: postData['content']?.toString() ?? '',
           boardName: _boardLabel(postData['boardType']?.toString() ?? 'FREE'),
-          writerNickname: postData['writerNickname']?.toString() ?? '사용자',
+          writerNickname: writerNickname,
           likeCount: (postData['likeCount'] as num?)?.toInt() ?? 0,
           commentCount: (postData['commentCount'] as num?)?.toInt() ?? 0,
           likedAt: likeDocument.data()['createdAt'],
@@ -96,7 +108,9 @@ class _LikedContentScreenState extends State<LikedContentScreen> {
     return items;
   }
 
-  Future<List<_LikedCommentItem>> _loadLikedComments() async {
+  Future<List<_LikedCommentItem>> _loadLikedComments({
+    bool forceRefresh = false,
+  }) async {
     final User? user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
@@ -111,6 +125,7 @@ class _LikedContentScreenState extends State<LikedContentScreen> {
             .get();
 
     final List<_LikedCommentItem> items = [];
+    final Set<String> refreshedWriterUids = <String>{};
 
     for (final QueryDocumentSnapshot<Map<String, dynamic>> likeDocument
         in likeSnapshot.docs) {
@@ -152,13 +167,21 @@ class _LikedContentScreenState extends State<LikedContentScreen> {
         continue;
       }
 
+      final String writerUid = commentData['writerUid']?.toString() ?? '';
+      final String writerNickname = await UserProfileCacheService.instance
+          .resolveNickname(
+            uid: writerUid,
+            fallback: commentData['writerNickname']?.toString() ?? '사용자',
+            forceRefresh: forceRefresh && refreshedWriterUids.add(writerUid),
+          );
+
       items.add(
         _LikedCommentItem(
           commentId: commentId,
           postId: postId,
           postTitle: postData['title']?.toString() ?? '제목 없는 게시글',
           content: commentData['content']?.toString() ?? '',
-          writerNickname: commentData['writerNickname']?.toString() ?? '사용자',
+          writerNickname: writerNickname,
           parentCommentId: commentData['parentCommentId']?.toString() ?? '',
           likeCount: (commentData['likeCount'] as num?)?.toInt() ?? 0,
           likedAt: likeDocument.data()['createdAt'],
@@ -176,7 +199,7 @@ class _LikedContentScreenState extends State<LikedContentScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(_reload);
+    setState(() => _reload(forceRefresh: true));
 
     if (_selectedTab == 'POST') {
       await _postFuture;

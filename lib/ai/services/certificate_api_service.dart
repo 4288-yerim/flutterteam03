@@ -322,7 +322,11 @@ class CertificateApiService {
     if (trimmed.isEmpty || _allCertificationsCache == null) return [];
     final q = trimmed.toLowerCase();
     return _allCertificationsCache!
-        .where((c) => (c['jmfldnm'] as String? ?? '').toLowerCase().contains(q))
+        .where(
+          (c) =>
+              c['isEnabled'] != false &&
+              (c['jmfldnm'] as String? ?? '').toLowerCase().contains(q),
+        )
         .toList();
   }
 
@@ -508,5 +512,3 @@ class CertificateApiService {
   }
 
 }
-
-
