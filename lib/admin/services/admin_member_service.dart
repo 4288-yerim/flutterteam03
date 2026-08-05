@@ -1,10 +1,21 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AdminMemberService {
-  AdminMemberService({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  AdminMemberService({
+    FirebaseFirestore? firestore,
+    FirebaseFunctions? functions,
+    FirebaseAuth? firebaseAuth,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _functions =
+           functions ??
+           FirebaseFunctions.instanceFor(region: 'asia-northeast3'),
+       _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
 
   final FirebaseFirestore _firestore;
+  final FirebaseFunctions _functions;
+  final FirebaseAuth _firebaseAuth;
 
   Stream<List<AdminMember>> watchMembers() {
     return _firestore
@@ -31,10 +42,17 @@ class AdminMemberService {
   Future<void> updateMemberSuspension({
     required String uid,
     required bool suspend,
-  }) {
-    return _firestore.collection('users').doc(uid).update({
-      'status': suspend ? 'SUSPENDED' : 'ACTIVE',
-      'updatedAt': FieldValue.serverTimestamp(),
+  }) async {
+    final administrator = _firebaseAuth.currentUser;
+    if (administrator == null) {
+      throw StateError('관리자 로그인이 필요합니다.');
+    }
+    await administrator.getIdToken(true);
+    final operationId = _firestore.collection('adminOperations').doc().id;
+    await _functions.httpsCallable('setAdminMemberSuspension').call<Object?>({
+      'operationId': operationId,
+      'targetUid': uid,
+      'suspend': suspend,
     });
   }
 
