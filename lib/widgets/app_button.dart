@@ -10,6 +10,12 @@ enum AppButtonType {
   /// 핑크 테두리만 있는 버튼 (배경 흰색)
   outlinePink,
 
+  /// 관리자용 보라색 그라데이션 (채워진 버튼)
+  primaryAdmin,
+
+  /// 관리자용 보라색 테두리 버튼
+  outlineAdmin,
+
   /// 블루 그라데이션 (채워진 버튼)
   primaryBlue,
 
@@ -33,6 +39,7 @@ class AppButton extends StatelessWidget {
   final AppButtonType type;
   final double borderRadius;
   final double height;
+  final IconData? icon;
 
   const AppButton({
     super.key,
@@ -41,6 +48,7 @@ class AppButton extends StatelessWidget {
     this.type = AppButtonType.primaryPink,
     this.borderRadius = 16,
     this.height = 56,
+    this.icon,
   });
 
   @override
@@ -54,6 +62,7 @@ class AppButton extends StatelessWidget {
           onPressed: onPressed,
           height: height,
           borderRadius: borderRadius,
+          icon: icon,
           gradientColors: [colors.pinkStart, colors.pinkDeep],
           textColor: colors.onPrimary,
         );
@@ -64,6 +73,7 @@ class AppButton extends StatelessWidget {
           onPressed: onPressed,
           height: height,
           borderRadius: borderRadius,
+          icon: icon,
           gradientColors: [colors.info, colors.softBlueAccent],
           textColor: colors.onPrimary,
         );
@@ -81,13 +91,48 @@ class AppButton extends StatelessWidget {
                 borderRadius: BorderRadius.circular(borderRadius),
               ),
             ),
-            child: Text(
-              text,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: colors.pinkDeep,
+            child: _AppButtonContent(
+              text: text,
+              icon: icon,
+              color: colors.pinkDeep,
+            ),
+          ),
+        );
+
+      case AppButtonType.primaryAdmin:
+        return _GradientButton(
+          text: text,
+          onPressed: onPressed,
+          height: height,
+          borderRadius: borderRadius,
+          icon: icon,
+          gradientColors: [
+            Color.lerp(colors.lavenderAccent, colors.surface, 0.18)!,
+            colors.lavenderAccent,
+          ],
+          textColor: colors.onPrimary,
+        );
+
+      case AppButtonType.outlineAdmin:
+        return SizedBox(
+          width: double.infinity,
+          height: height,
+          child: OutlinedButton(
+            onPressed: onPressed,
+            style: OutlinedButton.styleFrom(
+              backgroundColor: colors.surface,
+              foregroundColor: colors.lavenderAccent,
+              side: BorderSide(color: colors.lavenderAccent, width: 1.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(borderRadius),
               ),
+            ),
+            child: _AppButtonContent(
+              text: text,
+              icon: icon,
+              color: onPressed == null
+                  ? colors.textDisabled
+                  : colors.lavenderAccent,
             ),
           ),
         );
@@ -108,15 +153,12 @@ class AppButton extends StatelessWidget {
                 borderRadius: BorderRadius.circular(borderRadius),
               ),
             ),
-            child: Text(
-              text,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: onPressed == null
-                    ? colors.textDisabled
-                    : colors.textSecondary,
-              ),
+            child: _AppButtonContent(
+              text: text,
+              icon: icon,
+              color: onPressed == null
+                  ? colors.textDisabled
+                  : colors.textSecondary,
             ),
           ),
         );
@@ -130,6 +172,7 @@ class _GradientButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final double height;
   final double borderRadius;
+  final IconData? icon;
   final List<Color> gradientColors;
   final Color textColor;
 
@@ -138,6 +181,7 @@ class _GradientButton extends StatelessWidget {
     required this.onPressed,
     required this.height,
     required this.borderRadius,
+    required this.icon,
     required this.gradientColors,
     required this.textColor,
   });
@@ -162,18 +206,49 @@ class _GradientButton extends StatelessWidget {
               borderRadius: BorderRadius.circular(borderRadius),
             ),
             child: Center(
-              child: Text(
-                text,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: textColor,
-                ),
+              child: _AppButtonContent(
+                text: text,
+                icon: icon,
+                color: textColor,
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _AppButtonContent extends StatelessWidget {
+  const _AppButtonContent({
+    required this.text,
+    required this.icon,
+    required this.color,
+  });
+
+  final String text;
+  final IconData? icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (icon != null) ...[
+          Icon(icon, size: 19, color: color),
+          const SizedBox(width: 8),
+        ],
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
+      ],
     );
   }
 }

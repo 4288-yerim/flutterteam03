@@ -44,15 +44,78 @@ class AdminCertificateService {
     }
   }
 
+  Future<AdminCertificateCategoryOptions> getOtherCategoryOptions(
+    String qualificationCode,
+  ) async {
+    final collectionName = _otherCategoryCollectionName(qualificationCode);
+    if (collectionName == null) {
+      return const AdminCertificateCategoryOptions(
+        fields: [],
+        categoriesByField: {},
+      );
+    }
+    try {
+      final snapshot = await _firestore
+          .collection('certificate_category_content')
+          .doc('other')
+          .collection(collectionName)
+          .get();
+      final categoriesByField = <String, Set<String>>{};
+      for (final document in snapshot.docs) {
+        final data = document.data();
+        final field = _readString(data['obligfldnm']);
+        final category = _readString(data['mdobligfldnm']);
+        if (field.isEmpty) continue;
+        categoriesByField.putIfAbsent(field, () => <String>{});
+        if (category.isNotEmpty) categoriesByField[field]!.add(category);
+      }
+      final fields = categoriesByField.keys.toList()..sort();
+      return AdminCertificateCategoryOptions(
+        fields: fields,
+        categoriesByField: {
+          for (final entry in categoriesByField.entries)
+            entry.key: entry.value.toList()..sort(),
+        },
+      );
+    } on FirebaseException catch (error) {
+      throw AdminCertificateException(
+        error.message ?? '기존 자격증 분류를 불러오지 못했습니다.',
+      );
+    }
+  }
+
+  Future<List<String>> getProfessionalSeriesOptions() async {
+    try {
+      final snapshot = await _firestore
+          .collection('certificate_category_content')
+          .doc('professional')
+          .collection('category')
+          .get();
+      final seriesNames = snapshot.docs
+          .map((document) => _readString(document.data()['seriesnm']))
+          .where((seriesName) => seriesName.isNotEmpty)
+          .toSet()
+          .toList()
+        ..sort();
+      return seriesNames;
+    } on FirebaseException catch (error) {
+      throw AdminCertificateException(
+        error.message ?? '기존 계열을 불러오지 못했습니다.',
+      );
+    }
+  }
+
   Future<void> addCertificate(AdminCertificateDraft draft) async {
     final name = draft.name.trim();
     if (name.isEmpty) {
       throw const AdminCertificateException('자격증 이름을 입력해주세요.');
     }
-    if (draft.qualificationCode.trim().isEmpty ||
-        draft.technicalFieldName.trim().isEmpty ||
-        draft.categoryName.trim().isEmpty) {
-      throw const AdminCertificateException('자격 구분, 직무 분야, 분류를 모두 입력해 주세요.');
+    if (draft.qualificationCode.trim().isEmpty) {
+      throw const AdminCertificateException('자격 구분을 선택해 주세요.');
+    }
+    if (draft.technicalFieldName.trim().isEmpty &&
+        draft.professionalSeriesName.trim().isEmpty) {
+      throw const AdminCertificateException('직무 분야 또는 계열을 입력해 주세요.');
     }
     if (name.contains('/')) {
       throw const AdminCertificateException('자격증 이름에는 / 문자를 사용할 수 없습니다.');
@@ -70,7 +133,8 @@ class AdminCertificateService {
     final reference = _firestore.collection('certifications').doc('ADMIN$name');
     final itemCode = reference.id;
 
-    await reference.set({
+    final batch = _firestore.batch();
+    batch.set(reference, {
       'jmcd': itemCode,
       'jmfldnm': name,
       'qualgbcd': draft.qualificationCode,
@@ -81,13 +145,50 @@ class AdminCertificateService {
       'obligfldnm': draft.technicalFieldName,
       'mdobligfldcd': '',
       'mdobligfldnm': draft.categoryName,
-      'source': 'ADMIN',
+      if (draft.source != null) 'source': draft.source,
       'isEnabled': false,
       'scheduleConfirmed': false,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    final otherCollectionName = draft.source == null
+        ? null
+        : _otherCategoryCollectionName(draft.qualificationCode);
+    if (otherCollectionName != null) {
+      final fieldName = draft.technicalFieldName.trim();
+      final categoryName = draft.categoryName.trim();
+      final categoryDocumentId = [
+        fieldName,
+        if (categoryName.isNotEmpty) categoryName,
+      ].join('_').replaceAll('/', '_');
+      final categoryReference = _firestore
+          .collection('certificate_category_content')
+          .doc('other')
+          .collection(otherCollectionName)
+          .doc(categoryDocumentId);
+      batch.set(
+        categoryReference,
+        {
+          'obligfldnm': fieldName,
+          'mdobligfldnm': categoryName,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+    }
+
+    await batch.commit();
   }
+
+  static String? _otherCategoryCollectionName(String qualificationCode) =>
+      switch (qualificationCode.trim()) {
+        'S' => 'professional_category',
+        'T' => 'technical_category',
+        'P' => 'private_category',
+        'L' => 'language_other_category',
+        _ => null,
+      };
 
   Future<AdminCertificate> getCertificate(String certificationId) async {
     final document = await _firestore
@@ -208,6 +309,7 @@ class AdminCertificateDraft {
     required this.technicalFieldName,
     required this.categoryName,
     required this.professionalSeriesName,
+    this.source = 'ADMIN',
   });
 
   final String name;
@@ -216,6 +318,7 @@ class AdminCertificateDraft {
   final String technicalFieldName;
   final String categoryName;
   final String professionalSeriesName;
+  final String? source;
 }
 
 class AdminCertificateException implements Exception {
@@ -369,6 +472,8 @@ class AdminCertificateScheduleDraft {
     this.practicalExamEndAt,
     this.practicalPassStartAt,
     this.practicalPassEndAt,
+    this.documentSubmitStartAt,
+    this.documentSubmitEndAt,
     this.links = const [],
   });
 
@@ -386,6 +491,8 @@ class AdminCertificateScheduleDraft {
   final DateTime? practicalExamEndAt;
   final DateTime? practicalPassStartAt;
   final DateTime? practicalPassEndAt;
+  final DateTime? documentSubmitStartAt;
+  final DateTime? documentSubmitEndAt;
   final List<Map<String, String>> links;
 
   factory AdminCertificateScheduleDraft.fromMap(String id, Map<String, dynamic> data) {
@@ -400,6 +507,7 @@ class AdminCertificateScheduleDraft {
       practicalRegistrationStartAt: date(data['pracregstartat']), practicalRegistrationEndAt: date(data['pracregendat']),
       practicalExamStartAt: date(data['pracexamstartat']), practicalExamEndAt: date(data['pracexamendat']),
       practicalPassStartAt: date(data['pracpassstartat']), practicalPassEndAt: date(data['pracpassendat']),
+      documentSubmitStartAt: date(data['docsubmitstartat']), documentSubmitEndAt: date(data['docsubmitendat']),
       links: (data['links'] as List? ?? const []).whereType<Map>().map((link) => {'label': link['label']?.toString().trim() ?? '', 'url': link['url']?.toString().trim() ?? ''}).where((link) => link['label']!.isNotEmpty && link['url']!.isNotEmpty).toList(),
     );
   }
@@ -419,6 +527,8 @@ class AdminCertificateScheduleDraft {
     'pracexamendat': practicalExamEndAt,
     'pracpassstartat': practicalPassStartAt,
     'pracpassendat': practicalPassEndAt,
+    'docsubmitstartat': documentSubmitStartAt,
+    'docsubmitendat': documentSubmitEndAt,
     'sortdate': writtenExamStartAt ?? practicalExamStartAt ?? writtenRegistrationStartAt,
     'links': links,
   };

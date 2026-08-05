@@ -248,11 +248,11 @@ class TechnicalCertificateService {
       return StoredPracticalMaterials.fromMap(document.data() ?? {});
     } on FirebaseException catch (error) {
       throw CertificateDetailException(
-        error.message ?? '저장된 실기시험 지참 준비물을 불러오지 못했습니다.',
+        error.message ?? '저장된 실기/면접 시험 지참 준비물을 불러오지 못했습니다.',
       );
     } catch (_) {
       throw const CertificateDetailException(
-        '저장된 실기시험 지참 준비물을 불러오는 중 오류가 발생했습니다.',
+        '저장된 실기/면접 시험 지참 준비물을 불러오는 중 오류가 발생했습니다.',
       );
     }
   }
@@ -269,7 +269,7 @@ class TechnicalCertificateService {
 
     if (normalizedJmCd.isEmpty) {
       throw const CertificateDetailException(
-        '종목코드가 없어 실기시험 지참 준비물을 조회할 수 없습니다.',
+        '종목코드가 없어 실기/면접 시험 지참 준비물을 조회할 수 없습니다.',
       );
     }
 
@@ -333,7 +333,7 @@ class TechnicalCertificateService {
       if (resultCode.isNotEmpty && resultCode != '00') {
         throw CertificateDetailException(
           resultMessage.isEmpty
-              ? '실기시험 지참 준비물을 조회하지 못했습니다.'
+              ? '실기/면접 시험 지참 준비물을 조회하지 못했습니다.'
               : resultMessage,
         );
       }
@@ -360,12 +360,12 @@ class TechnicalCertificateService {
       );
     } catch (_) {
       throw const CertificateDetailException(
-        '실기시험 지참 준비물을 불러오는 중 오류가 발생했습니다.',
+        '실기/면접 시험 지참 준비물을 불러오는 중 오류가 발생했습니다.',
       );
     }
   }
 
-  Future<List<TechnicalExamStatistic>> getWrittenStatistics({
+  Future<List<CertificateExamStatistic>> getWrittenStatistics({
     required String jmCd,
   }) {
     return _getExamStatistics(
@@ -375,13 +375,13 @@ class TechnicalCertificateService {
     );
   }
 
-  Future<List<TechnicalExamStatistic>> getPracticalStatistics({
+  Future<List<CertificateExamStatistic>> getPracticalStatistics({
     required String jmCd,
   }) {
     return _getExamStatistics(
       jmCd: jmCd,
       path: _practicalStatisticsPath,
-      statisticsName: '실기시험',
+      statisticsName: '실기/면접 시험',
     );
   }
 
@@ -430,7 +430,7 @@ class TechnicalCertificateService {
     }).where((item) => item.totalCount > 0).toList();
   }
 
-  Future<List<TechnicalExamStatistic>> _getExamStatistics({
+  Future<List<CertificateExamStatistic>> _getExamStatistics({
     required String jmCd,
     required String path,
     required String statisticsName,
@@ -449,7 +449,7 @@ class TechnicalCertificateService {
     final item = items.first;
     return List.generate(5, (index) {
       final fieldIndex = index + 1;
-      return TechnicalExamStatistic(
+      return CertificateExamStatistic(
         year: statisticsBaseYear - index,
         registrationCount: _readXmlInt(item, 'ilrcnt$fieldIndex'),
         examineeCount: _readXmlInt(item, 'ilecnt$fieldIndex'),
@@ -563,13 +563,13 @@ class TechnicalCertificateService {
 
 }
 
-class TechnicalExamStatistic {
+class CertificateExamStatistic {
   final int year;
   final int registrationCount;
   final int examineeCount;
   final int passerCount;
 
-  const TechnicalExamStatistic({
+  const CertificateExamStatistic({
     required this.year,
     required this.registrationCount,
     required this.examineeCount,

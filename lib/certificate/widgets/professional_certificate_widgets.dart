@@ -45,8 +45,13 @@ class ProfessionalCertificateOverview extends StatelessWidget {
 
 class ProfessionalScheduleCard extends StatefulWidget {
   final ProfessionalCertificateSchedule schedule;
+  final bool showExamTypeLabels;
 
-  const ProfessionalScheduleCard({super.key, required this.schedule});
+  const ProfessionalScheduleCard({
+    super.key,
+    required this.schedule,
+    this.showExamTypeLabels = false,
+  });
 
   @override
   State<ProfessionalScheduleCard> createState() =>
@@ -60,6 +65,11 @@ class _ProfessionalScheduleCardState extends State<ProfessionalScheduleCard> {
   Widget build(BuildContext context) {
     final schedule = widget.schedule;
     final scheduleStatus = _resolveScheduleStatus(schedule);
+    final examPrefix = widget.showExamTypeLabels
+        ? _resolveExamPrefix(schedule.description)
+        : '';
+    String label(String value) =>
+        examPrefix.isEmpty ? value : '$examPrefix $value';
 
     final items = <CertificateInfoItem>[
       if (_hasDate(
@@ -67,7 +77,7 @@ class _ProfessionalScheduleCardState extends State<ProfessionalScheduleCard> {
         schedule.examRegistrationEndAt,
       ))
         CertificateInfoItem(
-          label: '원서접수',
+          label: label('원서 접수'),
           value: _formatDateRange(
             schedule.examRegistrationStartAt,
             schedule.examRegistrationEndAt,
@@ -75,12 +85,12 @@ class _ProfessionalScheduleCardState extends State<ProfessionalScheduleCard> {
         ),
       if (_hasDate(schedule.examStartAt, schedule.examEndAt))
         CertificateInfoItem(
-          label: '시험일',
+          label: label('시험'),
           value: _formatDateRange(schedule.examStartAt, schedule.examEndAt),
         ),
       if (_hasDate(schedule.passStartAt, schedule.passEndAt))
         CertificateInfoItem(
-          label: '합격자 발표',
+          label: label('합격 발표'),
           value: _formatDateRange(schedule.passStartAt, schedule.passEndAt),
         ),
     ];
@@ -152,9 +162,11 @@ class _ProfessionalScheduleCardState extends State<ProfessionalScheduleCard> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             SizedBox(
-                              width: 104,
+                              width: 150,
                               child: Text(
                                 item.label,
+                                maxLines: 1,
+                                softWrap: false,
                                 style: TextStyle(
                                   color: context.colors.textSecondary,
                                   fontSize: 13,
@@ -204,11 +216,13 @@ class _ProfessionalScheduleCardState extends State<ProfessionalScheduleCard> {
   ) {
     final today = _dateOnly(DateTime.now());
 
-    final prefix = _resolveExamPrefix(schedule.description);
+    final prefix = widget.showExamTypeLabels
+        ? _resolveExamPrefix(schedule.description)
+        : '';
 
-    final examLabel = prefix.isEmpty ? '시험' : '${prefix}시험';
+    final examLabel = prefix.isEmpty ? '시험' : '$prefix 시험';
 
-    final registrationLabel = prefix.isEmpty ? '원서접수' : '$prefix 원서접수';
+    final registrationLabel = prefix.isEmpty ? '원서 접수' : '$prefix 원서 접수';
 
     final upcomingStatus = _resolveUpcomingCountdown(
       today: today,
@@ -347,12 +361,8 @@ class _ProfessionalScheduleCardState extends State<ProfessionalScheduleCard> {
       return '필기';
     }
 
-    if (description.contains('실기')) {
-      return '실기';
-    }
-
-    if (description.contains('면접')) {
-      return '면접';
+    if (description.contains('실기') || description.contains('면접')) {
+      return '실기/면접';
     }
 
     return '';

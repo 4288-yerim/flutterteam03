@@ -10,12 +10,10 @@ import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
 import '../services/admin_certificate_service.dart';
 import 'admin_certificate_edit_screen.dart';
+import 'admin_certificate_statistics_edit_screen.dart';
 
 class AdminCertificateDetailScreen extends StatefulWidget {
-  const AdminCertificateDetailScreen({
-    super.key,
-    required this.certificate,
-  });
+  const AdminCertificateDetailScreen({super.key, required this.certificate});
 
   final AdminCertificate certificate;
 
@@ -58,9 +56,9 @@ class _AdminCertificateDetailScreenState
       ),
     );
     if (changed == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('자격증 정보를 수정했습니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('자격증 정보를 수정했습니다.')));
     }
   }
 
@@ -134,6 +132,13 @@ class _AdminCertificateDetailScreenState
                 label: '직무 분야',
                 value: _certificateFieldLabel,
               ),
+              if (_certificate.isOther) ...[
+                const SizedBox(height: 10),
+                _CertificateSummaryRow(
+                  label: '분류',
+                  value: _certificateCategoryNameLabel,
+                ),
+              ],
               const SizedBox(height: 28),
               _AdminActionButton(
                 icon: Icons.visibility_outlined,
@@ -171,6 +176,24 @@ class _AdminCertificateDetailScreenState
                     : () => _openEdit(AdminCertificateEditMode.information),
                 accentColor: context.colors.lavenderAccent,
               ),
+              if (_certificate.isOther) ...[
+                const SizedBox(height: 12),
+                _AdminActionButton(
+                  icon: Icons.query_stats_rounded,
+                  label: '$name 통계 수정',
+                  onTap: _isProcessing
+                      ? null
+                      : () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                AdminCertificateStatisticsEditScreen(
+                                  certificateName: name,
+                                ),
+                          ),
+                        ),
+                  accentColor: context.colors.info,
+                ),
+              ],
               const SizedBox(height: 12),
               _AdminActionButton(
                 icon: Icons.delete_outline_rounded,
@@ -193,7 +216,9 @@ class _AdminCertificateDetailScreenState
     } else if (_certificate.isTechnical) {
       page = TechnicalCertificateDetailPage(certificationId: _certificate.id);
     } else {
-      page = ProfessionalCertificateDetailPage(certificationId: _certificate.id);
+      page = ProfessionalCertificateDetailPage(
+        certificationId: _certificate.id,
+      );
     }
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
   }
@@ -208,6 +233,11 @@ class _AdminCertificateDetailScreenState
     final value = _certificate.isProfessional
         ? _certificate.seriesName
         : _certificate.fieldName;
+    return value.isEmpty ? '-' : value;
+  }
+
+  String get _certificateCategoryNameLabel {
+    final value = _certificate.categoryName.trim();
     return value.isEmpty ? '-' : value;
   }
 }
@@ -357,6 +387,9 @@ class _HoldToDeleteDialogState extends State<_HoldToDeleteDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
+          style: TextButton.styleFrom(
+            foregroundColor: context.colors.incorrect,
+          ),
           child: const Text('취소'),
         ),
         Material(
