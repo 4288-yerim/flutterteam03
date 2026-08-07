@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
-
-import '../theme.dart';
+import 'dart:async';
+import 'dart:math' as math;
 import 'services/certificate_api_service.dart';
 import 'certificate_roadmap_result_page.dart';
 import '../widgets/app_main_background.dart';
@@ -43,7 +43,6 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
   @override
   void initState() {
     super.initState();
-    _loadingController = AnimationController(vsync: this);
     _loadPopularJobs();
   }
 
@@ -85,7 +84,6 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
     _pageController.dispose();
     _jobController.dispose();
     _customCertController.dispose();
-    _loadingController.dispose();
     super.dispose();
   }
 
@@ -134,17 +132,9 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
       _ownedCertificates.clear();
     });
 
-    _loadingController.value = 0;
-    _loadingController.duration = Duration(milliseconds: 1500);
-    _loadingController.animateTo(0.9, curve: Curves.easeOut);
-
     try {
       final suggestions = await CertificateApiService.suggestCertificates(job);
 
-      await _loadingController.animateTo(
-        1.0,
-        duration: Duration(milliseconds: 200),
-      );
       await Future.delayed(Duration(milliseconds: 300));
       if (!mounted) return;
 
@@ -549,32 +539,15 @@ class _CertificateRoadmapPageState extends State<CertificateRoadmapPage>
 
   Widget _buildLoadingContent(AppColors colors) {
     final job = _jobController.text.trim();
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          'AI가 자격증을 찾고 있어요',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: colors.textPrimary,
-            fontSize: 21,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.5,
-          ),
-        ),
-        SizedBox(height: 8),
-        Text(
-          '$job 직무에 맞는 자격증을 분석하고 있어요.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: colors.textSecondary,
-            fontSize: 13.5,
-            height: 1.5,
-          ),
-        ),
-        SizedBox(height: 30),
-        _LoadingIndicator(progress: _loadingController, colors: colors),
+    return _RotatingLoadingContent(
+      messages: [
+        '$job 직무를 확인하고 있어요',
+        '관련 자격증을 검색하고 있어요',
+        'AI가 자격증을 분석하고 있어요',
+        '추천 순서를 정리하고 있어요',
+        '거의 다 됐어요',
       ],
+      durations: [700, 900, 900, 700, 500],
     );
   }
 
@@ -1063,41 +1036,213 @@ class _StepProgressBar extends StatelessWidget {
   }
 }
 
-class _LoadingIndicator extends StatelessWidget {
-  final Animation<double> progress;
-  final AppColors colors;
-  _LoadingIndicator({required this.progress, required this.colors});
+class _RotatingLoadingContent extends StatefulWidget {
+  final List<String> messages;
+  final List<int> durations;
+
+  _RotatingLoadingContent({required this.messages, required this.durations});
+
+  @override
+  State<_RotatingLoadingContent> createState() =>
+      _RotatingLoadingContentState();
+}
+
+class _RotatingLoadingContentState extends State<_RotatingLoadingContent>
+    with SingleTickerProviderStateMixin {
+  Timer? _messageTimer;
+  int _messageIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleNextMessage();
+  }
+
+  void _scheduleNextMessage() {
+    final duration =
+    widget.durations[_messageIndex.clamp(0, widget.durations.length - 1)];
+    _messageTimer = Timer(Duration(milliseconds: duration), () {
+      if (!mounted) return;
+      if (_messageIndex < widget.messages.length - 1) {
+        setState(() => _messageIndex++);
+        _scheduleNextMessage();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _messageTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: progress,
-      builder: (context, _) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          WaveLoadingIndicator(
-            size: 72,
-            progress: progress.value,
-            backgroundColor: colors.pinkSoft,
-            waveColorStart: colors.pinkStart,
-            waveColorEnd: colors.pinkDeep,
-            useSmoothing: false,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _WaveLoadingIndicator(
+          size: 72,
+          progress: widget.messages.length <= 1
+              ? 1.0
+              : _messageIndex / (widget.messages.length - 1),
+        ),
+        SizedBox(height: 22),
+        AnimatedSwitcher(
+          duration: Duration(milliseconds: 350),
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          transitionBuilder: (child, anim) => FadeTransition(
+            opacity: anim,
+            child: SlideTransition(
+              position: Tween(
+                begin: Offset(0, 0.15),
+                end: Offset.zero,
+              ).animate(anim),
+              child: child,
+            ),
           ),
-          SizedBox(height: 12),
-          Text(
-            '${(progress.value * 100).toInt()}%',
+          child: Text(
+            widget.messages[_messageIndex],
+            key: ValueKey(_messageIndex),
+            textAlign: TextAlign.center,
             style: TextStyle(
-              color: colors.pinkStart,
-              fontSize: 13,
+              color: context.colors.textPrimary,
+              fontSize: 15.5,
               fontWeight: FontWeight.w800,
             ),
           ),
-        ],
+        ),
+      ],
+    );
+  }
+}
+
+class _WaveLoadingIndicator extends StatefulWidget {
+  final double size;
+  final double progress;
+
+  _WaveLoadingIndicator({this.size = 72, required this.progress});
+
+  @override
+  State<_WaveLoadingIndicator> createState() => _WaveLoadingIndicatorState();
+}
+
+class _WaveLoadingIndicatorState extends State<_WaveLoadingIndicator>
+    with TickerProviderStateMixin {
+  late final AnimationController _levelController;
+  late Animation<double> _levelAnimation;
+  late final AnimationController _waveController;
+
+  @override
+  void initState() {
+    super.initState();
+    _levelController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 900),
+    );
+    _levelAnimation = Tween<double>(
+      begin: 0,
+      end: widget.progress,
+    ).animate(CurvedAnimation(parent: _levelController, curve: Curves.easeOut));
+    _levelController.forward();
+
+    _waveController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 1100),
+    )..repeat();
+  }
+
+  @override
+  void didUpdateWidget(covariant _WaveLoadingIndicator oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.progress != widget.progress) {
+      _levelAnimation = Tween<double>(
+        begin: _levelAnimation.value,
+        end: widget.progress,
+      ).animate(CurvedAnimation(parent: _levelController, curve: Curves.easeOut));
+      _levelController
+        ..reset()
+        ..forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _levelController.dispose();
+    _waveController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: widget.size,
+      height: widget.size,
+      decoration: BoxDecoration(shape: BoxShape.circle),
+      child: ClipOval(
+        child: AnimatedBuilder(
+          animation: Listenable.merge([_levelController, _waveController]),
+          builder: (context, _) {
+            return CustomPaint(
+              size: Size(widget.size, widget.size),
+              painter: _WavePainter(
+                level: _levelAnimation.value,
+                wavePhase: _waveController.value,
+                backgroundColor: context.colors.pinkSoft,
+              ),
+            );
+          },
+        ),
       ),
     );
   }
 }
 
+class _WavePainter extends CustomPainter {
+  final double level;
+  final double wavePhase;
+  final Color backgroundColor;
+
+  _WavePainter({
+    required this.level,
+    required this.wavePhase,
+    required this.backgroundColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bgPaint = Paint()..color = backgroundColor;
+    canvas.drawRect(Offset.zero & size, bgPaint);
+
+    final baseY = size.height * (1 - level);
+    final waveHeight = size.height * 0.045;
+
+    final path = Path()..moveTo(0, baseY);
+    for (double x = 0; x <= size.width; x += 2) {
+      final y = baseY +
+          math.sin((x / size.width * 2 * math.pi) + wavePhase * 2 * math.pi) *
+              waveHeight;
+      path.lineTo(x, y);
+    }
+    path.lineTo(size.width, size.height);
+    path.lineTo(0, size.height);
+    path.close();
+
+    final wavePaint = Paint()
+      ..shader = LinearGradient(
+        colors: [Color(0xFFF4869D), Color(0xFFFF8FA3)],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      ).createShader(Offset.zero & size);
+
+    canvas.drawPath(path, wavePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _WavePainter oldDelegate) =>
+      oldDelegate.level != level || oldDelegate.wavePhase != wavePhase;
+}
 class _InlineMessage extends StatelessWidget {
   final String text;
   final AppColors colors;
