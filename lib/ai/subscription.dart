@@ -4,12 +4,14 @@ import '../theme.dart';
 import 'package:portone_flutter/iamport_payment.dart';
 import 'package:portone_flutter/model/payment_data.dart';
 import '../widgets/app_button.dart';
+import '../widgets/app_confirm_dialog.dart';
 import '../widgets/loading_overlay.dart';
 import 'services/subscription_service.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'study_plan.dart';
+import 'services/subscription_events.dart';
 
 class SubscriptionPage extends StatefulWidget {
   SubscriptionPage({super.key});
@@ -72,6 +74,7 @@ class _SubscriptionPageState extends State<SubscriptionPage>
 
     switch (state) {
       case SubscriptionPurchaseState.success:
+        SubscriptionEvents.instance.notifyActivated();
         _showSuccessSheet();
         break;
       case SubscriptionPurchaseState.cancelled:
@@ -365,22 +368,16 @@ class _SubscriptionPageState extends State<SubscriptionPage>
   }
 
   Future<void> _onCancelPressed() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('구독 해지'),
-        content: Text('구독을 해지하면 다음 결제일부터 자동 결제가 중단돼요.\n남은 기간까지는 계속 이용할 수 있어요.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text('해지하기'),
-          ),
-        ],
-      ),
+    final confirmed = await AppConfirmDialog.show<bool>(
+      context,
+      icon: Icons.warning_rounded,
+      title: '구독 해지',
+      description: '구독을 해지하면 다음 결제일부터 자동 결제가 중단돼요.\n남은 기간까지는 계속 이용할 수 있어요.',
+      primaryLabel: '해지하기',
+      onPrimaryPressed: () => Navigator.pop(context, true),
+      secondaryLabel: '취소',
+      onSecondaryPressed: () => Navigator.pop(context, false),
+      isDestructive: true,
     );
 
     if (confirmed != true) return;
@@ -935,6 +932,7 @@ class _ActiveSubscriptionView extends StatelessWidget {
     final amount = amountRaw is int
         ? amountRaw
         : (amountRaw as num?)?.toInt() ?? 2900;
+    final bool autoRenew = data['autoRenew'] == true;
 
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(24, 24, 24, 40),
@@ -948,10 +946,9 @@ class _ActiveSubscriptionView extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  SubscriptionPage.violetColor,
-                  SubscriptionPage.pinkColor,
-                ],
+                colors: autoRenew
+                    ? [SubscriptionPage.violetColor, SubscriptionPage.pinkColor]
+                    : [context.colors.textDisabled, context.colors.textSecondary],
               ),
               borderRadius: BorderRadius.circular(24),
             ),
@@ -961,13 +958,13 @@ class _ActiveSubscriptionView extends StatelessWidget {
                 Row(
                   children: [
                     Icon(
-                      Icons.verified_rounded,
+                      autoRenew ? Icons.verified_rounded : Icons.event_busy_rounded,
                       color: context.colors.onPrimary,
                       size: 22,
                     ),
                     SizedBox(width: 8),
                     Text(
-                      '구독 중',
+                      autoRenew ? '구독 중' : '해지 예정',
                       style: TextStyle(
                         color: context.colors.onPrimary,
                         fontSize: 20,
@@ -978,20 +975,31 @@ class _ActiveSubscriptionView extends StatelessWidget {
                 ),
                 SizedBox(height: 14),
                 Text(
-                  '다음 결제일: ${_formatDate(expiresAt)}',
+                  autoRenew
+                      ? '다음 결제일: ${_formatDate(expiresAt)}'
+                      : '혜택 만료일: ${_formatDate(expiresAt)}',
                   style: TextStyle(
                     color: context.colors.onPrimary,
                     fontSize: 14,
                   ),
                 ),
                 SizedBox(height: 4),
-                Text(
-                  '결제 금액: ${amount.toString()}원 / 월',
-                  style: TextStyle(
-                    color: context.colors.onPrimary,
-                    fontSize: 14,
+                if (autoRenew)
+                  Text(
+                    '결제 금액: ${amount.toString()}원 / 월',
+                    style: TextStyle(
+                      color: context.colors.onPrimary,
+                      fontSize: 14,
+                    ),
+                  )
+                else
+                  Text(
+                    '만료일까지는 계속 이용할 수 있어요.',
+                    style: TextStyle(
+                      color: context.colors.onPrimary,
+                      fontSize: 14,
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -1012,26 +1020,27 @@ class _ActiveSubscriptionView extends StatelessWidget {
             description: '학습 진도와 정답률을 분석해 합격 가능성과 위험도(안정·보통·위험)를 알려드려요.',
           ),
           SizedBox(height: 32),
-          Center(
-            child: TextButton(
-              onPressed: onCancel,
-              child: isLoading
-                  ? SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(
-                      '구독 해지하기',
-                      style: TextStyle(
-                        color: context.colors.textSecondary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
+          if (autoRenew)
+            Center(
+              child: TextButton(
+                onPressed: onCancel,
+                child: isLoading
+                    ? SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+                    : Text(
+                  '구독 해지하기',
+                  style: TextStyle(
+                    color: context.colors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
             ),
-          ),
         ],
       ),
     );

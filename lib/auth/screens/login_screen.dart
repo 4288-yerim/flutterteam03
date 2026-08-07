@@ -130,6 +130,9 @@ class _LoginScreenState extends State<LoginScreen>
 
   void _onEmailChanged() {
     if (_emailServerError != null) _emailServerError = null;
+    if (!_showPasswordStep && _passwordController.text.isNotEmpty) {
+      _passwordController.clear();
+    }
     setState(() {});
   }
 

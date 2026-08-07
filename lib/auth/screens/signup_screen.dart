@@ -9,9 +9,6 @@ import 'otp_verification_screen.dart';
 
 enum _PasswordStrength { none, weak, medium, strong }
 
-/// 조건이 true가 될 때 자식 위젯을 슬라이드+페이드로 부드럽게 등장시키는 위젯.
-/// 회원가입 폼에서 이메일 -> 비밀번호 -> 비밀번호 확인 -> 버튼 순으로
-/// 다음 단계를 순차적으로 공개하는 데 사용.
 class _StepReveal extends StatelessWidget {
   final bool visible;
   final Widget child;
@@ -82,7 +79,6 @@ class _SignupScreenState extends State<SignupScreen>
 
   late final AnimationController _breatheController;
 
-  // 버튼이 막 활성화됐을 때 살짝 튀는 느낌을 주기 위한 컨트롤러
   late final AnimationController _buttonPulseController;
   bool _wasFormValid = false;
 
@@ -126,17 +122,25 @@ class _SignupScreenState extends State<SignupScreen>
 
     _entryController.forward();
 
-    // 다음 단계가 나타날 때 자동으로 포커스를 옮겨줘서 타이핑 흐름이 끊기지 않도록 함
     _passwordFocus.addListener(() {});
   }
 
   void _onEmailChanged() {
     if (_emailServerError != null) _emailServerError = null;
+    if (!_showPasswordStep) {
+      if (_passwordController.text.isNotEmpty) _passwordController.clear();
+      if (_passwordConfirmController.text.isNotEmpty) {
+        _passwordConfirmController.clear();
+      }
+    }
     setState(() {});
   }
 
   void _onPasswordChanged() {
     if (_passwordServerError != null) _passwordServerError = null;
+    if (!_isPasswordValid && _passwordConfirmController.text.isNotEmpty) {
+      _passwordConfirmController.clear();
+    }
     setState(() {});
     _maybePulseButton();
   }
@@ -219,7 +223,6 @@ class _SignupScreenState extends State<SignupScreen>
     return confirm == _passwordController.text ? null : '비밀번호가 일치하지 않습니다.';
   }
 
-  // ── 단계별 공개 조건 ──────────────────────────────────────────
   bool get _showPasswordStep =>
       _emailController.text.trim().isNotEmpty && _emailFormatError == null;
 
@@ -227,7 +230,6 @@ class _SignupScreenState extends State<SignupScreen>
 
   bool get _showButtonStep =>
       _showConfirmStep && _passwordConfirmController.text.isNotEmpty;
-  // ─────────────────────────────────────────────────────────────
 
   bool get _isFormValid =>
       _emailController.text.trim().isNotEmpty &&
@@ -548,7 +550,6 @@ class _SignupScreenState extends State<SignupScreen>
                               ),
                               SizedBox(height: 36),
 
-                              // ── 이메일 (항상 표시) ──────────────
                               TextField(
                                 controller: _emailController,
                                 focusNode: _emailFocus,
@@ -607,7 +608,6 @@ class _SignupScreenState extends State<SignupScreen>
                                 ),
                               ],
 
-                              // ── 비밀번호 (이메일 유효 시 등장) ──────
                               _StepReveal(
                                 visible: _showPasswordStep,
                                 child: Column(
@@ -655,7 +655,6 @@ class _SignupScreenState extends State<SignupScreen>
                                 ),
                               ),
 
-                              // ── 비밀번호 확인 (비밀번호 유효 시 등장) ──
                               _StepReveal(
                                 visible: _showConfirmStep,
                                 child: Column(
@@ -720,7 +719,6 @@ class _SignupScreenState extends State<SignupScreen>
                                 ),
                               ),
 
-                              // ── 가입 버튼 (비밀번호 확인 입력 시 등장) ──
                               _StepReveal(
                                 visible: _showButtonStep,
                                 child: Padding(
@@ -730,7 +728,6 @@ class _SignupScreenState extends State<SignupScreen>
                                     animation: _buttonPulseController,
                                     builder: (context, child) {
                                       final t = _buttonPulseController.value;
-                                      // 0 -> 1.06 -> 1.0 로 살짝 튀는 스케일
                                       final scale =
                                           1.0 +
                                           (Curves.easeOutBack.transform(t) *
