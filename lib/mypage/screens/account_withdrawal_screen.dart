@@ -382,6 +382,13 @@ class _AccountWithdrawalScreenState extends State<AccountWithdrawalScreen>
             icon: Icons.login_rounded,
             text: '탈퇴 대기 중에는 로그인 후 복구 또는 탈퇴 진행을 선택할 수 있습니다.',
           ),
+          SizedBox(height: 14),
+          _WithdrawalNoticeItem(
+            icon: Icons.groups_rounded,
+            text:
+            '방장으로 운영 중인 스터디가 있다면 최종 탈퇴 시 '
+                '해당 스터디가 종료되고 채팅·문제·공부 기록도 함께 삭제됩니다.',
+          ),
         ],
       ),
     );
@@ -775,7 +782,12 @@ class _AccountWithdrawalScreenState extends State<AccountWithdrawalScreen>
         iconColor: context.colors.incorrect,
         iconBackground: context.colors.incorrectSoft,
         title: '탈퇴를 신청하시겠어요?',
-        description: '탈퇴 신청 후 계정은 7일 동안\n탈퇴 대기 상태가 돼요.\n7일 이내에는 직접 복구할 수 있어요.',
+        description:
+        '탈퇴 신청 후 계정은 7일 동안\n'
+            '탈퇴 대기 상태가 돼요.\n'
+            '7일 이내에는 직접 복구할 수 있어요.\n\n'
+            '방장으로 운영 중인 스터디는\n'
+            '최종 탈퇴 시 함께 종료·삭제됩니다.',
         primaryText: '탈퇴 신청',
         primaryColor: context.colors.incorrect,
         secondaryText: '취소',
