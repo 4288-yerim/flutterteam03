@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../theme.dart';
 import '../../utils/nickname_validator.dart';
-import '../../widgets/app_background.dart';
+import '../../widgets/app_auth_background.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_top_bar.dart';
 import '../widgets/step_indicator.dart';

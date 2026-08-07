@@ -19,10 +19,12 @@ import '../widgets/technical_certificate_widgets.dart';
 
 class TechnicalCertificateDetailPage extends StatefulWidget {
   final String certificationId;
+  final bool openGoalSettingOnLoad;
 
   const TechnicalCertificateDetailPage({
     super.key,
     required this.certificationId,
+    this.openGoalSettingOnLoad = false,
   });
 
   @override
@@ -77,8 +79,10 @@ class _TechnicalCertificateDetailPageState
 
   bool get _hasPracticalSchedule => _schedules.any(_scheduleHasPractical);
 
-  bool get _hasCombinedExamSchedule => _schedules.any((schedule) =>
-      _scheduleHasWritten(schedule) && _scheduleHasPractical(schedule));
+  bool get _hasCombinedExamSchedule => _schedules.any(
+    (schedule) =>
+        _scheduleHasWritten(schedule) && _scheduleHasPractical(schedule),
+  );
 
   bool _scheduleHasWritten(TechnicalCertificateSchedule schedule) =>
       schedule.writtenRegistrationStartAt != null ||
@@ -113,6 +117,7 @@ class _TechnicalCertificateDetailPageState
   PracticalMaterialPrecautions _practicalMaterialPrecautions =
       PracticalMaterialPrecautions.empty();
   bool _isRegisteringGoal = false;
+  bool _didOpenGoalSettingOnLoad = false;
 
   bool _hasRequestedStatistics = false;
 
@@ -178,8 +183,9 @@ class _TechnicalCertificateDetailPageState
       final examDetailsFuture = _technicalCertificateService
           .getTechnicalExamDetails(widget.certificationId);
 
-      final overviewFuture = _certificateDetailService
-          .getCertificationOverview(widget.certificationId);
+      final overviewFuture = _certificateDetailService.getCertificationOverview(
+        widget.certificationId,
+      );
 
       final certificate = await certificateFuture;
 
@@ -225,6 +231,7 @@ class _TechnicalCertificateDetailPageState
         _hasRequestedPracticalMaterials = storedPracticalMaterials != null;
         _isLoading = false;
       });
+      _openGoalSettingAfterLoad();
     } on CertificateDetailException catch (error) {
       if (!mounted) {
         return;
@@ -244,6 +251,18 @@ class _TechnicalCertificateDetailPageState
         _loadError = '자격증 정보를 불러오지 못했습니다.';
       });
     }
+  }
+
+  void _openGoalSettingAfterLoad() {
+    if (!widget.openGoalSettingOnLoad || _didOpenGoalSettingOnLoad) {
+      return;
+    }
+    _didOpenGoalSettingOnLoad = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _openGoalSettingSheet();
+      }
+    });
   }
 
   Future<void> _loadExamSubjects() async {
@@ -452,15 +471,13 @@ class _TechnicalCertificateDetailPageState
 
     Set<String> registeredGoalKeys;
     try {
-      registeredGoalKeys =
-          await _certificateDetailService.getActiveGoalScheduleKeys(
-        certificateId: widget.certificationId,
-      );
+      registeredGoalKeys = await _certificateDetailService
+          .getActiveGoalScheduleKeys(certificateId: widget.certificationId);
     } on CertificateGoalException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
       return;
     }
     if (!mounted) return;
@@ -534,20 +551,23 @@ class _TechnicalCertificateDetailPageState
                         },
                         itemBuilder: (context, index) {
                           final option = options[index];
-                          final isAlreadyRegistered = registeredGoalKeys.contains(
-                            CertificateDetailService.goalScheduleKey(
-                              scheduleId: option.scheduleId,
-                              examType: option.examType,
-                            ),
-                          );
+                          final isAlreadyRegistered = registeredGoalKeys
+                              .contains(
+                                CertificateDetailService.goalScheduleKey(
+                                  scheduleId: option.scheduleId,
+                                  examType: option.examType,
+                                ),
+                              );
                           final isSelected = selectedOption == option;
 
                           return InkWell(
-                            onTap: isAlreadyRegistered ? null : () {
-                              setBottomSheetState(() {
-                                selectedOption = option;
-                              });
-                            },
+                            onTap: isAlreadyRegistered
+                                ? null
+                                : () {
+                                    setBottomSheetState(() {
+                                      selectedOption = option;
+                                    });
+                                  },
                             borderRadius: BorderRadius.circular(16),
                             child: Opacity(
                               opacity: isAlreadyRegistered ? 0.48 : 1,
@@ -559,142 +579,141 @@ class _TechnicalCertificateDetailPageState
                                   color: isAlreadyRegistered
                                       ? context.colors.surfaceMuted
                                       : isSelected
-                                          ? context.colors.pinkSoft
-                                          : context.colors.surfaceMuted,
+                                      ? context.colors.pinkSoft
+                                      : context.colors.surfaceMuted,
                                   borderRadius: BorderRadius.circular(16),
                                   border: Border.all(
                                     color: isAlreadyRegistered
                                         ? context.colors.textDisabled
                                         : isSelected
-                                            ? context.colors.pinkDeep
-                                            : context.colors.border,
+                                        ? context.colors.pinkDeep
+                                        : context.colors.border,
                                     width: isSelected ? 1.4 : 1,
                                   ),
                                 ),
                                 child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    width: 22,
-                                    height: 22,
-                                    margin: EdgeInsets.only(top: 1),
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: isSelected
-                                          ? context.colors.pinkDeep
-                                          : context.colors.surface,
-                                      border: Border.all(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      width: 22,
+                                      height: 22,
+                                      margin: EdgeInsets.only(top: 1),
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
                                         color: isSelected
                                             ? context.colors.pinkDeep
-                                            : context.colors.textSecondary,
+                                            : context.colors.surface,
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? context.colors.pinkDeep
+                                              : context.colors.textSecondary,
+                                        ),
+                                      ),
+                                      child: isSelected
+                                          ? Icon(
+                                              Icons.check_rounded,
+                                              size: 15,
+                                              color: context.colors.onPrimary,
+                                            )
+                                          : null,
+                                    ),
+                                    SizedBox(width: 13),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            isAlreadyRegistered
+                                                ? '${option.targetRound} (등록됨)'
+                                                : option.targetRound,
+                                            style: TextStyle(
+                                              color: isAlreadyRegistered
+                                                  ? context.colors.textDisabled
+                                                  : context.colors.textPrimary,
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w800,
+                                              height: 1.35,
+                                            ),
+                                          ),
+                                          SizedBox(height: 9),
+
+                                          Wrap(
+                                            spacing: 8,
+                                            runSpacing: 8,
+                                            crossAxisAlignment:
+                                                WrapCrossAlignment.center,
+                                            children: [
+                                              Container(
+                                                padding: EdgeInsets.symmetric(
+                                                  horizontal: 9,
+                                                  vertical: 5,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: context.colors.surface,
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                ),
+                                                child: Text(
+                                                  option.examTypeName,
+                                                  style: TextStyle(
+                                                    color:
+                                                        context.colors.pinkDeep,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                              ),
+
+                                              if (getCertificateGoalScheduleStatus(
+                                                    option,
+                                                  )
+                                                  case final registrationStatus?)
+                                                CertificateScheduleStatusBadge(
+                                                  label:
+                                                      registrationStatus.label,
+                                                  isActive: registrationStatus
+                                                      .isActive,
+                                                ),
+                                            ],
+                                          ),
+
+                                          SizedBox(height: 9),
+
+                                          Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Icon(
+                                                Icons.event_outlined,
+                                                size: 16,
+                                                color: context
+                                                    .colors
+                                                    .textSecondary,
+                                              ),
+                                              SizedBox(width: 6),
+                                              Expanded(
+                                                child: Text(
+                                                  formatCertificateGoalDateRange(
+                                                    option.examDate,
+                                                    option.examEndDate,
+                                                  ),
+                                                  style: TextStyle(
+                                                    color: context
+                                                        .colors
+                                                        .textSecondary,
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w600,
+                                                    height: 1.4,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                    child: isSelected
-                                        ? Icon(
-                                            Icons.check_rounded,
-                                            size: 15,
-                                            color: context.colors.onPrimary,
-                                          )
-                                        : null,
-                                  ),
-                                  SizedBox(width: 13),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          isAlreadyRegistered
-                                              ? '${option.targetRound} (등록됨)'
-                                              : option.targetRound,
-                                          style: TextStyle(
-                                            color: isAlreadyRegistered
-                                                ? context.colors.textDisabled
-                                                : context.colors.textPrimary,
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w800,
-                                            height: 1.35,
-                                          ),
-                                        ),
-                                        SizedBox(height: 9),
-
-                                        Wrap(
-                                          spacing: 8,
-                                          runSpacing: 8,
-                                          crossAxisAlignment:
-                                              WrapCrossAlignment.center,
-                                          children: [
-                                            Container(
-                                              padding: EdgeInsets.symmetric(
-                                                horizontal: 9,
-                                                vertical: 5,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: context.colors.surface,
-                                                borderRadius:
-                                                    BorderRadius.circular(20),
-                                              ),
-                                              child: Text(
-                                                option.examTypeName,
-                                                style: TextStyle(
-                                                  color:
-                                                      context.colors.pinkDeep,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                            ),
-
-                                            if (getCertificateRegistrationStatus(
-                                                  registrationStartDate: option
-                                                      .registrationStartDate,
-                                                  registrationEndDate: option
-                                                      .registrationEndDate,
-                                                )
-                                                case final registrationStatus?)
-                                              CertificateScheduleStatusBadge(
-                                                label: registrationStatus.label,
-                                                isActive:
-                                                    registrationStatus.isActive,
-                                              ),
-                                          ],
-                                        ),
-
-                                        SizedBox(height: 9),
-
-                                        Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Icon(
-                                              Icons.event_outlined,
-                                              size: 16,
-                                              color:
-                                                  context.colors.textSecondary,
-                                            ),
-                                            SizedBox(width: 6),
-                                            Expanded(
-                                              child: Text(
-                                                formatCertificateGoalDateRange(
-                                                  option.examDate,
-                                                  option.examEndDate,
-                                                ),
-                                                style: TextStyle(
-                                                  color: context
-                                                      .colors
-                                                      .textSecondary,
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w600,
-                                                  height: 1.4,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                                  ],
                                 ),
                               ),
                             ),
@@ -1334,33 +1353,33 @@ class _TechnicalCertificateDetailPageState
           )
         else
           ...List.generate(_schedules.length, (index) {
-          final schedule = _schedules[index];
+            final schedule = _schedules[index];
 
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: index == _schedules.length - 1 ? 0 : 14,
-            ),
-            child: CertificateScheduleCard(
-              title: schedule.title,
-              writtenRegistrationStartAt: schedule.writtenRegistrationStartAt,
-              writtenRegistrationEndAt: schedule.writtenRegistrationEndAt,
-              writtenExamStartAt: schedule.writtenExamStartAt,
-              writtenExamEndAt: schedule.writtenExamEndAt,
-              writtenPassAt: schedule.writtenPassAt,
-              documentSubmitStartAt: schedule.documentSubmitStartAt,
-              documentSubmitEndAt: schedule.documentSubmitEndAt,
-              practicalRegistrationStartAt:
-                  schedule.practicalRegistrationStartAt,
-              practicalRegistrationEndAt: schedule.practicalRegistrationEndAt,
-              practicalExamStartAt: schedule.practicalExamStartAt,
-              practicalExamEndAt: schedule.practicalExamEndAt,
-              practicalPassStartAt: schedule.practicalPassStartAt,
-              practicalPassEndAt: schedule.practicalPassEndAt,
-              showExamTypeLabels: _hasCombinedExamSchedule,
-              links: schedule.links,
-              onOpenLink: _openScheduleNoticeUrl,
-            ),
-          );
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: index == _schedules.length - 1 ? 0 : 14,
+              ),
+              child: CertificateScheduleCard(
+                title: schedule.title,
+                writtenRegistrationStartAt: schedule.writtenRegistrationStartAt,
+                writtenRegistrationEndAt: schedule.writtenRegistrationEndAt,
+                writtenExamStartAt: schedule.writtenExamStartAt,
+                writtenExamEndAt: schedule.writtenExamEndAt,
+                writtenPassAt: schedule.writtenPassAt,
+                documentSubmitStartAt: schedule.documentSubmitStartAt,
+                documentSubmitEndAt: schedule.documentSubmitEndAt,
+                practicalRegistrationStartAt:
+                    schedule.practicalRegistrationStartAt,
+                practicalRegistrationEndAt: schedule.practicalRegistrationEndAt,
+                practicalExamStartAt: schedule.practicalExamStartAt,
+                practicalExamEndAt: schedule.practicalExamEndAt,
+                practicalPassStartAt: schedule.practicalPassStartAt,
+                practicalPassEndAt: schedule.practicalPassEndAt,
+                showExamTypeLabels: _hasCombinedExamSchedule,
+                links: schedule.links,
+                onOpenLink: _openScheduleNoticeUrl,
+              ),
+            );
           }),
       ],
     );

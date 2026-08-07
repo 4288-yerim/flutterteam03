@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutterteam03/auth/screens/terms_agreement_screen.dart';
 import '../../main_page.dart';
 import '../../theme.dart';
-import '../../widgets/app_background.dart';
+import '../../widgets/app_auth_background.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_top_bar.dart';
 import '../../widgets/loading_overlay.dart';

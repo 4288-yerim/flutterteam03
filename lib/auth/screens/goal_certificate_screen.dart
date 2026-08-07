@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../theme.dart';
-import '../../widgets/app_background.dart';
+import '../../widgets/app_auth_background.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_top_bar.dart';
 import '../widgets/step_indicator.dart';

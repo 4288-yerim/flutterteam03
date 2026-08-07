@@ -6,7 +6,7 @@ import '../../mypage/screens/withdrawal_pending_screen.dart';
 import '../../mypage/services/withdrawal_status_service.dart';
 import '../services/account_status_service.dart';
 import '../../theme.dart';
-import '../../widgets/app_background.dart';
+import '../../widgets/app_auth_background.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_top_bar.dart';
 import '../../widgets/loading_overlay.dart';

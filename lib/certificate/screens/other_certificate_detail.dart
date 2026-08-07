@@ -20,8 +20,13 @@ import '../widgets/professional_certificate_widgets.dart';
 
 class OtherCertificateDetailPage extends StatefulWidget {
   final String certificationId;
+  final bool openGoalSettingOnLoad;
 
-  const OtherCertificateDetailPage({super.key, required this.certificationId});
+  const OtherCertificateDetailPage({
+    super.key,
+    required this.certificationId,
+    this.openGoalSettingOnLoad = false,
+  });
 
   @override
   State<OtherCertificateDetailPage> createState() =>
@@ -48,6 +53,7 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
   String? _errorMessage;
   int _selectedTabIndex = 0;
   bool _isRegisteringGoal = false;
+  bool _didOpenGoalSettingOnLoad = false;
 
   bool get _hasPracticalSchedule => _schedules.any(_scheduleHasPractical);
 
@@ -117,6 +123,7 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
         _overview = results[3] as String;
         _isLoading = false;
       });
+      _openGoalSettingAfterLoad();
     } on CertificateDetailException catch (error) {
       if (!mounted) return;
       setState(() {
@@ -130,6 +137,18 @@ class _OtherCertificateDetailPageState extends State<OtherCertificateDetailPage>
         _isLoading = false;
       });
     }
+  }
+
+  void _openGoalSettingAfterLoad() {
+    if (!widget.openGoalSettingOnLoad || _didOpenGoalSettingOnLoad) {
+      return;
+    }
+    _didOpenGoalSettingOnLoad = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _openGoalSettingSheet();
+      }
+    });
   }
 
   List<CertificateGoalOption> _buildGoalOptions() {
@@ -745,11 +764,8 @@ class _OtherGoalSelectionSheetState extends State<_OtherGoalSelectionSheet> {
                                       _GoalTypeBadge(
                                         label: option.examTypeName,
                                       ),
-                                      if (getCertificateRegistrationStatus(
-                                            registrationStartDate:
-                                                option.registrationStartDate,
-                                            registrationEndDate:
-                                                option.registrationEndDate,
+                                      if (getCertificateGoalScheduleStatus(
+                                            option,
                                           )
                                           case final status?)
                                         CertificateScheduleStatusBadge(
