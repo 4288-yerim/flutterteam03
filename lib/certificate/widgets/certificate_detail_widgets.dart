@@ -607,6 +607,242 @@ class CertificateRegistrationStatus {
   });
 }
 
+class CertificateScheduleStatus {
+  final String label;
+  final bool isActive;
+
+  const CertificateScheduleStatus({
+    required this.label,
+    required this.isActive,
+  });
+}
+
+CertificateScheduleStatus? getCertificateGoalScheduleStatus(
+  CertificateGoalOption option,
+) {
+  final isPractical = option.examType == 'PRACTICAL';
+  return resolveCertificateScheduleStatus(
+    writtenRegistrationStartAt: isPractical
+        ? null
+        : option.registrationStartDate,
+    writtenRegistrationEndAt: isPractical ? null : option.registrationEndDate,
+    writtenExamStartAt: isPractical ? null : option.examStartDate,
+    writtenExamEndAt: isPractical ? null : option.examEndDate,
+    writtenPassStartAt: isPractical ? null : option.passAnnouncementDate,
+    writtenPassEndAt: isPractical ? null : option.passAnnouncementEndDate,
+    practicalRegistrationStartAt: isPractical
+        ? option.registrationStartDate
+        : null,
+    practicalRegistrationEndAt: isPractical ? option.registrationEndDate : null,
+    practicalExamStartAt: isPractical ? option.examStartDate : null,
+    practicalExamEndAt: isPractical ? option.examEndDate : null,
+    practicalPassStartAt: isPractical ? option.passAnnouncementDate : null,
+    practicalPassEndAt: isPractical ? option.passAnnouncementEndDate : null,
+    showExamTypeLabels: option.examTypeName == '필기',
+  );
+}
+
+CertificateScheduleStatus? resolveCertificateScheduleStatus({
+  DateTime? writtenRegistrationStartAt,
+  DateTime? writtenRegistrationEndAt,
+  DateTime? writtenExamStartAt,
+  DateTime? writtenExamEndAt,
+  DateTime? writtenPassStartAt,
+  DateTime? writtenPassEndAt,
+  DateTime? documentSubmitStartAt,
+  DateTime? documentSubmitEndAt,
+  DateTime? practicalRegistrationStartAt,
+  DateTime? practicalRegistrationEndAt,
+  DateTime? practicalExamStartAt,
+  DateTime? practicalExamEndAt,
+  DateTime? practicalPassStartAt,
+  DateTime? practicalPassEndAt,
+  bool showExamTypeLabels = false,
+}) {
+  final today = _certificateDateOnly(DateTime.now());
+  final ranges = [
+    (writtenRegistrationStartAt, writtenRegistrationEndAt),
+    (writtenExamStartAt, writtenExamEndAt),
+    (practicalRegistrationStartAt, practicalRegistrationEndAt),
+    (practicalExamStartAt, practicalExamEndAt),
+  ];
+  final hasActiveRange = ranges.any(
+    (range) => _certificateScheduleWithin(today, range.$1, range.$2),
+  );
+
+  if (!hasActiveRange) {
+    final candidates = <(DateTime, String)>[];
+    _addCertificateScheduleCandidate(
+      candidates,
+      today,
+      writtenRegistrationStartAt,
+      writtenRegistrationEndAt,
+      writtenExamStartAt,
+      showExamTypeLabels ? '필기 ' : '',
+    );
+    _addCertificateScheduleCandidate(
+      candidates,
+      today,
+      practicalRegistrationStartAt,
+      practicalRegistrationEndAt,
+      practicalExamStartAt,
+      '실기/면접 ',
+    );
+    if (candidates.isNotEmpty) {
+      candidates.sort((a, b) => a.$1.compareTo(b.$1));
+      final candidate = candidates.first;
+      final days = _certificateDateOnly(candidate.$1).difference(today).inDays;
+      return CertificateScheduleStatus(
+        label: '${candidate.$2} D-$days',
+        isActive: false,
+      );
+    }
+  }
+
+  final allDates = <DateTime?>[
+    writtenRegistrationStartAt,
+    writtenRegistrationEndAt,
+    writtenExamStartAt,
+    writtenExamEndAt,
+    writtenPassStartAt,
+    writtenPassEndAt,
+    documentSubmitStartAt,
+    documentSubmitEndAt,
+    practicalRegistrationStartAt,
+    practicalRegistrationEndAt,
+    practicalExamStartAt,
+    practicalExamEndAt,
+    practicalPassStartAt,
+    practicalPassEndAt,
+  ].whereType<DateTime>().map(_certificateDateOnly).toList();
+  if (allDates.isNotEmpty &&
+      allDates.reduce((a, b) => a.isAfter(b) ? a : b).isBefore(today)) {
+    return const CertificateScheduleStatus(label: '종료', isActive: false);
+  }
+
+  if (_certificateScheduleWithin(
+    today,
+    practicalExamStartAt,
+    practicalExamEndAt,
+  )) {
+    return const CertificateScheduleStatus(
+      label: '실기/면접 시험 진행중',
+      isActive: true,
+    );
+  }
+  if (_certificateScheduleWithin(
+    today,
+    practicalRegistrationStartAt,
+    practicalRegistrationEndAt,
+  )) {
+    return const CertificateScheduleStatus(
+      label: '실기/면접 원서 접수 중',
+      isActive: true,
+    );
+  }
+  final writtenPrefix = showExamTypeLabels ? '필기 ' : '';
+  if (_certificateScheduleWithin(today, writtenExamStartAt, writtenExamEndAt)) {
+    return CertificateScheduleStatus(
+      label: '$writtenPrefix시험 진행중',
+      isActive: true,
+    );
+  }
+  if (_certificateScheduleWithin(
+    today,
+    writtenRegistrationStartAt,
+    writtenRegistrationEndAt,
+  )) {
+    return CertificateScheduleStatus(
+      label: '$writtenPrefix원서 접수 중',
+      isActive: true,
+    );
+  }
+  if (_certificateScheduleFinished(
+    today,
+    practicalExamStartAt,
+    practicalExamEndAt,
+  )) {
+    return const CertificateScheduleStatus(
+      label: '실기/면접 시험 종료',
+      isActive: false,
+    );
+  }
+  if (_certificateScheduleFinished(
+    today,
+    practicalRegistrationStartAt,
+    practicalRegistrationEndAt,
+  )) {
+    return const CertificateScheduleStatus(
+      label: '실기/면접 원서 접수 종료',
+      isActive: false,
+    );
+  }
+  if (_certificateScheduleFinished(
+    today,
+    writtenExamStartAt,
+    writtenExamEndAt,
+  )) {
+    return CertificateScheduleStatus(
+      label: '$writtenPrefix시험 종료',
+      isActive: false,
+    );
+  }
+  if (_certificateScheduleFinished(
+    today,
+    writtenRegistrationStartAt,
+    writtenRegistrationEndAt,
+  )) {
+    return CertificateScheduleStatus(
+      label: '$writtenPrefix원서 접수 종료',
+      isActive: false,
+    );
+  }
+  return null;
+}
+
+void _addCertificateScheduleCandidate(
+  List<(DateTime, String)> candidates,
+  DateTime today,
+  DateTime? registrationStart,
+  DateTime? registrationEnd,
+  DateTime? examStart,
+  String prefix,
+) {
+  if (registrationStart != null &&
+      _certificateDateOnly(registrationStart).isAfter(today)) {
+    candidates.add((registrationStart, '$prefix원서 접수'));
+    return;
+  }
+  final registrationFinished =
+      registrationEnd != null &&
+      _certificateDateOnly(registrationEnd).isBefore(today);
+  if ((registrationFinished || registrationStart == null) &&
+      examStart != null &&
+      !_certificateDateOnly(examStart).isBefore(today)) {
+    candidates.add((examStart, '$prefix시험'));
+  }
+}
+
+bool _certificateScheduleWithin(
+  DateTime today,
+  DateTime? start,
+  DateTime? end,
+) {
+  if (start == null && end == null) return false;
+  final first = _certificateDateOnly(start ?? end!);
+  final last = _certificateDateOnly(end ?? start!);
+  return !today.isBefore(first) && !today.isAfter(last);
+}
+
+bool _certificateScheduleFinished(
+  DateTime today,
+  DateTime? start,
+  DateTime? end,
+) {
+  if (start == null && end == null) return false;
+  return _certificateDateOnly(end ?? start!).isBefore(today);
+}
+
 class CertificateExamInformationCard extends StatelessWidget {
   final String overview;
   final int? writtenFee;

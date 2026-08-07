@@ -1,10 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../certificate/services/certificate_search_service.dart';
 import '../services/user_profile_cache_service.dart';
 import '../theme.dart';
 import '../widgets/app_main_background.dart';
-import '../widgets/app_card.dart';
 import '../widgets/app_top_bar.dart';
 import '../widgets/app_button.dart';
 import '../widgets/loading_overlay.dart';
@@ -953,6 +953,220 @@ class ExamDateTile extends StatelessWidget {
 }
 // ────────────────────────────────────────────────────────────
 
+class _CertificateInputEntry {
+  const _CertificateInputEntry({required this.name, this.certificateId});
+  final String name;
+  final String? certificateId;
+}
+
+class _CertificateSearchField extends StatefulWidget {
+  const _CertificateSearchField({
+    super.key,
+    required this.controller,
+    required this.decoration,
+    required this.unmatchedActionDescription,
+  });
+  final TextEditingController controller;
+  final InputDecoration decoration;
+  final String unmatchedActionDescription;
+
+  @override
+  State<_CertificateSearchField> createState() =>
+      _CertificateSearchFieldState();
+}
+
+class _CertificateSearchFieldState extends State<_CertificateSearchField> {
+  final _focusNode = FocusNode();
+  late final Future<List<Certification>> _loadFuture;
+  List<Certification> _catalog = const [];
+  bool _isLoading = true;
+  bool _catalogAvailable = false;
+  bool _showSuggestions = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFuture = CertificateSearchService().getCertifications();
+    widget.controller.addListener(_refresh);
+    _focusNode.addListener(_handleFocus);
+    _load();
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_refresh);
+    _focusNode
+      ..removeListener(_handleFocus)
+      ..dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      final items = await _loadFuture;
+      if (!mounted) return;
+      setState(() {
+        _catalog = items.where((item) => item.name.isNotEmpty).toList();
+        _catalogAvailable = true;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+    }
+  }
+
+  String get _query => widget.controller.text.trim();
+
+  List<Certification> get _suggestions {
+    final query = _query.toLowerCase();
+    if (!_catalogAvailable || query.isEmpty) return const [];
+    final result =
+        _catalog
+            .where((item) => item.name.toLowerCase().contains(query))
+            .toList()
+          ..sort((a, b) {
+            final aStarts = a.name.toLowerCase().startsWith(query);
+            final bStarts = b.name.toLowerCase().startsWith(query);
+            return aStarts == bStarts
+                ? a.name.compareTo(b.name)
+                : (aStarts ? -1 : 1);
+          });
+    return result.take(8).toList();
+  }
+
+  void _refresh() {
+    if (mounted) {
+      setState(
+        () => _showSuggestions = _focusNode.hasFocus && _query.isNotEmpty,
+      );
+    }
+  }
+
+  void _handleFocus() {
+    if (_focusNode.hasFocus) {
+      setState(() => _showSuggestions = _query.isNotEmpty);
+    } else {
+      Future<void>.delayed(const Duration(milliseconds: 150), () {
+        if (mounted && !_focusNode.hasFocus) {
+          setState(() => _showSuggestions = false);
+        }
+      });
+    }
+  }
+
+  void _select(Certification item) {
+    widget.controller
+      ..text = item.name
+      ..selection = TextSelection.collapsed(offset: item.name.length);
+    setState(() => _showSuggestions = false);
+  }
+
+  Future<List<_CertificateInputEntry>> resolve() async {
+    if (_isLoading) {
+      try {
+        _catalog = (await _loadFuture)
+            .where((item) => item.name.isNotEmpty)
+            .toList();
+        _catalogAvailable = true;
+        _isLoading = false;
+      } catch (_) {}
+    }
+    final name = _query;
+    if (name.isEmpty) return const [];
+    Certification? match;
+    for (final item in _catalog) {
+      if (item.name.toLowerCase() == name.toLowerCase()) {
+        match = item;
+        break;
+      }
+    }
+    final id = match == null
+        ? null
+        : match.jmcd.isNotEmpty
+        ? match.jmcd
+        : match.id;
+    return [
+      _CertificateInputEntry(name: match?.name ?? name, certificateId: id),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final suggestions = _suggestions;
+    final showUnmatched =
+        _showSuggestions &&
+        _catalogAvailable &&
+        _query.isNotEmpty &&
+        suggestions.isEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormField(
+          controller: widget.controller,
+          focusNode: _focusNode,
+          decoration: widget.decoration.copyWith(
+            suffixIcon: _isLoading
+                ? const Padding(
+                    padding: EdgeInsets.all(14),
+                    child: SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : widget.decoration.suffixIcon,
+          ),
+        ),
+        if (_showSuggestions && suggestions.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Container(
+            constraints: const BoxConstraints(maxHeight: 220),
+            decoration: BoxDecoration(
+              color: context.colors.surfaceElevated,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: context.colors.border),
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              itemCount: suggestions.length,
+              separatorBuilder: (_, _) =>
+                  Divider(height: 1, color: context.colors.divider),
+              itemBuilder: (_, index) => ListTile(
+                dense: true,
+                title: Text(suggestions[index].name),
+                subtitle: suggestions[index].qualificationName.isEmpty
+                    ? null
+                    : Text(suggestions[index].qualificationName),
+                onTap: () => _select(suggestions[index]),
+              ),
+            ),
+          ),
+        ],
+        if (showUnmatched) ...[
+          const SizedBox(height: 6),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: context.colors.surfaceTransparent,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Text(
+              '“$_query”은 검색되지 않았습니다. 지금 입력된 자격증 이름으로 '
+              '${widget.unmatchedActionDescription}.',
+              style: TextStyle(
+                color: context.colors.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class StudyCreatePage extends StatefulWidget {
   const StudyCreatePage({super.key});
 
@@ -962,6 +1176,8 @@ class StudyCreatePage extends StatefulWidget {
 
 class _StudyCreatePageState extends State<StudyCreatePage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final GlobalKey<_CertificateSearchFieldState> _certificateFieldKey =
+      GlobalKey<_CertificateSearchFieldState>();
 
   final TextEditingController _groupNameController = TextEditingController();
   final TextEditingController _certificateNameController =
@@ -1021,6 +1237,12 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
     if (_isSaving) return;
 
     FocusScope.of(context).unfocus();
+
+    final certificateEntries =
+        await _certificateFieldKey.currentState?.resolve() ??
+        const <_CertificateInputEntry>[];
+    if (!mounted) return;
+
     setState(() => _isSaving = true);
 
     try {
@@ -1038,15 +1260,17 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
           .doc();
       final batch = FirebaseFirestore.instance.batch();
 
+      final certificate = certificateEntries.isEmpty
+          ? null
+          : certificateEntries.first;
+
       batch.set(studyDocument, {
         'groupName': _groupNameController.text.trim(),
         'description': _descriptionController.text.trim(),
         'ownerUid': user.uid,
         'ownerNickname': ownerNickname,
-        'certificateId': '',
-        'certificateName': _certificateNameController.text.trim().isEmpty
-            ? '공통 스터디'
-            : _certificateNameController.text.trim(),
+        'certificateId': certificate?.certificateId ?? '',
+        'certificateName': certificate?.name ?? '공통 스터디',
         'examDate': _examDate == null ? null : Timestamp.fromDate(_examDate!),
         'weeklyGoalMinutes':
             (int.tryParse(_weeklyGoalHourController.text.trim()) ?? 15) * 60,
@@ -1148,9 +1372,10 @@ class _StudyCreatePageState extends State<StudyCreatePage> {
                             },
                           ),
                           const SizedBox(height: 16),
-                          TextFormField(
+                          _CertificateSearchField(
+                            key: _certificateFieldKey,
                             controller: _certificateNameController,
-                            textInputAction: TextInputAction.next,
+                            unmatchedActionDescription: '스터디가 생성됩니다',
                             decoration: studyFieldDecoration(
                               context: context,
                               labelText: '자격증 이름',

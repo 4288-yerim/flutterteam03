@@ -20,10 +20,12 @@ import '../widgets/technical_certificate_widgets.dart';
 
 class ProfessionalCertificateDetailPage extends StatefulWidget {
   final String certificationId;
+  final bool openGoalSettingOnLoad;
 
   const ProfessionalCertificateDetailPage({
     super.key,
     required this.certificationId,
+    this.openGoalSettingOnLoad = false,
   });
 
   @override
@@ -49,6 +51,7 @@ class _ProfessionalCertificateDetailPageState
 
   bool _isLoading = true;
   bool _isRegisteringGoal = false;
+  bool _didOpenGoalSettingOnLoad = false;
 
   int _selectedTabIndex = 0;
 
@@ -63,6 +66,35 @@ class _ProfessionalCertificateDetailPageState
   bool _isPracticalSchedule(ProfessionalCertificateSchedule schedule) =>
       schedule.description.contains('실기') ||
       schedule.description.contains('면접');
+
+  CertificateScheduleStatus? _goalScheduleStatus(
+    ProfessionalCertificateSchedule schedule,
+  ) {
+    final isPractical = _isPracticalSchedule(schedule);
+    return resolveCertificateScheduleStatus(
+      writtenRegistrationStartAt: isPractical
+          ? null
+          : schedule.examRegistrationStartAt,
+      writtenRegistrationEndAt: isPractical
+          ? null
+          : schedule.examRegistrationEndAt,
+      writtenExamStartAt: isPractical ? null : schedule.examStartAt,
+      writtenExamEndAt: isPractical ? null : schedule.examEndAt,
+      writtenPassStartAt: isPractical ? null : schedule.passStartAt,
+      writtenPassEndAt: isPractical ? null : schedule.passEndAt,
+      practicalRegistrationStartAt: isPractical
+          ? schedule.examRegistrationStartAt
+          : null,
+      practicalRegistrationEndAt: isPractical
+          ? schedule.examRegistrationEndAt
+          : null,
+      practicalExamStartAt: isPractical ? schedule.examStartAt : null,
+      practicalExamEndAt: isPractical ? schedule.examEndAt : null,
+      practicalPassStartAt: isPractical ? schedule.passStartAt : null,
+      practicalPassEndAt: isPractical ? schedule.passEndAt : null,
+      showExamTypeLabels: _hasPracticalSchedule,
+    );
+  }
 
   bool _isLoadingExamSubjects = false;
   bool _hasRequestedExamSubjects = false;
@@ -116,8 +148,9 @@ class _ProfessionalCertificateDetailPageState
       final schedulesFuture = _professionalCertificateService
           .getProfessionalSchedules(widget.certificationId);
 
-      final overviewFuture = _certificateDetailService
-          .getCertificationOverview(widget.certificationId);
+      final overviewFuture = _certificateDetailService.getCertificationOverview(
+        widget.certificationId,
+      );
 
       final results = await Future.wait([
         certificateFuture,
@@ -141,6 +174,7 @@ class _ProfessionalCertificateDetailPageState
         _overview = overview;
         _isLoading = false;
       });
+      _openGoalSettingAfterLoad();
     } on CertificateDetailException catch (error) {
       if (!mounted) {
         return;
@@ -160,6 +194,18 @@ class _ProfessionalCertificateDetailPageState
         _loadError = '자격증 정보를 불러오지 못했습니다.';
       });
     }
+  }
+
+  void _openGoalSettingAfterLoad() {
+    if (!widget.openGoalSettingOnLoad || _didOpenGoalSettingOnLoad) {
+      return;
+    }
+    _didOpenGoalSettingOnLoad = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _openGoalSettingSheet();
+      }
+    });
   }
 
   Future<void> _loadExamSubjects() async {
@@ -315,15 +361,13 @@ class _ProfessionalCertificateDetailPageState
 
     Set<String> registeredGoalKeys;
     try {
-      registeredGoalKeys =
-          await _certificateDetailService.getActiveGoalScheduleKeys(
-        certificateId: widget.certificationId,
-      );
+      registeredGoalKeys = await _certificateDetailService
+          .getActiveGoalScheduleKeys(certificateId: widget.certificationId);
     } on CertificateGoalException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
       return;
     }
     if (!mounted) return;
@@ -388,25 +432,29 @@ class _ProfessionalCertificateDetailPageState
                         separatorBuilder: (_, _) => SizedBox(height: 10),
                         itemBuilder: (context, index) {
                           final schedule = schedules[index];
-                          final scheduleExamType = _isPracticalSchedule(schedule)
+                          final scheduleExamType =
+                              _isPracticalSchedule(schedule)
                               ? 'PRACTICAL'
                               : 'WRITTEN';
-                          final isAlreadyRegistered = registeredGoalKeys.contains(
-                            CertificateDetailService.goalScheduleKey(
-                              scheduleId: schedule.id,
-                              examType: scheduleExamType,
-                            ),
-                          );
+                          final isAlreadyRegistered = registeredGoalKeys
+                              .contains(
+                                CertificateDetailService.goalScheduleKey(
+                                  scheduleId: schedule.id,
+                                  examType: scheduleExamType,
+                                ),
+                              );
 
                           final isSelected =
                               selectedSchedule?.id == schedule.id;
 
                           return InkWell(
-                            onTap: isAlreadyRegistered ? null : () {
-                              setBottomSheetState(() {
-                                selectedSchedule = schedule;
-                              });
-                            },
+                            onTap: isAlreadyRegistered
+                                ? null
+                                : () {
+                                    setBottomSheetState(() {
+                                      selectedSchedule = schedule;
+                                    });
+                                  },
                             borderRadius: BorderRadius.circular(16),
                             child: Opacity(
                               opacity: isAlreadyRegistered ? 0.48 : 1,
@@ -417,99 +465,95 @@ class _ProfessionalCertificateDetailPageState
                                   color: isAlreadyRegistered
                                       ? context.colors.surfaceMuted
                                       : isSelected
-                                          ? context.colors.pinkSoft
-                                          : context.colors.surfaceMuted,
+                                      ? context.colors.pinkSoft
+                                      : context.colors.surfaceMuted,
                                   borderRadius: BorderRadius.circular(16),
                                   border: Border.all(
                                     color: isAlreadyRegistered
                                         ? context.colors.textDisabled
                                         : isSelected
-                                            ? context.colors.pinkDeep
-                                            : context.colors.border,
+                                        ? context.colors.pinkDeep
+                                        : context.colors.border,
                                     width: isSelected ? 1.4 : 1,
                                   ),
                                 ),
                                 child: Row(
-                                children: [
-                                  Icon(
-                                    isSelected
-                                        ? Icons.radio_button_checked_rounded
-                                        : Icons.radio_button_off_rounded,
-                                    color: isSelected
-                                        ? context.colors.pinkDeep
-                                        : context.colors.textSecondary,
-                                  ),
-                                  SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          isAlreadyRegistered
-                                              ? '${schedule.description} (등록됨)'
-                                              : schedule.description,
-                                          style: TextStyle(
-                                            color: isAlreadyRegistered
-                                                ? context.colors.textDisabled
-                                                : context.colors.textPrimary,
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-
-                                        SizedBox(height: 9),
-
-                                        if (getCertificateRegistrationStatus(
-                                              registrationStartDate: schedule
-                                                  .examRegistrationStartAt,
-                                              registrationEndDate: schedule
-                                                  .examRegistrationEndAt,
-                                            )
-                                            case final registrationStatus?)
-                                          CertificateScheduleStatusBadge(
-                                            label: registrationStatus.label,
-                                            isActive:
-                                                registrationStatus.isActive,
-                                          ),
-
-                                        SizedBox(height: 9),
-
-                                        Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Icon(
-                                              Icons.event_outlined,
-                                              size: 16,
-                                              color:
-                                                  context.colors.textSecondary,
+                                  children: [
+                                    Icon(
+                                      isSelected
+                                          ? Icons.radio_button_checked_rounded
+                                          : Icons.radio_button_off_rounded,
+                                      color: isSelected
+                                          ? context.colors.pinkDeep
+                                          : context.colors.textSecondary,
+                                    ),
+                                    SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            isAlreadyRegistered
+                                                ? '${schedule.description} (등록됨)'
+                                                : schedule.description,
+                                            style: TextStyle(
+                                              color: isAlreadyRegistered
+                                                  ? context.colors.textDisabled
+                                                  : context.colors.textPrimary,
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w800,
                                             ),
-                                            SizedBox(width: 6),
-                                            Expanded(
-                                              child: Text(
-                                                formatCertificateGoalDateRange(
-                                                  schedule.examStartAt ??
-                                                      schedule.examEndAt!,
-                                                  schedule.examStartAt == null
-                                                      ? null
-                                                      : schedule.examEndAt,
-                                                ),
-                                                style: TextStyle(
-                                                  color: context
-                                                      .colors
-                                                      .textSecondary,
-                                                  fontSize: 13,
-                                                  height: 1.4,
+                                          ),
+
+                                          SizedBox(height: 9),
+
+                                          if (_goalScheduleStatus(schedule)
+                                              case final registrationStatus?)
+                                            CertificateScheduleStatusBadge(
+                                              label: registrationStatus.label,
+                                              isActive:
+                                                  registrationStatus.isActive,
+                                            ),
+
+                                          SizedBox(height: 9),
+
+                                          Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Icon(
+                                                Icons.event_outlined,
+                                                size: 16,
+                                                color: context
+                                                    .colors
+                                                    .textSecondary,
+                                              ),
+                                              SizedBox(width: 6),
+                                              Expanded(
+                                                child: Text(
+                                                  formatCertificateGoalDateRange(
+                                                    schedule.examStartAt ??
+                                                        schedule.examEndAt!,
+                                                    schedule.examStartAt == null
+                                                        ? null
+                                                        : schedule.examEndAt,
+                                                  ),
+                                                  style: TextStyle(
+                                                    color: context
+                                                        .colors
+                                                        .textSecondary,
+                                                    fontSize: 13,
+                                                    height: 1.4,
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
                                 ),
                               ),
                             ),
@@ -994,10 +1038,10 @@ class _ProfessionalCertificateDetailPageState
         }
         return Column(
           children: [
-              CertificateScheduleNoticeContentCard(
-                items: snapshot.data?.items ?? const [],
-                links: snapshot.data?.links ?? const [],
-                onOpenLink: _openScheduleNoticeUrl,
+            CertificateScheduleNoticeContentCard(
+              items: snapshot.data?.items ?? const [],
+              links: snapshot.data?.links ?? const [],
+              onOpenLink: _openScheduleNoticeUrl,
             ),
             const SizedBox(height: 14),
             if (_schedules.isEmpty)
@@ -1056,27 +1100,27 @@ class _ProfessionalCertificateDetailPageState
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-              Padding(
-                padding: EdgeInsets.only(top: 8),
-                child: Icon(
-                  Icons.circle,
-                  size: 5,
-                  color: context.colors.textSecondary,
-                ),
-              ),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  '원서 접수 시간은 원서 접수 첫날 09:00부터 '
-                  '마지막 날 18:00까지입니다.',
-                  style: TextStyle(
-                    color: context.colors.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    height: 1.55,
+                  Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Icon(
+                      Icons.circle,
+                      size: 5,
+                      color: context.colors.textSecondary,
+                    ),
                   ),
-                ),
-              ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '원서 접수 시간은 원서 접수 첫날 09:00부터 '
+                      '마지막 날 18:00까지입니다.',
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        height: 1.55,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ],

@@ -3,22 +3,269 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 
+import '../certificate/services/certificate_search_service.dart';
 import '../theme.dart';
 import '../widgets/app_card.dart';
+import '../widgets/app_dropdown.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
 import 'community_models.dart';
 import 'community_service.dart';
 
+class _CertificateInputEntry {
+  const _CertificateInputEntry({required this.name, this.certificateId});
+  final String name;
+  final String? certificateId;
+}
+
+class _CertificateSearchField extends StatefulWidget {
+  const _CertificateSearchField({
+    super.key,
+    required this.controller,
+    required this.decoration,
+    required this.unmatchedActionDescription,
+    this.enabled = true,
+    this.allowMultiple = false,
+    this.maxItems = 1,
+    this.validator,
+  });
+  final TextEditingController controller;
+  final InputDecoration decoration;
+  final String unmatchedActionDescription;
+  final bool enabled;
+  final bool allowMultiple;
+  final int maxItems;
+  final FormFieldValidator<String>? validator;
+
+  @override
+  State<_CertificateSearchField> createState() =>
+      _CertificateSearchFieldState();
+}
+
+class _CertificateSearchFieldState extends State<_CertificateSearchField> {
+  final _focusNode = FocusNode();
+  late final Future<List<Certification>> _loadFuture;
+  List<Certification> _catalog = const [];
+  bool _catalogAvailable = false;
+  bool _isLoading = true;
+  bool _showSuggestions = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFuture = CertificateSearchService().getCertifications();
+    widget.controller.addListener(_refreshSuggestions);
+    _focusNode.addListener(_handleFocus);
+    _loadCatalog();
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_refreshSuggestions);
+    _focusNode
+      ..removeListener(_handleFocus)
+      ..dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadCatalog() async {
+    try {
+      final items = await _loadFuture;
+      if (!mounted) return;
+      setState(() {
+        _catalog = items.where((item) => item.name.isNotEmpty).toList();
+        _catalogAvailable = true;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _catalogAvailable = false;
+        _isLoading = false;
+      });
+    }
+  }
+
+  String get _query => widget.allowMultiple
+      ? widget.controller.text.split(',').last.trim()
+      : widget.controller.text.trim();
+
+  void _refreshSuggestions() {
+    if (mounted) {
+      setState(
+        () => _showSuggestions = _focusNode.hasFocus && _query.isNotEmpty,
+      );
+    }
+  }
+
+  void _handleFocus() {
+    if (_focusNode.hasFocus) {
+      setState(() => _showSuggestions = _query.isNotEmpty);
+    } else {
+      Future<void>.delayed(const Duration(milliseconds: 150), () {
+        if (mounted && !_focusNode.hasFocus) {
+          setState(() => _showSuggestions = false);
+        }
+      });
+    }
+  }
+
+  List<Certification> get _suggestions {
+    final query = _query.toLowerCase();
+    if (!_catalogAvailable || query.isEmpty) return const [];
+    final result =
+        _catalog
+            .where((item) => item.name.toLowerCase().contains(query))
+            .toList()
+          ..sort((a, b) {
+            final aStarts = a.name.toLowerCase().startsWith(query);
+            final bStarts = b.name.toLowerCase().startsWith(query);
+            return aStarts == bStarts
+                ? a.name.compareTo(b.name)
+                : (aStarts ? -1 : 1);
+          });
+    return result.take(8).toList();
+  }
+
+  void _select(Certification certificate) {
+    if (widget.allowMultiple) {
+      final names = widget.controller.text
+          .split(',')
+          .map((name) => name.trim())
+          .where((name) => name.isNotEmpty)
+          .toList();
+      if (names.isNotEmpty) names.removeLast();
+      if (names.length < widget.maxItems) names.add(certificate.name);
+      widget.controller.text = names.join(', ');
+    } else {
+      widget.controller.text = certificate.name;
+    }
+    widget.controller.selection = TextSelection.collapsed(
+      offset: widget.controller.text.length,
+    );
+    setState(() => _showSuggestions = false);
+  }
+
+  Future<List<_CertificateInputEntry>> resolve() async {
+    if (_isLoading) {
+      try {
+        _catalog = (await _loadFuture)
+            .where((item) => item.name.isNotEmpty)
+            .toList();
+        _catalogAvailable = true;
+        _isLoading = false;
+      } catch (_) {}
+    }
+    final names = widget.controller.text
+        .split(widget.allowMultiple ? ',' : '\u0000')
+        .map((name) => name.trim())
+        .where((name) => name.isNotEmpty)
+        .toSet()
+        .take(widget.maxItems);
+    return names.map((name) {
+      Certification? match;
+      for (final item in _catalog) {
+        if (item.name.toLowerCase() == name.toLowerCase()) {
+          match = item;
+          break;
+        }
+      }
+      final id = match == null
+          ? null
+          : match.jmcd.isNotEmpty
+          ? match.jmcd
+          : match.id;
+      return _CertificateInputEntry(
+        name: match?.name ?? name,
+        certificateId: id,
+      );
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final suggestions = _suggestions;
+    final showUnmatched =
+        _showSuggestions &&
+        _catalogAvailable &&
+        _query.isNotEmpty &&
+        suggestions.isEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormField(
+          controller: widget.controller,
+          focusNode: _focusNode,
+          enabled: widget.enabled,
+          textInputAction: TextInputAction.next,
+          validator: widget.validator,
+          decoration: widget.decoration.copyWith(
+            suffixIcon: _isLoading
+                ? const Padding(
+                    padding: EdgeInsets.all(14),
+                    child: SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : widget.decoration.suffixIcon,
+          ),
+        ),
+        if (_showSuggestions && suggestions.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Container(
+            constraints: const BoxConstraints(maxHeight: 220),
+            decoration: BoxDecoration(
+              color: context.colors.surfaceElevated,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: context.colors.border),
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              itemCount: suggestions.length,
+              separatorBuilder: (_, _) =>
+                  Divider(height: 1, color: context.colors.divider),
+              itemBuilder: (_, index) => ListTile(
+                dense: true,
+                title: Text(suggestions[index].name),
+                subtitle: suggestions[index].qualificationName.isEmpty
+                    ? null
+                    : Text(suggestions[index].qualificationName),
+                onTap: () => _select(suggestions[index]),
+              ),
+            ),
+          ),
+        ],
+        if (showUnmatched) ...[
+          const SizedBox(height: 6),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: context.colors.surfaceTransparent,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Text(
+              '“$_query”은 검색되지 않았습니다. 지금 입력된 자격증 이름으로 '
+              '${widget.unmatchedActionDescription}.',
+              style: TextStyle(
+                color: context.colors.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class CommunityPostEditPage extends StatefulWidget {
   final CommunityPost post;
   final CommunityService? service;
 
-  const CommunityPostEditPage({
-    super.key,
-    required this.post,
-    this.service,
-  });
+  const CommunityPostEditPage({super.key, required this.post, this.service});
 
   @override
   State<CommunityPostEditPage> createState() {
@@ -35,8 +282,11 @@ class _CommunityPostEditPageState extends State<CommunityPostEditPage> {
   late final CommunityService _service;
   late final TextEditingController _titleController;
   late final TextEditingController _contentController;
+  late final TextEditingController _certificateController;
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final GlobalKey<_CertificateSearchFieldState> _certificateFieldKey =
+      GlobalKey<_CertificateSearchFieldState>();
   final List<CommunityImageAttachment> _existingImages = [];
   final List<CommunityFileAttachment> _existingFiles = [];
   final List<PlatformFile> _newImages = [];
@@ -52,6 +302,11 @@ class _CommunityPostEditPageState extends State<CommunityPostEditPage> {
     _selectedBoard = widget.post.boardType;
     _titleController = TextEditingController(text: widget.post.title);
     _contentController = TextEditingController(text: widget.post.content);
+    _certificateController = TextEditingController(
+      text: widget.post.certificateTags
+          .map((tag) => tag.certificateName)
+          .join(', '),
+    );
     _existingImages.addAll(widget.post.imageAttachments);
     _existingFiles.addAll(widget.post.fileAttachments);
   }
@@ -60,6 +315,7 @@ class _CommunityPostEditPageState extends State<CommunityPostEditPage> {
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
+    _certificateController.dispose();
     super.dispose();
   }
 
@@ -67,9 +323,9 @@ class _CommunityPostEditPageState extends State<CommunityPostEditPage> {
   int get _totalFileCount => _existingFiles.length + _newFiles.length;
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _pickImages() async {
@@ -208,6 +464,12 @@ class _CommunityPostEditPageState extends State<CommunityPostEditPage> {
     }
 
     FocusScope.of(context).unfocus();
+
+    final certificateEntries =
+        await _certificateFieldKey.currentState?.resolve() ??
+        const <_CertificateInputEntry>[];
+    if (!mounted) return;
+
     setState(() {
       _isSaving = true;
     });
@@ -235,6 +497,7 @@ class _CommunityPostEditPageState extends State<CommunityPostEditPage> {
         title: _titleController.text.trim(),
         content: _contentController.text.trim(),
         writerUid: user.uid,
+        certificateTags: _readCertificateTags(certificateEntries),
         imageAttachments: images,
         fileAttachments: files,
       );
@@ -261,6 +524,20 @@ class _CommunityPostEditPageState extends State<CommunityPostEditPage> {
       debugPrintStack(stackTrace: stackTrace);
       _showMessage('게시글을 수정하지 못했어요. 다시 시도해 주세요.');
     }
+  }
+
+  List<CommunityCertificateTag> _readCertificateTags(
+    List<_CertificateInputEntry> entries,
+  ) {
+    return entries.map((entry) {
+      final certificateId =
+          entry.certificateId ??
+          entry.name.toLowerCase().replaceAll(RegExp(r'\s+'), '-');
+      return CommunityCertificateTag(
+        certificateId: certificateId,
+        certificateName: entry.name,
+      );
+    }).toList();
   }
 
   Future<_AttachmentUploadResult> _uploadNewAttachments({
@@ -303,10 +580,7 @@ class _CommunityPostEditPageState extends State<CommunityPostEditPage> {
         file.bytes!,
         SettableMetadata(
           contentType: _fileContentType(file.extension),
-          customMetadata: {
-            'originalName': file.name,
-            'uploaderUid': userUid,
-          },
+          customMetadata: {'originalName': file.name, 'uploaderUid': userUid},
         ),
       );
 
@@ -326,12 +600,13 @@ class _CommunityPostEditPageState extends State<CommunityPostEditPage> {
       ..._existingImages.map((image) => image.path),
       ..._existingFiles.map((file) => file.path),
     };
-    List<String> removedPaths = [
-      ...widget.post.imageAttachments.map((image) => image.path),
-      ...widget.post.fileAttachments.map((file) => file.path),
-    ].where((path) {
-      return path.isNotEmpty && !remainingPaths.contains(path);
-    }).toList();
+    List<String> removedPaths =
+        [
+          ...widget.post.imageAttachments.map((image) => image.path),
+          ...widget.post.fileAttachments.map((file) => file.path),
+        ].where((path) {
+          return path.isNotEmpty && !remainingPaths.contains(path);
+        }).toList();
 
     await _deleteStoragePaths(removedPaths);
   }
@@ -453,26 +728,49 @@ class _CommunityPostEditPageState extends State<CommunityPostEditPage> {
         children: [
           _buildFieldTitle('게시판'),
           const SizedBox(height: 9),
-          DropdownButtonFormField<CommunityBoardType>(
+          AppUserDropdown<CommunityBoardType>(
+            label: '게시판',
             value: _selectedBoard,
-            isExpanded: true,
-            decoration: _inputDecoration(hintText: '게시판을 선택해 주세요.'),
             items: CommunityBoardType.values
                 .where((board) => board != CommunityBoardType.all)
                 .map((board) {
-              return DropdownMenuItem<CommunityBoardType>(
-                value: board,
-                child: Text(board.label),
-              );
-            }).toList(),
-            onChanged: _isSaving
-                ? null
-                : (board) {
-              if (board != null) {
-                setState(() {
-                  _selectedBoard = board;
-                });
-              }
+                  return AppDropdownItem<CommunityBoardType>(
+                    value: board,
+                    label: board.label,
+                  );
+                })
+                .toList(),
+            enabled: !_isSaving,
+            onChanged: (board) {
+              setState(() {
+                _selectedBoard = board;
+              });
+            },
+          ),
+          const SizedBox(height: 20),
+          _buildFieldTitle('관련 자격증 (선택)'),
+          const SizedBox(height: 5),
+          Text(
+            '쉼표로 구분해 최대 3개까지 입력해 주세요.',
+            style: TextStyle(color: context.colors.textSecondary, fontSize: 11),
+          ),
+          const SizedBox(height: 9),
+          _CertificateSearchField(
+            key: _certificateFieldKey,
+            controller: _certificateController,
+            unmatchedActionDescription: '게시글이 수정됩니다',
+            enabled: !_isSaving,
+            allowMultiple: true,
+            maxItems: 3,
+            decoration: _inputDecoration(hintText: '예: 정보처리기사, 컴퓨터활용능력'),
+            validator: (value) {
+              final count = (value ?? '')
+                  .split(',')
+                  .map((name) => name.trim())
+                  .where((name) => name.isNotEmpty)
+                  .toSet()
+                  .length;
+              return count > 3 ? '자격증 태그는 최대 3개까지 입력해 주세요.' : null;
             },
           ),
           const SizedBox(height: 20),
@@ -593,10 +891,10 @@ class _CommunityPostEditPageState extends State<CommunityPostEditPage> {
           onRemove: _isSaving
               ? null
               : () {
-            setState(() {
-              _existingImages.removeAt(index);
-            });
-          },
+                  setState(() {
+                    _existingImages.removeAt(index);
+                  });
+                },
         ),
       );
     }
@@ -614,10 +912,10 @@ class _CommunityPostEditPageState extends State<CommunityPostEditPage> {
           onRemove: _isSaving
               ? null
               : () {
-            setState(() {
-              _newImages.removeAt(index);
-            });
-          },
+                  setState(() {
+                    _newImages.removeAt(index);
+                  });
+                },
         ),
       );
     }
@@ -636,10 +934,10 @@ class _CommunityPostEditPageState extends State<CommunityPostEditPage> {
           onRemove: _isSaving
               ? null
               : () {
-            setState(() {
-              _existingFiles.removeAt(index);
-            });
-          },
+                  setState(() {
+                    _existingFiles.removeAt(index);
+                  });
+                },
         ),
       );
     }
@@ -652,10 +950,10 @@ class _CommunityPostEditPageState extends State<CommunityPostEditPage> {
           onRemove: _isSaving
               ? null
               : () {
-            setState(() {
-              _newFiles.removeAt(index);
-            });
-          },
+                  setState(() {
+                    _newFiles.removeAt(index);
+                  });
+                },
         ),
       );
     }
@@ -718,10 +1016,7 @@ class _CommunityPostEditPageState extends State<CommunityPostEditPage> {
   InputDecoration _inputDecoration({required String hintText}) {
     return InputDecoration(
       hintText: hintText,
-      hintStyle: TextStyle(
-        color: context.colors.textSecondary,
-        fontSize: 13,
-      ),
+      hintStyle: TextStyle(color: context.colors.textSecondary, fontSize: 13),
       filled: true,
       fillColor: Theme.of(context).colorScheme.surface,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -763,17 +1058,17 @@ class _CommunityPostEditPageState extends State<CommunityPostEditPage> {
         ),
         child: _isSaving
             ? SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.3,
-            color: context.colors.onPrimary,
-          ),
-        )
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.3,
+                  color: context.colors.onPrimary,
+                ),
+              )
             : const Text(
-          '수정 완료',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-        ),
+                '수정 완료',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              ),
       ),
     );
   }
@@ -783,20 +1078,14 @@ class _AttachmentUploadResult {
   final List<Map<String, dynamic>> images;
   final List<Map<String, dynamic>> files;
 
-  const _AttachmentUploadResult({
-    required this.images,
-    required this.files,
-  });
+  const _AttachmentUploadResult({required this.images, required this.files});
 }
 
 class _AttachmentThumbnail extends StatelessWidget {
   final Widget child;
   final VoidCallback? onRemove;
 
-  const _AttachmentThumbnail({
-    required this.child,
-    required this.onRemove,
-  });
+  const _AttachmentThumbnail({required this.child, required this.onRemove});
 
   @override
   Widget build(BuildContext context) {
@@ -820,10 +1109,7 @@ class _AttachmentThumbnail extends StatelessWidget {
                 color: Theme.of(context).colorScheme.surface,
                 shape: BoxShape.circle,
                 boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x22000000),
-                    blurRadius: 5,
-                  ),
+                  BoxShadow(color: Color(0x22000000), blurRadius: 5),
                 ],
               ),
               child: const Icon(Icons.close_rounded, size: 17),

@@ -28,6 +28,10 @@ class AppEmptyView extends StatelessWidget {
   final String? description;
   final String? buttonText;
   final VoidCallback? onButtonPressed;
+  final bool scrollable;
+  final double imageWidth;
+  final double imageHeight;
+  final EdgeInsetsGeometry padding;
 
   const AppEmptyView({
     super.key,
@@ -36,6 +40,10 @@ class AppEmptyView extends StatelessWidget {
     this.description,
     this.buttonText,
     this.onButtonPressed,
+    this.scrollable = true,
+    this.imageWidth = 240,
+    this.imageHeight = 240,
+    this.padding = const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
   });
 
   @override
@@ -46,6 +54,10 @@ class AppEmptyView extends StatelessWidget {
       description: description,
       buttonText: buttonText,
       onButtonPressed: onButtonPressed,
+      scrollable: scrollable,
+      imageWidth: imageWidth,
+      imageHeight: imageHeight,
+      padding: padding,
     );
   }
 }
@@ -113,6 +125,10 @@ class AppStateViewLayout extends StatelessWidget {
   final String? buttonText;
   final VoidCallback? onButtonPressed;
   final bool showProgressIndicator;
+  final bool scrollable;
+  final double imageWidth;
+  final double imageHeight;
+  final EdgeInsetsGeometry padding;
 
   const AppStateViewLayout({
     super.key,
@@ -122,87 +138,92 @@ class AppStateViewLayout extends StatelessWidget {
     this.buttonText,
     this.onButtonPressed,
     this.showProgressIndicator = false,
+    this.scrollable = true,
+    this.imageWidth = 240,
+    this.imageHeight = 240,
+    this.padding = const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
 
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              imagePath,
-              width: 240,
-              height: 240,
-              fit: BoxFit.contain,
-            ),
-            const SizedBox(height: 20),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: colors.textPrimary,
-              ),
-            ),
-            if (description != null && description!.trim().isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                description!,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  height: 1.6,
-                  color: colors.textSecondary,
-                ),
-              ),
-            ],
-            if (showProgressIndicator) ...[
-              const SizedBox(height: 24),
-              SizedBox(
-                width: 30,
-                height: 30,
-                child: CircularProgressIndicator(
-                  strokeWidth: 3,
-                  color: colors.info,
-                ),
-              ),
-            ],
-            if (buttonText != null &&
-                buttonText!.trim().isNotEmpty &&
-                onButtonPressed != null) ...[
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: onButtonPressed,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.info,
-                    foregroundColor: colors.onPrimary,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: Text(
-                    buttonText!,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ],
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Image.asset(
+          imagePath,
+          width: imageWidth,
+          height: imageHeight,
+          fit: BoxFit.contain,
         ),
-      ),
+        const SizedBox(height: 20),
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: colors.textPrimary,
+          ),
+        ),
+        if (description != null && description!.trim().isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text(
+            description!,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.6,
+              color: colors.textSecondary,
+            ),
+          ),
+        ],
+        if (showProgressIndicator) ...[
+          const SizedBox(height: 24),
+          SizedBox(
+            width: 30,
+            height: 30,
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              color: colors.info,
+            ),
+          ),
+        ],
+        if (buttonText != null &&
+            buttonText!.trim().isNotEmpty &&
+            onButtonPressed != null) ...[
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: onButtonPressed,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.info,
+                foregroundColor: colors.onPrimary,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: Text(
+                buttonText!,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+
+    return Center(
+      child: scrollable
+          ? SingleChildScrollView(padding: padding, child: content)
+          : Padding(padding: padding, child: content),
     );
   }
 }

@@ -7,6 +7,7 @@ import '../theme.dart';
 import '../services/user_profile_cache_service.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_card.dart';
+import '../widgets/app_dropdown.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
 import '../widgets/loading_overlay.dart';
@@ -614,25 +615,14 @@ class _StudyQuizAddPageState extends State<StudyQuizAddPage> {
   Widget _buildDropdown<T>({
     required String label,
     required T value,
-    required List<DropdownMenuItem<T>> items,
-    required ValueChanged<T?> onChanged,
+    required List<AppDropdownItem<T>> items,
+    required ValueChanged<T> onChanged,
   }) {
-    return DropdownButtonFormField<T>(
+    return AppUserDropdown<T>(
+      label: label,
       value: value,
       items: items,
       onChanged: onChanged,
-      decoration: InputDecoration(
-        labelText: label,
-        filled: true,
-        fillColor: Theme.of(context).colorScheme.surface,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(
-            color: Theme.of(context).colorScheme.outlineVariant,
-          ),
-        ),
-      ),
     );
   }
 
@@ -771,16 +761,12 @@ class _StudyQuizAddPageState extends State<StudyQuizAddPage> {
                             label: '풀이 제한시간',
                             value: _timeLimitSeconds,
                             items: [
-                              DropdownMenuItem(value: 30, child: Text('30초')),
-                              DropdownMenuItem(value: 60, child: Text('1분')),
-                              DropdownMenuItem(value: 180, child: Text('3분')),
-                              DropdownMenuItem(value: 300, child: Text('5분')),
+                              AppDropdownItem(value: 30, label: '30초'),
+                              AppDropdownItem(value: 60, label: '1분'),
+                              AppDropdownItem(value: 180, label: '3분'),
+                              AppDropdownItem(value: 300, label: '5분'),
                             ],
                             onChanged: (value) {
-                              if (value == null) {
-                                return;
-                              }
-
                               setState(() {
                                 _timeLimitSeconds = value;
                               });
@@ -791,20 +777,13 @@ class _StudyQuizAddPageState extends State<StudyQuizAddPage> {
                             label: '제출 마감',
                             value: _deadlineHours,
                             items: [
-                              DropdownMenuItem(value: 1, child: Text('1시간 후')),
-                              DropdownMenuItem(value: 6, child: Text('6시간 후')),
-                              DropdownMenuItem(
-                                value: 24,
-                                child: Text('24시간 후'),
-                              ),
-                              DropdownMenuItem(value: 72, child: Text('3일 후')),
-                              DropdownMenuItem(value: 168, child: Text('7일 후')),
+                              AppDropdownItem(value: 1, label: '1시간 후'),
+                              AppDropdownItem(value: 6, label: '6시간 후'),
+                              AppDropdownItem(value: 24, label: '24시간 후'),
+                              AppDropdownItem(value: 72, label: '3일 후'),
+                              AppDropdownItem(value: 168, label: '7일 후'),
                             ],
                             onChanged: (value) {
-                              if (value == null) {
-                                return;
-                              }
-
                               setState(() {
                                 _deadlineHours = value;
                               });
@@ -815,20 +794,16 @@ class _StudyQuizAddPageState extends State<StudyQuizAddPage> {
                             label: '정답 공개',
                             value: _answerRevealType,
                             items: [
-                              DropdownMenuItem(
+                              AppDropdownItem(
                                 value: 'AFTER_SUBMIT',
-                                child: Text('제출 즉시 공개'),
+                                label: '제출 즉시 공개',
                               ),
-                              DropdownMenuItem(
+                              AppDropdownItem(
                                 value: 'AFTER_DEADLINE',
-                                child: Text('마감 후 공개'),
+                                label: '마감 후 공개',
                               ),
                             ],
                             onChanged: (value) {
-                              if (value == null) {
-                                return;
-                              }
-
                               setState(() {
                                 _answerRevealType = value;
                               });

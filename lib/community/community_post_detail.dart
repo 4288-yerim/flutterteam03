@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 // 댓글 좋아요·수정·삭제 적용본
 import '../theme.dart';
+import '../profile/user_profile_screen.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_report_bottom_sheet.dart';
@@ -35,6 +36,8 @@ class CommunityPostDetailPage extends StatefulWidget {
 }
 
 class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
+  static const int _commentPageSize = 10;
+
   late final CommunityService _service;
   final TextEditingController _commentController = TextEditingController();
   final FocusNode _commentFocusNode = FocusNode();
@@ -49,6 +52,7 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
   bool _isTogglingLike = false;
   bool _isTogglingBookmark = false;
   bool _isUpdatingRecruitStatus = false;
+  int _commentPage = 1;
   final Set<String> _togglingCommentLikeIds = {};
   final Set<String> _processingCommentIds = {};
   final Set<String> _openingFilePaths = {};
@@ -425,6 +429,36 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
     return _profileFutures.putIfAbsent(userUid, () {
       return _service.getUserCommunityProfile(userUid);
     });
+  }
+
+  Future<void> _openUserProfile(String userUid) async {
+    if (userUid.trim().isEmpty || !mounted) {
+      return;
+    }
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => UserProfileScreen(userUid: userUid)),
+    );
+  }
+
+  Widget _buildUserProfileLink({
+    required String userUid,
+    required String semanticLabel,
+    required Widget child,
+  }) {
+    if (userUid.trim().isEmpty) {
+      return child;
+    }
+
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _openUserProfile(userUid),
+        child: child,
+      ),
+    );
   }
 
   Future<void> _submitComment() async {
@@ -1201,6 +1235,17 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
       return !comment.isReply;
     }).toList();
 
+    List<({CommunityComment comment, bool isReply})> pagedComments = [];
+    for (final rootComment in rootComments) {
+      pagedComments.add((comment: rootComment, isReply: false));
+      final replies = comments.where((reply) {
+        return reply.parentCommentId == rootComment.id;
+      });
+      pagedComments.addAll(
+        replies.map((reply) => (comment: reply, isReply: true)),
+      );
+    }
+
     if (rootComments.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 28),
@@ -1226,28 +1271,136 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
       );
     }
 
+    int pageCount = (pagedComments.length / _commentPageSize).ceil();
+    int currentPage = _commentPage > pageCount ? pageCount : _commentPage;
+    int startIndex = (currentPage - 1) * _commentPageSize;
+    int endIndex = startIndex + _commentPageSize;
+    if (endIndex > pagedComments.length) {
+      endIndex = pagedComments.length;
+    }
+    final visibleComments = pagedComments.sublist(startIndex, endIndex);
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Column(
-        children: rootComments.map((comment) {
-          List<CommunityComment> replies = comments.where((reply) {
-            return reply.parentCommentId == comment.id;
-          }).toList();
+        children: [
+          ...List.generate(visibleComments.length, (index) {
+            final entry = visibleComments[index];
+            final globalIndex = startIndex + index;
+            final isThreadEnd =
+                globalIndex == pagedComments.length - 1 ||
+                !pagedComments[globalIndex + 1].isReply;
 
-          return Column(
-            children: [
-              _buildCommentItem(post: post, comment: comment, isReply: false),
-              ...replies.map((reply) {
-                return _buildCommentItem(
+            return Column(
+              children: [
+                _buildCommentItem(
                   post: post,
-                  comment: reply,
-                  isReply: true,
-                );
-              }),
-              Divider(height: 1, color: context.colors.pinkSoft),
-            ],
-          );
-        }).toList(),
+                  comment: entry.comment,
+                  isReply: entry.isReply,
+                ),
+                if (isThreadEnd)
+                  Divider(height: 1, color: context.colors.pinkSoft),
+              ],
+            );
+          }),
+          if (pageCount > 1)
+            _buildCommentPagination(
+              currentPage: currentPage,
+              pageCount: pageCount,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommentPagination({
+    required int currentPage,
+    required int pageCount,
+  }) {
+    int firstPage = currentPage - 2;
+    if (firstPage < 1) firstPage = 1;
+    if (firstPage + 4 > pageCount) firstPage = pageCount - 4;
+    if (firstPage < 1) firstPage = 1;
+
+    int lastPage = firstPage + 4;
+    if (lastPage > pageCount) lastPage = pageCount;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 20, bottom: 14),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            tooltip: '이전 댓글 페이지',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+            onPressed: currentPage > 1
+                ? () {
+                    setState(() {
+                      _commentPage = currentPage - 1;
+                    });
+                  }
+                : null,
+            icon: const Icon(Icons.chevron_left_rounded),
+          ),
+          ...List.generate(lastPage - firstPage + 1, (index) {
+            int page = firstPage + index;
+            bool isSelected = page == currentPage;
+
+            return Padding(
+              padding: EdgeInsets.only(left: index == 0 ? 0 : 5),
+              child: SizedBox(
+                width: 34,
+                height: 34,
+                child: OutlinedButton(
+                  onPressed: isSelected
+                      ? null
+                      : () {
+                          setState(() {
+                            _commentPage = page;
+                          });
+                        },
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    backgroundColor: isSelected
+                        ? context.colors.pinkSoft
+                        : context.colors.surface,
+                    foregroundColor: isSelected
+                        ? context.colors.pinkDeep
+                        : context.colors.textSecondary,
+                    disabledBackgroundColor: context.colors.pinkSoft,
+                    disabledForegroundColor: context.colors.pinkDeep,
+                    side: BorderSide(
+                      color: isSelected
+                          ? context.colors.pinkDeep
+                          : context.colors.border,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                  ),
+                  child: Text(
+                    '$page',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            );
+          }),
+          IconButton(
+            tooltip: '다음 댓글 페이지',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+            onPressed: currentPage < pageCount
+                ? () {
+                    setState(() {
+                      _commentPage = currentPage + 1;
+                    });
+                  }
+                : null,
+            icon: const Icon(Icons.chevron_right_rounded),
+          ),
+        ],
       ),
     );
   }
@@ -1451,7 +1604,11 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
 
         return Row(
           children: [
-            _buildSmallProfileImage(profileImageUrl),
+            _buildUserProfileLink(
+              userUid: comment.writerUid,
+              semanticLabel: '$nickname 프로필 보기',
+              child: _buildSmallProfileImage(profileImageUrl),
+            ),
             const SizedBox(width: 9),
             Expanded(
               child: Column(
@@ -1460,14 +1617,18 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
                   Row(
                     children: [
                       Flexible(
-                        child: Text(
-                          nickname,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: context.colors.textPrimary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
+                        child: _buildUserProfileLink(
+                          userUid: comment.writerUid,
+                          semanticLabel: '$nickname 프로필 보기',
+                          child: Text(
+                            nickname,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: context.colors.textPrimary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ),
@@ -1736,13 +1897,38 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
           PopupMenuButton<String>(
             tooltip: '게시글 관리',
             enabled: !_isDeleting,
+            elevation: 6,
+            color: context.colors.surface,
+            shadowColor: context.colors.shadow,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
             onSelected: (value) {
               _selectPostMenu(value, post);
             },
             itemBuilder: (context) {
-              return const [
-                PopupMenuItem<String>(value: 'EDIT', child: Text('수정')),
-                PopupMenuItem<String>(value: 'DELETE', child: Text('삭제')),
+              return [
+                PopupMenuItem<String>(
+                  height: 46,
+                  value: 'EDIT',
+                  child: _buildPostMenuItem(
+                    icon: Icons.edit_outlined,
+                    label: '수정',
+                    iconBackgroundColor: context.colors.lavender,
+                    iconColor: context.colors.lavenderAccent,
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  height: 46,
+                  value: 'DELETE',
+                  child: _buildPostMenuItem(
+                    icon: Icons.delete_outline_rounded,
+                    label: '삭제',
+                    iconBackgroundColor: context.colors.incorrectSoft,
+                    iconColor: context.colors.incorrect,
+                    textColor: context.colors.incorrect,
+                  ),
+                ),
               ];
             },
             icon: _isDeleting
@@ -1779,6 +1965,37 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
     );
   }
 
+  Widget _buildPostMenuItem({
+    required IconData icon,
+    required String label,
+    required Color iconBackgroundColor,
+    required Color iconColor,
+    Color? textColor,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: iconBackgroundColor,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 18, color: iconColor),
+        ),
+        const SizedBox(width: 11),
+        Text(
+          label,
+          style: TextStyle(
+            color: textColor ?? context.colors.textPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildWriterArea(CommunityPost post) {
     return FutureBuilder<Map<String, dynamic>>(
       future: _profileForUid(post.writerUid),
@@ -1799,7 +2016,11 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
 
         return Row(
           children: [
-            _buildProfileImage(profileImageUrl),
+            _buildUserProfileLink(
+              userUid: post.writerUid,
+              semanticLabel: '$nickname 프로필 보기',
+              child: _buildProfileImage(profileImageUrl),
+            ),
             const SizedBox(width: 11),
             Expanded(
               child: Column(
@@ -1808,14 +2029,18 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
                   Row(
                     children: [
                       Flexible(
-                        child: Text(
-                          nickname,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: context.colors.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
+                        child: _buildUserProfileLink(
+                          userUid: post.writerUid,
+                          semanticLabel: '$nickname 프로필 보기',
+                          child: Text(
+                            nickname,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: context.colors.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../services/user_profile_cache_service.dart';
 import '../widgets/app_card.dart';
+import '../widgets/app_dropdown.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_state_views.dart';
 import '../widgets/app_top_bar.dart';
@@ -32,11 +33,14 @@ class CommunityMainPage extends StatefulWidget {
 }
 
 class _CommunityMainPageState extends State<CommunityMainPage> {
+  static const int _postPageSize = 10;
+
   late final CommunityService _service;
 
   final TextEditingController _searchController = TextEditingController();
 
   final FocusNode _searchFocusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();
   final Map<String, Future<Map<String, dynamic>>> _writerProfileFutures = {};
 
   CommunityBoardType _selectedBoard = CommunityBoardType.all;
@@ -52,12 +56,17 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
   bool _showFavoriteSettings = false;
   bool _isPreferenceLoading = true;
   bool _isSavingFavorite = false;
+  bool _isLoadingMorePosts = false;
+  int _visiblePostCount = _postPageSize;
+  int _filteredPostCount = 0;
+  String _paginationKey = '';
 
   @override
   void initState() {
     super.initState();
 
     _service = widget.service ?? CommunityService();
+    _scrollController.addListener(_handleScroll);
     _loadCommunityPreferences();
   }
 
@@ -65,8 +74,46 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _scrollController
+      ..removeListener(_handleScroll)
+      ..dispose();
 
     super.dispose();
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients ||
+        _scrollController.position.extentAfter > 240) {
+      return;
+    }
+
+    _loadMorePosts();
+  }
+
+  Future<void> _loadMorePosts() async {
+    if (_isLoadingMorePosts || _visiblePostCount >= _filteredPostCount) {
+      return;
+    }
+
+    setState(() {
+      _isLoadingMorePosts = true;
+    });
+
+    String loadingPaginationKey = _paginationKey;
+
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+
+    if (!mounted || loadingPaginationKey != _paginationKey) {
+      return;
+    }
+
+    setState(() {
+      int nextCount = _visiblePostCount + _postPageSize;
+      _visiblePostCount = nextCount < _filteredPostCount
+          ? nextCount
+          : _filteredPostCount;
+      _isLoadingMorePosts = false;
+    });
   }
 
   Future<Map<String, dynamic>> _profileForUid(String writerUid) {
@@ -300,6 +347,33 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
       certificateId: _selectedCertificateId,
     );
 
+    String paginationKey = [
+      _showMyFeed,
+      _selectedBoard.name,
+      _selectedSort.name,
+      _selectedCertificateId,
+      _searchController.text.trim().toLowerCase(),
+      ..._favoriteBoards.map((board) => board.name).toList()..sort(),
+      ..._myCertificates
+          .map((certificate) => certificate.certificateId)
+          .toList()
+        ..sort(),
+    ].join('|');
+
+    if (_paginationKey != paginationKey) {
+      _paginationKey = paginationKey;
+      _visiblePostCount = _postPageSize;
+      _isLoadingMorePosts = false;
+    }
+
+    _filteredPostCount = posts.length;
+
+    int visibleCount = _visiblePostCount < posts.length
+        ? _visiblePostCount
+        : posts.length;
+    List<CommunityPost> visiblePosts = posts.take(visibleCount).toList();
+    bool hasMorePosts = visibleCount < posts.length;
+
     List<CommunityCertificateTag> certificates = _service
         .collectCertificateTags(allPosts);
 
@@ -313,11 +387,14 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
         setState(() {
           _writerProfileFutures.clear();
           _streamVersion++;
+          _visiblePostCount = _postPageSize;
+          _isLoadingMorePosts = false;
         });
 
         await Future<void>.delayed(const Duration(milliseconds: 300));
       },
       child: CustomScrollView(
+        controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverPadding(
@@ -400,10 +477,10 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
             )
           else
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 110),
+              padding: EdgeInsets.fromLTRB(16, 0, 16, hasMorePosts ? 10 : 110),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate((context, index) {
-                  CommunityPost post = posts[index];
+                  CommunityPost post = visiblePosts[index];
 
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 10),
@@ -415,7 +492,25 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
                       },
                     ),
                   );
-                }, childCount: posts.length),
+                }, childCount: visiblePosts.length),
+              ),
+            ),
+          if (hasMorePosts || _isLoadingMorePosts)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 24, bottom: 110),
+                child: Center(
+                  child: _isLoadingMorePosts
+                      ? SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: context.colors.pinkStart,
+                          ),
+                        )
+                      : const SizedBox(height: 24),
+                ),
               ),
             ),
         ],
@@ -714,43 +809,22 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
   }
 
   Widget _buildSortMenu() {
-    return PopupMenuButton<CommunityPostSort>(
-      tooltip: '정렬 방식',
-      initialValue: _selectedSort,
-      onSelected: (sort) {
-        setState(() {
-          _selectedSort = sort;
-        });
-      },
-      itemBuilder: (context) {
-        return CommunityPostSort.values.map((sort) {
-          return PopupMenuItem<CommunityPostSort>(
+    return SizedBox(
+      width: 130,
+      child: AppUserDropdown<CommunityPostSort>(
+        label: '정렬 방식',
+        value: _selectedSort,
+        items: CommunityPostSort.values.map((sort) {
+          return AppDropdownItem<CommunityPostSort>(
             value: sort,
-            child: Text(sort.label),
+            label: sort.label,
           );
-        }).toList();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              _selectedSort.label,
-              style: TextStyle(
-                color: context.colors.textPrimary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(width: 3),
-            const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
-          ],
-        ),
+        }).toList(),
+        onChanged: (sort) {
+          setState(() {
+            _selectedSort = sort;
+          });
+        },
       ),
     );
   }
@@ -761,15 +835,20 @@ class _CommunityMainPageState extends State<CommunityMainPage> {
     required String buttonText,
     required VoidCallback onPressed,
   }) {
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final emptyAreaHeight = (screenHeight * 0.56).clamp(420.0, 520.0);
+
     return AppCard(
       padding: EdgeInsets.zero,
       child: SizedBox(
-        height: 390,
+        height: emptyAreaHeight,
         child: AppEmptyView(
           message: message,
           description: description,
           buttonText: buttonText,
           onButtonPressed: onPressed,
+          scrollable: false,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         ),
       ),
     );

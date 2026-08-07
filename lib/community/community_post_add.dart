@@ -3,13 +3,277 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 
+import '../certificate/services/certificate_search_service.dart';
 import '../theme.dart';
 import '../services/user_profile_cache_service.dart';
 import '../widgets/app_card.dart';
+import '../widgets/app_dropdown.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
 import 'community_models.dart';
 import 'community_service.dart';
+
+class _CertificateInputEntry {
+  const _CertificateInputEntry({required this.name, this.certificateId});
+
+  final String name;
+  final String? certificateId;
+}
+
+class _CertificateSearchField extends StatefulWidget {
+  const _CertificateSearchField({
+    super.key,
+    required this.controller,
+    required this.decoration,
+    required this.unmatchedActionDescription,
+    this.enabled = true,
+    this.allowMultiple = false,
+    this.maxItems = 1,
+    this.textInputAction = TextInputAction.next,
+    this.validator,
+  });
+
+  final TextEditingController controller;
+  final InputDecoration decoration;
+  final String unmatchedActionDescription;
+  final bool enabled;
+  final bool allowMultiple;
+  final int maxItems;
+  final TextInputAction textInputAction;
+  final FormFieldValidator<String>? validator;
+
+  @override
+  State<_CertificateSearchField> createState() =>
+      _CertificateSearchFieldState();
+}
+
+class _CertificateSearchFieldState extends State<_CertificateSearchField> {
+  final FocusNode _focusNode = FocusNode();
+  late final Future<List<Certification>> _loadFuture;
+  List<Certification> _catalog = const [];
+  bool _catalogAvailable = false;
+  bool _isLoading = true;
+  bool _showSuggestions = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFuture = CertificateSearchService().getCertifications();
+    widget.controller.addListener(_handleTextChanged);
+    _focusNode.addListener(_handleFocusChanged);
+    _loadCatalog();
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_handleTextChanged);
+    _focusNode
+      ..removeListener(_handleFocusChanged)
+      ..dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadCatalog() async {
+    try {
+      final catalog = await _loadFuture;
+      if (!mounted) return;
+      setState(() {
+        _catalog = catalog.where((item) => item.name.isNotEmpty).toList();
+        _catalogAvailable = true;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _catalogAvailable = false;
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _handleTextChanged() {
+    if (!mounted) return;
+    setState(() {
+      _showSuggestions = _focusNode.hasFocus && _currentQuery.isNotEmpty;
+    });
+  }
+
+  void _handleFocusChanged() {
+    if (_focusNode.hasFocus) {
+      setState(() => _showSuggestions = _currentQuery.isNotEmpty);
+      return;
+    }
+    Future<void>.delayed(const Duration(milliseconds: 150), () {
+      if (mounted && !_focusNode.hasFocus) {
+        setState(() => _showSuggestions = false);
+      }
+    });
+  }
+
+  String get _currentQuery {
+    final text = widget.controller.text;
+    return widget.allowMultiple ? text.split(',').last.trim() : text.trim();
+  }
+
+  List<Certification> get _suggestions {
+    final query = _currentQuery.toLowerCase();
+    if (query.isEmpty || !_catalogAvailable) return const [];
+    final matches =
+        _catalog
+            .where((item) => item.name.toLowerCase().contains(query))
+            .toList()
+          ..sort((a, b) {
+            final aStarts = a.name.toLowerCase().startsWith(query);
+            final bStarts = b.name.toLowerCase().startsWith(query);
+            if (aStarts != bStarts) return aStarts ? -1 : 1;
+            return a.name.compareTo(b.name);
+          });
+    return matches.take(8).toList();
+  }
+
+  void _selectCertificate(Certification certificate) {
+    if (widget.allowMultiple) {
+      final names = widget.controller.text
+          .split(',')
+          .map((name) => name.trim())
+          .where((name) => name.isNotEmpty)
+          .toList();
+      if (names.isNotEmpty) names.removeLast();
+      if (names.length < widget.maxItems) names.add(certificate.name);
+      widget.controller.text = names.join(', ');
+    } else {
+      widget.controller.text = certificate.name;
+    }
+    widget.controller.selection = TextSelection.collapsed(
+      offset: widget.controller.text.length,
+    );
+    setState(() => _showSuggestions = false);
+  }
+
+  Future<List<_CertificateInputEntry>> resolve() async {
+    if (_isLoading) {
+      try {
+        final catalog = await _loadFuture;
+        _catalog = catalog.where((item) => item.name.isNotEmpty).toList();
+        _catalogAvailable = true;
+        _isLoading = false;
+      } catch (_) {}
+    }
+    final names = widget.controller.text
+        .split(widget.allowMultiple ? ',' : '\u0000')
+        .map((name) => name.trim())
+        .where((name) => name.isNotEmpty)
+        .toSet()
+        .take(widget.maxItems);
+    return names.map((name) {
+      Certification? match;
+      for (final item in _catalog) {
+        if (item.name.toLowerCase() == name.toLowerCase()) {
+          match = item;
+          break;
+        }
+      }
+      final id = match == null
+          ? null
+          : match.jmcd.isNotEmpty
+          ? match.jmcd
+          : match.id;
+      return _CertificateInputEntry(
+        name: match?.name ?? name,
+        certificateId: id,
+      );
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final suggestions = _suggestions;
+    final showUnmatchedMessage =
+        _showSuggestions &&
+        _catalogAvailable &&
+        _currentQuery.isNotEmpty &&
+        suggestions.isEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormField(
+          controller: widget.controller,
+          focusNode: _focusNode,
+          enabled: widget.enabled,
+          textInputAction: widget.textInputAction,
+          validator: widget.validator,
+          decoration: widget.decoration.copyWith(
+            suffixIcon: _isLoading
+                ? const Padding(
+                    padding: EdgeInsets.all(14),
+                    child: SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : widget.decoration.suffixIcon,
+          ),
+        ),
+        if (_showSuggestions && suggestions.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Container(
+            constraints: const BoxConstraints(maxHeight: 220),
+            decoration: BoxDecoration(
+              color: context.colors.surfaceElevated,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: context.colors.border),
+              boxShadow: [
+                BoxShadow(
+                  color: context.colors.shadow,
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              itemCount: suggestions.length,
+              separatorBuilder: (_, _) =>
+                  Divider(height: 1, color: context.colors.divider),
+              itemBuilder: (context, index) {
+                final certificate = suggestions[index];
+                return ListTile(
+                  dense: true,
+                  title: Text(certificate.name),
+                  subtitle: certificate.qualificationName.isEmpty
+                      ? null
+                      : Text(certificate.qualificationName),
+                  onTap: () => _selectCertificate(certificate),
+                );
+              },
+            ),
+          ),
+        ],
+        if (showUnmatchedMessage) ...[
+          const SizedBox(height: 6),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: context.colors.surfaceTransparent,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Text(
+              '“$_currentQuery”은 검색되지 않았습니다. 지금 입력된 자격증 이름으로 '
+              '${widget.unmatchedActionDescription}.',
+              style: TextStyle(
+                color: context.colors.textSecondary,
+                fontSize: 12,
+                height: 1.45,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
 
 class CommunityPostAddPage extends StatefulWidget {
   final CommunityService? service;
@@ -31,6 +295,8 @@ class _CommunityPostAddPageState extends State<CommunityPostAddPage> {
   late final CommunityService _service;
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final GlobalKey<_CertificateSearchFieldState> _certificateFieldKey =
+      GlobalKey<_CertificateSearchFieldState>();
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _contentController = TextEditingController();
   final TextEditingController _certificateController = TextEditingController();
@@ -210,6 +476,11 @@ class _CommunityPostAddPageState extends State<CommunityPostAddPage> {
 
     FocusScope.of(context).unfocus();
 
+    final certificateEntries =
+        await _certificateFieldKey.currentState?.resolve() ??
+        const <_CertificateInputEntry>[];
+    if (!mounted) return;
+
     setState(() {
       _isSaving = true;
     });
@@ -246,7 +517,7 @@ class _CommunityPostAddPageState extends State<CommunityPostAddPage> {
         writerNickname: nickname,
         writerProfileImageUrl: user.photoURL ?? '',
         isCertifiedWriter: false,
-        certificateTags: _readCertificateTags(),
+        certificateTags: _readCertificateTags(certificateEntries),
         imageAttachments: attachments.images,
         fileAttachments: attachments.files,
       );
@@ -288,21 +559,17 @@ class _CommunityPostAddPageState extends State<CommunityPostAddPage> {
     }
   }
 
-  List<CommunityCertificateTag> _readCertificateTags() {
-    List<String> names = _certificateController.text
-        .split(',')
-        .map((name) => name.trim())
-        .where((name) => name.isNotEmpty)
-        .toSet()
-        .take(3)
-        .toList();
-
-    return names.map((name) {
-      String certificateId = name.toLowerCase().replaceAll(RegExp(r'\s+'), '-');
+  List<CommunityCertificateTag> _readCertificateTags(
+    List<_CertificateInputEntry> entries,
+  ) {
+    return entries.map((entry) {
+      String certificateId =
+          entry.certificateId ??
+          entry.name.toLowerCase().replaceAll(RegExp(r'\s+'), '-');
 
       return CommunityCertificateTag(
         certificateId: certificateId,
-        certificateName: name,
+        certificateName: entry.name,
       );
     }).toList();
   }
@@ -485,32 +752,26 @@ class _CommunityPostAddPageState extends State<CommunityPostAddPage> {
         children: [
           _buildFieldTitle('게시판'),
           const SizedBox(height: 9),
-          DropdownButtonFormField<CommunityBoardType>(
+          AppUserDropdown<CommunityBoardType>(
+            label: '게시판',
             value: _selectedBoard,
-            isExpanded: true,
-            decoration: _inputDecoration(hintText: '게시판을 선택해 주세요.'),
             items: CommunityBoardType.values
                 .where((board) {
                   return board != CommunityBoardType.all;
                 })
                 .map((board) {
-                  return DropdownMenuItem<CommunityBoardType>(
+                  return AppDropdownItem<CommunityBoardType>(
                     value: board,
-                    child: Text(board.label),
+                    label: board.label,
                   );
                 })
                 .toList(),
-            onChanged: _isSaving
-                ? null
-                : (board) {
-                    if (board == null) {
-                      return;
-                    }
-
-                    setState(() {
-                      _selectedBoard = board;
-                    });
-                  },
+            enabled: !_isSaving,
+            onChanged: (board) {
+              setState(() {
+                _selectedBoard = board;
+              });
+            },
           ),
           const SizedBox(height: 20),
           _buildFieldTitle('관련 자격증 (선택)'),
@@ -520,16 +781,15 @@ class _CommunityPostAddPageState extends State<CommunityPostAddPage> {
             style: TextStyle(color: context.colors.textSecondary, fontSize: 11),
           ),
           const SizedBox(height: 9),
-          TextFormField(
+          _CertificateSearchField(
+            key: _certificateFieldKey,
             controller: _certificateController,
+            unmatchedActionDescription: '게시글이 작성됩니다',
             enabled: !_isSaving,
-            maxLength: 80,
-            buildCounter: _buildInsideCounter,
+            allowMultiple: true,
+            maxItems: 3,
             textInputAction: TextInputAction.next,
-            decoration: _inputDecoration(
-              hintText: '예: 정보처리기사, 컴퓨터활용능력',
-              hasInsideCounter: true,
-            ),
+            decoration: _inputDecoration(hintText: '예: 정보처리기사, 컴퓨터활용능력'),
             validator: (value) {
               int count = (value ?? '')
                   .split(',')

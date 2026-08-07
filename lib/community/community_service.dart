@@ -220,6 +220,7 @@ class CommunityService {
     required String title,
     required String content,
     required String writerUid,
+    required List<CommunityCertificateTag> certificateTags,
     required List<Map<String, dynamic>> imageAttachments,
     required List<Map<String, dynamic>> fileAttachments,
   }) async {
@@ -243,26 +244,14 @@ class CommunityService {
     if (boardType == CommunityBoardType.passReview) {
       String writerUid = postData['writerUid']?.toString() ?? '';
 
-      List<CommunityCertificateTag> postTags = [];
-      dynamic tagValue = postData['certificateTags'];
-
-      if (tagValue is List) {
-        for (dynamic item in tagValue) {
-          if (item is Map) {
-            postTags.add(
-              CommunityCertificateTag.fromMap(Map<String, dynamic>.from(item)),
-            );
-          }
-        }
-      }
-
       List<CommunityCertificateTag> certifiedTags =
           await getCertifiedCertificateTags(writerUid);
 
       bool canWritePassReview =
-          postTags.length == 1 &&
+          certificateTags.length == 1 &&
           certifiedTags.any((certifiedTag) {
-            return certifiedTag.certificateId == postTags.first.certificateId;
+            return certifiedTag.certificateId ==
+                certificateTags.first.certificateId;
           });
 
       if (!canWritePassReview) {
@@ -276,6 +265,7 @@ class CommunityService {
       'boardType': boardType.code,
       'title': title,
       'content': content,
+      'certificateTags': certificateTags.map((tag) => tag.toMap()).toList(),
       'imageAttachments': imageAttachments,
       'fileAttachments': fileAttachments,
       'updatedAt': FieldValue.serverTimestamp(),

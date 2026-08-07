@@ -319,10 +319,11 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
                           _buildNotificationSettingSection(),
                           SizedBox(height: 26),
                           _buildPrivacySettingSection(),
-                          if (kDebugMode) ...[
-                            SizedBox(height: 26),
-                            _buildAppIconTestSection(),
-                          ],
+                          // 앱 아이콘 테스트 UI는 필요할 때 아래 주석을 해제해 사용합니다.
+                          // if (kDebugMode) ...[
+                          //   SizedBox(height: 26),
+                          //   _buildAppIconTestSection(),
+                          // ],
                         ],
                       ),
               ),
@@ -923,6 +924,7 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildAppIconTestSection() {
     const options = <(String, int)>[
       ('기본', 0),
@@ -1003,10 +1005,7 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
   }
 
   Future<void> _testInactiveIcon(String label, int days) async {
-    await _runIconTest(
-      label,
-      () => AppIconService.testInactiveDays(days),
-    );
+    await _runIconTest(label, () => AppIconService.testInactiveDays(days));
   }
 
   Future<void> _testGoodIcon() async {
@@ -1027,9 +1026,7 @@ class _AppSettingScreenState extends State<AppSettingScreen> {
     });
 
     _showMessage(
-      alias == null
-          ? '아이콘 변경에 실패했습니다.'
-          : '$label 아이콘을 적용했습니다. 홈 화면에서 확인해 주세요.',
+      alias == null ? '아이콘 변경에 실패했습니다.' : '$label 아이콘을 적용했습니다. 홈 화면에서 확인해 주세요.',
     );
   }
 

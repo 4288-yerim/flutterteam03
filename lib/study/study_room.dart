@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../services/user_profile_cache_service.dart';
 import '../widgets/app_dialog.dart';
+import '../widgets/app_dropdown.dart';
 import '../widgets/app_report_bottom_sheet.dart';
 import '../widgets/cached_user_profile_builder.dart';
 import 'package:flutterteam03/widgets/app_state_views.dart';
@@ -2007,7 +2008,7 @@ class StudyRoomPage extends StatelessWidget {
               },
               onSelected: (value) {
                 if (value == 'report') {
-                  _openMemberList(context);
+                  _showGroupMemberReportDialog(context);
                 }
 
                 if (value == 'leave') {
@@ -3798,6 +3799,134 @@ class StudyRoomPage extends StatelessWidget {
     }
   }
 
+  Future<void> _showGroupMemberReportDialog(BuildContext context) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      return;
+    }
+
+    QuerySnapshot<Map<String, dynamic>> memberSnapshot;
+    try {
+      memberSnapshot = await FirebaseFirestore.instance
+          .collection('studyGroups')
+          .doc(studyId)
+          .collection('members')
+          .get();
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('그룹원 정보를 불러오지 못했습니다.')));
+      }
+      return;
+    }
+
+    final reportableMembers = memberSnapshot.docs.where((document) {
+      final data = document.data();
+      return document.id != currentUser.uid &&
+          data['status']?.toString() == 'ACTIVE';
+    }).toList();
+
+    reportableMembers.sort((a, b) {
+      final aIsOwner = a.data()['role']?.toString() == 'OWNER';
+      final bIsOwner = b.data()['role']?.toString() == 'OWNER';
+      if (aIsOwner != bIsOwner) {
+        return aIsOwner ? -1 : 1;
+      }
+
+      final aNickname = a.data()['nickname']?.toString() ?? '스터디원';
+      final bNickname = b.data()['nickname']?.toString() ?? '스터디원';
+      return aNickname.compareTo(bNickname);
+    });
+
+    if (!context.mounted) {
+      return;
+    }
+
+    if (reportableMembers.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('신고할 수 있는 그룹원이 없습니다.')));
+      return;
+    }
+
+    String selectedMemberUid = reportableMembers.first.id;
+    final selectedUid = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AppAlertDialog(
+              icon: Icons.report_outlined,
+              isDestructive: true,
+              title: const Text('그룹원 신고'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '신고할 그룹원을 선택해 주세요.',
+                      style: TextStyle(color: context.colors.textSecondary),
+                    ),
+                    const SizedBox(height: 14),
+                    AppUserDropdown<String>(
+                      label: '신고할 그룹원',
+                      value: selectedMemberUid,
+                      items: reportableMembers.map((document) {
+                        final data = document.data();
+                        final nickname = data['nickname']?.toString() ?? '스터디원';
+                        final isOwner = data['role']?.toString() == 'OWNER';
+                        return AppDropdownItem<String>(
+                          value: document.id,
+                          label: isOwner ? '$nickname (방장)' : nickname,
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setDialogState(() {
+                          selectedMemberUid = value;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('취소'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext, selectedMemberUid);
+                  },
+                  child: const Text('다음'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (selectedUid == null || !context.mounted) {
+      return;
+    }
+
+    final selectedMember = reportableMembers.firstWhere(
+      (document) => document.id == selectedUid,
+    );
+    final selectedNickname =
+        selectedMember.data()['nickname']?.toString() ?? '스터디원';
+
+    await _showMemberReportDialog(
+      context: context,
+      memberUid: selectedUid,
+      nickname: selectedNickname,
+    );
+  }
+
   void _openMemberList(BuildContext context) {
     final currentUserUid = FirebaseAuth.instance.currentUser?.uid;
 
@@ -4087,13 +4216,25 @@ class StudyRoomPage extends StatelessWidget {
                                     if (canManageMembers)
                                       PopupMenuItem<String>(
                                         value: 'kick',
-                                        child: Text(
-                                          '추방',
-                                          style: TextStyle(
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.error,
-                                          ),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.person_remove_outlined,
+                                              size: 20,
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.error,
+                                            ),
+                                            SizedBox(width: 10),
+                                            Text(
+                                              '추방',
+                                              style: TextStyle(
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.error,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                   ],

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../services/user_profile_cache_service.dart';
 import '../widgets/app_dialog.dart';
+import '../widgets/app_dropdown.dart';
 import '../widgets/cached_user_profile_builder.dart';
 import 'package:flutterteam03/widgets/app_state_views.dart';
 
@@ -2115,7 +2116,7 @@ class StudyDetailPage extends StatelessWidget {
                                   ),
 
                                   if (!isOwner)
-                                    OutlinedButton(
+                                    OutlinedButton.icon(
                                       onPressed: () {
                                         _showKickMemberDialog(
                                           context: context,
@@ -2134,7 +2135,11 @@ class StudyDetailPage extends StatelessWidget {
                                         ),
                                         minimumSize: Size(64, 38),
                                       ),
-                                      child: Text('추방'),
+                                      icon: Icon(
+                                        Icons.person_remove_outlined,
+                                        size: 18,
+                                      ),
+                                      label: Text('추방'),
                                     ),
                                 ],
                               ),
@@ -3611,46 +3616,26 @@ class StudyDetailPage extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    DropdownButtonFormField<String>(
+                    AppUserDropdown<String>(
+                      label: '신고할 그룹원',
                       value: selectedMemberUid,
-                      style: TextStyle(color: context.colors.textPrimary),
-                      decoration: InputDecoration(
-                        labelText: '신고할 그룹원',
-                        labelStyle: TextStyle(
-                          color: context.colors.textSecondary,
-                        ),
-                        filled: true,
-                        fillColor: context.colors.pinkSoft.withOpacity(0.3),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
                       items: memberList.map((memberDocument) {
                         Map<String, dynamic> memberData = memberDocument.data();
 
                         String nickname =
                             memberData['nickname']?.toString() ?? '스터디원';
 
-                        return DropdownMenuItem<String>(
+                        return AppDropdownItem<String>(
                           value: memberDocument.id,
-                          child: CachedNicknameText(
-                            uid: memberDocument.id,
-                            fallback: nickname,
-                          ),
+                          label: nickname,
                         );
                       }).toList(),
-                      onChanged: isSaving
-                          ? null
-                          : (value) {
-                              if (value == null) {
-                                return;
-                              }
-
-                              setDialogState(() {
-                                selectedMemberUid = value;
-                              });
-                            },
+                      enabled: !isSaving,
+                      onChanged: (value) {
+                        setDialogState(() {
+                          selectedMemberUid = value;
+                        });
+                      },
                     ),
 
                     SizedBox(height: 16),
