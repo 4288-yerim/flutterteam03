@@ -116,10 +116,9 @@ class _NotificationSendScreenState extends State<NotificationSendScreen> {
 
         final users = snapshot.data!;
         final query = _searchController.text.trim().toLowerCase();
-        final visibleUsers = users.where((user) {
-          return query.isEmpty ||
-              user.nickname.toLowerCase().contains(query) ||
-              user.email.toLowerCase().contains(query);
+        final List<AdminNotificationUser> visibleUsers =
+        users.where((AdminNotificationUser user) {
+          return user.matchesSearch(query);
         }).toList();
 
         return Stack(
@@ -305,7 +304,7 @@ class _UserSelector extends StatelessWidget {
             controller: searchController,
             onChanged: onSearchChanged,
             decoration: const InputDecoration(
-              hintText: '닉네임 또는 이메일 검색',
+              hintText: '닉네임 검색',
               prefixIcon: Icon(Icons.search_rounded),
             ),
           ),
@@ -334,7 +333,6 @@ class _UserSelector extends StatelessWidget {
                     value: selectedUids.contains(user.uid),
                     onChanged: (_) => onToggle(user.uid),
                     title: Text(user.nickname),
-                    subtitle: Text(user.email),
                   );
                 },
               ),
