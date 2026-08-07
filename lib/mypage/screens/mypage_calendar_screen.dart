@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
-
+import '../../widgets/app_confirm_dialog.dart';
+import '../../widgets/app_date_time_sheets.dart';
 import '../../widgets/app_dialog.dart';
 
 import '../../theme.dart';
@@ -1203,6 +1204,32 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
     });
   }
 
+
+  String? _validateScheduleInput({
+    required String title,
+    required TimeOfDay? startTime,
+    required TimeOfDay? endTime,
+  }) {
+    if (title.trim().isEmpty) {
+      return '일정 이름을 입력해주세요.';
+    }
+
+    if (startTime == null && endTime != null) {
+      return '종료 시간을 선택하려면 시작 시간도 선택해주세요.';
+    }
+
+    if (startTime != null && endTime != null) {
+      final int startMinutes = startTime.hour * 60 + startTime.minute;
+      final int endMinutes = endTime.hour * 60 + endTime.minute;
+
+      if (endMinutes <= startMinutes) {
+        return '종료 시간은 시작 시간보다 늦어야 합니다.';
+      }
+    }
+
+    return null;
+  }
+
   Future<void> _showAddScheduleDialog({
     CalendarScheduleItem? editingSchedule,
   }) async {
@@ -1213,211 +1240,50 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
     );
 
     DateTime selectedDate = editingSchedule?.date ?? _selectedDate;
-
     TimeOfDay? startTime = editingSchedule?.startTime;
     TimeOfDay? endTime = editingSchedule?.endTime;
-    String? validationMessage;
 
-    final bool? result = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AppAlertDialog(
-              title: Text(
-                isEditing ? '일정 수정' : '일정 추가',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (validationMessage != null) ...[
-                      Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: context.colors.incorrectSoft,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: context.colors.incorrect.withOpacity(0.35),
-                          ),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(
-                              Icons.error_outline_rounded,
-                              size: 18,
-                              color: context.colors.incorrect,
-                            ),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                validationMessage!,
-                                style: TextStyle(
-                                  color: context.colors.incorrect,
-                                  fontSize: 13,
-                                  height: 1.4,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(height: 12),
-                    ],
-                    TextField(
-                      controller: titleController,
-                      onChanged: (_) {
-                        if (validationMessage == null) return;
+    final GlobalKey<_AddScheduleFormState> formKey =
+    GlobalKey<_AddScheduleFormState>();
 
-                        setDialogState(() {
-                          validationMessage = null;
-                        });
-                      },
-                      // 다이얼로그가 닫힐 때 Flutter 기본 바깥 탭 처리가
-                      // 중복 실행되는 오류를 막기 위해 직접 처리
-                      onTapOutside: (_) {
-                        FocusManager.instance.primaryFocus?.unfocus();
-                      },
-
-                      decoration: InputDecoration(
-                        labelText: '일정 이름',
-                        hintText: '예: 스터디 모임',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    SizedBox(height: 14),
-                    _DialogSelectTile(
-                      icon: Icons.calendar_month_outlined,
-                      title: '날짜',
-                      value: _formatDate(selectedDate),
-                      onTap: () async {
-                        final DateTime? pickedDate = await showDatePicker(
-                          context: context,
-                          initialDate: selectedDate,
-                          firstDate: DateTime(2025),
-                          lastDate: DateTime(2035),
-                        );
-
-                        if (pickedDate != null) {
-                          setDialogState(() {
-                            selectedDate = pickedDate;
-                          });
-                        }
-                      },
-                    ),
-                    SizedBox(height: 10),
-                    _DialogSelectTile(
-                      icon: Icons.schedule_outlined,
-                      title: '시작 시간',
-                      value: startTime == null
-                          ? '선택 안 함'
-                          : _formatTimeOfDay(startTime!),
-                      onTap: () async {
-                        final TimeOfDay? pickedTime = await showTimePicker(
-                          context: context,
-                          initialTime: startTime ?? TimeOfDay.now(),
-                        );
-
-                        if (pickedTime != null) {
-                          setDialogState(() {
-                            startTime = pickedTime;
-                          });
-                        }
-                      },
-                    ),
-                    SizedBox(height: 10),
-                    _DialogSelectTile(
-                      icon: Icons.schedule_send_outlined,
-                      title: '종료 시간',
-                      value: endTime == null
-                          ? '선택 안 함'
-                          : _formatTimeOfDay(endTime!),
-                      onTap: () async {
-                        final TimeOfDay? pickedTime = await showTimePicker(
-                          context: context,
-                          initialTime: endTime ?? startTime ?? TimeOfDay.now(),
-                        );
-
-                        if (pickedTime != null) {
-                          setDialogState(() {
-                            endTime = pickedTime;
-                          });
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    // TextField 포커스를 먼저 해제한 다음 다이얼로그 종료
-                    FocusManager.instance.primaryFocus?.unfocus();
-
-                    Navigator.pop(dialogContext, false);
-                  },
-                  child: Text(
-                    '취소',
-                    style: TextStyle(color: context.colors.textSecondary),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    if (titleController.text.trim().isEmpty) {
-                      setDialogState(() {
-                        validationMessage = '일정 이름을 입력해주세요.';
-                      });
-                      return;
-                    }
-
-                    if (startTime == null && endTime != null) {
-                      setDialogState(() {
-                        validationMessage = '종료 시간을 선택하려면 시작 시간도 선택해주세요.';
-                      });
-                      return;
-                    }
-
-                    if (startTime != null && endTime != null) {
-                      final int startMinutes =
-                          startTime!.hour * 60 + startTime!.minute;
-
-                      final int endMinutes =
-                          endTime!.hour * 60 + endTime!.minute;
-
-                      if (endMinutes <= startMinutes) {
-                        setDialogState(() {
-                          validationMessage = '종료 시간은 시작 시간보다 늦어야 합니다.';
-                        });
-                        return;
-                      }
-                    }
-
-                    FocusManager.instance.primaryFocus?.unfocus();
-
-                    Navigator.pop(dialogContext, true);
-                  },
-                  child: Text(
-                    isEditing ? '수정' : '추가',
-                    style: TextStyle(
-                      color: context.colors.pinkStart,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
+    final bool? result = await AppConfirmDialog.show<bool>(
+      context,
+      icon: isEditing ? Icons.edit_calendar_outlined : Icons.event_note_outlined,
+      title: isEditing ? '일정 수정' : '일정 추가',
+      description: '일정 정보를 입력해주세요.',
+      primaryLabel: isEditing ? '수정' : '추가',
+      secondaryLabel: '취소',
+      onSecondaryPressed: () => Navigator.pop(context, false),
+      onPrimaryPressed: () {
+        final String? validationMessage = _validateScheduleInput(
+          title: titleController.text,
+          startTime: startTime,
+          endTime: endTime,
         );
+
+        if (validationMessage != null) {
+          formKey.currentState?.showValidationError(validationMessage);
+          return;
+        }
+
+        FocusManager.instance.primaryFocus?.unfocus();
+        Navigator.pop(context, true);
       },
+      extra: _AddScheduleForm(
+        key: formKey,
+        titleController: titleController,
+        initialDate: selectedDate,
+        initialStartTime: startTime,
+        initialEndTime: endTime,
+        onDateChanged: (date) => selectedDate = date,
+        onStartTimeChanged: (time) => startTime = time,
+        onEndTimeChanged: (time) => endTime = time,
+      ),
     );
+
+    if (result == true) {
+      // no-op: 실제 저장은 아래에서 처리
+    }
 
     if (result != true) {
       titleController.dispose();
@@ -1454,12 +1320,12 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
       final DateTime? endAt = endTime == null
           ? null
           : DateTime(
-              selectedDate.year,
-              selectedDate.month,
-              selectedDate.day,
-              endTime!.hour,
-              endTime!.minute,
-            );
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+        endTime!.hour,
+        endTime!.minute,
+      );
 
       final Map<String, dynamic> data = {
         'eventType': 'CUSTOM',
@@ -1877,6 +1743,214 @@ class _DialogSelectTile extends StatelessWidget {
               size: 20,
               color: context.colors.textSecondary,
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AddScheduleForm extends StatefulWidget {
+  final TextEditingController titleController;
+  final DateTime initialDate;
+  final TimeOfDay? initialStartTime;
+  final TimeOfDay? initialEndTime;
+  final ValueChanged<DateTime> onDateChanged;
+  final ValueChanged<TimeOfDay?> onStartTimeChanged;
+  final ValueChanged<TimeOfDay?> onEndTimeChanged;
+
+  const _AddScheduleForm({
+    super.key,
+    required this.titleController,
+    required this.initialDate,
+    required this.initialStartTime,
+    required this.initialEndTime,
+    required this.onDateChanged,
+    required this.onStartTimeChanged,
+    required this.onEndTimeChanged,
+  });
+
+  @override
+  State<_AddScheduleForm> createState() => _AddScheduleFormState();
+}
+
+class _AddScheduleFormState extends State<_AddScheduleForm> {
+  late DateTime _selectedDate;
+  TimeOfDay? _startTime;
+  TimeOfDay? _endTime;
+  String? _validationMessage;
+
+  void showValidationError(String message) {
+    if (!mounted) return;
+    setState(() {
+      _validationMessage = message;
+    });
+  }
+
+  void _clearValidationError() {
+    if (_validationMessage == null) return;
+    setState(() {
+      _validationMessage = null;
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDate = widget.initialDate;
+    _startTime = widget.initialStartTime;
+    _endTime = widget.initialEndTime;
+  }
+
+  String _formatDialogDate(DateTime date) {
+    return '${date.year}.'
+        '${date.month.toString().padLeft(2, '0')}.'
+        '${date.day.toString().padLeft(2, '0')}';
+  }
+
+  String _formatTimeOfDay(TimeOfDay time) {
+    return '${time.hour.toString().padLeft(2, '0')}:'
+        '${time.minute.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.5,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (_validationMessage != null) ...[
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: context.colors.incorrectSoft,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: context.colors.incorrect.withOpacity(0.35),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.error_outline_rounded,
+                      size: 18,
+                      color: context.colors.incorrect,
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _validationMessage!,
+                        style: TextStyle(
+                          color: context.colors.incorrect,
+                          fontSize: 13,
+                          height: 1.4,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 12),
+            ],
+            TextField(
+              controller: widget.titleController,
+              onChanged: (_) => _clearValidationError(),
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(
+                labelText: '일정 이름',
+                hintText: '예: 스터디 모임',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+            SizedBox(height: 12),
+            _DialogSelectTile(
+              icon: Icons.calendar_month_outlined,
+              title: '날짜',
+              value: _formatDialogDate(_selectedDate),
+              onTap: () async {
+                final DateTime? pickedDate = await AppDatePickerSheet.show(
+                  context,
+                  initialDate: _selectedDate,
+                  firstDate: DateTime(2025),
+                  lastDate: DateTime(2035),
+                  title: '일정 날짜',
+                );
+                if (pickedDate != null) {
+                  setState(() {
+                    _selectedDate = DateTime(
+                      pickedDate.year,
+                      pickedDate.month,
+                      pickedDate.day,
+                    );
+                  });
+                  widget.onDateChanged(_selectedDate);
+                }
+              },
+            ),
+            SizedBox(height: 10),
+            _DialogSelectTile(
+              icon: Icons.schedule_outlined,
+              title: '시작 시간 (선택)',
+              value: _startTime == null ? '선택' : _formatTimeOfDay(_startTime!),
+              onTap: () async {
+                final TimeOfDay? pickedTime = await AppTimePickerSheet.show(
+                  context,
+                  initialTime: _startTime ?? TimeOfDay.now(),
+                  title: '시작 시간',
+                );
+                if (pickedTime != null) {
+                  setState(() => _startTime = pickedTime);
+                  widget.onStartTimeChanged(_startTime);
+                  _clearValidationError();
+                }
+              },
+            ),
+            SizedBox(height: 10),
+            _DialogSelectTile(
+              icon: Icons.schedule_send_outlined,
+              title: '종료 시간 (선택)',
+              value: _endTime == null ? '선택' : _formatTimeOfDay(_endTime!),
+              onTap: () async {
+                final TimeOfDay? pickedTime = await AppTimePickerSheet.show(
+                  context,
+                  initialTime: _endTime ?? _startTime ?? TimeOfDay.now(),
+                  title: '종료 시간',
+                );
+                if (pickedTime != null) {
+                  setState(() => _endTime = pickedTime);
+                  widget.onEndTimeChanged(_endTime);
+                  _clearValidationError();
+                }
+              },
+            ),
+            if (_startTime != null || _endTime != null) ...[
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _startTime = null;
+                      _endTime = null;
+                    });
+                    widget.onStartTimeChanged(null);
+                    widget.onEndTimeChanged(null);
+                  },
+                  icon: const Icon(Icons.restart_alt_rounded, size: 18),
+                  label: const Text('시간 초기화'),
+                ),
+              ),
+            ],
           ],
         ),
       ),

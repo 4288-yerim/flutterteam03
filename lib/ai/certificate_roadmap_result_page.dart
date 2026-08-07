@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../mypage/screens/mypage_screen.dart';
 import '../theme.dart';
+import 'dart:async';
+import 'dart:math' as math;
 import 'services/certificate_api_service.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
@@ -58,10 +60,6 @@ class _CertificateRoadmapResultPageState
       _isLoading = true;
       _error = null;
     });
-
-    _loadingController.value = 0;
-    _loadingController.duration = Duration(milliseconds: 900);
-    _loadingController.animateTo(0.9, curve: Curves.easeOut);
 
     try {
       final schedules = await CertificateApiService.fetchSchedule();
@@ -122,10 +120,6 @@ class _CertificateRoadmapResultPageState
         );
       }
 
-      await _loadingController.animateTo(
-        1.0,
-        duration: Duration(milliseconds: 200),
-      );
       await Future.delayed(Duration(milliseconds: 700));
       if (!mounted) return;
 
@@ -459,11 +453,17 @@ class _CertificateRoadmapResultPageState
         child: SafeArea(
           child: _isLoading
               ? Center(
-                  child: _LoadingIndicator(
-                    progress: _loadingController,
-                    colors: colors,
-                  ),
-                )
+            child: _RotatingLoadingContent(
+              messages: [
+                '자격증 시험 일정을 조회하고 있어요',
+                '자격증 상세 정보를 가져오고 있어요',
+                '접수 회차 정보를 정리하고 있어요',
+                '취득 순서를 배열하고 있어요',
+                '로드맵을 완성하고 있어요',
+              ],
+              durations: [700, 900, 900, 700, 500],
+            ),
+          )
               : _error != null
               ? _buildErrorState(colors)
               : _buildResult(colors),
@@ -1060,48 +1060,212 @@ class _DateInformation extends StatelessWidget {
   }
 }
 
-class _LoadingIndicator extends StatelessWidget {
-  final Animation<double> progress;
-  final AppColors colors;
-  _LoadingIndicator({required this.progress, required this.colors});
+class _RotatingLoadingContent extends StatefulWidget {
+  final List<String> messages;
+  final List<int> durations;
+
+  _RotatingLoadingContent({required this.messages, required this.durations});
+
+  @override
+  State<_RotatingLoadingContent> createState() =>
+      _RotatingLoadingContentState();
+}
+
+class _RotatingLoadingContentState extends State<_RotatingLoadingContent>
+    with SingleTickerProviderStateMixin {
+  Timer? _messageTimer;
+  int _messageIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleNextMessage();
+  }
+
+  void _scheduleNextMessage() {
+    final duration =
+    widget.durations[_messageIndex.clamp(0, widget.durations.length - 1)];
+    _messageTimer = Timer(Duration(milliseconds: duration), () {
+      if (!mounted) return;
+      if (_messageIndex < widget.messages.length - 1) {
+        setState(() => _messageIndex++);
+        _scheduleNextMessage();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _messageTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: progress,
-      builder: (context, _) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          WaveLoadingIndicator(
-            size: 72,
-            progress: progress.value,
-            backgroundColor: colors.pinkSoft,
-            waveColorStart: colors.pinkStart,
-            waveColorEnd: colors.pinkDeep,
-            useSmoothing: false,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _WaveLoadingIndicator(
+          size: 72,
+          progress: widget.messages.length <= 1
+              ? 1.0
+              : _messageIndex / (widget.messages.length - 1),
+        ),
+        SizedBox(height: 22),
+        AnimatedSwitcher(
+          duration: Duration(milliseconds: 350),
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          transitionBuilder: (child, anim) => FadeTransition(
+            opacity: anim,
+            child: SlideTransition(
+              position: Tween(
+                begin: Offset(0, 0.15),
+                end: Offset.zero,
+              ).animate(anim),
+              child: child,
+            ),
           ),
-          SizedBox(height: 16),
-          Text(
-            '${(progress.value * 100).toInt()}%',
+          child: Text(
+            widget.messages[_messageIndex],
+            key: ValueKey(_messageIndex),
+            textAlign: TextAlign.center,
             style: TextStyle(
-              color: colors.pinkDeep,
-              fontSize: 13,
+              color: context.colors.textPrimary,
+              fontSize: 15.5,
               fontWeight: FontWeight.w800,
             ),
           ),
-          SizedBox(height: 10),
-          Text(
-            '로드맵을 만들고 있어요',
-            style: TextStyle(
-              color: colors.textSecondary,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
+        ),
+      ],
+    );
+  }
+}
+
+class _WaveLoadingIndicator extends StatefulWidget {
+  final double size;
+  final double progress;
+
+  _WaveLoadingIndicator({this.size = 72, required this.progress});
+
+  @override
+  State<_WaveLoadingIndicator> createState() => _WaveLoadingIndicatorState();
+}
+
+class _WaveLoadingIndicatorState extends State<_WaveLoadingIndicator>
+    with TickerProviderStateMixin {
+  late final AnimationController _levelController;
+  late Animation<double> _levelAnimation;
+  late final AnimationController _waveController;
+
+  @override
+  void initState() {
+    super.initState();
+    _levelController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 900),
+    );
+    _levelAnimation = Tween<double>(
+      begin: 0,
+      end: widget.progress,
+    ).animate(CurvedAnimation(parent: _levelController, curve: Curves.easeOut));
+    _levelController.forward();
+
+    _waveController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 1100),
+    )..repeat();
+  }
+
+  @override
+  void didUpdateWidget(covariant _WaveLoadingIndicator oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.progress != widget.progress) {
+      _levelAnimation = Tween<double>(
+        begin: _levelAnimation.value,
+        end: widget.progress,
+      ).animate(CurvedAnimation(parent: _levelController, curve: Curves.easeOut));
+      _levelController
+        ..reset()
+        ..forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _levelController.dispose();
+    _waveController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: widget.size,
+      height: widget.size,
+      decoration: BoxDecoration(shape: BoxShape.circle),
+      child: ClipOval(
+        child: AnimatedBuilder(
+          animation: Listenable.merge([_levelController, _waveController]),
+          builder: (context, _) {
+            return CustomPaint(
+              size: Size(widget.size, widget.size),
+              painter: _WavePainter(
+                level: _levelAnimation.value,
+                wavePhase: _waveController.value,
+                backgroundColor: context.colors.pinkSoft,
+              ),
+            );
+          },
+        ),
       ),
     );
   }
+}
+
+class _WavePainter extends CustomPainter {
+  final double level;
+  final double wavePhase;
+  final Color backgroundColor;
+
+  _WavePainter({
+    required this.level,
+    required this.wavePhase,
+    required this.backgroundColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bgPaint = Paint()..color = backgroundColor;
+    canvas.drawRect(Offset.zero & size, bgPaint);
+
+    final baseY = size.height * (1 - level);
+    final waveHeight = size.height * 0.045;
+
+    final path = Path()..moveTo(0, baseY);
+    for (double x = 0; x <= size.width; x += 2) {
+      final y = baseY +
+          math.sin((x / size.width * 2 * math.pi) + wavePhase * 2 * math.pi) *
+              waveHeight;
+      path.lineTo(x, y);
+    }
+    path.lineTo(size.width, size.height);
+    path.lineTo(0, size.height);
+    path.close();
+
+    final wavePaint = Paint()
+      ..shader = LinearGradient(
+        colors: [Color(0xFFF4869D), Color(0xFFFF8FA3)],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      ).createShader(Offset.zero & size);
+
+    canvas.drawPath(path, wavePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _WavePainter oldDelegate) =>
+      oldDelegate.level != level || oldDelegate.wavePhase != wavePhase;
 }
 
 class _RoadmapCertificate {
