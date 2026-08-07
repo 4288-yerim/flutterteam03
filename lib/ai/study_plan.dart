@@ -55,7 +55,8 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
   List<String> _availableRounds = [];
   bool _isLoadingRounds = false;
   bool _isManualEntry = false;
-  final Map<String, DateTime?> _roundExamDates = {};
+  final Map<String, _RoundExamDates> _roundExamDates = {};
+  String? _selectedExamType;
   DateTime? _examDate;
   bool _examDateAutoFilled = false;
   bool _includeReview = true;
@@ -259,8 +260,8 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
         return latestEndDate.compareTo(now) >= 0;
       }).toList();
 
-      final rounds = <String>[];
-      final examDates = <String, DateTime?>{};
+        final rounds = <String>[];
+      final examDates = <String, _RoundExamDates>{};
 
       for (final doc in validDocs) {
         final data = doc.data();
@@ -270,7 +271,7 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
         rounds.add(label);
         final docExam = (data['docexamstartat'] as Timestamp?)?.toDate();
         final pracExam = (data['pracexamstartat'] as Timestamp?)?.toDate();
-        examDates[label] = docExam ?? pracExam;
+        examDates[label] = _RoundExamDates(written: docExam, practical: pracExam);
       }
 
       if (!mounted) return;
@@ -316,7 +317,7 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
     );
   }
 
-  void _onNextFromStep0() {
+    void _onNextFromStep0() {
     if (_selectedCertificate == null) {
       _showMessage('자격증을 선택해주세요.');
       return;
@@ -328,6 +329,18 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
       _showMessage('시험 회차를 선택해주세요.');
       return;
     }
+
+    if (!_isManualEntry) {
+      final roundDates = _roundExamDates[_selectedRound];
+      final hasBoth = roundDates != null &&
+          roundDates.written != null &&
+          roundDates.practical != null;
+      if (hasBoth && _selectedExamType == null) {
+        _showMessage('필기 또는 실기 중 준비하는 시험을 선택해주세요.');
+        return;
+      }
+    }
+
     _selectedRound = round;
     _goToStep(1);
   }
@@ -505,6 +518,14 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
       _showMessage('선택하신 요일/제외 날짜 조건으로는 공부 가능한 날이 없어요. 다시 확인해주세요.');
       return;
     }
+    if (studyDates.length > 90) {
+      _showMessage(
+        '공부 가능한 날짜가 ${studyDates.length}일이에요. '
+            '현재는 최대 90일까지 계획을 만들 수 있어요. '
+            '시험 날짜를 앞당기거나 공부 시작일을 늦춰주세요.',
+      );
+      return;
+    }
 
     setState(() => _isGenerating = true);
 
@@ -613,9 +634,10 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
           .doc(uid)
           .collection('studyPlans')
           .add({
-        'certificateId': _selectedCertificate!.jmcd,
+     'certificateId': _selectedCertificate!.jmcd,
         'certificateName': _selectedCertificate!.name,
         'scheduleName': _selectedRound,
+        'examType': _selectedExamType ?? 'INTEGRATED',
         'examStartAt': _examDate != null
             ? Timestamp.fromDate(_examDate!)
             : null,
@@ -933,11 +955,12 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
                     duration: Duration(milliseconds: 700),
                     child: _buildCertificateSearch(),
                   ),
-                  if (_selectedCertificate != null) ...[
+                    if (_selectedCertificate != null) ...[
                     SizedBox(height: 14),
                     _buildSelectedCertificateCard(),
                     SizedBox(height: 14),
                     _buildRoundSelector(),
+                    _buildExamTypeSelector(),
                   ],
                   SizedBox(height: 34),
                   _FadeSlideIn(
@@ -1541,15 +1564,102 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
         items: _availableRounds.map((round) {
           return DropdownMenuItem<String>(value: round, child: Text(round));
         }).toList(),
-        onChanged: (value) {
+       onChanged: (value) {
           setState(() {
             _selectedRound = value;
-            final fetchedDate = value != null ? _roundExamDates[value] : null;
-            _examDate = fetchedDate;
-            _examDateAutoFilled = fetchedDate != null;
+            final roundDates = value != null ? _roundExamDates[value] : null;
+            final hasBoth = roundDates != null &&
+                roundDates.written != null &&
+                roundDates.practical != null;
+
+            if (hasBoth) {
+              _selectedExamType = null;
+              _examDate = null;
+              _examDateAutoFilled = false;
+            } else if (roundDates?.written != null) {
+              _selectedExamType = 'WRITTEN';
+              _examDate = roundDates!.written;
+              _examDateAutoFilled = true;
+            } else if (roundDates?.practical != null) {
+              _selectedExamType = 'PRACTICAL';
+              _examDate = roundDates!.practical;
+              _examDateAutoFilled = true;
+            } else {
+              _selectedExamType = null;
+              _examDate = null;
+              _examDateAutoFilled = false;
+            }
           });
         },
       ),
+    );
+  }
+
+  Widget _buildExamTypeSelector() {
+    final roundDates =
+    _selectedRound != null ? _roundExamDates[_selectedRound] : null;
+    final hasBoth = roundDates != null &&
+        roundDates.written != null &&
+        roundDates.practical != null;
+
+    if (!hasBoth) return SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(height: 14),
+        Row(
+          children: [
+            Text(
+              '필기 · 실기 중 무엇을 준비하시나요?',
+              style: TextStyle(
+                color: context.colors.textPrimary,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            SizedBox(width: 4),
+            Text(
+              '*',
+              style: TextStyle(
+                color: context.colors.pinkStart,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _ExamTypeChip(
+                label: '필기',
+                date: roundDates!.written!,
+                selected: _selectedExamType == 'WRITTEN',
+                onTap: () => setState(() {
+                  _selectedExamType = 'WRITTEN';
+                  _examDate = roundDates.written;
+                  _examDateAutoFilled = true;
+                }),
+              ),
+            ),
+            SizedBox(width: 10),
+            Expanded(
+              child: _ExamTypeChip(
+                label: '실기',
+                date: roundDates.practical!,
+                selected: _selectedExamType == 'PRACTICAL',
+                onTap: () => setState(() {
+                  _selectedExamType = 'PRACTICAL';
+                  _examDate = roundDates.practical;
+                  _examDateAutoFilled = true;
+                }),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -3603,6 +3713,77 @@ class _PlanCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _RoundExamDates {
+  final DateTime? written;
+  final DateTime? practical;
+
+  _RoundExamDates({this.written, this.practical});
+}
+
+class _ExamTypeChip extends StatelessWidget {
+  final String label;
+  final DateTime date;
+  final bool selected;
+  final VoidCallback onTap;
+
+  _ExamTypeChip({
+    required this.label,
+    required this.date,
+    required this.selected,
+    required this.onTap,
+  });
+
+  String _formatDate(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}.$month.$day';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        decoration: BoxDecoration(
+          color: selected ? context.colors.lavender : context.colors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected
+                ? context.colors.lavenderAccent
+                : context.colors.border,
+            width: selected ? 1.6 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: selected
+                    ? context.colors.lavenderAccent
+                    : context.colors.textPrimary,
+                fontSize: 14.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            SizedBox(height: 4),
+            Text(
+              _formatDate(date),
+              style: TextStyle(
+                color: context.colors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

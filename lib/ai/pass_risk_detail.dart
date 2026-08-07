@@ -166,7 +166,7 @@ class PassRiskDetailScreen extends StatelessWidget {
               return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                 stream: userDocRef
                     .collection('analysis')
-                    .doc('passRisk')
+                    .doc(certificateName.replaceAll('/', '_'))
                     .snapshots(),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {

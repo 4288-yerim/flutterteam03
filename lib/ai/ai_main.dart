@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'services/subscription_events.dart';
 import 'dart:async';
 import 'dart:ui';
 import '../theme.dart';
 import '../notification/screens/notification.dart';
 import '../notification/widgets/notification_bell_button.dart';
+import '../widgets/app_confirm_dialog.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_top_bar.dart';
 import 'question_generation.dart';
@@ -17,6 +19,7 @@ import 'material_summary_result.dart';
 import 'pass_risk_detail.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'subscription.dart';
+import '../widgets/exam_result_dialog.dart';
 
 class AiPage extends StatefulWidget {
   AiPage({super.key});
@@ -123,24 +126,36 @@ class _AiPageState extends State<AiPage> {
   String? _latestStudyPlanCertificateName;
 
   bool _isCheckingSubscription = false;
+  bool _hasCheckedMissedSchedule = false;
+  bool _isRebalancing = false;
   bool _isSubscriptionActive = false;
   bool _isInsightLoading = true;
   _WeakestTopic? _weakestTopic;
   _WeeklyStats? _weeklyStats;
   _RecentSummary? _recentSummary;
   _PassRiskAnalysis? _passRiskAnalysis;
+  List<String> _availableCertificatesForRisk = [];
+  String? _selectedPassRiskCertificate;
 
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _nicknameSub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _studyPlanSub;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _subscriptionSub;
+  StreamSubscription<void>? _subscriptionEventSub;
+
 
   @override
   void initState() {
     super.initState();
-
+    _subscriptionEventSub = SubscriptionEvents.instance.onActivated.listen((_) {
+      _loadInsights(FirebaseAuth.instance.currentUser);
+    });
     FirebaseAuth.instance.authStateChanges().listen((user) {
       _listenNickname(user);
+      _listenSubscriptionStatus(user);
       _loadInsights(user);
       _listenLatestStudyPlan(user);
+      _checkPendingExamResult(user);
+      _checkMissedStudySchedule(user);
     });
   }
 
@@ -148,6 +163,8 @@ class _AiPageState extends State<AiPage> {
   void dispose() {
     _nicknameSub?.cancel();
     _studyPlanSub?.cancel();
+    _subscriptionSub?.cancel();
+    _subscriptionEventSub?.cancel();
     super.dispose();
   }
 
@@ -202,6 +219,43 @@ class _AiPageState extends State<AiPage> {
         );
   }
 
+  void _listenSubscriptionStatus(User? user) {
+    _subscriptionSub?.cancel();
+
+    if (user == null) {
+      setState(() => _isSubscriptionActive = false);
+      return;
+    }
+
+    FirebaseFirestore.instance
+        .collection('users')
+        .where('uid', isEqualTo: user.uid)
+        .limit(1)
+        .get()
+        .then((userSnap) {
+      if (!mounted || userSnap.docs.isEmpty) return;
+      final userDocRef = userSnap.docs.first.reference;
+
+      _subscriptionSub = userDocRef
+          .collection('subscription')
+          .doc('current')
+          .snapshots()
+          .listen(
+            (doc) {
+          if (!mounted) return;
+          final status = doc.data()?['status']
+              ?.toString()
+              .trim()
+              .toUpperCase();
+          setState(() => _isSubscriptionActive = status == 'ACTIVE');
+        },
+        onError: (error) {
+          debugPrint('구독 상태 실시간 조회 실패: $error');
+        },
+      );
+    });
+  }
+
   void _listenLatestStudyPlan(User? user) {
     _studyPlanSub?.cancel();
 
@@ -222,30 +276,243 @@ class _AiPageState extends State<AiPage> {
           .limit(10)
           .snapshots()
           .listen(
-            (snap) {
+            (snap) async {
           if (!mounted) return;
 
-          String? name;
+          String? latestName;
+          final availableNames = <String>[];
           for (final doc in snap.docs) {
             final data = doc.data();
             if (data['steps'] is List) {
               final certName = (data['certificateName'] as String?)?.trim();
               if (certName != null && certName.isNotEmpty) {
-                name = certName;
-                break;
+                latestName ??= certName;
+                if (!availableNames.contains(certName)) {
+                  availableNames.add(certName);
+                }
               }
             }
           }
 
+          final selectedStillExists = _selectedPassRiskCertificate != null &&
+              availableNames.contains(_selectedPassRiskCertificate);
+
           setState(() {
-            _latestStudyPlanCertificateName = name;
+            _latestStudyPlanCertificateName = latestName;
+            _availableCertificatesForRisk = availableNames;
+            if (!selectedStillExists) {
+              // 선택했던(또는 마지막으로 보던) 자격증의 플랜이 삭제된 경우
+              _selectedPassRiskCertificate =
+                  latestName ?? (availableNames.isNotEmpty ? availableNames.first : null);
+              _passRiskAnalysis = null;
+            }
           });
+
+          if (!selectedStillExists) {
+            if (_selectedPassRiskCertificate == null) {
+              // 플랜이 전부 삭제된 경우: 관련 인사이트 초기화
+              if (mounted) {
+                setState(() {
+                  _weakestTopic = null;
+                  _passRiskAnalysis = null;
+                });
+              }
+            } else {
+              final analysis = await _fetchPassRiskAnalysis(
+                userDocRef,
+                _selectedPassRiskCertificate,
+              );
+              if (mounted) {
+                setState(() => _passRiskAnalysis = analysis);
+              }
+            }
+          }
         },
         onError: (error) {
           debugPrint('최근 학습 플랜 실시간 조회 실패: $error');
         },
       );
     });
+  }
+
+  Future<void> _checkPendingExamResult(User? user) async {
+    if (user == null) return;
+
+    try {
+      final userQuerySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('uid', isEqualTo: user.uid)
+          .limit(1)
+          .get();
+
+      if (userQuerySnapshot.docs.isEmpty) return;
+      final userDocRef = userQuerySnapshot.docs.first.reference;
+
+      final pendingSnap = await userDocRef
+          .collection('studyPlans')
+          .where('resultReportPending', isEqualTo: true)
+          .limit(1)
+          .get();
+
+      if (pendingSnap.docs.isEmpty) return;
+      if (!mounted) return;
+
+      final planDoc = pendingSnap.docs.first;
+      final certName = (planDoc.data()['certificateName'] as String?) ?? '자격증';
+
+      // 화면이 완전히 그려진 뒤에 다이얼로그를 띄우기 위해 한 프레임 대기
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => ExamResultDialog(
+            studyPlanId: planDoc.id,
+            certificateName: certName,
+          ),
+        ).then((reported) {
+          if (reported == true && mounted) {
+            _loadInsights(FirebaseAuth.instance.currentUser);
+          }
+        });
+      });
+    } catch (e) {
+      debugPrint('시험 결과 신고 체크 실패: $e');
+    }
+  }
+
+  DateTime _parseStepDateForClient(
+      String? dayLabel,
+      DateTime recommendedStartDate,
+      int fallbackIndex,
+      ) {
+    final match = RegExp(r'(\d{1,2})/(\d{1,2})').firstMatch(dayLabel ?? '');
+    if (match == null) {
+      return recommendedStartDate.add(Duration(days: fallbackIndex));
+    }
+    final month = int.parse(match.group(1)!);
+    final day = int.parse(match.group(2)!);
+    var year = recommendedStartDate.year;
+    if (month < recommendedStartDate.month) year += 1;
+    return DateTime(year, month, day);
+  }
+
+  Future<void> _checkMissedStudySchedule(User? user) async {
+    if (_hasCheckedMissedSchedule || user == null) return;
+    _hasCheckedMissedSchedule = true;
+
+    try {
+      final userQuerySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('uid', isEqualTo: user.uid)
+          .limit(1)
+          .get();
+      if (!mounted || userQuerySnapshot.docs.isEmpty) return;
+      final userDocRef = userQuerySnapshot.docs.first.reference;
+
+      final subscriptionDoc =
+      await userDocRef.collection('subscription').doc('current').get();
+      final status =
+      subscriptionDoc.data()?['status']?.toString().trim().toUpperCase();
+      if (status != 'ACTIVE') return; // 구독 중일 때만 감지
+
+      final planSnap = await userDocRef
+          .collection('studyPlans')
+          .orderBy('createdAt', descending: true)
+          .limit(10)
+          .get();
+
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+
+      for (final doc in planSnap.docs) {
+        final data = doc.data();
+        final steps = data['steps'] as List?;
+        if (steps == null || steps.isEmpty) continue;
+
+        final certName = (data['certificateName'] as String?)?.trim();
+        if (certName == null || certName.isEmpty) continue;
+
+        final recommendedStartDate = data['recommendedStudyStartDate'] != null
+            ? DateTime.parse('${data['recommendedStudyStartDate']}T00:00:00')
+            : now;
+
+        var hasMissed = false;
+        for (var i = 0; i < steps.length; i++) {
+          final step = steps[i] as Map<String, dynamic>;
+          final isCompleted = step['isCompleted'] == true;
+          if (isCompleted) continue;
+
+          final stepDate = _parseStepDateForClient(
+            step['dayLabel'] as String?,
+            recommendedStartDate,
+            i,
+          );
+          if (stepDate.isBefore(today)) {
+            hasMissed = true;
+            break;
+          }
+        }
+
+        if (hasMissed) {
+          if (!mounted) return;
+          _showMissedScheduleDialog(doc.id, certName);
+          return; // 가장 최근 플랜 하나만 안내
+        }
+      }
+    } catch (e) {
+      debugPrint('밀린 학습 일정 확인 실패: $e');
+    }
+  }
+
+  Future<void> _showMissedScheduleDialog(
+      String studyPlanId,
+      String certificateName,
+      ) async {
+    if (!mounted) return;
+    final shouldRebalance = await AppConfirmDialog.show<bool>(
+      context,
+      icon: Icons.event_repeat_rounded,
+      title: '일정이 밀렸어요',
+      description: '$certificateName 학습 계획 중 못 하신 부분이 있네요!\n'
+          'AI가 남은 일정을 다시 배분해드릴까요?',
+      primaryLabel: '재조정하기',
+      onPrimaryPressed: () => Navigator.pop(context, true),
+      secondaryLabel: '나중에',
+      onSecondaryPressed: () => Navigator.pop(context, false),
+    );
+
+    if (shouldRebalance != true) return;
+    await _rebalanceStudyPlan(studyPlanId);
+  }
+
+  Future<void> _rebalanceStudyPlan(String studyPlanId) async {
+    if (_isRebalancing) return;
+    setState(() => _isRebalancing = true);
+
+    try {
+      final callable =
+      FirebaseFunctions.instance.httpsCallable('rebalanceStudyPlan');
+      await callable.call({'studyPlanId': studyPlanId});
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('남은 일정을 다시 배분했어요.')),
+      );
+      _loadInsights(FirebaseAuth.instance.currentUser);
+    } on FirebaseFunctionsException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? '재조정에 실패했어요.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('재조정 중 오류가 발생했어요.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isRebalancing = false);
+    }
   }
 
   Future<void> _onAnalyzePassRiskPressed() async {
@@ -290,7 +557,8 @@ class _AiPageState extends State<AiPage> {
         return;
       }
 
-      final certName = _latestStudyPlanCertificateName
+      final certName = _selectedPassRiskCertificate
+          ?? _latestStudyPlanCertificateName
           ?? _passRiskAnalysis?.certificateName
           ?? _weakestTopic?.certificateName;
 
@@ -304,9 +572,12 @@ class _AiPageState extends State<AiPage> {
       final callable = FirebaseFunctions.instance.httpsCallable('analyzePassRisk');
       await callable.call({'certificateName': certName});
       await _loadInsights(user);
-    } on FirebaseFunctionsException catch (e) {
+} on FirebaseFunctionsException catch (e) {
+      final message = e.code == 'not-found'
+          ? '해당 자격증의 AI 학습 플랜이 없어요. 먼저 학습 플랜을 추가해주세요.'
+          : (e.message ?? '분석에 실패했어요.');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? '분석에 실패했어요.')),
+        SnackBar(content: Text(message)),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -326,6 +597,31 @@ class _AiPageState extends State<AiPage> {
     _loadInsights(FirebaseAuth.instance.currentUser);
   }
 
+  Future<void> _onSelectPassRiskCertificate(String certName) async {
+    if (certName == _selectedPassRiskCertificate) return;
+    setState(() {
+      _selectedPassRiskCertificate = certName;
+      _passRiskAnalysis = null;
+    });
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final userQuerySnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .where('uid', isEqualTo: user.uid)
+        .limit(1)
+        .get();
+    if (!mounted || userQuerySnapshot.docs.isEmpty) return;
+
+    final analysis = await _fetchPassRiskAnalysis(
+      userQuerySnapshot.docs.first.reference,
+      certName,
+    );
+    if (!mounted) return;
+    setState(() => _passRiskAnalysis = analysis);
+  }
+
   Future<void> _loadInsights(User? user) async {
     if (!mounted) return;
 
@@ -342,7 +638,7 @@ class _AiPageState extends State<AiPage> {
 
     setState(() => _isInsightLoading = true);
 
-    try {
+      try {
       final userQuerySnapshot = await FirebaseFirestore.instance
           .collection('users')
           .where('uid', isEqualTo: user.uid)
@@ -358,18 +654,34 @@ class _AiPageState extends State<AiPage> {
           _weeklyStats = null;
           _recentSummary = null;
           _passRiskAnalysis = null;
+          _availableCertificatesForRisk = [];
+          _selectedPassRiskCertificate = null;
           _isInsightLoading = false;
         });
         return;
       }
       final userDocRef = userQuerySnapshot.docs.first.reference;
 
+      final certResults = await Future.wait([
+        _fetchAvailableCertificatesForRisk(userDocRef),
+        _fetchLatestStudyPlanCertificate(userDocRef),
+      ]).timeout(Duration(seconds: 10));
+
+      final availableCerts = certResults[0] as List<String>;
+      final latestCert = certResults[1] as String?;
+
+      final keepPreviousSelection = _selectedPassRiskCertificate != null &&
+          availableCerts.contains(_selectedPassRiskCertificate);
+      final selectedCert = keepPreviousSelection
+          ? _selectedPassRiskCertificate
+          : (latestCert ??
+              (availableCerts.isNotEmpty ? availableCerts.first : null));
+
       final results = await Future.wait([
         _fetchWeakestTopic(userDocRef),
         _fetchWeeklyStats(userDocRef),
         _fetchRecentSummary(userDocRef),
-        _fetchPassRiskAnalysis(userDocRef),
-        _fetchLatestStudyPlanCertificate(userDocRef),
+        _fetchPassRiskAnalysis(userDocRef, selectedCert),
         _fetchIsSubscriptionActive(userDocRef),
       ]).timeout(Duration(seconds: 10));
 
@@ -380,8 +692,10 @@ class _AiPageState extends State<AiPage> {
         _weeklyStats = results[1] as _WeeklyStats?;
         _recentSummary = results[2] as _RecentSummary?;
         _passRiskAnalysis = results[3] as _PassRiskAnalysis?;
-        _latestStudyPlanCertificateName = results[4] as String?;
-        _isSubscriptionActive = results[5] as bool;
+        _isSubscriptionActive = results[4] as bool;
+        _latestStudyPlanCertificateName = latestCert;
+        _availableCertificatesForRisk = availableCerts;
+        _selectedPassRiskCertificate = selectedCert;
         _isInsightLoading = false;
       });
     } catch (error) {
@@ -516,29 +830,55 @@ class _AiPageState extends State<AiPage> {
     );
   }
 
-  Future<_PassRiskAnalysis?> _fetchPassRiskAnalysis(
+Future<_PassRiskAnalysis?> _fetchPassRiskAnalysis(
       DocumentReference<Map<String, dynamic>> userDocRef,
+      String? certificateName,
       ) async {
-    final doc = await userDocRef.collection('analysis').doc('passRisk').get();
+    if (certificateName == null) return null;
+
+    final doc = await userDocRef
+        .collection('analysis')
+        .doc(certificateName.replaceAll('/', '_'))
+        .get();
 
     if (!doc.exists) return null;
-
     final data = doc.data();
     if (data == null) return null;
 
-    final certificateName = (data['certificateName'] as String?)?.trim();
-    if (certificateName == null || certificateName.isEmpty) return null;
-
+    final storedCertificateName = (data['certificateName'] as String?)?.trim();
+    if (storedCertificateName == null || storedCertificateName.isEmpty) return null;
     final factors = data['factors'] as Map<String, dynamic>? ?? {};
 
     return _PassRiskAnalysis(
-      certificateName: certificateName,
+      certificateName: storedCertificateName,
       passProbability: (data['passProbability'] as num?)?.toInt() ?? 0,
       riskLevel: (data['riskLevel'] as String?)?.trim() ?? 'UNKNOWN',
       progressGap: (factors['progressGap'] as num?)?.toDouble() ?? 0,
       recentCompletionRate:
       (factors['recentCompletionRate'] as num?)?.toDouble() ?? 0,
     );
+  }
+
+  Future<List<String>> _fetchAvailableCertificatesForRisk(
+      DocumentReference<Map<String, dynamic>> userDocRef,
+      ) async {
+    final snap = await userDocRef
+        .collection('studyPlans')
+        .orderBy('createdAt', descending: true)
+        .limit(20)
+        .get();
+
+    final names = <String>[];
+    for (final doc in snap.docs) {
+      final data = doc.data();
+      if (data['steps'] is List) {
+        final name = (data['certificateName'] as String?)?.trim();
+        if (name != null && name.isNotEmpty && !names.contains(name)) {
+          names.add(name);
+        }
+      }
+    }
+    return names;
   }
 
   Future<String?> _fetchLatestStudyPlanCertificate(
@@ -678,8 +1018,8 @@ await Navigator.push(
     );
   }
 
-  void _onQuestionPressed(BuildContext context, {_WeakestTopic? topic}) {
-    Navigator.push(
+  Future<void> _onQuestionPressed(BuildContext context, {_WeakestTopic? topic}) async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => QuestionGenerationPage(
@@ -688,8 +1028,9 @@ await Navigator.push(
         ),
       ),
     );
+    if (!mounted) return;
+    _loadInsights(FirebaseAuth.instance.currentUser);
   }
-
   void _onSummaryPressed() {
     Navigator.push(
       context,
@@ -762,10 +1103,13 @@ await Navigator.push(
                 SizedBox(height: 30),
                 _SectionTitle(title: '합격 예측 분석'),
                 SizedBox(height: 16),
-                _PassRiskCard(
+_PassRiskCard(
                   isLoading: _isInsightLoading,
                   isSubscribed: _isSubscriptionActive,
                   analysis: _passRiskAnalysis,
+                  availableCertificates: _availableCertificatesForRisk,
+                  selectedCertificate: _selectedPassRiskCertificate,
+                  onCertificateSelected: _onSelectPassRiskCertificate,
                   onPressed: _onPassRiskPressed,
                   isAnalyzing: _isAnalyzingPassRisk,
                   onAnalyzePressed: _onAnalyzePassRiskPressed,
@@ -1073,15 +1417,76 @@ class _PassRiskCard extends StatelessWidget {
   final VoidCallback onAnalyzePressed;
   final VoidCallback onSubscribePressed;
 
+  final List<String> availableCertificates;
+  final String? selectedCertificate;
+  final ValueChanged<String> onCertificateSelected;
+
   _PassRiskCard({
     required this.isLoading,
     required this.isSubscribed,
     required this.analysis,
+    required this.availableCertificates,
+    required this.selectedCertificate,
+    required this.onCertificateSelected,
     required this.onPressed,
     required this.isAnalyzing,
     required this.onAnalyzePressed,
     required this.onSubscribePressed,
   });
+
+  Widget _buildCertificateSelector(BuildContext context) {
+    if (availableCertificates.length <= 1) return SizedBox.shrink();
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: 14),
+      child: Container(
+        decoration: BoxDecoration(
+          color: context.colors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: context.colors.border),
+        ),
+        child: DropdownButtonFormField<String>(
+          value: selectedCertificate,
+          isExpanded: true,
+          icon: Padding(
+            padding: EdgeInsets.only(right: 4),
+            child: Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: context.colors.pinkStart,
+            ),
+          ),
+          decoration: InputDecoration(
+            labelText: '분석할 자격증',
+            labelStyle: TextStyle(
+              color: context.colors.textSecondary,
+              fontSize: 12.5,
+            ),
+            prefixIcon: Icon(
+              Icons.workspace_premium_outlined,
+              color: context.colors.pinkStart,
+              size: 20,
+            ),
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+          ),
+          style: TextStyle(
+            color: context.colors.textPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+          items: availableCertificates.map((name) {
+            return DropdownMenuItem<String>(
+              value: name,
+              child: Text(name, overflow: TextOverflow.ellipsis),
+            );
+          }).toList(),
+          onChanged: (value) {
+            if (value != null) onCertificateSelected(value);
+          },
+        ),
+      ),
+    );
+  }
 
   Widget _gradientButton(
       BuildContext context, {
@@ -1346,6 +1751,7 @@ class _PassRiskCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            _buildCertificateSelector(context),
             Row(
               children: [
                 Icon(Icons.insights_outlined,
@@ -1378,11 +1784,12 @@ class _PassRiskCard extends StatelessWidget {
 
     final riskColor = _riskColor(context, analysis!.riskLevel);
 
-    return _shell(
+       return _shell(
       context,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          _buildCertificateSelector(context),
           Material(
             color: Colors.transparent,
             borderRadius: BorderRadius.circular(18),
@@ -1438,13 +1845,22 @@ class _PassRiskCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Icon(Icons.chevron_right_rounded,
+    Icon(Icons.chevron_right_rounded,
                       color: context.colors.textSecondary),
                 ],
               ),
             ),
           ),
-          SizedBox(height: 14),
+          SizedBox(height: 12),
+          Text(
+            '※ AI가 학습 데이터를 바탕으로 추정한 참고용 수치예요. 실제 합격 여부와 다를 수 있어요.',
+            style: TextStyle(
+              color: context.colors.textSecondary,
+              fontSize: 11,
+              height: 1.4,
+            ),
+          ),
+          SizedBox(height: 12),
           _gradientButton(
             context,
             label: isAnalyzing ? '분석 중...' : '다시 분석하기',
@@ -1455,9 +1871,7 @@ class _PassRiskCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  Color _riskColor(BuildContext context, String riskLevel) {
+  }  Color _riskColor(BuildContext context, String riskLevel) {
     switch (riskLevel) {
       case 'HIGH':
         return context.colors.incorrect;
@@ -1830,3 +2244,4 @@ class _RecentSummaryCard extends StatelessWidget {
     );
   }
 }
+

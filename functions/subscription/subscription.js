@@ -73,19 +73,19 @@ exports.verifySubscriptionPayment = onCall(
       planType: "MONTHLY",
     });
 
-    await db.collection("users").doc(uid).collection("subscription").doc("current").set({
-      planType: "MONTHLY",
-      status: "ACTIVE",
-      startedAt: admin.firestore.Timestamp.fromMillis(paidAtMillis),
-      expiresAt: admin.firestore.Timestamp.fromMillis(expiresAtMillis),
-      autoRenew: true,
-      amount: payment.amount,
-      paymentProvider: payment.pg_provider || "portone",
-      latestPaymentId: merchantUid,
-      billingKeyCustomerUid: customerUid,
-      updatedAt: now,
-      createdAt: now,
-    }, { merge: true });
+await db.collection("users").doc(uid).collection("subscription").doc("current").set({
+  planType: "MONTHLY",
+  status: "ACTIVE",
+  startedAt: admin.firestore.Timestamp.fromMillis(paidAtMillis),
+  expiresAt: admin.firestore.Timestamp.fromMillis(expiresAtMillis),
+  autoRenew: true,
+  amount: 2900,
+  paymentProvider: payment.pg_provider || "portone",
+  latestPaymentId: merchantUid,
+  billingKeyCustomerUid: customerUid,
+  updatedAt: now,
+  createdAt: now,
+}, { merge: true });
 
     return { success: true };
   }
@@ -95,25 +95,34 @@ exports.chargeRecurringSubscriptions = onSchedule(
   { schedule: "every day 03:00", timeZone: "Asia/Seoul", secrets: [PORTONE_API_KEY, PORTONE_API_SECRET] },
   async (event) => {
     const now = Date.now();
-    const dueSnap = await db.collectionGroup("subscription")
-      .where("status", "==", "ACTIVE")
-      .where("autoRenew", "==", true)
-      .where("expiresAt", "<=", admin.firestore.Timestamp.fromMillis(now))
-      .get();
+const dueSnap = await db.collectionGroup("subscription")
+  .where("status", "==", "ACTIVE")
+  .where("expiresAt", "<=", admin.firestore.Timestamp.fromMillis(now))
+  .get();
 
-    if (dueSnap.empty) return;
+if (dueSnap.empty) return;
 
-    const tokenRes = await axios.post("https://api.iamport.kr/users/getToken", {
-      imp_key: PORTONE_API_KEY.value(),
-      imp_secret: PORTONE_API_SECRET.value(),
+const tokenRes = await axios.post("https://api.iamport.kr/users/getToken", {
+  imp_key: PORTONE_API_KEY.value(),
+  imp_secret: PORTONE_API_SECRET.value(),
+});
+const accessToken = tokenRes.data.response.access_token;
+
+for (const doc of dueSnap.docs) {
+  if (doc.id !== "current") continue;
+  const sub = doc.data();
+  const uid = doc.ref.parent.parent.id;
+
+  // 해지된 구독은 갱신 시도 없이 여기서 만료 처리
+  if (!sub.autoRenew) {
+    await doc.ref.update({
+      status: "EXPIRED",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    const accessToken = tokenRes.data.response.access_token;
+    continue;
+  }
 
-    for (const doc of dueSnap.docs) {
-      if (doc.id !== "current") continue;
-      const sub = doc.data();
-      const uid = doc.ref.parent.parent.id;
-      const merchantUid = `sub_renew_${Date.now()}_${uid}`;
+  const merchantUid = `sub_renew_${Date.now()}_${uid}`;
 
       try {
         const chargeRes = await axios.post(
@@ -147,6 +156,7 @@ exports.chargeRecurringSubscriptions = onSchedule(
             startedAt: admin.firestore.Timestamp.fromMillis(paidAtMillis),
             expiresAt: admin.firestore.Timestamp.fromMillis(nextExpiresAt),
             latestPaymentId: merchantUid,
+            amount: result.amount,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           });
         } else {
@@ -178,7 +188,7 @@ exports.cancelSubscription = onCall(async (request) => {
     .doc("current")
     .update({
       autoRenew: false,
-      status: "CANCELLED",
+      cancelledAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
