@@ -692,17 +692,21 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
                   bottom: 5,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: types.map((type) => Container(
-                      width: 6,
-                      height: 6,
-                      margin: EdgeInsets.symmetric(horizontal: 1.5),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? context.colors.onPrimary
-                            : _getScheduleColor(type),
-                        shape: BoxShape.circle,
-                      ),
-                    )).toList(),
+                    children: types
+                        .map(
+                          (type) => Container(
+                            width: 6,
+                            height: 6,
+                            margin: EdgeInsets.symmetric(horizontal: 1.5),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? context.colors.onPrimary
+                                  : _getScheduleColor(type),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        )
+                        .toList(),
                   ),
                 );
               },
@@ -1211,8 +1215,8 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
     DateTime selectedDate = editingSchedule?.date ?? _selectedDate;
 
     TimeOfDay? startTime = editingSchedule?.startTime;
-
     TimeOfDay? endTime = editingSchedule?.endTime;
+    String? validationMessage;
 
     final bool? result = await showDialog<bool>(
       context: context,
@@ -1229,9 +1233,54 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (validationMessage != null) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: context.colors.incorrectSoft,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: context.colors.incorrect.withOpacity(0.35),
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.error_outline_rounded,
+                              size: 18,
+                              color: context.colors.incorrect,
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                validationMessage!,
+                                style: TextStyle(
+                                  color: context.colors.incorrect,
+                                  fontSize: 13,
+                                  height: 1.4,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                    ],
                     TextField(
                       controller: titleController,
+                      onChanged: (_) {
+                        if (validationMessage == null) return;
 
+                        setDialogState(() {
+                          validationMessage = null;
+                        });
+                      },
                       // 다이얼로그가 닫힐 때 Flutter 기본 바깥 탭 처리가
                       // 중복 실행되는 오류를 막기 위해 직접 처리
                       onTapOutside: (_) {
@@ -1323,18 +1372,16 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
                 TextButton(
                   onPressed: () {
                     if (titleController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(SnackBar(content: Text('일정 이름을 입력해주세요.')));
-
+                      setDialogState(() {
+                        validationMessage = '일정 이름을 입력해주세요.';
+                      });
                       return;
                     }
 
                     if (startTime == null && endTime != null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('종료 시간을 선택하려면 시작 시간도 선택해주세요.')),
-                      );
-
+                      setDialogState(() {
+                        validationMessage = '종료 시간을 선택하려면 시작 시간도 선택해주세요.';
+                      });
                       return;
                     }
 
@@ -1346,10 +1393,9 @@ class _MyPageCalendarScreenState extends State<MyPageCalendarScreen> {
                           endTime!.hour * 60 + endTime!.minute;
 
                       if (endMinutes <= startMinutes) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('종료 시간은 시작 시간보다 늦어야 합니다.')),
-                        );
-
+                        setDialogState(() {
+                          validationMessage = '종료 시간은 시작 시간보다 늦어야 합니다.';
+                        });
                         return;
                       }
                     }

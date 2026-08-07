@@ -9,6 +9,7 @@ import '../../auth/services/auth_service.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_main_background.dart';
 import '../../widgets/app_top_bar.dart';
+import '../../widgets/app_loading_dialog.dart';
 
 class AccountWithdrawalScreen extends StatefulWidget {
   const AccountWithdrawalScreen({super.key});
@@ -502,14 +503,20 @@ class _AccountWithdrawalScreenState extends State<AccountWithdrawalScreen>
   }
 
   Future<void> _requestAccountWithdrawal() async {
+    // 같은 화면에서 탈퇴 버튼이 연속으로 눌리는 것을 방지합니다.
     if (_isLoading) return;
 
     final User? currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('로그인 정보를 확인할 수 없습니다. 다시 로그인해주세요.')),
+        const SnackBar(
+          content: Text(
+            '로그인 정보를 확인할 수 없습니다. 다시 로그인해주세요.',
+          ),
+        ),
       );
       return;
     }
@@ -518,36 +525,121 @@ class _AccountWithdrawalScreenState extends State<AccountWithdrawalScreen>
 
     if (selectedReason == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('탈퇴 사유를 선택해주세요.')));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('탈퇴 사유를 선택해주세요.'),
+        ),
+      );
       return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+    });
+
+    bool isLoadingDialogOpen = true;
+
+    AppLoadingDialog.show(
+      context,
+      title: '탈퇴 신청 중...',
+      description: '잠시만 기다려 주세요.',
+    );
 
     try {
       final DateTime requestedDateTime = DateTime.now();
+
       final DateTime scheduledDateTime = requestedDateTime.add(
-        Duration(days: 7),
+        const Duration(days: 7),
       );
 
-      await FirebaseFirestore.instance
+      final DocumentReference<Map<String, dynamic>> userReference =
+      FirebaseFirestore.instance
           .collection('users')
-          .doc(currentUser.uid)
-          .set({
-            'status': 'WITHDRAWAL_PENDING',
-            'withdrawalRequestedAt': Timestamp.fromDate(requestedDateTime),
-            'withdrawalScheduledAt': Timestamp.fromDate(scheduledDateTime),
-            'withdrawalReasonCode': _getWithdrawalReasonCode(selectedReason),
-            'withdrawalReason': selectedReason,
-            'withdrawalReasonDetail': _reasonController.text.trim(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
+          .doc(currentUser.uid);
+
+      bool alreadyPending = false;
+
+      /*
+     * 현재 회원 상태 확인과 탈퇴 신청 저장을 하나의 트랜잭션으로 처리합니다.
+     *
+     * 여러 기기에서 동시에 신청하거나 네트워크 오류 후 다시 신청해도
+     * 이미 WITHDRAWAL_PENDING 상태라면 기존 신청 날짜를 덮어쓰지 않습니다.
+     */
+      await FirebaseFirestore.instance.runTransaction(
+            (Transaction transaction) async {
+          final DocumentSnapshot<Map<String, dynamic>> userSnapshot =
+          await transaction.get(userReference);
+
+          final Map<String, dynamic>? userData =
+          userSnapshot.data();
+
+          final String currentStatus =
+              userData?['status']
+                  ?.toString()
+                  .trim()
+                  .toUpperCase() ??
+                  '';
+
+          if (currentStatus == 'WITHDRAWAL_PENDING') {
+            alreadyPending = true;
+            return;
+          }
+
+          transaction.set(
+            userReference,
+            {
+              'status': 'WITHDRAWAL_PENDING',
+              'withdrawalRequestedAt':
+              Timestamp.fromDate(requestedDateTime),
+              'withdrawalScheduledAt':
+              Timestamp.fromDate(scheduledDateTime),
+              'withdrawalReasonCode':
+              _getWithdrawalReasonCode(selectedReason),
+              'withdrawalReason': selectedReason,
+              'withdrawalReasonDetail':
+              _reasonController.text.trim(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true),
+          );
+        },
+      );
 
       if (!mounted) return;
 
-      await showAnimatedStyledDialog(
+      /*
+     * 이미 탈퇴 신청이 접수된 상태라면
+     * 기존 예약 날짜를 유지하고 현재 요청은 종료합니다.
+     */
+      if (alreadyPending) {
+        if (isLoadingDialogOpen) {
+          AppLoadingDialog.close(context);
+          isLoadingDialogOpen = false;
+        }
+
+        setState(() {
+          _isLoading = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              '이미 탈퇴 신청이 접수되어 있습니다.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      // Firestore 저장이 끝났으므로 신청 중 로딩을 닫습니다.
+      if (isLoadingDialogOpen) {
+        AppLoadingDialog.close(context);
+        isLoadingDialogOpen = false;
+      }
+
+      // 탈퇴 신청 완료 안내를 표시합니다.
+      await showAnimatedStyledDialog<void>(
         context: context,
         barrierDismissible: false,
         dialog: _StyledDialog(
@@ -555,41 +647,119 @@ class _AccountWithdrawalScreenState extends State<AccountWithdrawalScreen>
           iconColor: context.colors.correct,
           iconBackground: context.colors.correctSoft,
           title: '탈퇴 신청 완료',
-          description: '탈퇴 신청이 완료되었습니다.\n신청일로부터 7일 이내에는\n계정을 복구할 수 있습니다.',
+          description:
+          '탈퇴 신청이 완료되었습니다.\n'
+              '신청일로부터 7일 이내에는\n'
+              '계정을 복구할 수 있습니다.',
           primaryText: '확인',
           primaryColor: context.colors.incorrect,
-          onPrimary: () => Navigator.pop(context),
+          onPrimary: () => Navigator.of(context).pop(),
         ),
       );
 
       if (!mounted) return;
 
+      // 완료 확인 후 로그아웃이 끝날 때까지 화면 입력을 막습니다.
+      AppLoadingDialog.show(
+        context,
+        title: '로그아웃 중...',
+        description: '잠시만 기다려 주세요.',
+      );
+
+      isLoadingDialogOpen = true;
+
       try {
         await AuthService.signOut();
-      } catch (error) {
-        await FirebaseAuth.instance.signOut();
+      } catch (_) {
+        try {
+          await FirebaseAuth.instance.signOut();
+        } catch (error) {
+          if (!mounted) return;
+
+          if (isLoadingDialogOpen) {
+            AppLoadingDialog.close(context);
+            isLoadingDialogOpen = false;
+          }
+
+          setState(() {
+            _isLoading = false;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                '탈퇴 신청은 완료되었지만 로그아웃하지 못했습니다.\n'
+                    '다시 시도해주세요.',
+              ),
+            ),
+          );
+          return;
+        }
       }
 
       if (!mounted) return;
 
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => WelcomeScreen()),
-        (route) => false,
+      /*
+     * 화면 이동 시 기존 화면과 로딩 다이얼로그를 모두 제거하므로
+     * 여기서는 AppLoadingDialog.close를 별도로 호출하지 않습니다.
+     */
+      isLoadingDialogOpen = false;
+
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => const WelcomeScreen(),
+        ),
+            (Route<dynamic> route) => false,
       );
     } on FirebaseException catch (error) {
       if (!mounted) return;
+
+      if (isLoadingDialogOpen) {
+        AppLoadingDialog.close(context);
+        isLoadingDialogOpen = false;
+      }
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      String message = '탈퇴 신청 저장에 실패했습니다.';
+
+      if (error.code == 'permission-denied') {
+        message = '탈퇴 신청을 처리할 권한이 없습니다.';
+      } else if (error.code == 'unavailable') {
+        message = '네트워크 연결을 확인한 뒤 다시 시도해주세요.';
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('탈퇴 신청 저장에 실패했습니다.\n${error.message ?? error.code}'),
+          content: Text(
+            '$message\n${error.message ?? error.code}',
+          ),
         ),
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('오류가 발생했습니다.\n$error')));
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+
+      if (isLoadingDialogOpen) {
+        AppLoadingDialog.close(context);
+        isLoadingDialogOpen = false;
+      }
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '오류가 발생했습니다.\n$error',
+          ),
+        ),
+      );
     }
   }
 
