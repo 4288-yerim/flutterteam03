@@ -1,0 +1,255 @@
+import 'package:flutter/material.dart';
+
+import '../theme.dart';
+
+/// 앱 전역에서 쓰는 공통 확인 다이얼로그.
+///
+/// "생성 취소할까요?", "오답 기록이 없어요", "자격증이 다른 것 같아요" 처럼
+/// 원형 그라데이션 아이콘 + 제목 + 설명 + 버튼(1~2개) 패턴이 페이지마다
+/// 반복되고 있어서 하나로 통일했습니다.
+///
+/// 기본은 핑크 강조이며, 삭제처럼 되돌릴 수 없는/파괴적인 액션에는
+/// [isDestructive]를 true로 주면 아이콘·그림자·주요 버튼이 레드 톤으로 바뀝니다.
+/// 기본값이 false라 기존 호출부는 변경 없이 그대로 동작합니다.
+class AppConfirmDialog extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+  final String primaryLabel;
+  final VoidCallback onPrimaryPressed;
+  final String? secondaryLabel;
+  final VoidCallback? onSecondaryPressed;
+  final Widget? extra;
+  final bool isDestructive;
+  final Gradient? accentGradient;
+  final Color? accentShadowColor;
+
+  const AppConfirmDialog({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.primaryLabel,
+    required this.onPrimaryPressed,
+    this.secondaryLabel,
+    this.onSecondaryPressed,
+    this.extra,
+    this.isDestructive = false,
+    this.accentGradient,
+    this.accentShadowColor,
+  });
+
+  /// [T]를 반환하는 확인 다이얼로그를 띄웁니다.
+  /// [preventBack]이 true면 하드웨어 뒤로가기로 닫히지 않습니다.
+  /// [isDestructive]가 true면 삭제 등 파괴적 액션에 맞는 레드 강조로 표시됩니다.
+  static Future<T?> show<T>(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String description,
+    required String primaryLabel,
+    required VoidCallback onPrimaryPressed,
+    String? secondaryLabel,
+    VoidCallback? onSecondaryPressed,
+    Widget? extra,
+    bool barrierDismissible = true,
+    bool preventBack = false,
+    bool isDestructive = false,
+    Gradient? accentGradient,
+    Color? accentShadowColor,
+  }) {
+    final dialog = AppConfirmDialog(
+      icon: icon,
+      title: title,
+      description: description,
+      primaryLabel: primaryLabel,
+      onPrimaryPressed: onPrimaryPressed,
+      secondaryLabel: secondaryLabel,
+      onSecondaryPressed: onSecondaryPressed,
+      extra: extra,
+      isDestructive: isDestructive,
+      accentGradient: accentGradient,
+      accentShadowColor: accentShadowColor,
+    );
+
+    return showDialog<T>(
+      context: context,
+      barrierDismissible: barrierDismissible,
+      barrierColor: context.colors.overlay,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 32),
+        child: preventBack ? PopScope(canPop: false, child: dialog) : dialog,
+      ),
+    );
+  }
+
+  // 삭제 등 파괴적 액션용 레드 그라데이션. AppColors에 별도 상수가 없어 여기서 정의.
+  static const LinearGradient _dangerGradient = LinearGradient(
+    colors: [Color(0xFFFF7A6E), Color(0xFFE0483B)],
+  );
+
+  static const Color _dangerShadowColor = Color(0xFFE0483B);
+
+  @override
+  Widget build(BuildContext context) {
+    final Gradient accentGradient = isDestructive
+        ? _dangerGradient
+        : this.accentGradient ?? context.colors.themedPinkGradient;
+    final Color shadowColor = isDestructive
+        ? _dangerShadowColor
+        : accentShadowColor ?? context.colors.pinkDeep;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: shadowColor.withValues(alpha: 0.18),
+            blurRadius: 30,
+            offset: const Offset(0, 16),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: accentGradient,
+            ),
+            child: Icon(icon, color: context.colors.onPrimary, size: 28),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: context.colors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            description,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: context.colors.textSecondary,
+              fontSize: 13.5,
+              height: 1.5,
+            ),
+          ),
+          if (extra != null) ...[const SizedBox(height: 14), extra!],
+          const SizedBox(height: 24),
+          if (secondaryLabel == null || onSecondaryPressed == null)
+            _PrimaryButton(
+              label: primaryLabel,
+              onPressed: onPrimaryPressed,
+              gradient: accentGradient,
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: _SecondaryButton(
+                    label: secondaryLabel!,
+                    onPressed: onSecondaryPressed!,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _PrimaryButton(
+                    label: primaryLabel,
+                    onPressed: onPrimaryPressed,
+                    gradient: accentGradient,
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PrimaryButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onPressed;
+  final Gradient gradient;
+
+  const _PrimaryButton({
+    required this.label,
+    required this.onPressed,
+    required this.gradient,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: gradient,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: onPressed,
+            child: Center(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: context.colors.onPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SecondaryButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onPressed;
+
+  const _SecondaryButton({required this.label, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 50,
+      child: Material(
+        color: context.colors.surfaceMuted,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onPressed,
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: context.colors.textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

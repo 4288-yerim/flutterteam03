@@ -3,9 +3,15 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  charset_converter
+  file_selector_linux
+  gtk
+  url_launcher_linux
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
+  jni
+  tflite_flutter
 )
 
 set(PLUGIN_BUNDLED_LIBRARIES)

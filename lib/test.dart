@@ -7,7 +7,7 @@ import 'package:flutterteam03/widgets/app_main_background.dart';
 import 'package:flutterteam03/widgets/app_top_bar.dart';
 import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'widgets/app_background.dart';
+import 'widgets/app_auth_background.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

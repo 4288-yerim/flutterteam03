@@ -34,23 +34,46 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  firebase_core: ^4.11.0
+  firebase_core: ^4.12.1
   flutter_dotenv: ^6.0.1
-  cloud_firestore: ^6.6.0
-  firebase_auth: ^6.5.4
+  cloud_firestore: ^6.7.1
+  firebase_auth: ^6.5.6
+  table_calendar: ^3.2.0
+  http: ^1.6.0
+  xml: ^7.0.1
+  naver_login_sdk: ^3.2.1
+  kakao_flutter_sdk_user: ^2.0.0+1
+  cloud_functions: ^6.3.5
+  google_sign_in: ^7.2.0
+  image_picker: ^1.1.2
+  workmanager: ^0.9.0+3
+  shared_preferences: ^2.3.0
+  file_picker: 10.3.10
+  url_launcher: ^6.3.2
+  add_2_calendar: ^3.1.1
+  flutter_local_notifications: ^22.0.1
+  dio: ^5.4.0
+  portone_flutter: ^0.12.0
+  firebase_storage: ^13.4.5
+  charset_converter: ^2.5.1
+  fl_chart: ^1.2.0
+  share_plus:
+  path_provider: ^2.1.0
+  home_widget: ^0.9.3
+  tflite_flutter: ^0.12.1
+  firebase_messaging: ^16.0.4
+  showcaseview: ^5.0.2
 
 dev_dependencies:
   flutter:
     sdk: flutter
-  firebase_core:
-  cloud_functions:
-
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -62,7 +85,12 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
-
+  assets:
+    - assets/splash/logo.png
+    - assets/icons/
+    - .env
+    - assets/images/
+    - assets/models/study_plan_model_v2.tflite
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
@@ -93,3 +121,12 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/icon.png" # 아이폰은 기존 네모난 이미지 사용
+  min_sdk_android: 21
+
+  # --- 안드로이드 전용 꽉 차는 아이콘 설정 ---
+  adaptive_icon_background: "#FDF6F0" # 여기에 아이콘의 실제 배경색(Hex 코드)을 넣으세요.
+  adaptive_icon_foreground: "assets/icons/character.png" # 배경이 투명한 캐릭터 이미지 경로

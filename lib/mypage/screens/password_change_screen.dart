@@ -1,0 +1,700 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
+import '../../widgets/app_dialog.dart';
+
+import '../../auth/screens/welcome_screen.dart';
+import '../../theme.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_card.dart';
+import '../../widgets/app_main_background.dart';
+import '../../widgets/app_top_bar.dart';
+
+enum _PasswordStrength { none, weak, medium, strong }
+
+class PasswordChangeScreen extends StatefulWidget {
+  const PasswordChangeScreen({super.key});
+
+  @override
+  State<PasswordChangeScreen> createState() => _PasswordChangeScreenState();
+}
+
+class _PasswordChangeScreenState extends State<PasswordChangeScreen> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
+  final TextEditingController _currentPasswordController =
+      TextEditingController();
+
+  final TextEditingController _newPasswordController = TextEditingController();
+
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
+
+  bool _hideCurrentPassword = true;
+  bool _hideNewPassword = true;
+  bool _hideConfirmPassword = true;
+
+  bool _isSubmitting = false;
+  bool _isCheckingProvider = true;
+  bool _isPasswordAccount = false;
+  String _loginProvider = '';
+
+  int get _passwordScore {
+    final password = _newPasswordController.text;
+    if (password.isEmpty) return 0;
+
+    var score = 0;
+    if (password.length >= 8) score++;
+    if (password.length >= 12) score++;
+    if (RegExp(r'[A-Z]').hasMatch(password)) score++;
+    if (RegExp(r'[a-z]').hasMatch(password)) score++;
+    if (RegExp(r'[0-9]').hasMatch(password)) score++;
+    if (RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-+=~`\[\]/;]').hasMatch(password)) {
+      score++;
+    }
+    return score;
+  }
+
+  _PasswordStrength get _passwordStrength {
+    final password = _newPasswordController.text;
+    if (password.isEmpty) return _PasswordStrength.none;
+    if (password.length < 8) return _PasswordStrength.weak;
+    if (_passwordScore >= 5) return _PasswordStrength.strong;
+    if (_passwordScore >= 3) return _PasswordStrength.medium;
+    return _PasswordStrength.weak;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginProvider();
+  }
+
+  Future<void> _checkLoginProvider() async {
+    final User? user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isCheckingProvider = false;
+      });
+      return;
+    }
+
+    String provider = '';
+
+    try {
+      final DocumentSnapshot<Map<String, dynamic>> snapshot =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
+
+      provider = (snapshot.data()?['loginProvider'] as String? ?? '')
+          .toUpperCase();
+    } catch (error) {
+      provider = '';
+    }
+
+    final bool hasPasswordProvider = user.providerData.any(
+      (userInfo) => userInfo.providerId == 'password',
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _loginProvider = provider;
+      _isPasswordAccount = provider == 'PASSWORD' || hasPasswordProvider;
+      _isCheckingProvider = false;
+    });
+  }
+
+  @override
+  void dispose() {
+    _currentPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+
+      appBar: AppTopBar(
+        title: '비밀번호 변경',
+        leading: IconButton(
+          tooltip: '뒤로 가기',
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          icon: Icon(
+            Icons.arrow_back_ios_new,
+            size: 20,
+            color: context.colors.textPrimary,
+          ),
+        ),
+      ),
+
+      body: AppMainBackground(
+        child: _isCheckingProvider
+            ? Center(
+                child: CircularProgressIndicator(
+                  color: context.colors.pinkStart,
+                ),
+              )
+            : !_isPasswordAccount
+            ? _buildSocialAccountNotice()
+            : SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(20, 16, 20, 110),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _PasswordGuideCard(),
+
+                      SizedBox(height: 24),
+
+                      Text(
+                        '현재 비밀번호',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: context.colors.textPrimary,
+                        ),
+                      ),
+
+                      SizedBox(height: 8),
+
+                      TextFormField(
+                        controller: _currentPasswordController,
+                        obscureText: _hideCurrentPassword,
+                        textInputAction: TextInputAction.next,
+                        autofillHints: [AutofillHints.password],
+                        decoration: _buildInputDecoration(
+                          hintText: '현재 비밀번호를 입력하세요.',
+                          isHidden: _hideCurrentPassword,
+                          onVisibilityPressed: () {
+                            setState(() {
+                              _hideCurrentPassword = !_hideCurrentPassword;
+                            });
+                          },
+                        ),
+                        validator: (value) {
+                          final password = value?.trim() ?? '';
+
+                          if (password.isEmpty) {
+                            return '현재 비밀번호를 입력해 주세요.';
+                          }
+
+                          return null;
+                        },
+                      ),
+
+                      SizedBox(height: 20),
+
+                      Text(
+                        '새 비밀번호',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: context.colors.textPrimary,
+                        ),
+                      ),
+
+                      SizedBox(height: 8),
+
+                      TextFormField(
+                        controller: _newPasswordController,
+                        obscureText: _hideNewPassword,
+                        textInputAction: TextInputAction.next,
+                        autofillHints: [AutofillHints.newPassword],
+                        onChanged: (_) {
+                          setState(() {});
+                        },
+                        decoration: _buildInputDecoration(
+                          hintText: '새 비밀번호를 입력하세요.',
+                          isHidden: _hideNewPassword,
+                          onVisibilityPressed: () {
+                            setState(() {
+                              _hideNewPassword = !_hideNewPassword;
+                            });
+                          },
+                        ),
+                        validator: (value) {
+                          final password = value ?? '';
+
+                          if (password.isEmpty) {
+                            return '새 비밀번호를 입력해 주세요.';
+                          }
+
+                          if (password.length < 8) {
+                            return '비밀번호는 8자 이상 입력해 주세요.';
+                          }
+
+                          if (password == _currentPasswordController.text) {
+                            return '현재 비밀번호와 다른 비밀번호를 입력해 주세요.';
+                          }
+
+                          return null;
+                        },
+                      ),
+
+                      _buildStrengthMeter(),
+
+                      SizedBox(height: 12),
+
+                      _PasswordConditionList(
+                        password: _newPasswordController.text,
+                      ),
+
+                      SizedBox(height: 20),
+
+                      Text(
+                        '새 비밀번호 확인',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: context.colors.textPrimary,
+                        ),
+                      ),
+
+                      SizedBox(height: 8),
+
+                      TextFormField(
+                        controller: _confirmPasswordController,
+                        obscureText: _hideConfirmPassword,
+                        textInputAction: TextInputAction.done,
+                        autofillHints: [AutofillHints.newPassword],
+                        decoration: _buildInputDecoration(
+                          hintText: '새 비밀번호를 다시 입력하세요.',
+                          isHidden: _hideConfirmPassword,
+                          onVisibilityPressed: () {
+                            setState(() {
+                              _hideConfirmPassword = !_hideConfirmPassword;
+                            });
+                          },
+                        ),
+                        validator: (value) {
+                          final confirmPassword = value ?? '';
+
+                          if (confirmPassword.isEmpty) {
+                            return '새 비밀번호를 다시 입력해 주세요.';
+                          }
+
+                          if (confirmPassword != _newPasswordController.text) {
+                            return '새 비밀번호가 일치하지 않습니다.';
+                          }
+
+                          return null;
+                        },
+                        onFieldSubmitted: (_) {
+                          _changePassword();
+                        },
+                      ),
+
+                      SizedBox(height: 28),
+
+                      AppButton(
+                        text: _isSubmitting ? '변경 중...' : '비밀번호 변경',
+                        onPressed: _isSubmitting ? null : _changePassword,
+                      ),
+
+                      SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildSocialAccountNotice() {
+    String providerName = '소셜 로그인';
+
+    switch (_loginProvider) {
+      case 'GOOGLE':
+        providerName = 'Google 로그인';
+        break;
+      case 'KAKAO':
+        providerName = '카카오 로그인';
+        break;
+      case 'NAVER':
+        providerName = '네이버 로그인';
+        break;
+    }
+
+    return Center(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(20),
+        child: AppCard(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: context.colors.pinkSoft,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Icon(
+                  Icons.lock_outline_rounded,
+                  color: context.colors.pinkStart,
+                  size: 30,
+                ),
+              ),
+              SizedBox(height: 16),
+              Text(
+                '비밀번호를 변경할 수 없습니다.',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: context.colors.textPrimary,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                '$providerName 계정은 앱에서 사용하는 별도 비밀번호가 없습니다. '
+                '비밀번호 관리는 해당 로그인 서비스에서 진행해 주세요.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.5,
+                  color: context.colors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _buildInputDecoration({
+    required String hintText,
+    required bool isHidden,
+    required VoidCallback onVisibilityPressed,
+  }) {
+    return InputDecoration(
+      hintText: hintText,
+      hintStyle: TextStyle(fontSize: 14, color: context.colors.textMuted),
+      filled: true,
+      fillColor: context.colors.surface,
+      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: BorderSide(color: context.colors.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: BorderSide(color: context.colors.pinkStart, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: BorderSide(color: context.colors.incorrect),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: BorderSide(color: context.colors.incorrect, width: 1.5),
+      ),
+      suffixIcon: IconButton(
+        tooltip: isHidden ? '비밀번호 표시' : '비밀번호 숨기기',
+        onPressed: onVisibilityPressed,
+        icon: Icon(
+          isHidden ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+          color: context.colors.textSecondary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStrengthMeter() {
+    final colors = context.colors;
+    final strength = _passwordStrength;
+
+    if (strength == _PasswordStrength.none) {
+      return SizedBox.shrink();
+    }
+
+    late final Color activeColor;
+    late final String label;
+    late final int filledBars;
+
+    switch (strength) {
+      case _PasswordStrength.weak:
+        activeColor = colors.incorrect;
+        label = '약함';
+        filledBars = 1;
+        break;
+      case _PasswordStrength.medium:
+        activeColor = colors.textPrimary;
+        label = '보통';
+        filledBars = 2;
+        break;
+      case _PasswordStrength.strong:
+        activeColor = colors.pinkStart;
+        label = '강함';
+        filledBars = 3;
+        break;
+      case _PasswordStrength.none:
+        activeColor = colors.textSecondary;
+        label = '';
+        filledBars = 0;
+        break;
+    }
+
+    return Padding(
+      padding: EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          for (int index = 0; index < 3; index++)
+            Expanded(
+              child: AnimatedContainer(
+                duration: Duration(milliseconds: 250),
+                margin: EdgeInsets.only(right: index < 2 ? 6 : 0),
+                height: 4,
+                decoration: BoxDecoration(
+                  color: index < filledBars
+                      ? activeColor
+                      : colors.textSecondary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+          SizedBox(width: 10),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: activeColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _changePassword() async {
+    FocusScope.of(context).unfocus();
+
+    final isValid = _formKey.currentState?.validate() ?? false;
+
+    if (!isValid) {
+      return;
+    }
+
+    final User? user = FirebaseAuth.instance.currentUser;
+    final String? email = user?.email;
+
+    if (user == null || email == null || email.isEmpty) {
+      _showMessage('로그인 정보를 확인할 수 없습니다. 다시 로그인해 주세요.');
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      final AuthCredential credential = EmailAuthProvider.credential(
+        email: email,
+        password: _currentPasswordController.text,
+      );
+
+      await user.reauthenticateWithCredential(credential);
+      await user.updatePassword(_newPasswordController.text);
+
+      if (!mounted) {
+        return;
+      }
+
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return AppAlertDialog(
+            title: Text('변경 완료', style: TextStyle(fontWeight: FontWeight.w700)),
+            content: Text('비밀번호가 변경되었습니다.\n새 비밀번호로 다시 로그인해 주세요.'),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(dialogContext);
+                  await FirebaseAuth.instance.signOut();
+
+                  if (!mounted) {
+                    return;
+                  }
+
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => WelcomeScreen()),
+                    (route) => false,
+                  );
+                },
+                child: Text(
+                  '확인',
+                  style: TextStyle(
+                    color: context.colors.pinkStart,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    } on FirebaseAuthException catch (error) {
+      String message = '비밀번호를 변경하지 못했습니다. 잠시 후 다시 시도해 주세요.';
+
+      switch (error.code) {
+        case 'wrong-password':
+        case 'invalid-credential':
+          message = '현재 비밀번호가 올바르지 않습니다.';
+          break;
+        case 'weak-password':
+          message = '새 비밀번호가 너무 약합니다.';
+          break;
+        case 'requires-recent-login':
+          message = '보안을 위해 다시 로그인한 후 변경해 주세요.';
+          break;
+        case 'network-request-failed':
+          message = '네트워크 연결을 확인해 주세요.';
+          break;
+        case 'too-many-requests':
+          message = '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.';
+          break;
+      }
+
+      _showMessage(message);
+    } catch (error) {
+      _showMessage('비밀번호를 변경하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _PasswordGuideCard extends StatelessWidget {
+  _PasswordGuideCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: context.colors.pinkSoft,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              Icons.lock_reset_outlined,
+              color: context.colors.pinkStart,
+            ),
+          ),
+
+          SizedBox(width: 14),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '현재 비밀번호와 새 비밀번호를 입력해 주세요.',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: context.colors.textPrimary,
+                  ),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  '본인 확인을 위해 현재 비밀번호를 입력한 뒤, 변경할 새 비밀번호를 입력해 주세요.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.5,
+                    color: context.colors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PasswordConditionList extends StatelessWidget {
+  final String password;
+
+  const _PasswordConditionList({required this.password});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _PasswordCondition(text: '8자 이상', isSatisfied: password.length >= 8),
+      ],
+    );
+  }
+}
+
+class _PasswordCondition extends StatelessWidget {
+  final String text;
+  final bool isSatisfied;
+
+  const _PasswordCondition({required this.text, required this.isSatisfied});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(
+          isSatisfied ? Icons.check_circle : Icons.radio_button_unchecked,
+          size: 17,
+          color: isSatisfied
+              ? context.colors.correct
+              : context.colors.textMuted,
+        ),
+        SizedBox(width: 7),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 12,
+            color: isSatisfied
+                ? context.colors.correct
+                : context.colors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+}

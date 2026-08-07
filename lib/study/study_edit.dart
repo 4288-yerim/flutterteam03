@@ -1,0 +1,624 @@
+import 'dart:math';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+import '../certificate/services/certificate_search_service.dart';
+import '../theme.dart';
+import '../widgets/app_main_background.dart';
+import '../widgets/app_top_bar.dart';
+import '../widgets/app_button.dart';
+import '../widgets/loading_overlay.dart';
+import 'study_add.dart';
+
+class _CertificateInputEntry {
+  const _CertificateInputEntry({required this.name, this.certificateId});
+  final String name;
+  final String? certificateId;
+}
+
+class _CertificateSearchField extends StatefulWidget {
+  const _CertificateSearchField({
+    super.key,
+    required this.controller,
+    required this.decoration,
+    required this.unmatchedActionDescription,
+  });
+  final TextEditingController controller;
+  final InputDecoration decoration;
+  final String unmatchedActionDescription;
+
+  @override
+  State<_CertificateSearchField> createState() =>
+      _CertificateSearchFieldState();
+}
+
+class _CertificateSearchFieldState extends State<_CertificateSearchField> {
+  final _focusNode = FocusNode();
+  late final Future<List<Certification>> _loadFuture;
+  List<Certification> _catalog = const [];
+  bool _isLoading = true;
+  bool _catalogAvailable = false;
+  bool _showSuggestions = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFuture = CertificateSearchService().getCertifications();
+    widget.controller.addListener(_refresh);
+    _focusNode.addListener(_handleFocus);
+    _load();
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_refresh);
+    _focusNode
+      ..removeListener(_handleFocus)
+      ..dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      final items = await _loadFuture;
+      if (!mounted) return;
+      setState(() {
+        _catalog = items.where((item) => item.name.isNotEmpty).toList();
+        _catalogAvailable = true;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+    }
+  }
+
+  String get _query => widget.controller.text.trim();
+
+  List<Certification> get _suggestions {
+    final query = _query.toLowerCase();
+    if (!_catalogAvailable || query.isEmpty) return const [];
+    final result =
+        _catalog
+            .where((item) => item.name.toLowerCase().contains(query))
+            .toList()
+          ..sort((a, b) {
+            final aStarts = a.name.toLowerCase().startsWith(query);
+            final bStarts = b.name.toLowerCase().startsWith(query);
+            return aStarts == bStarts
+                ? a.name.compareTo(b.name)
+                : (aStarts ? -1 : 1);
+          });
+    return result.take(8).toList();
+  }
+
+  void _refresh() {
+    if (mounted) {
+      setState(
+        () => _showSuggestions = _focusNode.hasFocus && _query.isNotEmpty,
+      );
+    }
+  }
+
+  void _handleFocus() {
+    if (_focusNode.hasFocus) {
+      setState(() => _showSuggestions = _query.isNotEmpty);
+    } else {
+      Future<void>.delayed(const Duration(milliseconds: 150), () {
+        if (mounted && !_focusNode.hasFocus) {
+          setState(() => _showSuggestions = false);
+        }
+      });
+    }
+  }
+
+  void _select(Certification item) {
+    widget.controller
+      ..text = item.name
+      ..selection = TextSelection.collapsed(offset: item.name.length);
+    setState(() => _showSuggestions = false);
+  }
+
+  Future<List<_CertificateInputEntry>> resolve() async {
+    if (_isLoading) {
+      try {
+        _catalog = (await _loadFuture)
+            .where((item) => item.name.isNotEmpty)
+            .toList();
+        _catalogAvailable = true;
+        _isLoading = false;
+      } catch (_) {}
+    }
+    final name = _query;
+    if (name.isEmpty) return const [];
+    Certification? match;
+    for (final item in _catalog) {
+      if (item.name.toLowerCase() == name.toLowerCase()) {
+        match = item;
+        break;
+      }
+    }
+    final id = match == null
+        ? null
+        : match.jmcd.isNotEmpty
+        ? match.jmcd
+        : match.id;
+    return [
+      _CertificateInputEntry(name: match?.name ?? name, certificateId: id),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final suggestions = _suggestions;
+    final showUnmatched =
+        _showSuggestions &&
+        _catalogAvailable &&
+        _query.isNotEmpty &&
+        suggestions.isEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormField(
+          controller: widget.controller,
+          focusNode: _focusNode,
+          decoration: widget.decoration.copyWith(
+            suffixIcon: _isLoading
+                ? const Padding(
+                    padding: EdgeInsets.all(14),
+                    child: SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : widget.decoration.suffixIcon,
+          ),
+        ),
+        if (_showSuggestions && suggestions.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Container(
+            constraints: const BoxConstraints(maxHeight: 220),
+            decoration: BoxDecoration(
+              color: context.colors.surfaceElevated,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: context.colors.border),
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              itemCount: suggestions.length,
+              separatorBuilder: (_, _) =>
+                  Divider(height: 1, color: context.colors.divider),
+              itemBuilder: (_, index) => ListTile(
+                dense: true,
+                title: Text(suggestions[index].name),
+                subtitle: suggestions[index].qualificationName.isEmpty
+                    ? null
+                    : Text(suggestions[index].qualificationName),
+                onTap: () => _select(suggestions[index]),
+              ),
+            ),
+          ),
+        ],
+        if (showUnmatched) ...[
+          const SizedBox(height: 6),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: context.colors.surfaceTransparent,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Text(
+              '“$_query”은 검색되지 않았습니다. 지금 입력된 자격증 이름으로 '
+              '${widget.unmatchedActionDescription}.',
+              style: TextStyle(
+                color: context.colors.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class StudyEditPage extends StatefulWidget {
+  final String studyId;
+  final Map<String, dynamic> studyData;
+
+  const StudyEditPage({
+    super.key,
+    required this.studyId,
+    required this.studyData,
+  });
+
+  @override
+  State<StudyEditPage> createState() => _StudyEditPageState();
+}
+
+class _StudyEditPageState extends State<StudyEditPage> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final GlobalKey<_CertificateSearchFieldState> _certificateFieldKey =
+      GlobalKey<_CertificateSearchFieldState>();
+
+  late final TextEditingController _groupNameController;
+  late final TextEditingController _certificateNameController;
+  late final TextEditingController _descriptionController;
+  late final TextEditingController _weeklyGoalHourController;
+
+  DateTime? _examDate;
+
+  late int _currentMemberCount;
+  late int _minimumMemberCount;
+  late int _maxMemberCount;
+
+  late bool _isPublic;
+  late bool _joinApprovalRequired;
+
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _groupNameController = TextEditingController(
+      text: widget.studyData['groupName']?.toString() ?? '',
+    );
+
+    _certificateNameController = TextEditingController(
+      text:
+          (widget.studyData['certificateId']?.toString() ?? '').isEmpty &&
+              widget.studyData['certificateName']?.toString() == '공통 스터디'
+          ? ''
+          : widget.studyData['certificateName']?.toString() ?? '',
+    );
+
+    _descriptionController = TextEditingController(
+      text: widget.studyData['description']?.toString() ?? '',
+    );
+
+    int weeklyGoalMinutes = _getInt(
+      widget.studyData,
+      'weeklyGoalMinutes',
+      fallback: 900,
+    );
+    int weeklyGoalHours = (weeklyGoalMinutes / 60).round();
+    if (weeklyGoalHours < 1) weeklyGoalHours = 15;
+
+    _weeklyGoalHourController = TextEditingController(
+      text: weeklyGoalHours.toString(),
+    );
+
+    dynamic examDateValue = widget.studyData['examDate'];
+    if (examDateValue is Timestamp) {
+      DateTime savedExamDate = examDateValue.toDate().toLocal();
+      _examDate = DateTime(
+        savedExamDate.year,
+        savedExamDate.month,
+        savedExamDate.day,
+      );
+    }
+
+    _currentMemberCount = _getInt(
+      widget.studyData,
+      'currentMemberCount',
+      fallback: 1,
+    );
+    _minimumMemberCount = max(2, _currentMemberCount);
+
+    _maxMemberCount = _getInt(widget.studyData, 'maxMemberCount', fallback: 5);
+    if (_maxMemberCount < _minimumMemberCount)
+      _maxMemberCount = _minimumMemberCount;
+    if (_maxMemberCount > 30) _maxMemberCount = 30;
+
+    _isPublic = widget.studyData['isPublic'] is bool
+        ? widget.studyData['isPublic'] as bool
+        : true;
+
+    _joinApprovalRequired = widget.studyData['joinApprovalRequired'] is bool
+        ? widget.studyData['joinApprovalRequired'] as bool
+        : true;
+  }
+
+  int _getInt(Map<String, dynamic> data, String fieldName, {int fallback = 0}) {
+    final value = data[fieldName];
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return fallback;
+  }
+
+  String _formatDate(DateTime dateTime) {
+    String year = dateTime.year.toString();
+    String month = dateTime.month.toString().padLeft(2, '0');
+    String day = dateTime.day.toString().padLeft(2, '0');
+    return '$year.$month.$day';
+  }
+
+  Future<void> _selectExamDate() async {
+    DateTime now = DateTime.now();
+    DateTime initialDate = _examDate ?? now.add(const Duration(days: 30));
+    DateTime firstDate = DateTime(now.year - 1, 1, 1);
+    DateTime lastDate = DateTime(now.year + 10, 12, 31);
+
+    if (initialDate.isBefore(firstDate)) initialDate = firstDate;
+    if (initialDate.isAfter(lastDate)) initialDate = lastDate;
+
+    DateTime? selectedDate = await showAppDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+      helpText: '시험일 선택',
+    );
+
+    if (selectedDate == null || !mounted) return;
+
+    setState(() {
+      _examDate = DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _groupNameController.dispose();
+    _certificateNameController.dispose();
+    _descriptionController.dispose();
+    _weeklyGoalHourController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _updateStudy() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_isSaving) return;
+
+    FocusScope.of(context).unfocus();
+
+    final certificateEntries =
+        await _certificateFieldKey.currentState?.resolve() ??
+        const <_CertificateInputEntry>[];
+    if (!mounted) return;
+
+    setState(() => _isSaving = true);
+
+    try {
+      final previousStatus =
+          widget.studyData['status']?.toString() ?? 'RECRUITING';
+      String nextStatus = previousStatus;
+
+      if (previousStatus != 'COMPLETED') {
+        nextStatus = _currentMemberCount >= _maxMemberCount
+            ? 'CLOSED'
+            : 'RECRUITING';
+      }
+
+      final certificate = certificateEntries.isEmpty
+          ? null
+          : certificateEntries.first;
+
+      await FirebaseFirestore.instance
+          .collection('studyGroups')
+          .doc(widget.studyId)
+          .update({
+            'groupName': _groupNameController.text.trim(),
+            'certificateId': certificate?.certificateId ?? '',
+            'certificateName': certificate?.name ?? '공통 스터디',
+            'description': _descriptionController.text.trim(),
+            'examDate': _examDate == null
+                ? null
+                : Timestamp.fromDate(_examDate!),
+            'weeklyGoalMinutes':
+                (int.tryParse(_weeklyGoalHourController.text.trim()) ?? 15) *
+                60,
+            'maxMemberCount': _maxMemberCount,
+            'isPublic': _isPublic,
+            'joinApprovalRequired': _joinApprovalRequired,
+            'status': nextStatus,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('스터디 정보가 수정되었습니다.')));
+
+      Navigator.pop(context, true);
+    } catch (error) {
+      debugPrint('스터디 수정 오류: $error');
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('스터디 수정 실패: $error')));
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      appBar: AppTopBar(title: '스터디 수정', centerTitle: false),
+      body: Stack(
+        children: [
+          AppMainBackground(
+            applySafeArea: false,
+            child: SafeArea(
+              child: SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.fromLTRB(20, 25, 20, 40),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const StudyPageHeader(
+                        icon: Icons.edit_calendar_rounded,
+                        title: '스터디 정보를\n수정해보세요',
+                        description: '수정한 내용은 스터디 화면에 바로 반영됩니다.',
+                      ),
+                      const SizedBox(height: 28),
+
+                      SectionCard(
+                        icon: Icons.groups_rounded,
+                        title: '기본 정보',
+                        children: [
+                          TextFormField(
+                            controller: _groupNameController,
+                            textInputAction: TextInputAction.next,
+                            decoration: studyFieldDecoration(
+                              context: context,
+                              labelText: '스터디 이름',
+                              hintText: '예: 정보처리기사 실기 스터디',
+                              icon: Icons.groups_outlined,
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return '스터디 이름을 입력해주세요.';
+                              }
+                              if (value.trim().length < 2) {
+                                return '스터디 이름을 2글자 이상 입력해주세요.';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          _CertificateSearchField(
+                            key: _certificateFieldKey,
+                            controller: _certificateNameController,
+                            unmatchedActionDescription: '스터디 정보가 수정됩니다',
+                            decoration: studyFieldDecoration(
+                              context: context,
+                              labelText: '자격증 이름',
+                              hintText: '예: 정보처리기사',
+                              icon: Icons.workspace_premium_outlined,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _descriptionController,
+                            maxLines: 4,
+                            maxLength: 200,
+                            textInputAction: TextInputAction.newline,
+                            decoration: studyFieldDecoration(
+                              context: context,
+                              labelText: '스터디 소개',
+                              hintText: '스터디 목표와 진행 방법을 입력해주세요.',
+                              icon: Icons.edit_note_rounded,
+                              alignLabelWithHint: true,
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return '스터디 소개를 입력해주세요.';
+                              }
+                              return null;
+                            },
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      SectionCard(
+                        icon: Icons.flag_rounded,
+                        title: '시험 및 학습 목표',
+                        subtitle: '시험일까지 남은 기간과 주간 달성률을 스터디방에 표시합니다.',
+                        children: [
+                          ExamDateTile(
+                            examDate: _examDate,
+                            onTap: _selectExamDate,
+                            onClear: () => setState(() => _examDate = null),
+                            formatDate: _formatDate,
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _weeklyGoalHourController,
+                            keyboardType: TextInputType.number,
+                            textInputAction: TextInputAction.done,
+                            decoration: studyFieldDecoration(
+                              context: context,
+                              labelText: '주간 목표 공부시간',
+                              hintText: '예: 15',
+                              icon: Icons.flag_outlined,
+                              suffixText: '시간',
+                            ),
+                            validator: (value) {
+                              int? goalHour = int.tryParse(value?.trim() ?? '');
+                              if (goalHour == null)
+                                return '주간 목표시간을 숫자로 입력해주세요.';
+                              if (goalHour < 1 || goalHour > 168) {
+                                return '1시간 이상 168시간 이하로 입력해주세요.';
+                              }
+                              return null;
+                            },
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      SectionCard(
+                        icon: Icons.tune_rounded,
+                        title: '스터디 설정',
+                        children: [
+                          MemberCountPicker(
+                            value: _maxMemberCount,
+                            min: _minimumMemberCount,
+                            max: 30,
+                            caption: _currentMemberCount > 2
+                                ? '현재 인원 $_currentMemberCount명 · 최대 30명'
+                                : '최소 2명 · 최대 30명',
+                            onChanged: (v) =>
+                                setState(() => _maxMemberCount = v),
+                          ),
+                          const SizedBox(height: 20),
+                          StudySwitchTile(
+                            icon: Icons.public_rounded,
+                            title: '공개 스터디',
+                            subtitle: _isPublic
+                                ? '다른 사용자가 검색하고 확인할 수 있습니다.'
+                                : '초대받은 사용자만 확인할 수 있습니다.',
+                            value: _isPublic,
+                            onChanged: (value) =>
+                                setState(() => _isPublic = value),
+                          ),
+                          StudySwitchTile(
+                            icon: Icons.verified_user_rounded,
+                            title: '참여 승인 필요',
+                            subtitle: _joinApprovalRequired
+                                ? '방장이 승인해야 참여할 수 있습니다.'
+                                : '신청하면 바로 참여할 수 있습니다.',
+                            value: _joinApprovalRequired,
+                            onChanged: (value) =>
+                                setState(() => _joinApprovalRequired = value),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 28),
+
+                      AppButton(
+                        text: '수정 완료',
+                        type: AppButtonType.primaryPink,
+                        height: 56,
+                        onPressed: _isSaving ? null : _updateStudy,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (_isSaving) const Positioned.fill(child: LoadingOverlay()),
+        ],
+      ),
+    );
+  }
+}
