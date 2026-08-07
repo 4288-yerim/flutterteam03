@@ -407,32 +407,91 @@ class _PostCard extends StatelessWidget {
   }
 }
 
-class _CommentsSheet extends StatelessWidget {
-  const _CommentsSheet({required this.service, required this.post});
+class _CommentsSheet extends StatefulWidget {
+  const _CommentsSheet({
+    required this.service,
+    required this.post,
+  });
+
   final AdminCommunityService service;
   final AdminCommunityPost post;
 
+  @override
+  State<_CommentsSheet> createState() =>
+      _CommentsSheetState();
+}
+
+class _CommentsSheetState
+    extends State<_CommentsSheet> {
+  String? _processingCommentId;
+  String? _feedbackMessage;
+  bool _isFeedbackError = false;
+
   Future<void> _toggle(
-    BuildContext context,
-    AdminCommunityComment comment,
-  ) async {
-    final restore = comment.wasHiddenByAdmin;
+      AdminCommunityComment comment,
+      ) async {
+    if (_processingCommentId != null) {
+      return;
+    }
+
+    final bool restore =
+        comment.wasHiddenByAdmin;
+
+    setState(() {
+      _processingCommentId = comment.id;
+      _feedbackMessage = null;
+      _isFeedbackError = false;
+    });
+
     try {
       if (restore) {
-        await service.restoreComment(postId: post.id, comment: comment);
+        await widget.service.restoreComment(
+          postId: widget.post.id,
+          comment: comment,
+        );
       } else {
-        await service.hideComment(postId: post.id, comment: comment);
+        await widget.service.hideComment(
+          postId: widget.post.id,
+          comment: comment,
+        );
       }
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(restore ? '댓글을 복구했습니다.' : '댓글을 숨겼습니다.')),
-      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _feedbackMessage = restore
+            ? '댓글을 복구했습니다.'
+            : '댓글을 숨겼습니다.';
+
+        _isFeedbackError = false;
+      });
     } catch (error) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(_errorMessage(error))));
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _feedbackMessage =
+            _errorMessage(error);
+
+        _isFeedbackError = true;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _processingCommentId = null;
+        });
+      }
     }
+  }
+
+  void _closeFeedback() {
+    setState(() {
+      _feedbackMessage = null;
+      _isFeedbackError = false;
+    });
   }
 
   @override
@@ -440,104 +499,296 @@ class _CommentsSheet extends StatelessWidget {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 12, 12),
+          padding:
+          const EdgeInsets.fromLTRB(
+            20,
+            18,
+            12,
+            12,
+          ),
           child: Row(
             children: [
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                  CrossAxisAlignment.start,
                   children: [
                     const Text(
                       '댓글 관리',
                       style: TextStyle(
                         fontSize: 19,
-                        fontWeight: FontWeight.w900,
+                        fontWeight:
+                        FontWeight.w900,
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      post.title,
+                      widget.post.title,
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: context.colors.textSecondary),
+                      overflow:
+                      TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: context
+                            .colors
+                            .textSecondary,
+                      ),
                     ),
                   ],
                 ),
               ),
               IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close_rounded),
+                onPressed:
+                _processingCommentId ==
+                    null
+                    ? () {
+                  Navigator.pop(
+                    context,
+                  );
+                }
+                    : null,
+                icon: const Icon(
+                  Icons.close_rounded,
+                ),
               ),
             ],
           ),
         ),
         const Divider(height: 1),
+        if (_feedbackMessage != null)
+          Padding(
+            padding:
+            const EdgeInsets.fromLTRB(
+              18,
+              12,
+              18,
+              0,
+            ),
+            child: Container(
+              width: double.infinity,
+              padding:
+              const EdgeInsets.fromLTRB(
+                13,
+                10,
+                6,
+                10,
+              ),
+              decoration: BoxDecoration(
+                color: _isFeedbackError
+                    ? context
+                    .colors
+                    .incorrectSoft
+                    : context
+                    .colors
+                    .correctSoft,
+                borderRadius:
+                BorderRadius.circular(13),
+                border: Border.all(
+                  color: (
+                      _isFeedbackError
+                          ? context
+                          .colors
+                          .incorrect
+                          : context
+                          .colors
+                          .correct
+                  ).withValues(alpha: 0.35),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _isFeedbackError
+                        ? Icons
+                        .error_outline_rounded
+                        : Icons
+                        .check_circle_outline_rounded,
+                    size: 19,
+                    color: _isFeedbackError
+                        ? context
+                        .colors
+                        .incorrect
+                        : context
+                        .colors
+                        .correct,
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Text(
+                      _feedbackMessage!,
+                      style: TextStyle(
+                        color: _isFeedbackError
+                            ? context
+                            .colors
+                            .incorrect
+                            : context
+                            .colors
+                            .correct,
+                        fontSize: 13,
+                        fontWeight:
+                        FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _closeFeedback,
+                    visualDensity:
+                    VisualDensity.compact,
+                    tooltip: '안내 닫기',
+                    icon: Icon(
+                      Icons.close_rounded,
+                      size: 18,
+                      color: context
+                          .colors
+                          .textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         Expanded(
-          child: StreamBuilder<List<AdminCommunityComment>>(
-            stream: service.watchComments(post.id),
-            builder: (context, snapshot) {
+          child: StreamBuilder<
+              List<AdminCommunityComment>
+          >(
+            stream: widget.service
+                .watchComments(
+              widget.post.id,
+            ),
+            builder: (
+                BuildContext context,
+                AsyncSnapshot<
+                    List<AdminCommunityComment>
+                > snapshot,
+                ) {
               if (snapshot.hasError) {
                 return const _MessageView(
-                  icon: Icons.error_outline,
-                  title: '댓글을 불러오지 못했습니다.',
+                  icon:
+                  Icons.error_outline,
+                  title:
+                  '댓글을 불러오지 못했습니다.',
                 );
               }
+
               if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
+                return const Center(
+                  child:
+                  CircularProgressIndicator(),
+                );
               }
-              final comments = snapshot.data!;
+
+              final List<
+                  AdminCommunityComment
+              > comments = snapshot.data!;
+
               if (comments.isEmpty) {
                 return const _MessageView(
-                  icon: Icons.comment_outlined,
+                  icon:
+                  Icons.comment_outlined,
                   title: '댓글이 없습니다.',
                 );
               }
+
               return ListView.separated(
-                padding: const EdgeInsets.all(18),
+                padding:
+                const EdgeInsets.all(18),
                 itemCount: comments.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 10),
-                itemBuilder: (context, index) {
-                  final comment = comments[index];
-                  final unavailable =
-                      comment.status != 'NORMAL' && !comment.wasHiddenByAdmin;
+                separatorBuilder: (
+                    BuildContext context,
+                    int index,
+                    ) {
+                  return const SizedBox(
+                    height: 10,
+                  );
+                },
+                itemBuilder: (
+                    BuildContext context,
+                    int index,
+                    ) {
+                  final AdminCommunityComment
+                  comment = comments[index];
+
+                  final bool unavailable =
+                      comment.status !=
+                          'NORMAL' &&
+                          !comment
+                              .wasHiddenByAdmin;
+
+                  final bool isProcessing =
+                      _processingCommentId ==
+                          comment.id;
+
+                  final bool
+                  isAnotherProcessing =
+                      _processingCommentId !=
+                          null &&
+                          !isProcessing;
+
                   return _Panel(
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment:
+                      CrossAxisAlignment.start,
                       children: [
                         if (comment.isReply)
                           Padding(
-                            padding: const EdgeInsets.only(right: 8, top: 2),
+                            padding:
+                            const EdgeInsets.only(
+                              right: 8,
+                              top: 2,
+                            ),
                             child: Icon(
-                              Icons.subdirectory_arrow_right_rounded,
-                              color: context.colors.textMuted,
+                              Icons
+                                  .subdirectory_arrow_right_rounded,
+                              color: context
+                                  .colors
+                                  .textMuted,
                               size: 18,
                             ),
                           ),
                         Expanded(
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment:
+                            CrossAxisAlignment
+                                .start,
                             children: [
                               CachedNicknameText(
-                                uid: comment.writerUid,
-                                fallback: comment.writerNickname,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
+                                uid: comment
+                                    .writerUid,
+                                fallback: comment
+                                    .writerNickname,
+                                style:
+                                const TextStyle(
+                                  fontWeight:
+                                  FontWeight
+                                      .w800,
                                 ),
                               ),
-                              const SizedBox(height: 5),
+                              const SizedBox(
+                                height: 5,
+                              ),
                               Text(
                                 comment.content,
                                 style: TextStyle(
-                                  color: comment.status == 'NORMAL'
-                                      ? context.colors.textPrimary
-                                      : context.colors.textMuted,
+                                  color:
+                                  comment.status ==
+                                      'NORMAL'
+                                      ? context
+                                      .colors
+                                      .textPrimary
+                                      : context
+                                      .colors
+                                      .textMuted,
                                 ),
                               ),
-                              const SizedBox(height: 5),
+                              const SizedBox(
+                                height: 5,
+                              ),
                               Text(
-                                '${_formatDate(comment.createdAt)} · ${comment.status == 'NORMAL' ? '표시 중' : '숨김'}',
+                                '${_formatDate(comment.createdAt)} · '
+                                    '${comment.status == 'NORMAL' ? '표시 중' : '숨김'}',
                                 style: TextStyle(
-                                  color: context.colors.textMuted,
+                                  color: context
+                                      .colors
+                                      .textMuted,
                                   fontSize: 12,
                                 ),
                               ),
@@ -545,10 +796,32 @@ class _CommentsSheet extends StatelessWidget {
                           ),
                         ),
                         TextButton(
-                          onPressed: unavailable
+                          onPressed:
+                          unavailable ||
+                              isProcessing ||
+                              isAnotherProcessing
                               ? null
-                              : () => _toggle(context, comment),
-                          child: Text(comment.wasHiddenByAdmin ? '복구' : '숨김'),
+                              : () {
+                            _toggle(
+                              comment,
+                            );
+                          },
+                          child: isProcessing
+                              ? const SizedBox(
+                            width: 17,
+                            height: 17,
+                            child:
+                            CircularProgressIndicator(
+                              strokeWidth:
+                              2,
+                            ),
+                          )
+                              : Text(
+                            comment
+                                .wasHiddenByAdmin
+                                ? '복구'
+                                : '숨김',
+                          ),
                         ),
                       ],
                     ),
