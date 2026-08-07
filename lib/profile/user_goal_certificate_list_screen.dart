@@ -7,6 +7,7 @@ import '../widgets/app_card.dart';
 import '../widgets/app_main_background.dart';
 import '../widgets/app_state_views.dart';
 import '../widgets/app_top_bar.dart';
+import '../widgets/cached_user_profile_builder.dart';
 
 class UserGoalCertificateListScreen extends StatefulWidget {
   final String userUid;
@@ -163,10 +164,16 @@ class _UserGoalCertificateListScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppTopBar(title: '${widget.nickname}님의 목표 자격증'),
-      body: AppMainBackground(child: _buildBody()),
+    return CachedNicknameBuilder(
+      uid: widget.userUid,
+      fallback: widget.nickname,
+      builder: (context, nickname) {
+        return Scaffold(
+          extendBodyBehindAppBar: true,
+          appBar: AppTopBar(title: '$nickname님의 목표 자격증'),
+          body: AppMainBackground(child: _buildBody()),
+        );
+      },
     );
   }
 

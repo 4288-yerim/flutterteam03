@@ -49,6 +49,28 @@ class CertificateDetailService {
     }
   }
 
+  Future<String> getCertificationOverview(String certificationId) async {
+    try {
+      final document = await _certificationsCollection
+          .doc(certificationId)
+          .collection('details')
+          .doc('overview')
+          .get();
+      final contents = document.data()?['contents'];
+      if (contents is List) {
+        return contents
+            .map((item) => item.toString().trim())
+            .where((item) => item.isNotEmpty)
+            .join('\n');
+      }
+      return contents?.toString().trim() ?? '';
+    } on FirebaseException catch (error) {
+      throw CertificateDetailException(
+        error.message ?? '자격 개요를 불러오지 못했습니다.',
+      );
+    }
+  }
+
   Future<List<TechnicalCertificateSchedule>>
   getTechnicalSchedules(
       String certificationId,
@@ -176,6 +198,7 @@ class CertificateDetailService {
     required DateTime targetExamEndDate,
     required String targetRound,
     required String targetExamType,
+    required String targetExamTypeName,
 
     required DateTime? targetRegistrationStartDate,
     required DateTime? targetRegistrationEndDate,
@@ -198,12 +221,14 @@ class CertificateDetailService {
     final normalizedQualificationType = qualificationType.trim();
     final normalizedTargetRound = targetRound.trim();
     final normalizedTargetExamType = targetExamType.trim();
+    final normalizedTargetExamTypeName = targetExamTypeName.trim();
 
     if (normalizedCertificateId.isEmpty ||
         normalizedScheduleId.isEmpty ||
         normalizedCertificateName.isEmpty ||
         normalizedQualificationType.isEmpty ||
-        normalizedTargetRound.isEmpty) {
+        normalizedTargetRound.isEmpty ||
+        normalizedTargetExamTypeName.isEmpty) {
       throw const CertificateGoalException(
         '목표 시험 정보가 올바르지 않습니다.',
       );
@@ -260,11 +285,9 @@ class CertificateDetailService {
 
       if (isDuplicate) {
         if (includeExamTypeInDuplicateCheck) {
-          final examTypeName =
-              normalizedTargetExamType == 'WRITTEN' ? '필기' : '실기';
-
           throw CertificateGoalException(
-            '이미 같은 회차의 $examTypeName 시험이 목표로 등록되어 있습니다.',
+            '이미 같은 회차의 $normalizedTargetExamTypeName 시험이 '
+            '목표로 등록되어 있습니다.',
           );
         }
 
@@ -298,10 +321,7 @@ class CertificateDetailService {
           .collection('calendarEvents')
           .doc('${goalDocument.id}_pass_announcement');
 
-      final examTypeName =
-      normalizedTargetExamType == 'WRITTEN'
-          ? '필기시험'
-          : '실기시험';
+      final examTypeName = '$normalizedTargetExamTypeName 시험';
 
       final calendarTitle =
           '$normalizedCertificateName '
@@ -380,6 +400,7 @@ class CertificateDetailService {
 
           'targetRound': normalizedTargetRound,
           'targetExamType': normalizedTargetExamType,
+          'targetExamTypeName': normalizedTargetExamTypeName,
 
           'targetRegistrationStartDate':
           targetRegistrationStartDate == null
@@ -459,10 +480,11 @@ class CertificateDetailService {
           'startAt': Timestamp.fromDate(targetRegistrationStartDate),
           'allDay': true,
           'title': '$normalizedCertificateName $normalizedTargetRound '
-              '$examTypeName 원서접수 시작일',
+              '$normalizedTargetExamTypeName 원서 접수 시작일',
           'eventType': 'APPLICATION',
           'certificateName': normalizedCertificateName,
-          'scheduleName': '$normalizedTargetRound $examTypeName 원서접수 시작',
+          'scheduleName': '$normalizedTargetRound '
+              '$normalizedTargetExamTypeName 원서 접수 시작',
         });
       }
 
@@ -471,10 +493,11 @@ class CertificateDetailService {
           'startAt': Timestamp.fromDate(targetRegistrationEndDate),
           'allDay': true,
           'title': '$normalizedCertificateName $normalizedTargetRound '
-              '$examTypeName 원서접수 종료일',
+              '$normalizedTargetExamTypeName 원서 접수 종료일',
           'eventType': 'APPLICATION',
           'certificateName': normalizedCertificateName,
-          'scheduleName': '$normalizedTargetRound $examTypeName 원서접수 마감',
+          'scheduleName': '$normalizedTargetRound '
+              '$normalizedTargetExamTypeName 원서 접수 마감',
         });
       }
 
@@ -483,10 +506,11 @@ class CertificateDetailService {
           'startAt': Timestamp.fromDate(targetPassAnnouncementDate),
           'allDay': true,
           'title': '$normalizedCertificateName $normalizedTargetRound '
-              '$examTypeName 합격자 발표일',
+              '$normalizedTargetExamTypeName 합격 발표일',
           'eventType': 'RESULT',
           'certificateName': normalizedCertificateName,
-          'scheduleName': '$normalizedTargetRound $examTypeName 합격자 발표',
+          'scheduleName': '$normalizedTargetRound '
+              '$normalizedTargetExamTypeName 합격 발표',
         });
       }
 

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme.dart';
+import '../services/user_profile_cache_service.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_main_background.dart';
@@ -163,81 +164,29 @@ class _StudyQuizAddPageState extends State<StudyQuizAddPage> {
   }
 
   Future<Map<String, String>> _getSenderProfile(User currentUser) async {
-    String nickname = '';
-    String profileImageUrl = '';
-
     try {
-      DocumentSnapshot<Map<String, dynamic>> memberSnapshot =
-          await FirebaseFirestore.instance
-              .collection('studyGroups')
-              .doc(widget.studyId)
-              .collection('members')
-              .doc(currentUser.uid)
-              .get();
+      final UserProfileSummary? profile = await UserProfileCacheService.instance
+          .getProfile(currentUser.uid);
+      final String nickname = profile?.nickname.trim().isNotEmpty == true
+          ? profile!.nickname.trim()
+          : currentUser.displayName?.trim().isNotEmpty == true
+          ? currentUser.displayName!.trim()
+          : '방장';
+      final String profileImageUrl =
+          profile?.profileImageUrl.trim().isNotEmpty == true
+          ? profile!.profileImageUrl.trim()
+          : currentUser.photoURL?.trim() ?? '';
 
-      if (memberSnapshot.exists) {
-        Map<String, dynamic> memberData = memberSnapshot.data() ?? {};
-
-        nickname = memberData['nickname']?.toString().trim() ?? '';
-
-        profileImageUrl =
-            memberData['profileImageUrl']?.toString().trim() ?? '';
-      }
-
-      if (nickname.isEmpty || profileImageUrl.isEmpty) {
-        DocumentSnapshot<Map<String, dynamic>> directUserSnapshot =
-            await FirebaseFirestore.instance
-                .collection('users')
-                .doc(currentUser.uid)
-                .get();
-
-        Map<String, dynamic> userData = {};
-
-        if (directUserSnapshot.exists) {
-          userData = directUserSnapshot.data() ?? {};
-        } else {
-          QuerySnapshot<Map<String, dynamic>> userSnapshot =
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .where('uid', isEqualTo: currentUser.uid)
-                  .limit(1)
-                  .get();
-
-          if (userSnapshot.docs.isNotEmpty) {
-            userData = userSnapshot.docs.first.data();
-          }
-        }
-
-        if (nickname.isEmpty) {
-          nickname = userData['nickname']?.toString().trim() ?? '';
-        }
-
-        if (profileImageUrl.isEmpty) {
-          profileImageUrl =
-              userData['profileImageUrl']?.toString().trim() ?? '';
-
-          if (profileImageUrl.isEmpty) {
-            profileImageUrl = userData['photoUrl']?.toString().trim() ?? '';
-          }
-        }
-      }
+      return {'nickname': nickname, 'profileImageUrl': profileImageUrl};
     } catch (error) {
       debugPrint('문제 발송자 정보 조회 오류: $error');
+      return {
+        'nickname': currentUser.displayName?.trim().isNotEmpty == true
+            ? currentUser.displayName!.trim()
+            : '방장',
+        'profileImageUrl': currentUser.photoURL?.trim() ?? '',
+      };
     }
-
-    if (nickname.isEmpty) {
-      nickname = currentUser.displayName?.trim() ?? '';
-    }
-
-    if (profileImageUrl.isEmpty) {
-      profileImageUrl = currentUser.photoURL?.trim() ?? '';
-    }
-
-    if (nickname.isEmpty) {
-      nickname = '방장';
-    }
-
-    return {'nickname': nickname, 'profileImageUrl': profileImageUrl};
   }
 
   Future<void> _sendQuiz() async {
@@ -349,6 +298,7 @@ class _StudyQuizAddPageState extends State<StudyQuizAddPage> {
         'quizTimeLimitSeconds': _timeLimitSeconds,
         'quizDeadlineAt': Timestamp.fromDate(deadlineAt),
         'replyMessageId': '',
+        'replySenderUid': '',
         'replySenderNickname': '',
         'replyMessage': '',
         'readBy': [currentUser.uid],

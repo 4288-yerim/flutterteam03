@@ -25,7 +25,7 @@ class AdminReportService {
     });
   }
 
-  Stream<List<AdminReport>> watchContentReportsForMember(String targetUid) {
+  Stream<List<AdminReport>> watchReportsForMember(String targetUid) {
     return _firestore
         .collection('reports')
         .where('targetUid', isEqualTo: targetUid)
@@ -35,7 +35,8 @@ class AdminReportService {
               .where(
                 (report) =>
                     report.targetType == 'POST' ||
-                    report.targetType == 'COMMENT',
+                    report.targetType == 'COMMENT' ||
+                    report.targetType == 'STUDY_MEMBER',
               )
               .toList(),
         );

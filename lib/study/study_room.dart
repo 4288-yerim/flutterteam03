@@ -2,8 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import '../services/user_profile_cache_service.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/app_report_bottom_sheet.dart';
+import '../widgets/cached_user_profile_builder.dart';
 import 'package:flutterteam03/widgets/app_state_views.dart';
 
 import '../widgets/app_main_background.dart';
@@ -85,31 +87,21 @@ class StudyRoomPage extends StatelessWidget {
       return;
     }
 
-    QuerySnapshot<Map<String, dynamic>> userSnapshot = await FirebaseFirestore
-        .instance
-        .collection('users')
-        .where('uid', isEqualTo: currentUser.uid)
-        .limit(1)
-        .get();
+    final profile = await UserProfileCacheService.instance.getProfile(
+      currentUser.uid,
+    );
 
-    if (userSnapshot.docs.isEmpty) {
+    if (profile == null) {
       return;
     }
 
-    Map<String, dynamic> userData = userSnapshot.docs.first.data();
-
-    String nickname = userData['nickname']?.toString().trim() ?? '';
+    String nickname = profile.nickname;
 
     if (nickname.isEmpty) {
       nickname = currentUser.displayName?.trim() ?? '';
     }
 
-    String profileImageUrl =
-        userData['profileImageUrl']?.toString().trim() ?? '';
-
-    if (profileImageUrl.isEmpty) {
-      profileImageUrl = userData['photoUrl']?.toString().trim() ?? '';
-    }
+    String profileImageUrl = profile.profileImageUrl;
 
     if (profileImageUrl.isEmpty) {
       profileImageUrl = currentUser.photoURL?.trim() ?? '';
@@ -1165,12 +1157,25 @@ class StudyRoomPage extends StatelessWidget {
   }
 
   /// 방장 위임 확인창
-  void _showTransferOwnerConfirmDialog({
+  Future<void> _showTransferOwnerConfirmDialog({
     required BuildContext context,
     required String newOwnerUid,
     required String newOwnerNickname,
     required String newOwnerProfileImageUrl,
-  }) {
+  }) async {
+    final profile = await UserProfileCacheService.instance.getProfile(
+      newOwnerUid,
+    );
+    final currentOwnerNickname = await UserProfileCacheService.instance
+        .resolveNickname(uid: newOwnerUid, fallback: newOwnerNickname);
+    final currentOwnerProfileImageUrl =
+        profile?.profileImageUrl.trim().isNotEmpty == true
+        ? profile!.profileImageUrl
+        : newOwnerProfileImageUrl;
+    if (!context.mounted) {
+      return;
+    }
+
     bool isTransferring = false;
 
     showDialog<void>(
@@ -1187,8 +1192,8 @@ class StudyRoomPage extends StatelessWidget {
               try {
                 await _transferOwner(
                   newOwnerUid: newOwnerUid,
-                  newOwnerNickname: newOwnerNickname,
-                  newOwnerProfileImageUrl: newOwnerProfileImageUrl,
+                  newOwnerNickname: currentOwnerNickname,
+                  newOwnerProfileImageUrl: currentOwnerProfileImageUrl,
                 );
 
                 if (!dialogContext.mounted) {
@@ -1202,7 +1207,9 @@ class StudyRoomPage extends StatelessWidget {
                 }
 
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('$newOwnerNickname 님에게 방장을 위임했습니다.')),
+                  SnackBar(
+                    content: Text('$currentOwnerNickname 님에게 방장을 위임했습니다.'),
+                  ),
                 );
               } catch (error) {
                 debugPrint('방장 위임 오류: $error');
@@ -1240,7 +1247,7 @@ class StudyRoomPage extends StatelessWidget {
                 ],
               ),
               content: Text(
-                '$newOwnerNickname 님에게 방장을 위임할까요?\n\n'
+                '$currentOwnerNickname 님에게 방장을 위임할까요?\n\n'
                 '위임 후에는 일반 그룹원이 되며, '
                 '필요하면 우측 상단 메뉴에서 스터디방을 나갈 수 있습니다.',
                 style: TextStyle(height: 1.5),
@@ -1464,8 +1471,9 @@ class StudyRoomPage extends StatelessWidget {
                                       ),
                                     ),
                                   ),
-                            title: Text(
-                              nickname,
+                            title: CachedNicknameText(
+                              uid: memberDocument.id,
+                              fallback: nickname,
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 color: context.colors.textPrimary,
@@ -2470,8 +2478,9 @@ class StudyRoomPage extends StatelessWidget {
                       isOwner,
                     ),
                     SizedBox(height: 7),
-                    Text(
-                      nickname,
+                    CachedNicknameText(
+                      uid: memberList[index].id,
+                      fallback: nickname,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
@@ -2815,8 +2824,9 @@ class StudyRoomPage extends StatelessWidget {
                 Row(
                   children: [
                     Flexible(
-                      child: Text(
-                        nickname,
+                      child: CachedNicknameText(
+                        uid: _getMemberUid(memberData),
+                        fallback: nickname,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -3599,6 +3609,12 @@ class StudyRoomPage extends StatelessWidget {
       throw Exception('로그인 정보가 없습니다.');
     }
 
+    final currentNickname = await UserProfileCacheService.instance
+        .resolveNickname(uid: memberUid, fallback: nickname);
+    if (!context.mounted) {
+      return;
+    }
+
     final shouldKick =
         await showDialog<bool>(
           context: context,
@@ -3613,7 +3629,7 @@ class StudyRoomPage extends StatelessWidget {
                 isDestructive: true,
               ),
               content: Text(
-                '$nickname 님을 스터디에서 추방할까요?\n\n'
+                '$currentNickname 님을 스터디에서 추방할까요?\n\n'
                 '추방된 사용자는 이 스터디에 다시 참여할 수 없습니다.',
               ),
               actions: [
@@ -3690,7 +3706,7 @@ class StudyRoomPage extends StatelessWidget {
     if (context.mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('$nickname 님을 추방했습니다.')));
+      ).showSnackBar(SnackBar(content: Text('$currentNickname 님을 추방했습니다.')));
     }
   }
 
@@ -3711,9 +3727,15 @@ class StudyRoomPage extends StatelessWidget {
       return;
     }
 
+    final currentTargetNickname = await UserProfileCacheService.instance
+        .resolveNickname(uid: memberUid, fallback: nickname);
+    if (!context.mounted) {
+      return;
+    }
+
     final result = await AppReportBottomSheet.show(
       context,
-      title: '$nickname 님 신고',
+      title: '$currentTargetNickname 님 신고',
       reasons: reasons,
       descriptionHint: '신고 내용을 입력해 주세요. (선택)',
     );
@@ -3722,14 +3744,11 @@ class StudyRoomPage extends StatelessWidget {
     }
 
     try {
-      final memberSnapshot = await FirebaseFirestore.instance
-          .collection('studyGroups')
-          .doc(studyId)
-          .collection('members')
-          .doc(currentUser.uid)
-          .get();
-      var reporterNickname =
-          memberSnapshot.data()?['nickname']?.toString().trim() ?? '';
+      var reporterNickname = await UserProfileCacheService.instance
+          .resolveNickname(
+            uid: currentUser.uid,
+            fallback: currentUser.displayName ?? '사용자',
+          );
       if (reporterNickname.isEmpty) {
         reporterNickname = currentUser.displayName?.trim() ?? '';
       }
@@ -3750,8 +3769,8 @@ class StudyRoomPage extends StatelessWidget {
           'reporterUid': currentUser.uid,
           'targetType': 'STUDY_MEMBER',
           'targetId': null,
-          'targettitle': nickname,
-          'targetNickname': nickname,
+          'targettitle': currentTargetNickname,
+          'targetNickname': currentTargetNickname,
           'targetUid': memberUid,
           'reasonType': result.reasonType,
           'description': result.description.isEmpty ? null : result.description,
@@ -3967,8 +3986,9 @@ class StudyRoomPage extends StatelessWidget {
                                   children: [
                                     Row(
                                       children: [
-                                        Text(
-                                          nickname,
+                                        CachedNicknameText(
+                                          uid: memberUid,
+                                          fallback: nickname,
                                           style: TextStyle(
                                             fontSize: 15,
                                             fontWeight: FontWeight.bold,
@@ -4404,8 +4424,9 @@ class StudyRoomPage extends StatelessWidget {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          nickname,
+                                        CachedNicknameText(
+                                          uid: _getMemberUid(memberData),
+                                          fallback: nickname,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(

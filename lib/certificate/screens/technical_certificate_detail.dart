@@ -75,7 +75,28 @@ class _TechnicalCertificateDetailPageState
 
   List<TechnicalCertificateSchedule> _schedules = [];
 
+  bool get _hasPracticalSchedule => _schedules.any(_scheduleHasPractical);
+
+  bool get _hasCombinedExamSchedule => _schedules.any((schedule) =>
+      _scheduleHasWritten(schedule) && _scheduleHasPractical(schedule));
+
+  bool _scheduleHasWritten(TechnicalCertificateSchedule schedule) =>
+      schedule.writtenRegistrationStartAt != null ||
+      schedule.writtenRegistrationEndAt != null ||
+      schedule.writtenExamStartAt != null ||
+      schedule.writtenExamEndAt != null ||
+      schedule.writtenPassAt != null;
+
+  bool _scheduleHasPractical(TechnicalCertificateSchedule schedule) =>
+      schedule.practicalRegistrationStartAt != null ||
+      schedule.practicalRegistrationEndAt != null ||
+      schedule.practicalExamStartAt != null ||
+      schedule.practicalExamEndAt != null ||
+      schedule.practicalPassStartAt != null ||
+      schedule.practicalPassEndAt != null;
+
   TechnicalCertificateExamDetails? _examDetails;
+  String _overview = '';
 
   bool _isLoadingExamSubjects = false;
   bool _hasRequestedExamSubjects = false;
@@ -97,11 +118,11 @@ class _TechnicalCertificateDetailPageState
 
   bool _isLoadingWrittenStatistics = false;
   String? _writtenStatisticsError;
-  List<TechnicalExamStatistic> _writtenStatistics = [];
+  List<CertificateExamStatistic> _writtenStatistics = [];
 
   bool _isLoadingPracticalStatistics = false;
   String? _practicalStatisticsError;
-  List<TechnicalExamStatistic> _practicalStatistics = [];
+  List<CertificateExamStatistic> _practicalStatistics = [];
 
   @override
   void initState() {
@@ -157,6 +178,9 @@ class _TechnicalCertificateDetailPageState
       final examDetailsFuture = _technicalCertificateService
           .getTechnicalExamDetails(widget.certificationId);
 
+      final overviewFuture = _certificateDetailService
+          .getCertificationOverview(widget.certificationId);
+
       final certificate = await certificateFuture;
 
       if (!certificate.isTechnical) {
@@ -177,6 +201,7 @@ class _TechnicalCertificateDetailPageState
 
       final schedules = await schedulesFuture;
       final examDetails = await examDetailsFuture;
+      final overview = await overviewFuture;
       final storedPracticalMaterials = await storedPracticalMaterialsFuture;
 
       if (!mounted) {
@@ -187,6 +212,7 @@ class _TechnicalCertificateDetailPageState
         _certificate = certificate;
         _schedules = schedules;
         _examDetails = examDetails;
+        _overview = overview;
         _hasStoredPracticalMaterials = storedPracticalMaterials != null;
         _storedPracticalMaterialsYear =
             storedPracticalMaterials?.implementationYear;
@@ -323,7 +349,7 @@ class _TechnicalCertificateDetailPageState
         _practicalMaterials = [];
         _hasRequestedPracticalMaterials = true;
         _isLoadingPracticalMaterials = false;
-        _practicalMaterialError = '실기시험 지참 준비물을 불러오지 못했습니다.';
+        _practicalMaterialError = '실기/면접 시험 지참 준비물을 불러오지 못했습니다.';
       });
     }
   }
@@ -401,7 +427,7 @@ class _TechnicalCertificateDetailPageState
       if (!mounted) return;
       setState(() {
         _practicalStatistics = [];
-        _practicalStatisticsError = '실기시험 통계를 불러오지 못했습니다.';
+        _practicalStatisticsError = '실기/면접 시험 통계를 불러오지 못했습니다.';
         _isLoadingPracticalStatistics = false;
       });
     }
@@ -752,7 +778,7 @@ class _TechnicalCertificateDetailPageState
             scheduleId: schedule.id,
             targetRound: schedule.title,
             examType: 'WRITTEN',
-            examTypeName: '필기',
+            examTypeName: _hasPracticalSchedule ? '필기' : '통합',
 
             examDate: writtenExamDisplayStartDate,
             examStartDate: writtenExamDisplayStartDate,
@@ -785,7 +811,7 @@ class _TechnicalCertificateDetailPageState
             scheduleId: schedule.id,
             targetRound: schedule.title,
             examType: 'PRACTICAL',
-            examTypeName: '실기',
+            examTypeName: '실기/면접',
 
             examDate: practicalExamDisplayStartDate,
             examStartDate: practicalExamDisplayStartDate,
@@ -855,6 +881,7 @@ class _TechnicalCertificateDetailPageState
         targetExamEndDate: option.examEndDate ?? option.examStartDate,
         targetRound: option.targetRound,
         targetExamType: option.examType,
+        targetExamTypeName: option.examTypeName,
 
         targetRegistrationStartDate: registrationStartDate,
         targetRegistrationEndDate: registrationEndDate,
@@ -1279,11 +1306,11 @@ class _TechnicalCertificateDetailPageState
             CertificateCategory.technical,
             fallback: CertificateCategoryScheduleNotice(
               items: [
-                '원서접수 시간은 원서접수 첫날 10:00부터 마지막 날 18:00까지입니다.',
+                '원서 접수 시간은 원서 접수 첫날 10:00부터 마지막 날 18:00까지입니다.',
                 '필기시험 합격예정자 및 최종합격자 발표 시간은 해당 발표일 09:00입니다.',
                 '시험 일정은 종목별, 지역별로 상이할 수 있습니다.',
                 '접수 일정 전에 공지되는 해당 회별 수험자 안내(Q-Net 공지사항 게시)를 반드시 확인해야 합니다.',
-                '빈자리 원서접수 기간이 운영될 수 있으나, 자격증 상세보기에는 표시되지 않을 수 있습니다.',
+                '빈자리 원서 접수 기간이 운영될 수 있으나, 자격증 상세보기에는 표시되지 않을 수 있습니다.',
               ],
             ),
           ),
@@ -1313,7 +1340,7 @@ class _TechnicalCertificateDetailPageState
             padding: EdgeInsets.only(
               bottom: index == _schedules.length - 1 ? 0 : 14,
             ),
-            child: TechnicalScheduleCard(
+            child: CertificateScheduleCard(
               title: schedule.title,
               writtenRegistrationStartAt: schedule.writtenRegistrationStartAt,
               writtenRegistrationEndAt: schedule.writtenRegistrationEndAt,
@@ -1329,6 +1356,7 @@ class _TechnicalCertificateDetailPageState
               practicalExamEndAt: schedule.practicalExamEndAt,
               practicalPassStartAt: schedule.practicalPassStartAt,
               practicalPassEndAt: schedule.practicalPassEndAt,
+              showExamTypeLabels: _hasCombinedExamSchedule,
               links: schedule.links,
               onOpenLink: _openScheduleNoticeUrl,
             ),
@@ -1342,7 +1370,8 @@ class _TechnicalCertificateDetailPageState
     final examDetails = _examDetails;
     final examFee = examDetails?.examFee;
 
-    return TechnicalExamInformationCard(
+    return CertificateExamInformationCard(
+      overview: _overview,
       writtenFee: examFee?.hasWrittenFee == true ? examFee!.writtenFee : null,
       practicalFee: examFee?.hasPracticalFee == true
           ? examFee!.practicalFee
@@ -1380,7 +1409,7 @@ class _TechnicalCertificateDetailPageState
   }
 
   Widget _buildStatisticsTab() {
-    return TechnicalCertificateStatisticsSection(
+    return CertificateStatisticsSection(
       baseYear: TechnicalCertificateService.statisticsBaseYear,
       isLoadingWritten: _isLoadingWrittenStatistics,
       writtenError: _writtenStatisticsError,

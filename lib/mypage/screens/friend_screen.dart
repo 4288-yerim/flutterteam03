@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../services/user_profile_cache_service.dart';
 import '../../widgets/app_dialog.dart';
 
 import '../../theme.dart';
@@ -41,7 +42,7 @@ class _FriendScreenState extends State<FriendScreen> {
     super.dispose();
   }
 
-  Future<void> _loadFriendData() async {
+  Future<void> _loadFriendData({bool forceRefresh = false}) async {
     final String? currentUid = FirebaseAuth.instance.currentUser?.uid;
 
     if (currentUid == null) {
@@ -92,6 +93,7 @@ class _FriendScreenState extends State<FriendScreen> {
           final FriendUserItem? user = await _loadUserItem(
             userUid: senderUid,
             relationId: document.id,
+            forceRefresh: forceRefresh,
           );
           if (user != null) {
             receivedRequests.add(user);
@@ -102,6 +104,7 @@ class _FriendScreenState extends State<FriendScreen> {
           final FriendUserItem? user = await _loadUserItem(
             userUid: senderUid,
             relationId: document.id,
+            forceRefresh: forceRefresh,
           );
           if (user != null) {
             friends.add(user);
@@ -128,6 +131,7 @@ class _FriendScreenState extends State<FriendScreen> {
         final FriendUserItem? user = await _loadUserItem(
           userUid: receiverUid,
           relationId: document.id,
+          forceRefresh: forceRefresh,
         );
         if (user != null) {
           friends.add(user);
@@ -170,27 +174,23 @@ class _FriendScreenState extends State<FriendScreen> {
   Future<FriendUserItem?> _loadUserItem({
     required String userUid,
     required String relationId,
+    bool forceRefresh = false,
   }) async {
-    final DocumentSnapshot<Map<String, dynamic>> userDocument =
-        await FirebaseFirestore.instance.collection('users').doc(userUid).get();
-
-    if (!userDocument.exists) {
+    final profile = await UserProfileCacheService.instance.getProfile(
+      userUid,
+      forceRefresh: forceRefresh,
+    );
+    if (profile == null || profile.isDeleted) {
       return null;
     }
 
-    final Map<String, dynamic>? data = userDocument.data();
-    if (data == null) {
-      return null;
-    }
-
-    final String nickname = (data['nickname'] as String? ?? '').trim();
+    final String nickname = profile.nickname.trim();
     if (nickname.isEmpty) {
       return null;
     }
 
-    final String bio = (data['bio'] as String? ?? '').trim();
-    final String? savedProfileImageUrl = (data['profileImageUrl'] as String?)
-        ?.trim();
+    final String bio = profile.introduction.trim();
+    final String savedProfileImageUrl = profile.profileImageUrl.trim();
     final String targetCertificate = await _loadMainGoalCertificate(userUid);
 
     return FriendUserItem(
@@ -198,8 +198,7 @@ class _FriendScreenState extends State<FriendScreen> {
       nickname: nickname,
       bio: bio,
       targetCertificate: targetCertificate,
-      profileImageUrl:
-          savedProfileImageUrl != null && savedProfileImageUrl.isNotEmpty
+      profileImageUrl: savedProfileImageUrl.isNotEmpty
           ? savedProfileImageUrl
           : null,
       relationId: relationId,
@@ -577,7 +576,7 @@ class _FriendScreenState extends State<FriendScreen> {
       MaterialPageRoute(builder: (_) => UserProfileScreen(userUid: user.uid)),
     );
 
-    await _loadFriendData();
+    await _loadFriendData(forceRefresh: true);
   }
 
   @override
@@ -586,53 +585,58 @@ class _FriendScreenState extends State<FriendScreen> {
       extendBodyBehindAppBar: true,
       appBar: AppTopBar(title: '친구'),
       body: AppMainBackground(
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(20, 16, 20, 40),
-          children: [
-            _buildSearchCard(),
-            SizedBox(height: 22),
+        child: RefreshIndicator(
+          color: context.colors.pinkStart,
+          onRefresh: () => _loadFriendData(forceRefresh: true),
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(20, 16, 20, 40),
+            children: [
+              _buildSearchCard(),
+              SizedBox(height: 22),
 
-            if (_hasSearched) ...[
-              _buildSearchResultSection(),
-              SizedBox(height: 26),
-            ],
+              if (_hasSearched) ...[
+                _buildSearchResultSection(),
+                SizedBox(height: 26),
+              ],
 
-            if (_isLoadingRelations)
-              AppCard(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 28),
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      color: context.colors.pinkStart,
+              if (_isLoadingRelations)
+                AppCard(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 28),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: context.colors.pinkStart,
+                      ),
                     ),
                   ),
-                ),
-              )
-            else ...[
-              if (_receivedRequests.isNotEmpty) ...[
-                _buildReceivedRequestHeader(),
+                )
+              else ...[
+                if (_receivedRequests.isNotEmpty) ...[
+                  _buildReceivedRequestHeader(),
+                  SizedBox(height: 12),
+                  ..._receivedRequests.map(
+                    (requestUser) => Padding(
+                      padding: EdgeInsets.only(bottom: 12),
+                      child: _buildReceivedRequestCard(requestUser),
+                    ),
+                  ),
+                  SizedBox(height: 14),
+                ],
+                _buildFriendHeader(),
                 SizedBox(height: 12),
-                ..._receivedRequests.map(
-                  (requestUser) => Padding(
-                    padding: EdgeInsets.only(bottom: 12),
-                    child: _buildReceivedRequestCard(requestUser),
+                if (_friends.isEmpty)
+                  _buildEmptyFriendCard()
+                else
+                  ..._friends.map(
+                    (friend) => Padding(
+                      padding: EdgeInsets.only(bottom: 12),
+                      child: _buildFriendCard(friend),
+                    ),
                   ),
-                ),
-                SizedBox(height: 14),
               ],
-              _buildFriendHeader(),
-              SizedBox(height: 12),
-              if (_friends.isEmpty)
-                _buildEmptyFriendCard()
-              else
-                ..._friends.map(
-                  (friend) => Padding(
-                    padding: EdgeInsets.only(bottom: 12),
-                    child: _buildFriendCard(friend),
-                  ),
-                ),
             ],
-          ],
+          ),
         ),
       ),
     );

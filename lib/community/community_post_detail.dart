@@ -178,9 +178,9 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
   }
 
   Future<void> _showPostReportModal(
-      CommunityPost post, {
-        CommunityComment? comment,
-      }) async {
+    CommunityPost post, {
+    CommunityComment? comment,
+  }) async {
     User? user = FirebaseAuth.instance.currentUser;
     String targetUid = comment?.writerUid ?? post.writerUid;
 
@@ -218,24 +218,32 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
           reporterProfile['nickname']?.toString().trim() ?? '';
 
       if (comment == null) {
+        final targetNickname = await _service.resolveCurrentNickname(
+          uid: post.writerUid,
+          fallback: post.writerNickname,
+        );
         await _service.reportPost(
           postId: post.id,
           reporterUid: user.uid,
           reporterNickname: reporterNickname,
           targetTitle: post.title,
-          targetNickname: post.writerNickname,
+          targetNickname: targetNickname,
           targetUid: post.writerUid,
           reasonType: selectedReason,
           description: description.isEmpty ? null : description,
         );
       } else {
+        final targetNickname = await _service.resolveCurrentNickname(
+          uid: comment.writerUid,
+          fallback: comment.writerNickname,
+        );
         await _service.reportComment(
           postId: post.id,
           commentId: comment.id,
           reporterUid: user.uid,
           reporterNickname: reporterNickname,
           targetContent: comment.content,
-          targetNickname: comment.writerNickname,
+          targetNickname: targetNickname,
           targetUid: comment.writerUid,
           reasonType: selectedReason,
           description: description.isEmpty ? null : description,
@@ -532,9 +540,7 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
     String? editedContent = await showDialog<String>(
       context: context,
       builder: (dialogContext) {
-        return _CommentEditDialog(
-          initialContent: comment.content,
-        );
+        return _CommentEditDialog(initialContent: comment.content);
       },
     );
 
@@ -686,9 +692,9 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
   }
 
   Future<void> _acceptAnswer(
-      CommunityPost post,
-      CommunityComment comment,
-      ) async {
+    CommunityPost post,
+    CommunityComment comment,
+  ) async {
     if (!_isWriter(post) ||
         post.boardType != CommunityBoardType.question ||
         comment.isReply ||
@@ -809,9 +815,9 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
     if (uri == null ||
         !uri.hasScheme ||
         (uri.scheme != 'http' && uri.scheme != 'https')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('첨부파일 주소가 올바르지 않아요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('첨부파일 주소가 올바르지 않아요.')));
       return;
     }
 
@@ -820,22 +826,16 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
     });
 
     try {
-      bool opened = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
+      bool opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
 
       if (!opened) {
-        opened = await launchUrl(
-          uri,
-          mode: LaunchMode.platformDefault,
-        );
+        opened = await launchUrl(uri, mode: LaunchMode.platformDefault);
       }
 
       if (!opened && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('첨부파일을 열 수 없어요.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('첨부파일을 열 수 없어요.')));
       }
     } catch (error) {
       if (mounted) {
@@ -868,9 +868,9 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
     if (uri == null ||
         !uri.hasScheme ||
         (uri.scheme != 'http' && uri.scheme != 'https')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('다운로드 주소가 올바르지 않아요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('다운로드 주소가 올바르지 않아요.')));
       return;
     }
 
@@ -918,14 +918,14 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('파일을 저장했어요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('파일을 저장했어요.')));
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('파일을 다운로드하지 못했어요.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('파일을 다운로드하지 못했어요.')));
       }
     } finally {
       if (mounted) {
@@ -937,10 +937,7 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
     }
   }
 
-  String _imageDownloadName(
-      CommunityImageAttachment image,
-      int index,
-      ) {
+  String _imageDownloadName(CommunityImageAttachment image, int index) {
     String name = image.path.split('/').last.trim();
 
     if (name.isNotEmpty && name.contains('.')) {
@@ -951,9 +948,9 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
   }
 
   Future<void> _showImageViewer(
-      List<CommunityImageAttachment> images,
-      int initialIndex,
-      ) async {
+    List<CommunityImageAttachment> images,
+    int initialIndex,
+  ) async {
     FocusScope.of(context).unfocus();
 
     await showDialog<void>(
@@ -1092,8 +1089,8 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
         onPressed: _isUpdatingRecruitStatus
             ? null
             : () {
-          _changeRecruitStatus(post);
-        },
+                _changeRecruitStatus(post);
+              },
         style: FilledButton.styleFrom(
           backgroundColor: context.colors.pinkStart,
           foregroundColor: context.colors.onPrimary,
@@ -1103,13 +1100,13 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
         ),
         icon: _isUpdatingRecruitStatus
             ? SizedBox(
-          width: 18,
-          height: 18,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: context.colors.onPrimary,
-          ),
-        )
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: context.colors.onPrimary,
+                ),
+              )
             : const Icon(Icons.sync_alt_rounded, size: 19),
         label: Text(
           _recruitActionLabel(nextStatus),
@@ -1197,9 +1194,9 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
   }
 
   Widget _buildCommentList(
-      CommunityPost post,
-      List<CommunityComment> comments,
-      ) {
+    CommunityPost post,
+    List<CommunityComment> comments,
+  ) {
     List<CommunityComment> rootComments = comments.where((comment) {
       return !comment.isReply;
     }).toList();
@@ -1261,9 +1258,7 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
     required bool isReply,
   }) {
     if (comment.isModerationHidden) {
-      return _buildModerationHiddenCommentItem(
-        isReply: isReply,
-      );
+      return _buildModerationHiddenCommentItem(isReply: isReply);
     }
 
     String currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -1271,10 +1266,10 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
     bool isProcessing = _processingCommentIds.contains(comment.id);
     bool canAccept =
         post.boardType == CommunityBoardType.question &&
-            _isWriter(post) &&
-            !isReply &&
-            !comment.isAccepted &&
-            comment.writerUid != post.writerUid;
+        _isWriter(post) &&
+        !isReply &&
+        !comment.isAccepted &&
+        comment.writerUid != post.writerUid;
 
     return Container(
       margin: EdgeInsets.only(left: isReply ? 28 : 0, top: 13, bottom: 13),
@@ -1283,9 +1278,9 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
           : EdgeInsets.zero,
       decoration: isReply
           ? BoxDecoration(
-        color: context.colors.pinkSoft.withOpacity(0.45),
-        borderRadius: BorderRadius.circular(12),
-      )
+              color: context.colors.pinkSoft.withOpacity(0.45),
+              borderRadius: BorderRadius.circular(12),
+            )
           : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1329,8 +1324,8 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
                   onPressed: isProcessing
                       ? null
                       : () {
-                    _acceptAnswer(post, comment);
-                  },
+                          _acceptAnswer(post, comment);
+                        },
                 ),
               if (canManage)
                 _buildCompactCommentAction(
@@ -1339,8 +1334,8 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
                   onPressed: isProcessing
                       ? null
                       : () {
-                    _editComment(comment);
-                  },
+                          _editComment(comment);
+                        },
                 ),
               if (canManage)
                 _buildCompactCommentAction(
@@ -1349,8 +1344,8 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
                   onPressed: isProcessing
                       ? null
                       : () {
-                    _confirmDeleteComment(comment);
-                  },
+                          _confirmDeleteComment(comment);
+                        },
                 ),
             ],
           ),
@@ -1359,24 +1354,17 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
     );
   }
 
-  Widget _buildModerationHiddenCommentItem({
-    required bool isReply,
-  }) {
+  Widget _buildModerationHiddenCommentItem({required bool isReply}) {
     return Container(
-      margin: EdgeInsets.only(
-        left: isReply ? 28 : 0,
-        top: 13,
-        bottom: 13,
-      ),
+      margin: EdgeInsets.only(left: isReply ? 28 : 0, top: 13, bottom: 13),
       padding: isReply
           ? const EdgeInsets.fromLTRB(12, 14, 10, 14)
           : const EdgeInsets.symmetric(vertical: 14),
       decoration: isReply
           ? BoxDecoration(
-        color: context.colors.pinkSoft
-            .withOpacity(0.45),
-        borderRadius: BorderRadius.circular(12),
-      )
+              color: context.colors.pinkSoft.withOpacity(0.45),
+              borderRadius: BorderRadius.circular(12),
+            )
           : null,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -1546,8 +1534,8 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
           onPressed: isProcessing
               ? null
               : () {
-            _toggleCommentLike(comment);
-          },
+                  _toggleCommentLike(comment);
+                },
           color: isLiked
               ? context.colors.pinkStart
               : context.colors.textSecondary,
@@ -1566,25 +1554,25 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
       ),
       child: imageUrl.isEmpty
           ? Icon(
-        Icons.person_rounded,
-        size: 20,
-        color: context.colors.pinkStart,
-      )
-          : ClipOval(
-        child: Image.network(
-          imageUrl,
-          width: 34,
-          height: 34,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Icon(
               Icons.person_rounded,
               size: 20,
               color: context.colors.pinkStart,
-            );
-          },
-        ),
-      ),
+            )
+          : ClipOval(
+              child: Image.network(
+                imageUrl,
+                width: 34,
+                height: 34,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Icon(
+                    Icons.person_rounded,
+                    size: 20,
+                    color: context.colors.pinkStart,
+                  );
+                },
+              ),
+            ),
     );
   }
 
@@ -1700,13 +1688,13 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
                 ),
                 child: _isSubmittingComment
                     ? SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: context.colors.onPrimary,
-                  ),
-                )
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: context.colors.onPrimary,
+                        ),
+                      )
                     : const Icon(Icons.send_rounded, size: 20),
               ),
             ),
@@ -1759,14 +1747,14 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
             },
             icon: _isDeleting
                 ? SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : Icon(
-              Icons.more_vert_rounded,
-              color: context.colors.textSecondary,
-            ),
+                    Icons.more_vert_rounded,
+                    color: context.colors.textSecondary,
+                  ),
           ),
         if (!_isWriter(post) && FirebaseAuth.instance.currentUser != null)
           IconButton(
@@ -1774,17 +1762,17 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
             onPressed: _isReporting
                 ? null
                 : () {
-              _showPostReportModal(post);
-            },
+                    _showPostReportModal(post);
+                  },
             icon: _isReporting
                 ? SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: context.colors.incorrect,
-              ),
-            )
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: context.colors.incorrect,
+                    ),
+                  )
                 : Icon(Icons.report_outlined, color: context.colors.incorrect),
           ),
       ],
@@ -1869,19 +1857,19 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
       child: imageUrl.isEmpty
           ? Icon(Icons.person_rounded, color: context.colors.pinkStart)
           : ClipOval(
-        child: Image.network(
-          imageUrl,
-          width: 42,
-          height: 42,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Icon(
-              Icons.person_rounded,
-              color: context.colors.pinkStart,
-            );
-          },
-        ),
-      ),
+              child: Image.network(
+                imageUrl,
+                width: 42,
+                height: 42,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Icon(
+                    Icons.person_rounded,
+                    color: context.colors.pinkStart,
+                  );
+                },
+              ),
+            ),
     );
   }
 
@@ -1929,8 +1917,8 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
                   onTap: image.url.isEmpty
                       ? null
                       : () {
-                    _showImageViewer(images, index);
-                  },
+                          _showImageViewer(images, index);
+                        },
                   child: Image.network(
                     image.url,
                     width: double.infinity,
@@ -1963,12 +1951,12 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
                         onPressed: image.url.isEmpty || isDownloading
                             ? null
                             : () {
-                          _downloadAttachment(
-                            url: image.url,
-                            fileName: _imageDownloadName(image, index),
-                            key: key,
-                          );
-                        },
+                                _downloadAttachment(
+                                  url: image.url,
+                                  fileName: _imageDownloadName(image, index),
+                                  key: key,
+                                );
+                              },
                       ),
                       const SizedBox(width: 8),
                       _buildImageOverlayButton(
@@ -1977,8 +1965,8 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
                         onPressed: image.url.isEmpty
                             ? null
                             : () {
-                          _showImageViewer(images, index);
-                        },
+                                _showImageViewer(images, index);
+                              },
                       ),
                     ],
                   ),
@@ -2008,14 +1996,14 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
         padding: EdgeInsets.zero,
         icon: isLoading
             ? SizedBox(
-          width: 19,
-          height: 19,
-          child: CircularProgressIndicator(
-            value: progress != null && progress > 0 ? progress : null,
-            strokeWidth: 2,
-            color: Colors.white,
-          ),
-        )
+                width: 19,
+                height: 19,
+                child: CircularProgressIndicator(
+                  value: progress != null && progress > 0 ? progress : null,
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
             : Icon(icon, color: Colors.white, size: 19),
       ),
     );
@@ -2050,8 +2038,8 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
                 onTap: isOpening || file.url.isEmpty
                     ? null
                     : () {
-                  _openFileAttachment(file);
-                },
+                        _openFileAttachment(file);
+                      },
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(13, 8, 5, 8),
                   child: Row(
@@ -2078,9 +2066,7 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
                             ),
                             const SizedBox(height: 3),
                             Text(
-                              file.url.isEmpty
-                                  ? '파일 주소 없음'
-                                  : '파일명을 누르면 열려요.',
+                              file.url.isEmpty ? '파일 주소 없음' : '파일명을 누르면 열려요.',
                               style: TextStyle(
                                 color: context.colors.textSecondary,
                                 fontSize: 11,
@@ -2094,24 +2080,24 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
                         onPressed: file.url.isEmpty || isDownloading
                             ? null
                             : () {
-                          _downloadAttachment(
-                            url: file.url,
-                            fileName: file.name,
-                            key: key,
-                          );
-                        },
+                                _downloadAttachment(
+                                  url: file.url,
+                                  fileName: file.name,
+                                  key: key,
+                                );
+                              },
                         icon: isDownloading
                             ? SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            value: progress != null && progress > 0
-                                ? progress
-                                : null,
-                            strokeWidth: 2,
-                            color: context.colors.pinkStart,
-                          ),
-                        )
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  value: progress != null && progress > 0
+                                      ? progress
+                                      : null,
+                                  strokeWidth: 2,
+                                  color: context.colors.pinkStart,
+                                ),
+                              )
                             : const Icon(Icons.download_rounded, size: 20),
                       ),
                       IconButton(
@@ -2119,17 +2105,17 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
                         onPressed: file.url.isEmpty || isOpening
                             ? null
                             : () {
-                          _openFileAttachment(file);
-                        },
+                                _openFileAttachment(file);
+                              },
                         icon: isOpening
                             ? SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: context.colors.pinkStart,
-                          ),
-                        )
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: context.colors.pinkStart,
+                                ),
+                              )
                             : const Icon(Icons.open_in_new_rounded, size: 19),
                       ),
                     ],
@@ -2165,68 +2151,68 @@ class _CommunityPostDetailPageState extends State<CommunityPostDetailPage> {
         Expanded(
           child: currentUid.isEmpty
               ? _DetailCount(
-            icon: Icons.favorite_border_rounded,
-            label: '좋아요',
-            value: post.likeCount,
-            onTap: () {
-              _toggleLike(post);
-            },
-          )
+                  icon: Icons.favorite_border_rounded,
+                  label: '좋아요',
+                  value: post.likeCount,
+                  onTap: () {
+                    _toggleLike(post);
+                  },
+                )
               : StreamBuilder<bool>(
-            stream: _service.watchLikeStatus(
-              postId: post.id,
-              userUid: currentUid,
-            ),
-            builder: (context, snapshot) {
-              bool isLiked = snapshot.data ?? false;
+                  stream: _service.watchLikeStatus(
+                    postId: post.id,
+                    userUid: currentUid,
+                  ),
+                  builder: (context, snapshot) {
+                    bool isLiked = snapshot.data ?? false;
 
-              return _DetailCount(
-                icon: isLiked
-                    ? Icons.favorite_rounded
-                    : Icons.favorite_border_rounded,
-                label: '좋아요',
-                value: post.likeCount,
-                isActive: isLiked,
-                enabled: !_isTogglingLike,
-                onTap: () {
-                  _toggleLike(post);
-                },
-              );
-            },
-          ),
+                    return _DetailCount(
+                      icon: isLiked
+                          ? Icons.favorite_rounded
+                          : Icons.favorite_border_rounded,
+                      label: '좋아요',
+                      value: post.likeCount,
+                      isActive: isLiked,
+                      enabled: !_isTogglingLike,
+                      onTap: () {
+                        _toggleLike(post);
+                      },
+                    );
+                  },
+                ),
         ),
         Expanded(
           child: currentUid.isEmpty
               ? _DetailCount(
-            icon: Icons.bookmark_border_rounded,
-            label: '저장',
-            value: post.bookmarkCount,
-            onTap: () {
-              _toggleBookmark(post);
-            },
-          )
+                  icon: Icons.bookmark_border_rounded,
+                  label: '저장',
+                  value: post.bookmarkCount,
+                  onTap: () {
+                    _toggleBookmark(post);
+                  },
+                )
               : StreamBuilder<bool>(
-            stream: _service.watchBookmarkStatus(
-              postId: post.id,
-              userUid: currentUid,
-            ),
-            builder: (context, snapshot) {
-              bool isBookmarked = snapshot.data ?? false;
+                  stream: _service.watchBookmarkStatus(
+                    postId: post.id,
+                    userUid: currentUid,
+                  ),
+                  builder: (context, snapshot) {
+                    bool isBookmarked = snapshot.data ?? false;
 
-              return _DetailCount(
-                icon: isBookmarked
-                    ? Icons.bookmark_rounded
-                    : Icons.bookmark_border_rounded,
-                label: '저장',
-                value: post.bookmarkCount,
-                isActive: isBookmarked,
-                enabled: !_isTogglingBookmark,
-                onTap: () {
-                  _toggleBookmark(post);
-                },
-              );
-            },
-          ),
+                    return _DetailCount(
+                      icon: isBookmarked
+                          ? Icons.bookmark_rounded
+                          : Icons.bookmark_border_rounded,
+                      label: '저장',
+                      value: post.bookmarkCount,
+                      isActive: isBookmarked,
+                      enabled: !_isTogglingBookmark,
+                      onTap: () {
+                        _toggleBookmark(post);
+                      },
+                    );
+                  },
+                ),
         ),
       ],
     );
@@ -2348,9 +2334,7 @@ String _formatCreatedAt(DateTime? dateTime) {
 class _CommentEditDialog extends StatefulWidget {
   final String initialContent;
 
-  const _CommentEditDialog({
-    required this.initialContent,
-  });
+  const _CommentEditDialog({required this.initialContent});
 
   @override
   State<_CommentEditDialog> createState() {
@@ -2367,9 +2351,7 @@ class _CommentEditDialogState extends State<_CommentEditDialog> {
   void initState() {
     super.initState();
 
-    _controller = TextEditingController(
-      text: widget.initialContent,
-    );
+    _controller = TextEditingController(text: widget.initialContent);
 
     _controller.selection = TextSelection.collapsed(
       offset: _controller.text.length,
@@ -2386,9 +2368,9 @@ class _CommentEditDialogState extends State<_CommentEditDialog> {
     String content = _controller.text.trim();
 
     if (content.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('댓글 내용을 입력해 주세요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('댓글 내용을 입력해 주세요.')));
       return;
     }
 
@@ -2400,10 +2382,7 @@ class _CommentEditDialogState extends State<_CommentEditDialog> {
     bool canSave = _controller.text.trim().isNotEmpty;
 
     return AlertDialog(
-      insetPadding: const EdgeInsets.symmetric(
-        horizontal: 20,
-        vertical: 24,
-      ),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       titlePadding: const EdgeInsets.fromLTRB(22, 22, 22, 10),
       contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
       actionsPadding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
@@ -2437,25 +2416,16 @@ class _CommentEditDialogState extends State<_CommentEditDialog> {
                     fontSize: 14,
                   ),
                   counterText: '',
-                  contentPadding: const EdgeInsets.fromLTRB(
-                    15,
-                    15,
-                    15,
-                    38,
-                  ),
+                  contentPadding: const EdgeInsets.fromLTRB(15, 15, 15, 38),
                   filled: true,
                   fillColor: Theme.of(context).colorScheme.surface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(
-                      color: context.colors.pinkSoft,
-                    ),
+                    borderSide: BorderSide(color: context.colors.pinkSoft),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(
-                      color: context.colors.pinkSoft,
-                    ),
+                    borderSide: BorderSide(color: context.colors.pinkSoft),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),

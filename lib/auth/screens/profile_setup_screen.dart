@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../theme.dart';
+import '../../utils/nickname_validator.dart';
 import '../../widgets/app_background.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_top_bar.dart';
@@ -28,10 +29,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   File? _pickedImage;
   String? _errorText;
 
-  static const int _minLength = 2;
-  static const int _maxLength = 10;
   static const int _bioMaxLength = 60;
-  static final RegExp _nicknameRegExp = RegExp(r'^[가-힣a-zA-Z0-9]+$');
 
   @override
   void initState() {
@@ -59,15 +57,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   }
 
   String? _validateNickname(String value) {
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) return '닉네임을 입력해주세요';
-    if (trimmed.length < _minLength || trimmed.length > _maxLength) {
-      return '닉네임은 $_minLength~$_maxLength자로 입력해주세요';
-    }
-    if (!_nicknameRegExp.hasMatch(trimmed)) {
-      return '한글, 영문, 숫자만 사용할 수 있어요';
-    }
-    return null;
+    return NicknameValidator.validate(value);
   }
 
   // 버튼 활성화 조건: 닉네임이 유효할 때만 (에러 텍스트 표시 여부와 별개로 실시간 판단)
@@ -195,7 +185,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 const SizedBox(height: 8),
                 TextField(
                   controller: _nicknameController,
-                  maxLength: _maxLength,
+                  maxLength: NicknameValidator.maxLength,
                   decoration: InputDecoration(
                     hintText: '2~10자, 한글/영문/숫자로 입력해주세요',
                     hintStyle: TextStyle(

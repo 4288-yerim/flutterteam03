@@ -21,6 +21,8 @@ class AppConfirmDialog extends StatelessWidget {
   final VoidCallback? onSecondaryPressed;
   final Widget? extra;
   final bool isDestructive;
+  final Gradient? accentGradient;
+  final Color? accentShadowColor;
 
   const AppConfirmDialog({
     super.key,
@@ -33,6 +35,8 @@ class AppConfirmDialog extends StatelessWidget {
     this.onSecondaryPressed,
     this.extra,
     this.isDestructive = false,
+    this.accentGradient,
+    this.accentShadowColor,
   });
 
   /// [T]를 반환하는 확인 다이얼로그를 띄웁니다.
@@ -51,6 +55,8 @@ class AppConfirmDialog extends StatelessWidget {
     bool barrierDismissible = true,
     bool preventBack = false,
     bool isDestructive = false,
+    Gradient? accentGradient,
+    Color? accentShadowColor,
   }) {
     final dialog = AppConfirmDialog(
       icon: icon,
@@ -62,6 +68,8 @@ class AppConfirmDialog extends StatelessWidget {
       onSecondaryPressed: onSecondaryPressed,
       extra: extra,
       isDestructive: isDestructive,
+      accentGradient: accentGradient,
+      accentShadowColor: accentShadowColor,
     );
 
     return showDialog<T>(
@@ -87,10 +95,10 @@ class AppConfirmDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final Gradient accentGradient = isDestructive
         ? _dangerGradient
-        : context.colors.themedPinkGradient;
+        : this.accentGradient ?? context.colors.themedPinkGradient;
     final Color shadowColor = isDestructive
         ? _dangerShadowColor
-        : context.colors.pinkDeep;
+        : accentShadowColor ?? context.colors.pinkDeep;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
