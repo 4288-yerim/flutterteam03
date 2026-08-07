@@ -22,6 +22,7 @@ import 'notification_send_screen.dart';
 import 'notice_management_screen.dart';
 import 'report_management_screen.dart';
 import 'statistics_management_screen.dart';
+import 'withdrawal_management_screen.dart';
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
@@ -36,7 +37,7 @@ class _AdminPageState extends State<AdminPage> {
   int _selectedIndex = 0;
   bool _isSigningOut = false;
   bool _isRedirecting = false;
-  late final Future<bool> _adminAccessCheck;
+  late Future<bool> _adminAccessCheck;
 
   @override
   void initState() {
@@ -55,7 +56,17 @@ class _AdminPageState extends State<AdminPage> {
         .doc(user.uid)
         .get();
 
-    return userDocument.data()?['role'] == 'ADMIN';
+    final String role =
+        userDocument.data()?['role']?.toString().trim().toUpperCase() ?? '';
+
+    return role == 'ADMIN';
+  }
+
+  void _retryAdminAccess() {
+    setState(() {
+      _isRedirecting = false;
+      _adminAccessCheck = _hasAdminAccess();
+    });
   }
 
   void _redirectUnauthorizedUser() {
@@ -74,7 +85,7 @@ class _AdminPageState extends State<AdminPage> {
           : const MainPage();
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => destination),
-        (route) => false,
+            (route) => false,
       );
     });
   }
@@ -90,6 +101,7 @@ class _AdminPageState extends State<AdminPage> {
     _AdminMenuItem('알림 발송', Icons.notifications_active_outlined),
     _AdminMenuItem('커뮤니티 관리', Icons.forum_outlined),
     _AdminMenuItem('통계 관리', Icons.bar_chart_outlined),
+    _AdminMenuItem('탈퇴 사유 관리', Icons.person_off_outlined),
   ];
 
   void _openMenu(int index) {
@@ -131,6 +143,7 @@ class _AdminPageState extends State<AdminPage> {
       const NotificationSendScreen(),
       const CommunityManagementScreen(),
       const StatisticsManagementScreen(),
+      const WithdrawalManagementScreen(),
     ];
   }
 
@@ -177,7 +190,7 @@ class _AdminPageState extends State<AdminPage> {
 
       Navigator.of(this.context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-        (route) => false,
+            (route) => false,
       );
     } catch (_) {
       if (!mounted) {
@@ -203,6 +216,10 @@ class _AdminPageState extends State<AdminPage> {
             );
           }
 
+          if (snapshot.hasError) {
+            return _buildAdminAccessError(context);
+          }
+
           if (snapshot.data != true) {
             _redirectUnauthorizedUser();
             return const Scaffold(
@@ -216,11 +233,92 @@ class _AdminPageState extends State<AdminPage> {
     );
   }
 
+  Widget _buildAdminAccessError(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(28),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.cloud_off_rounded,
+                    size: 58,
+                    color: context.colors.textMuted,
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    '관리자 권한을 확인하지 못했습니다.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: context.colors.textPrimary,
+                      fontSize: 19,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 9),
+                  Text(
+                    '네트워크 또는 Firestore 권한 설정을 확인한 뒤 '
+                        '다시 시도해 주세요.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: context.colors.textSecondary,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  FilledButton.icon(
+                    onPressed: _retryAdminAccess,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('다시 시도'),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: _redirectUnauthorizedUser,
+                    child: const Text('사용자 화면으로 돌아가기'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildAdminPage(BuildContext context) {
     final _AdminMenuItem selectedMenu = _menus[_selectedIndex];
 
     return PopScope(
-      canPop: !_isSigningOut,
+      /*
+   * 관리자 홈이고 로그아웃 처리 중이 아닐 때만
+   * 관리자 페이지 자체에서 나갈 수 있음
+   *
+   * 하위 관리 메뉴에서는 뒤로가기를 먼저 차단한 뒤
+   * onPopInvokedWithResult에서 관리자 홈으로 이동
+   */
+      canPop: !_isSigningOut && _selectedIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        // 관리자 페이지 자체가 이미 닫힌 경우에는 추가 동작 안함
+        if (didPop) {
+          return;
+        }
+
+        // 로그아웃 처리 중에는 뒤로가기를 무시
+        if (_isSigningOut) {
+          return;
+        }
+
+        // 관리자 하위 메뉴에서 뒤로가기를 누르면 관리자 홈으로 이동
+        if (_selectedIndex != 0) {
+          setState(() {
+            _selectedIndex = 0;
+          });
+        }
+      },
       child: Stack(
         children: [
           Scaffold(
@@ -249,7 +347,7 @@ class _AdminPageState extends State<AdminPage> {
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) =>
-                              const CertificateCategoryContentEditScreen(),
+                          const CertificateCategoryContentEditScreen(),
                         ),
                       );
                     },
@@ -348,17 +446,17 @@ class _AdminPageState extends State<AdminPage> {
                       enabled: !_isSigningOut,
                       leading: _isSigningOut
                           ? SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: context.colors.lavenderAccent,
-                              ),
-                            )
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: context.colors.lavenderAccent,
+                        ),
+                      )
                           : Icon(
-                              Icons.logout_rounded,
-                              color: context.colors.incorrect,
-                            ),
+                        Icons.logout_rounded,
+                        color: context.colors.incorrect,
+                      ),
                       title: Text(
                         _isSigningOut ? '로그아웃 중...' : '로그아웃',
                         style: TextStyle(
