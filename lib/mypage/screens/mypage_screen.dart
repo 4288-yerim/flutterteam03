@@ -28,6 +28,7 @@ import 'mypage_calendar_screen.dart';
 import 'friend_screen.dart';
 import 'app_setting_screen.dart';
 import 'help_and_inquiry_screen.dart';
+import 'notice_list_screen.dart';
 import 'account_withdrawal_screen.dart';
 import 'my_certificate_roadmap_screen.dart';
 import '../../ai/subscription.dart';
@@ -128,12 +129,12 @@ class _MyPageScreenState extends State<MyPageScreen> {
       final DateTime date = monday.add(Duration(days: dayIndex));
 
       final DocumentSnapshot<Map<String, dynamic>> document =
-          await FirebaseFirestore.instance
-              .collection('userStudyLogs')
-              .doc(uid)
-              .collection('logs')
-              .doc(_formatDateId(date))
-              .get();
+      await FirebaseFirestore.instance
+          .collection('userStudyLogs')
+          .doc(uid)
+          .collection('logs')
+          .doc(_formatDateId(date))
+          .get();
 
       final Map<String, dynamic>? data = document.data();
 
@@ -153,20 +154,20 @@ class _MyPageScreenState extends State<MyPageScreen> {
     }
 
     final QuerySnapshot<Map<String, dynamic>> groupSnapshot =
-        await FirebaseFirestore.instance.collection('studyGroups').get();
+    await FirebaseFirestore.instance.collection('studyGroups').get();
 
     final DateTime nextMonday = monday.add(Duration(days: 7));
 
     for (final QueryDocumentSnapshot<Map<String, dynamic>> groupDocument
-        in groupSnapshot.docs) {
+    in groupSnapshot.docs) {
       final QuerySnapshot<Map<String, dynamic>> recordSnapshot =
-          await groupDocument.reference
-              .collection('studyRecords')
-              .where('uid', isEqualTo: uid)
-              .get();
+      await groupDocument.reference
+          .collection('studyRecords')
+          .where('uid', isEqualTo: uid)
+          .get();
 
       for (final QueryDocumentSnapshot<Map<String, dynamic>> recordDocument
-          in recordSnapshot.docs) {
+      in recordSnapshot.docs) {
         final Map<String, dynamic> data = recordDocument.data();
         final DateTime? studiedAt = _readStudyRecordDate(data);
 
@@ -208,23 +209,23 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
   Future<int> _loadJoinedStudyCount(String uid) async {
     final QuerySnapshot<Map<String, dynamic>> groupSnapshot =
-        await FirebaseFirestore.instance.collection('studyGroups').get();
+    await FirebaseFirestore.instance.collection('studyGroups').get();
 
     int joinedStudyCount = 0;
 
     for (final QueryDocumentSnapshot<Map<String, dynamic>> groupDocument
-        in groupSnapshot.docs) {
+    in groupSnapshot.docs) {
       final DocumentSnapshot<Map<String, dynamic>> memberDocument =
-          await groupDocument.reference.collection('members').doc(uid).get();
+      await groupDocument.reference.collection('members').doc(uid).get();
 
       if (!memberDocument.exists) {
         continue;
       }
 
       final String memberStatus =
-          (memberDocument.data()?['status'] as String? ?? 'ACTIVE')
-              .trim()
-              .toUpperCase();
+      (memberDocument.data()?['status'] as String? ?? 'ACTIVE')
+          .trim()
+          .toUpperCase();
 
       if (memberStatus == 'ACTIVE') {
         joinedStudyCount++;
@@ -236,15 +237,15 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
   Future<int> _loadMyPostCount(String uid) async {
     final QuerySnapshot<Map<String, dynamic>> postSnapshot =
-        await FirebaseFirestore.instance
-            .collection('posts')
-            .where('writerUid', isEqualTo: uid)
-            .get();
+    await FirebaseFirestore.instance
+        .collection('posts')
+        .where('writerUid', isEqualTo: uid)
+        .get();
 
     int postCount = 0;
 
     for (final QueryDocumentSnapshot<Map<String, dynamic>> document
-        in postSnapshot.docs) {
+    in postSnapshot.docs) {
       final Map<String, dynamic> data = document.data();
 
       final String postStatus = (data['postStatus'] as String? ?? 'NORMAL')
@@ -302,10 +303,10 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
     try {
       final DocumentSnapshot<Map<String, dynamic>> userDocument =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .get();
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
 
       final Map<String, dynamic>? userData = userDocument.data();
 
@@ -334,20 +335,20 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
         // isMainGoal이 true인 목표를 대표 목표로 표시합니다.
         final QuerySnapshot<Map<String, dynamic>> mainGoalSnapshot =
-            await FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .collection('goals')
-                .where('isMainGoal', isEqualTo: true)
-                .limit(1)
-                .get();
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('goals')
+            .where('isMainGoal', isEqualTo: true)
+            .limit(1)
+            .get();
 
         if (mainGoalSnapshot.docs.isNotEmpty) {
           final Map<String, dynamic> mainGoalData = mainGoalSnapshot.docs.first
               .data();
 
           final String mainCertificateName =
-              (mainGoalData['certificateName'] as String? ?? '').trim();
+          (mainGoalData['certificateName'] as String? ?? '').trim();
 
           if (mainCertificateName.isNotEmpty) {
             targetCertificateName = mainCertificateName;
@@ -593,6 +594,35 @@ class _MyPageScreenState extends State<MyPageScreen> {
                     ),
 
                     SizedBox(height: 24),
+                    _SectionTitle(title: '서비스 안내'),
+                    SizedBox(height: 12),
+
+                    AppCard(
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        children: [
+                          MyPageMenuTile(
+                            icon: Icons.campaign_outlined,
+                            title: '공지사항',
+                            subtitle: '서비스 소식과 시험·업데이트 안내를 확인합니다.',
+                            onTap: () {
+                              _openPage(context, NoticeListScreen());
+                            },
+                          ),
+                          _MenuDivider(),
+                          MyPageMenuTile(
+                            icon: Icons.help_outline,
+                            title: '문의 및 도움말',
+                            subtitle: '문의 내역과 자주 묻는 질문을 확인합니다.',
+                            onTap: () {
+                              _openPage(context, HelpAndInquiryScreen());
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    SizedBox(height: 24),
                     _SectionTitle(title: '계정 및 설정'),
                     SizedBox(height: 12),
 
@@ -624,15 +654,6 @@ class _MyPageScreenState extends State<MyPageScreen> {
                             subtitle: '화면 표시와 알림 수신 여부를 설정합니다.',
                             onTap: () {
                               _openPage(context, AppSettingScreen());
-                            },
-                          ),
-                          _MenuDivider(),
-                          MyPageMenuTile(
-                            icon: Icons.help_outline,
-                            title: '문의 및 도움말',
-                            subtitle: '문의 내역과 자주 묻는 질문을 확인합니다.',
-                            onTap: () {
-                              _openPage(context, HelpAndInquiryScreen());
                             },
                           ),
                         ],
@@ -680,7 +701,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                                 MaterialPageRoute(
                                   builder: (_) => WelcomeScreen(),
                                 ),
-                                (route) => false,
+                                    (route) => false,
                               );
                             } catch (error) {
                               if (!context.mounted) {
@@ -801,49 +822,49 @@ class _MyPageScreenState extends State<MyPageScreen> {
               child: ClipOval(
                 child: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
                     ? Image.network(
-                        _profileImageUrl!,
-                        width: 94,
-                        height: 94,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  context.colors.pinkSoft,
-                                  context.colors.surface,
-                                ],
-                              ),
-                            ),
-                            child: Icon(
-                              Icons.person,
-                              size: 58,
-                              color: context.colors.pinkStart,
-                            ),
-                          );
-                        },
-                      )
-                    : Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              context.colors.pinkSoft,
-                              context.colors.surface,
-                            ],
-                          ),
-                        ),
-                        child: Icon(
-                          Icons.person,
-                          size: 58,
-                          color: context.colors.pinkStart,
+                  _profileImageUrl!,
+                  width: 94,
+                  height: 94,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            context.colors.pinkSoft,
+                            context.colors.surface,
+                          ],
                         ),
                       ),
+                      child: Icon(
+                        Icons.person,
+                        size: 58,
+                        color: context.colors.pinkStart,
+                      ),
+                    );
+                  },
+                )
+                    : Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        context.colors.pinkSoft,
+                        context.colors.surface,
+                      ],
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.person,
+                    size: 58,
+                    color: context.colors.pinkStart,
+                  ),
+                ),
               ),
             ),
 
@@ -998,9 +1019,9 @@ class _MyPageScreenState extends State<MyPageScreen> {
   }
 
   Future<void> _openPageAndRefreshSummary(
-    BuildContext context,
-    Widget page,
-  ) async {
+      BuildContext context,
+      Widget page,
+      ) async {
     await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
 
     await _loadSummaryData();

@@ -150,26 +150,26 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                             description: '학습 계획을 조회하고 추가하려면 로그인해주세요.',
                           )
                         else if (snapshot.connectionState ==
-                            ConnectionState.waiting &&
+                                ConnectionState.waiting &&
                             !snapshot.hasData)
                           _buildLoadingCard()
                         else if (snapshot.hasError)
-                            _buildMessageCard(
-                              icon: Icons.error_outline_rounded,
-                              title: '학습 계획을 불러오지 못했습니다.',
-                              description: _getFirestoreErrorMessage(
-                                snapshot.error,
-                              ),
-                            )
-                          else if (selectedTasks.isEmpty)
-                              _buildEmptyTaskCard()
-                            else
-                              ...selectedTasks.asMap().entries.map(
-                                    (entry) => Padding(
-                                  padding: EdgeInsets.only(bottom: 12),
-                                  child: _buildTaskCard(entry.value, entry.key),
-                                ),
-                              ),
+                          _buildMessageCard(
+                            icon: Icons.error_outline_rounded,
+                            title: '학습 계획을 불러오지 못했습니다.',
+                            description: _getFirestoreErrorMessage(
+                              snapshot.error,
+                            ),
+                          )
+                        else if (selectedTasks.isEmpty)
+                          _buildEmptyTaskCard()
+                        else
+                          ...selectedTasks.asMap().entries.map(
+                            (entry) => Padding(
+                              padding: EdgeInsets.only(bottom: 12),
+                              child: _buildTaskCard(entry.value, entry.key),
+                            ),
+                          ),
                       ],
                     ),
                   );
@@ -199,8 +199,11 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
             IconButton(
               tooltip: '이전 날짜',
               onPressed: _moveToPreviousDate,
-              icon: Icon(Icons.chevron_left_rounded,
-                  size: 28, color: context.colors.softBlueAccent),
+              icon: Icon(
+                Icons.chevron_left_rounded,
+                size: 28,
+                color: context.colors.softBlueAccent,
+              ),
             ),
             Expanded(
               child: InkWell(
@@ -210,18 +213,24 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                   padding: EdgeInsets.symmetric(vertical: 8),
                   child: Column(
                     children: [
-                      Text(_formatDate(_selectedDate),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                              fontSize: 19,
-                              fontWeight: FontWeight.w800,
-                              color: context.colors.textPrimary)),
+                      Text(
+                        _formatDate(_selectedDate),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                          color: context.colors.textPrimary,
+                        ),
+                      ),
                       SizedBox(height: 4),
-                      Text(_getDateLabel(_selectedDate),
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: context.colors.softBlueAccent)),
+                      Text(
+                        _getDateLabel(_selectedDate),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: context.colors.softBlueAccent,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -230,8 +239,11 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
             IconButton(
               tooltip: '다음 날짜',
               onPressed: _moveToNextDate,
-              icon: Icon(Icons.chevron_right_rounded,
-                  size: 28, color: context.colors.softBlueAccent),
+              icon: Icon(
+                Icons.chevron_right_rounded,
+                size: 28,
+                color: context.colors.softBlueAccent,
+              ),
             ),
           ],
         ),
@@ -249,125 +261,125 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
     return AppCard(
       child: totalCount == 0
           ? Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: context.colors.pinkSoft,
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Icon(
-              Icons.auto_awesome_outlined,
-              size: 22,
-              color: context.colors.pinkStart,
-            ),
-          ),
-          SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '오늘의 진행률',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: context.colors.textSecondary,
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: context.colors.pinkSoft,
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: Icon(
+                    Icons.auto_awesome_outlined,
+                    size: 22,
+                    color: context.colors.pinkStart,
                   ),
                 ),
-                SizedBox(height: 3),
-                Text(
-                  '계획된 학습이 없습니다.',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: context.colors.textSecondary,
+                SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '오늘의 진행률',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: context.colors.textSecondary,
+                        ),
+                      ),
+                      SizedBox(height: 3),
+                      Text(
+                        '계획된 학습이 없습니다.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: context.colors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
-            ),
-          ),
-        ],
-      )
+            )
           : Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: context.colors.pinkSoft,
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Icon(
-                  Icons.auto_awesome_outlined,
-                  size: 22,
-                  color: context.colors.pinkStart,
-                ),
-              ),
-              SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
                   children: [
-                    Text(
-                      '오늘의 진행률',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: context.colors.textSecondary,
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: context.colors.pinkSoft,
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                      child: Icon(
+                        Icons.auto_awesome_outlined,
+                        size: 22,
+                        color: context.colors.pinkStart,
                       ),
                     ),
-                    SizedBox(height: 3),
+                    SizedBox(width: 13),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '오늘의 진행률',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: context.colors.textSecondary,
+                            ),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            '학습 계획을 완료해보세요.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: context.colors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     Text(
-                      '학습 계획을 완료해보세요.',
+                      '$completedCount / $totalCount',
                       style: TextStyle(
-                        fontSize: 12,
-                        color: context.colors.textSecondary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: context.colors.pinkStart,
                       ),
                     ),
                   ],
                 ),
-              ),
-              Text(
-                '$completedCount / $totalCount',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: context.colors.pinkStart,
+                SizedBox(height: 18),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 10,
+                    backgroundColor: context.colors.surfaceMuted,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      context.colors.pinkStart,
+                    ),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          SizedBox(height: 18),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 10,
-              backgroundColor: context.colors.surfaceMuted,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                context.colors.pinkStart,
-              ),
+                SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    '$percentage% 완료',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: context.colors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-          SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              '$percentage% 완료',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: context.colors.textSecondary,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -411,9 +423,11 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
       padding: EdgeInsets.zero,
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
-        onTap: _isFutureTask(task) ? null : () {
-          _toggleTask(task);
-        },
+        onTap: _isFutureTask(task)
+            ? null
+            : () {
+                _toggleTask(task);
+              },
         child: Padding(
           padding: EdgeInsets.fromLTRB(16, 15, 8, 15),
           child: Row(
@@ -429,19 +443,31 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                     shape: BoxShape.circle,
                     color: task.isCompleted
                         ? ringColor
-                        : (isFuture ? context.colors.surfaceMuted : context.colors.surface),
+                        : (isFuture
+                              ? context.colors.surfaceMuted
+                              : context.colors.surface),
                     border: Border.all(
                       color: task.isCompleted
                           ? ringColor
-                          : (isFuture ? context.colors.border.withOpacity(0.5) : context.colors.border),
+                          : (isFuture
+                                ? context.colors.border.withOpacity(0.5)
+                                : context.colors.border),
                       width: 2,
                     ),
                   ),
                   child: task.isCompleted
-                      ? Icon(Icons.check_rounded, size: 18, color: context.colors.onPrimary)
+                      ? Icon(
+                          Icons.check_rounded,
+                          size: 18,
+                          color: context.colors.onPrimary,
+                        )
                       : (isFuture
-                      ? Icon(Icons.lock_outline_rounded, size: 13, color: context.colors.textMuted)
-                      : null),
+                            ? Icon(
+                                Icons.lock_outline_rounded,
+                                size: 13,
+                                color: context.colors.textMuted,
+                              )
+                            : null),
                 ),
               ),
               SizedBox(width: 13),
@@ -452,7 +478,10 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                     Row(
                       children: [
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: style.backgroundColor,
                             borderRadius: BorderRadius.circular(20),
@@ -469,7 +498,10 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                         if (isFuture) ...[
                           SizedBox(width: 6),
                           Container(
-                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
                             decoration: BoxDecoration(
                               color: context.colors.surfaceMuted,
                               borderRadius: BorderRadius.circular(20),
@@ -477,7 +509,11 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.lock_outline_rounded, size: 11, color: context.colors.textMuted),
+                                Icon(
+                                  Icons.lock_outline_rounded,
+                                  size: 11,
+                                  color: context.colors.textMuted,
+                                ),
                                 SizedBox(width: 3),
                                 Text(
                                   '예정',
@@ -496,7 +532,10 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                           child: Text(
                             task.certificateName,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 12, color: context.colors.textSecondary),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: context.colors.textSecondary,
+                            ),
                           ),
                         ),
                       ],
@@ -510,7 +549,9 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                         fontWeight: FontWeight.w700,
                         color: task.isCompleted
                             ? context.colors.textSecondary
-                            : (isFuture ? context.colors.textMuted : context.colors.textPrimary),
+                            : (isFuture
+                                  ? context.colors.textMuted
+                                  : context.colors.textPrimary),
                         decoration: task.isCompleted
                             ? TextDecoration.lineThrough
                             : TextDecoration.none,
@@ -590,7 +631,11 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                         value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.delete_outline_rounded, size: 20, color: context.colors.incorrect),
+                            Icon(
+                              Icons.delete_outline_rounded,
+                              size: 20,
+                              color: context.colors.incorrect,
+                            ),
                             SizedBox(width: 10),
                             Text('학습 계획 삭제'),
                           ],
@@ -603,7 +648,11 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                       value: 'delete_step',
                       child: Row(
                         children: [
-                          Icon(Icons.remove_circle_outline, size: 20, color: context.colors.textSecondary),
+                          Icon(
+                            Icons.remove_circle_outline,
+                            size: 20,
+                            color: context.colors.textSecondary,
+                          ),
                           SizedBox(width: 10),
                           Text('이 단계만 삭제'),
                         ],
@@ -613,7 +662,11 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
                       value: 'delete_plan',
                       child: Row(
                         children: [
-                          Icon(Icons.delete_outline_rounded, size: 20, color: context.colors.incorrect),
+                          Icon(
+                            Icons.delete_outline_rounded,
+                            size: 20,
+                            color: context.colors.incorrect,
+                          ),
                           SizedBox(width: 10),
                           Text('전체 AI 계획 삭제'),
                         ],
@@ -731,13 +784,13 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
         ),
         icon: _isSaving
             ? SizedBox(
-          width: 18,
-          height: 18,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: context.colors.onPrimary,
-          ),
-        )
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: context.colors.onPrimary,
+                ),
+              )
             : Icon(Icons.add_rounded),
         label: Text(
           _isSaving ? '저장 중...' : '학습 계획 추가',
@@ -771,22 +824,33 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
     if (pickedDate == null) return;
 
     setState(() {
-      _selectedDate =
-          DateTime(pickedDate.year, pickedDate.month, pickedDate.day);
+      _selectedDate = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+      );
     });
   }
 
   bool _isFutureTask(StudyPlanTask task) {
     final DateTime today = DateTime.now();
     final DateTime todayDate = DateTime(today.year, today.month, today.day);
-    final DateTime taskDate = DateTime(task.date.year, task.date.month, task.date.day);
+    final DateTime taskDate = DateTime(
+      task.date.year,
+      task.date.month,
+      task.date.day,
+    );
     return taskDate.isAfter(todayDate);
   }
 
   Future<void> _toggleTask(StudyPlanTask task) async {
     final DateTime today = DateTime.now();
     final DateTime todayDate = DateTime(today.year, today.month, today.day);
-    final DateTime taskDate = DateTime(task.date.year, task.date.month, task.date.day);
+    final DateTime taskDate = DateTime(
+      task.date.year,
+      task.date.month,
+      task.date.day,
+    );
 
     if (taskDate.isAfter(todayDate)) {
       _showSnackBar('아직 오지 않은 날짜의 계획은 완료 처리할 수 없습니다.');
@@ -935,12 +999,17 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
         }
 
         final steps = rawSteps
-            .map((s) => s is Map ? Map<String, dynamic>.from(s) : <String, dynamic>{})
+            .map(
+              (s) =>
+                  s is Map ? Map<String, dynamic>.from(s) : <String, dynamic>{},
+            )
             .toList();
 
         steps.removeAt(task.aiStepIndex!);
 
-        final completedStepCount = steps.where((s) => s['isCompleted'] == true).length;
+        final completedStepCount = steps
+            .where((s) => s['isCompleted'] == true)
+            .length;
         final totalStepCount = steps.length;
         final completionRate = totalStepCount == 0
             ? 0
@@ -970,7 +1039,8 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
       icon: Icons.delete_outline_rounded,
       isDestructive: true,
       title: 'AI 학습 계획 전체 삭제',
-      description: '"${task.certificateName}" AI 학습 계획 전체를 삭제하시겠습니까?\n삭제 후 다시 생성해야 합니다.',
+      description:
+          '"${task.certificateName}" AI 학습 계획 전체를 삭제하시겠습니까?\n삭제 후 다시 생성해야 합니다.',
       primaryLabel: '삭제',
       onPrimaryPressed: () => Navigator.pop(context, true),
       secondaryLabel: '취소',
@@ -1003,15 +1073,15 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
     }
 
     final TextEditingController titleController = TextEditingController();
-    final TextEditingController descriptionController =
-    TextEditingController();
+    final TextEditingController descriptionController = TextEditingController();
     final TextEditingController subjectController = TextEditingController();
-    final TextEditingController certificateController =
-    TextEditingController();
+    final TextEditingController certificateController = TextEditingController();
 
     DateTime selectedDate = _selectedDate;
     TimeOfDay? startTime;
     TimeOfDay? endTime;
+
+    final GlobalKey<_AddTaskFormState> formKey = GlobalKey<_AddTaskFormState>();
 
     final bool? result = await AppConfirmDialog.show<bool>(
       context,
@@ -1031,8 +1101,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
         );
 
         if (validationMessage != null) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(validationMessage)));
+          formKey.currentState?.showValidationError(validationMessage);
           return;
         }
 
@@ -1040,6 +1109,7 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
         Navigator.pop(context, true);
       },
       extra: _AddTaskForm(
+        key: formKey,
         titleController: titleController,
         descriptionController: descriptionController,
         subjectController: subjectController,
@@ -1171,16 +1241,16 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
       }
 
       final DocumentReference<Map<String, dynamic>> studyPlanDocument =
-      collection.doc();
+          collection.doc();
 
       final String planId = studyPlanDocument.id;
 
       final DocumentReference<Map<String, dynamic>> calendarDocument =
-      _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('calendarEvents')
-          .doc('study_plan_$planId');
+          _firestore
+              .collection('users')
+              .doc(user.uid)
+              .collection('calendarEvents')
+              .doc('study_plan_$planId');
 
       final WriteBatch batch = _firestore.batch();
 
@@ -1419,6 +1489,7 @@ class _AddTaskForm extends StatefulWidget {
   final ValueChanged<TimeOfDay?> onEndTimeChanged;
 
   const _AddTaskForm({
+    super.key,
     required this.titleController,
     required this.descriptionController,
     required this.subjectController,
@@ -1437,6 +1508,23 @@ class _AddTaskFormState extends State<_AddTaskForm> {
   late DateTime _selectedDate;
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
+  String? _validationMessage;
+
+  void showValidationError(String message) {
+    if (!mounted) return;
+
+    setState(() {
+      _validationMessage = message;
+    });
+  }
+
+  void _clearValidationError() {
+    if (_validationMessage == null) return;
+
+    setState(() {
+      _validationMessage = null;
+    });
+  }
 
   @override
   void initState() {
@@ -1466,8 +1554,45 @@ class _AddTaskFormState extends State<_AddTaskForm> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (_validationMessage != null) ...[
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: context.colors.incorrectSoft,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: context.colors.incorrect.withOpacity(0.35),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.error_outline_rounded,
+                      size: 18,
+                      color: context.colors.incorrect,
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _validationMessage!,
+                        style: TextStyle(
+                          color: context.colors.incorrect,
+                          fontSize: 13,
+                          height: 1.4,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 12),
+            ],
             TextField(
               controller: widget.titleController,
+              onChanged: (_) => _clearValidationError(),
               textInputAction: TextInputAction.next,
               decoration: InputDecoration(
                 labelText: '학습 과제 이름',
@@ -1480,6 +1605,7 @@ class _AddTaskFormState extends State<_AddTaskForm> {
             SizedBox(height: 12),
             TextField(
               controller: widget.descriptionController,
+              onChanged: (_) => _clearValidationError(),
               minLines: 2,
               maxLines: 3,
               maxLength: 50,
@@ -1496,6 +1622,7 @@ class _AddTaskFormState extends State<_AddTaskForm> {
             SizedBox(height: 12),
             TextField(
               controller: widget.subjectController,
+              onChanged: (_) => _clearValidationError(),
               textInputAction: TextInputAction.next,
               decoration: InputDecoration(
                 labelText: '과목명 (선택)',
@@ -1508,6 +1635,7 @@ class _AddTaskFormState extends State<_AddTaskForm> {
             SizedBox(height: 12),
             TextField(
               controller: widget.certificateController,
+              onChanged: (_) => _clearValidationError(),
               textInputAction: TextInputAction.done,
               decoration: InputDecoration(
                 labelText: '자격증명',
@@ -1533,7 +1661,10 @@ class _AddTaskFormState extends State<_AddTaskForm> {
                 if (pickedDate != null) {
                   setState(() {
                     _selectedDate = DateTime(
-                        pickedDate.year, pickedDate.month, pickedDate.day);
+                      pickedDate.year,
+                      pickedDate.month,
+                      pickedDate.day,
+                    );
                   });
                   widget.onDateChanged(_selectedDate);
                 }
@@ -1553,6 +1684,7 @@ class _AddTaskFormState extends State<_AddTaskForm> {
                 if (pickedTime != null) {
                   setState(() => _startTime = pickedTime);
                   widget.onStartTimeChanged(_startTime);
+                  _clearValidationError();
                 }
               },
             ),
@@ -1570,6 +1702,7 @@ class _AddTaskFormState extends State<_AddTaskForm> {
                 if (pickedTime != null) {
                   setState(() => _endTime = pickedTime);
                   widget.onEndTimeChanged(_endTime);
+                  _clearValidationError();
                 }
               },
             ),
@@ -1587,10 +1720,7 @@ class _AddTaskFormState extends State<_AddTaskForm> {
                     widget.onStartTimeChanged(null);
                     widget.onEndTimeChanged(null);
                   },
-                  icon: const Icon(
-                    Icons.restart_alt_rounded,
-                    size: 18,
-                  ),
+                  icon: const Icon(Icons.restart_alt_rounded, size: 18),
                   label: const Text('시간 초기화'),
                 ),
               ),
@@ -1643,8 +1773,8 @@ class StudyPlanTask {
   bool get isAiStep => aiStepIndex != null;
 
   factory StudyPlanTask.fromDocument(
-      QueryDocumentSnapshot<Map<String, dynamic>> document,
-      ) {
+    QueryDocumentSnapshot<Map<String, dynamic>> document,
+  ) {
     final Map<String, dynamic> data = document.data();
 
     final Timestamp? planDay = data['planday'] as Timestamp?;
@@ -1679,8 +1809,8 @@ class StudyPlanTask {
   }
 
   static List<StudyPlanTask> fromAiPlanDocument(
-      QueryDocumentSnapshot<Map<String, dynamic>> document,
-      ) {
+    QueryDocumentSnapshot<Map<String, dynamic>> document,
+  ) {
     final Map<String, dynamic> data = document.data();
 
     final List<dynamic> rawSteps = data['steps'] is List
