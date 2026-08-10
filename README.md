@@ -1,6 +1,16 @@
 <div align="center">
 
-  <img src="assets/images/textLogo.png" alt="따IT! 로고" width="220" />
+  <picture>
+    <source
+      media="(prefers-color-scheme: dark)"
+      srcset="assets/images/textLogo_dark.png"
+    />
+    <source
+      media="(prefers-color-scheme: light)"
+      srcset="assets/images/textLogo.png"
+    />
+    <img src="assets/images/textLogo.png" alt="따IT! 로고" width="220" />
+  </picture>
 
 <h3>자격증 탐색부터 AI 학습 관리, 스터디까지 한곳에서</h3>
 
@@ -18,17 +28,14 @@
 
   <p>
     <strong>🎬 시연 영상</strong> (링크 추가 예정) &nbsp;·&nbsp;
-    <a href="[FIGMA_URL](https://www.figma.com/design/fmxdXLPLkhEudn8sVQtDxO/%ED%94%8C%EB%9F%AC%ED%84%B0-%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8-3%ED%8C%80?node-id=262-186&t=thBqZZE9BvEMhFBU-1)">🎨 Figma</a> ·
-    <a href="[발표자료_URL](https://drive.google.com/file/d/1et_FkBPH1QEsAARjh_2dJzeL0mkHHQvm/view?usp=drive_link)">📑 프로젝트 발표 자료</a>
+    <a href="https://www.figma.com/design/fmxdXLPLkhEudn8sVQtDxO/%ED%94%8C%EB%9F%AC%ED%84%B0-%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8-3%ED%8C%80?node-id=262-186&amp;t=thBqZZE9BvEMhFBU-1">🎨 Figma</a> ·
+    <a href="https://drive.google.com/file/d/1et_FkBPH1QEsAARjh_2dJzeL0mkHHQvm/view?usp=drive_link">📑 프로젝트 발표 자료</a>
   </p>
 
 </div>
 
 <!--
-외부 자료 링크를 받으면 위의 세 항목을 아래 형식으로 교체하세요.
-<a href="시연영상_URL">🎬 시연 영상</a> ·
-<a href="[FIGMA_URL](https://www.figma.com/design/fmxdXLPLkhEudn8sVQtDxO/%ED%94%8C%EB%9F%AC%ED%84%B0-%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8-3%ED%8C%80?node-id=262-186&t=thBqZZE9BvEMhFBU-1)">🎨 Figma</a> ·
-<a href="[발표자료_URL](https://drive.google.com/file/d/1et_FkBPH1QEsAARjh_2dJzeL0mkHHQvm/view?usp=drive_link)">📑 프로젝트 발표 자료</a>
+시연 영상이 준비되면 "시연영상_URL"을 실제 공유 링크로 교체하세요.
 -->
 
 ---
@@ -245,10 +252,10 @@ flutterteam03/
 
 | 팀원 | 담당 영역 | 주요 구현 내용 |
 | --- | --- | --- |
-| `팀원 1` | `담당 영역 추가 예정` | `주요 구현 내용 추가 예정` |
-| `팀원 2` | `담당 영역 추가 예정` | `주요 구현 내용 추가 예정` |
-| `팀원 3` | `담당 영역 추가 예정` | `주요 구현 내용 추가 예정` |
-| `팀원 4` | `담당 영역 추가 예정` | `주요 구현 내용 추가 예정` |
+| `김예림` | `홈 메뉴` `자격증 일정` `알림` | `주요 구현 내용 추가 예정` |
+| `소채연` | `로그인&회원가입` `앱 아이콘&스플래쉬` `AI 메뉴` | `주요 구현 내용 추가 예정` |
+| `이다빈` | `스터디 그룹` `커뮤니티` | `주요 구현 내용 추가 예정` |
+| `최제현` | `마이페이지` `관리자 기능` | `주요 구현 내용 추가 예정` |
 
 ## 팀과 협업
 
@@ -265,10 +272,10 @@ flutterteam03/
   <a href="시연영상_URL">
     <img src="https://img.shields.io/badge/Demo_Video-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="시연 영상" />
   </a>
-  <a href="FIGMA_URL">
+  <a href="https://www.figma.com/design/fmxdXLPLkhEudn8sVQtDxO/%ED%94%8C%EB%9F%AC%ED%84%B0-%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8-3%ED%8C%80?node-id=262-186&t=thBqZZE9BvEMhFBU-1">
     <img src="https://img.shields.io/badge/Figma-Design_File-F24E1E?style=for-the-badge&logo=figma&logoColor=white" alt="Figma 디자인" />
   </a>
-  <a href="[발표자료_URL](https://drive.google.com/file/d/1et_FkBPH1QEsAARjh_2dJzeL0mkHHQvm/view?usp=drive_link)">
+  <a href="https://drive.google.com/file/d/1et_FkBPH1QEsAARjh_2dJzeL0mkHHQvm/view?usp=drive_link">
     <img src="https://img.shields.io/badge/Project-Presentation-B7472A?style=for-the-badge&logo=microsoftpowerpoint&logoColor=white" alt="프로젝트 발표 자료" />
   </a>
   <a href="https://app.notion.com/p/iT-Flutter-Project-3-75e44e5f9aa283d2927f0183e2c18b96?source=copy_link">
