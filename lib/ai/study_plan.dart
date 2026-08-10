@@ -615,7 +615,7 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
 
     setState(() => _isSavingPlan = true);
 
-    try {
+    try {   // ← 이 줄 추가
       final steps = _generatedPlan.asMap().entries.map((entry) {
         final order = entry.key + 1;
         final day = entry.value;
@@ -626,6 +626,7 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
           'detail': day.detail,
           'duration': day.duration,
           'isCompleted': false,
+          'completedAt': null,
         };
       }).toList();
 
@@ -634,7 +635,7 @@ class _AiStudyPlanPageState extends State<AiStudyPlanPage>
           .doc(uid)
           .collection('studyPlans')
           .add({
-     'certificateId': _selectedCertificate!.jmcd,
+        'certificateId': _selectedCertificate!.jmcd,
         'certificateName': _selectedCertificate!.name,
         'scheduleName': _selectedRound,
         'examType': _selectedExamType ?? 'INTEGRATED',

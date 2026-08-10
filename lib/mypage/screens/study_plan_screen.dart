@@ -933,6 +933,9 @@ class _StudyPlanScreenState extends State<StudyPlanScreen> {
       steps[stepIndex] = <String, dynamic>{
         ...steps[stepIndex],
         'isCompleted': newCompletedValue,
+        'completedAt': newCompletedValue
+            ? Timestamp.now()
+            : null,
       };
 
       final int completedStepCount = steps.where((step) {

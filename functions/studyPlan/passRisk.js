@@ -244,19 +244,36 @@ async function computeFeatures(uid, certificateName) {
     ? Math.max(0, daysRemaining / totalCalendarDays)
     : 0;
 
-  const sevenDaysAgo = new Date(today); sevenDaysAgo.setDate(today.getDate() - 7);
-  const recentIdx = steps.map((_, i) => i).filter((i) => stepDates[i] >= sevenDaysAgo && stepDates[i] <= today);
-  const recentTotal = recentIdx.length;
-  const recentCompleted = recentIdx.filter((i) => steps[i].isCompleted === true).length;
-  const recentCompletionRate = recentTotal > 0 ? recentCompleted / recentTotal : completionRate;
+// completedAt이 있으면 그 값을, 없으면 null (아직 미완료)
+function toDateOnly(ts) {
+  if (!ts) return null;
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+  return new Date(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate());
+}
+const completedDates = steps.map((s) => toDateOnly(s.completedAt));
 
-  const fourteenDaysAgo = new Date(today); fourteenDaysAgo.setDate(today.getDate() - 14);
-  const last14Idx = steps.map((_, i) => i).filter((i) => stepDates[i] >= fourteenDaysAgo && stepDates[i] <= today);
-  const last14Total = last14Idx.length;
-  const last14Completed = last14Idx.filter((i) => steps[i].isCompleted === true).length;
-  const consistencyScore = last14Total > 0
-    ? last14Completed / last14Total
-    : (elapsedRatio > 0 ? 0.15 : 0.5);
+const sevenDaysAgo = new Date(today); sevenDaysAgo.setDate(today.getDate() - 7);
+const recentIdx = steps.map((_, i) => i).filter((i) => stepDates[i] >= sevenDaysAgo && stepDates[i] <= today);
+const recentTotal = recentIdx.length;
+const recentCompleted = steps.filter((s, i) => {
+  const cd = completedDates[i];
+  return cd && cd >= sevenDaysAgo && cd <= today;
+}).length;
+const recentCompletionRate = recentTotal > 0
+  ? recentCompleted / recentTotal
+  : (recentCompleted > 0 ? 1 : completionRate);
+
+const fourteenDaysAgo = new Date(today); fourteenDaysAgo.setDate(today.getDate() - 14);
+const last14Idx = steps.map((_, i) => i).filter((i) => stepDates[i] >= fourteenDaysAgo && stepDates[i] <= today);
+const last14Total = last14Idx.length;
+const last14Completed = steps.filter((s, i) => {
+  const cd = completedDates[i];
+  return cd && cd >= fourteenDaysAgo && cd <= today;
+}).length;
+const consistencyScore = last14Total > 0
+  ? last14Completed / last14Total
+  : (last14Completed > 0 ? 1 : (elapsedRatio > 0 ? 0.15 : 0.5));
 
   const remainingSteps = Math.max(0, totalSteps - completedStepCount);
   const timePressure = Math.min(4, Math.max(0, remainingSteps / Math.max(daysRemaining, 1)));
@@ -299,7 +316,7 @@ exports.analyzePassRisk = onCall(
       throw new HttpsError('invalid-argument', 'certificateName이 필요합니다.');
     }
 
-    const { features: rawFeatures, isColdStartUrgent } = await computeFeatures(request.auth.uid, certificateName);
+    const { features: rawFeatures, isColdStartUrgent, debug } = await computeFeatures(request.auth.uid, certificateName);
 
     const m = await loadModel();
     const input = tf.tensor2d([normalize(rawFeatures)]);
@@ -363,16 +380,16 @@ exports.analyzePassRisk = onCall(
     }
 
     const analysisDocId = certificateName.replace(/\//g, '_');
-    await db.collection('users').doc(request.auth.uid)
-      .collection('analysis').doc(analysisDocId)
-      .set({
-        passProbability: Math.round(finalPassProb * 100),
-        riskLevel: riskNames[finalRiskIdx],
-        certificateName,
-        factors,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
+   await db.collection('users').doc(request.auth.uid)
+     .collection('analysis').doc(analysisDocId)
+     .set({
+       passProbability: Math.round(finalPassProb * 100),
+       riskLevel: riskNames[finalRiskIdx],
+       certificateName,
+       factors,
+       debug,
+       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+     });
     return {
       success: true,
       passProbability: Math.round(finalPassProb * 100),
