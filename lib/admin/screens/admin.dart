@@ -85,23 +85,63 @@ class _AdminPageState extends State<AdminPage> {
           : const MainPage();
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => destination),
-            (route) => false,
+        (route) => false,
       );
     });
   }
 
   static const List<_AdminMenuItem> _menus = [
-    _AdminMenuItem('홈', Icons.home_outlined),
-    _AdminMenuItem('회원 관리', Icons.people_outline),
-    _AdminMenuItem('자격증 관리', Icons.workspace_premium_outlined),
-    _AdminMenuItem('신고 관리', Icons.report_outlined),
-    _AdminMenuItem('문의 관리', Icons.support_agent_outlined),
-    _AdminMenuItem('공지 관리', Icons.campaign_outlined),
-    _AdminMenuItem('스터디 관리', Icons.groups_rounded),
-    _AdminMenuItem('알림 발송', Icons.notifications_active_outlined),
-    _AdminMenuItem('커뮤니티 관리', Icons.forum_outlined),
-    _AdminMenuItem('통계 관리', Icons.bar_chart_outlined),
-    _AdminMenuItem('탈퇴 사유 관리', Icons.person_off_outlined),
+    _AdminMenuItem(
+      '홈',
+      '운영 현황을 한눈에 확인해요',
+      '대시보드',
+      Icons.space_dashboard_outlined,
+    ),
+    _AdminMenuItem(
+      '회원 관리',
+      '회원 정보와 상태를 관리해요',
+      '운영 관리',
+      Icons.people_outline_rounded,
+    ),
+    _AdminMenuItem(
+      '자격증 관리',
+      '자격증 정보와 일정을 관리해요',
+      '운영 관리',
+      Icons.workspace_premium_outlined,
+    ),
+    _AdminMenuItem(
+      '신고 관리',
+      '접수된 신고를 검토해요',
+      '운영 관리',
+      Icons.report_gmailerrorred_rounded,
+    ),
+    _AdminMenuItem(
+      '문의 관리',
+      '사용자 문의에 답변해요',
+      '운영 관리',
+      Icons.support_agent_rounded,
+    ),
+    _AdminMenuItem('공지 관리', '서비스 공지를 작성해요', '콘텐츠 관리', Icons.campaign_outlined),
+    _AdminMenuItem(
+      '스터디 관리',
+      '스터디 개설 현황을 확인해요',
+      '콘텐츠 관리',
+      Icons.groups_2_outlined,
+    ),
+    _AdminMenuItem(
+      '알림 발송',
+      '사용자에게 알림을 보내요',
+      '콘텐츠 관리',
+      Icons.notifications_active_outlined,
+    ),
+    _AdminMenuItem('커뮤니티 관리', '게시글과 댓글을 관리해요', '콘텐츠 관리', Icons.forum_outlined),
+    _AdminMenuItem('통계 관리', '서비스 지표를 분석해요', '데이터', Icons.bar_chart_outlined),
+    _AdminMenuItem(
+      '탈퇴 사유 관리',
+      '서비스 이탈 사유를 확인해요',
+      '데이터',
+      Icons.person_off_outlined,
+    ),
   ];
 
   void _openMenu(int index) {
@@ -190,7 +230,7 @@ class _AdminPageState extends State<AdminPage> {
 
       Navigator.of(this.context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-            (route) => false,
+        (route) => false,
       );
     } catch (_) {
       if (!mounted) {
@@ -262,7 +302,7 @@ class _AdminPageState extends State<AdminPage> {
                   const SizedBox(height: 9),
                   Text(
                     '네트워크 또는 Firestore 권한 설정을 확인한 뒤 '
-                        '다시 시도해 주세요.',
+                    '다시 시도해 주세요.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: context.colors.textSecondary,
@@ -291,6 +331,8 @@ class _AdminPageState extends State<AdminPage> {
 
   Widget _buildAdminPage(BuildContext context) {
     final _AdminMenuItem selectedMenu = _menus[_selectedIndex];
+    final double screenWidth = MediaQuery.sizeOf(context).width;
+    final double drawerWidth = screenWidth < 400 ? screenWidth * 0.88 : 352;
 
     return PopScope(
       /*
@@ -324,6 +366,23 @@ class _AdminPageState extends State<AdminPage> {
           Scaffold(
             extendBodyBehindAppBar: true,
             appBar: AppBar(
+              leadingWidth: 68,
+              leading: Builder(
+                builder: (context) => Padding(
+                  padding: const EdgeInsets.only(left: 16),
+                  child: IconButton(
+                    tooltip: '관리 메뉴 열기',
+                    style: IconButton.styleFrom(
+                      backgroundColor: context.colors.surfaceElevated,
+                      side: BorderSide(color: context.colors.border),
+                      shadowColor: context.colors.shadow,
+                      elevation: 2,
+                    ),
+                    onPressed: () => Scaffold.of(context).openDrawer(),
+                    icon: const Icon(Icons.menu_rounded),
+                  ),
+                ),
+              ),
               title: Text(
                 selectedMenu.title,
                 style: TextStyle(
@@ -347,7 +406,7 @@ class _AdminPageState extends State<AdminPage> {
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) =>
-                          const CertificateCategoryContentEditScreen(),
+                              const CertificateCategoryContentEditScreen(),
                         ),
                       );
                     },
@@ -367,109 +426,45 @@ class _AdminPageState extends State<AdminPage> {
               ],
             ),
             drawer: Drawer(
+              width: drawerWidth,
+              backgroundColor: context.colors.surfaceElevated,
+              surfaceTintColor: Colors.transparent,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.horizontal(
+                  right: Radius.circular(28),
+                ),
+              ),
               child: SafeArea(
                 child: Column(
                   children: [
                     _buildDrawerHeader(),
                     Expanded(
                       child: ListView.builder(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
+                        padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
                         itemCount: _menus.length,
                         itemBuilder: (context, index) {
                           final _AdminMenuItem menu = _menus[index];
                           final bool isSelected = index == _selectedIndex;
+                          final bool startsSection =
+                              index == 0 ||
+                              menu.section != _menus[index - 1].section;
 
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: ListTile(
-                              selected: isSelected,
-                              selectedTileColor: context.colors.lavender,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (startsSection)
+                                _buildMenuSectionLabel(menu.section),
+                              _buildMenuTile(
+                                menu: menu,
+                                index: index,
+                                isSelected: isSelected,
                               ),
-                              leading: Icon(
-                                menu.icon,
-                                color: isSelected
-                                    ? context.colors.lavenderAccent
-                                    : context.colors.iconSecondary,
-                              ),
-                              title: Text(
-                                menu.title,
-                                style: TextStyle(
-                                  color: isSelected
-                                      ? context.colors.lavenderAccent
-                                      : context.colors.textPrimary,
-                                  fontWeight: isSelected
-                                      ? FontWeight.w800
-                                      : FontWeight.w600,
-                                ),
-                              ),
-                              onTap: () => _selectMenu(index),
-                            ),
+                            ],
                           );
                         },
                       ),
                     ),
-                    const Divider(height: 1),
-                    ListTile(
-                      enabled: !_isSigningOut,
-                      leading: Icon(
-                        Icons.phone_android_rounded,
-                        color: context.colors.lavenderAccent,
-                      ),
-                      title: Text(
-                        '일반 사용자 화면',
-                        style: TextStyle(
-                          color: context.colors.textPrimary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      subtitle: Text(
-                        '사용자 화면을 직접 확인합니다.',
-                        style: TextStyle(
-                          color: context.colors.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                      trailing: Icon(
-                        Icons.open_in_new_rounded,
-                        color: context.colors.iconSecondary,
-                        size: 20,
-                      ),
-                      onTap: _openUserPage,
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      enabled: !_isSigningOut,
-                      leading: _isSigningOut
-                          ? SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: context.colors.lavenderAccent,
-                        ),
-                      )
-                          : Icon(
-                        Icons.logout_rounded,
-                        color: context.colors.incorrect,
-                      ),
-                      title: Text(
-                        _isSigningOut ? '로그아웃 중...' : '로그아웃',
-                        style: TextStyle(
-                          color: context.colors.incorrect,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      onTap: () {
-                        Navigator.pop(context);
-                        _signOut(context);
-                      },
-                    ),
-                    const SizedBox(height: 8),
+                    _buildDrawerFooter(),
                   ],
                 ),
               ),
@@ -534,38 +529,204 @@ class _AdminPageState extends State<AdminPage> {
   }
 
   Widget _buildDrawerHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 4),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [context.colors.lavender, context.colors.softBlue],
+          ),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: context.colors.lavenderAccent.withValues(alpha: 0.14),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: context.colors.lavenderAccent,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: context.colors.lavenderAccent.withValues(
+                      alpha: 0.24,
+                    ),
+                    blurRadius: 16,
+                    offset: const Offset(0, 7),
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.admin_panel_settings_rounded,
+                color: context.colors.onPrimary,
+                size: 28,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '운영 관리자',
+                    style: TextStyle(
+                      color: context.colors.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'ADMIN CONSOLE',
+                    style: TextStyle(
+                      color: context.colors.lavenderAccent,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.verified_user_outlined,
+              color: context.colors.lavenderAccent,
+              size: 22,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuSectionLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: context.colors.textMuted,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuTile({
+    required _AdminMenuItem menu,
+    required int index,
+    required bool isSelected,
+  }) {
+    final Color accent = context.colors.lavenderAccent;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 5),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        decoration: BoxDecoration(
+          color: isSelected ? context.colors.lavender : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected
+                ? accent.withValues(alpha: 0.18)
+                : Colors.transparent,
+          ),
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          borderRadius: BorderRadius.circular(16),
+          clipBehavior: Clip.antiAlias,
+          child: ListTile(
+            minTileHeight: 62,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            leading: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: isSelected ? accent : context.colors.surfaceMuted,
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Icon(
+                menu.icon,
+                size: 21,
+                color: isSelected
+                    ? context.colors.onPrimary
+                    : context.colors.iconSecondary,
+              ),
+            ),
+            title: Text(
+              menu.title,
+              style: TextStyle(
+                color: isSelected ? accent : context.colors.textPrimary,
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
+              ),
+            ),
+            subtitle: Text(
+              menu.description,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: context.colors.textMuted,
+                fontSize: 11,
+                height: 1.35,
+              ),
+            ),
+            trailing: AnimatedOpacity(
+              duration: const Duration(milliseconds: 180),
+              opacity: isSelected ? 1 : 0,
+              child: Icon(Icons.chevron_right_rounded, color: accent, size: 20),
+            ),
+            onTap: () => _selectMenu(index),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerFooter() {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-      color: context.colors.lavender,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        border: Border(top: BorderSide(color: context.colors.divider)),
+      ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 25,
-            backgroundColor: context.colors.lavenderAccent,
-            child: Icon(
-              Icons.admin_panel_settings_outlined,
-              color: context.colors.onPrimary,
-              size: 28,
+          Expanded(
+            child: _DrawerActionButton(
+              icon: Icons.phone_android_rounded,
+              label: '사용자 화면',
+              color: context.colors.lavenderAccent,
+              enabled: !_isSigningOut,
+              onTap: _openUserPage,
             ),
           ),
-          SizedBox(width: 14),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '관리자',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-              ),
-              SizedBox(height: 4),
-              Text(
-                '서비스 운영 관리',
-                style: TextStyle(
-                  color: context.colors.textSecondary,
-                  fontSize: 13,
-                ),
-              ),
-            ],
+          const SizedBox(width: 8),
+          Expanded(
+            child: _DrawerActionButton(
+              icon: Icons.logout_rounded,
+              label: _isSigningOut ? '처리 중' : '로그아웃',
+              color: context.colors.incorrect,
+              enabled: !_isSigningOut,
+              onTap: () {
+                Navigator.pop(context);
+                _signOut(context);
+              },
+            ),
           ),
         ],
       ),
@@ -574,8 +735,63 @@ class _AdminPageState extends State<AdminPage> {
 }
 
 class _AdminMenuItem {
-  const _AdminMenuItem(this.title, this.icon);
+  const _AdminMenuItem(this.title, this.description, this.section, this.icon);
 
   final String title;
+  final String description;
+  final String section;
   final IconData icon;
+}
+
+class _DrawerActionButton extends StatelessWidget {
+  const _DrawerActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: enabled ? 1 : 0.5,
+      child: Material(
+        color: color.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: color, size: 18),
+                const SizedBox(width: 7),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
