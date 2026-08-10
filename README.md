@@ -20,22 +20,19 @@
   </p>
 
   <p>
-    <img src="https://img.shields.io/badge/Flutter-02569B?style=flat-square&logo=flutter&logoColor=white" alt="Flutter" />
-    <img src="https://img.shields.io/badge/Dart-0175C2?style=flat-square&logo=dart&logoColor=white" alt="Dart" />
-    <img src="https://img.shields.io/badge/Firebase-DD2C00?style=flat-square&logo=firebase&logoColor=white" alt="Firebase" />
-    <img src="https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android" />
-  </p>
-
-  <p>
-    <strong>🎬 시연 영상</strong> (링크 추가 예정) &nbsp;·&nbsp;
-    <a href="https://www.figma.com/design/fmxdXLPLkhEudn8sVQtDxO/%ED%94%8C%EB%9F%AC%ED%84%B0-%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8-3%ED%8C%80?node-id=262-186&amp;t=thBqZZE9BvEMhFBU-1">🎨 Figma</a> ·
-    <a href="https://drive.google.com/file/d/1et_FkBPH1QEsAARjh_2dJzeL0mkHHQvm/view?usp=drive_link">📑 프로젝트 발표 자료</a>
+    <img src="https://img.shields.io/badge/Demo-Coming_Soon-9E9E9E?style=for-the-badge&logo=youtube&logoColor=white" alt="시연 영상 준비 중" />
+    <a href="https://www.figma.com/design/fmxdXLPLkhEudn8sVQtDxO/%ED%94%8C%EB%9F%AC%ED%84%B0-%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8-3%ED%8C%80?node-id=262-186&amp;t=thBqZZE9BvEMhFBU-1">
+      <img src="https://img.shields.io/badge/Figma-View_Design-F24E1E?style=for-the-badge&logo=figma&logoColor=white" alt="Figma 디자인 보기" />
+    </a>
+    <a href="https://drive.google.com/file/d/1et_FkBPH1QEsAARjh_2dJzeL0mkHHQvm/view?usp=drive_link">
+      <img src="https://img.shields.io/badge/PPT-View_Presentation-B7472A?style=for-the-badge&logo=microsoftpowerpoint&logoColor=white" alt="프로젝트 발표 자료 보기" />
+    </a>
   </p>
 
 </div>
 
 <!--
-시연 영상이 준비되면 "시연영상_URL"을 실제 공유 링크로 교체하세요.
+시연 영상이 준비되면 회색 Demo 배지를 실제 영상 링크가 연결된 YouTube 배지로 교체하세요.
 -->
 
 ---
@@ -57,7 +54,7 @@
 | 개발 형태 | 팀 프로젝트 |
 | 팀 구성 | 총 4명 |
 | 지원 플랫폼 | Android |
-| 주요 기술 | Flutter, Firebase, Cloud Functions, Gemini, TensorFlow Lite |
+| 주요 기술 | <img src="https://img.shields.io/badge/Flutter-02569B?style=flat-square&logo=flutter&logoColor=white" alt="Flutter" /> <img src="https://img.shields.io/badge/Firebase-DD2C00?style=flat-square&logo=firebase&logoColor=white" alt="Firebase" /> <img src="https://img.shields.io/badge/Cloud_Functions-FFCA28?style=flat-square&logo=firebase&logoColor=black" alt="Firebase Cloud Functions" /> <img src="https://img.shields.io/badge/Gemini-8E75B2?style=flat-square&logo=googlegemini&logoColor=white" alt="Google Gemini" /> <img src="https://img.shields.io/badge/TensorFlow_Lite-FF6F00?style=flat-square&logo=tensorflow&logoColor=white" alt="TensorFlow Lite" /> |
 
 <!--
 대표 시연 GIF가 준비되면 아래 주석을 해제하세요.
@@ -285,7 +282,7 @@ flutterteam03/
 </div>
 
 <!--
-위 버튼의 시연영상_URL, FIGMA_URL, 발표자료_URL을 실제 공유 링크로 교체하세요.
+시연 영상이 준비되면 시연영상_URL을 실제 공유 링크로 교체하세요.
 -->
 
 ---
