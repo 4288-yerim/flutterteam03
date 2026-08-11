@@ -20,8 +20,10 @@
   </p>
 
   <p>
-    <img src="https://img.shields.io/badge/Demo-Coming_Soon-9E9E9E?style=for-the-badge&logo=youtube&logoColor=white" alt="시연 영상 준비 중" />
-    <a href="https://www.figma.com/design/fmxdXLPLkhEudn8sVQtDxO/%ED%94%8C%EB%9F%AC%ED%84%B0-%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8-3%ED%8C%80?node-id=262-186&amp;t=thBqZZE9BvEMhFBU-1">
+    <a href="https://drive.google.com/drive/folders/1F65Rh5YUqCbFHEgi-qxDVzAodirGyBCO?hl=ko">
+      <img src="https://img.shields.io/badge/Demo-Watch_Video-4285F4?style=for-the-badge&logo=googledrive&logoColor=white" alt="Google Drive에서 시연 영상 보기" />
+    </a>
+    <a href="https://www.figma.com/design/fmxdXLPLkhEudn8sVQtDxO/%ED%94%8C%EB%9F%AC%ED%84%B0-%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8-3%ED%8C%80?node-id=262-186&t=thBqZZE9BvEMhFBU-1">
       <img src="https://img.shields.io/badge/Figma-View_Design-F24E1E?style=for-the-badge&logo=figma&logoColor=white" alt="Figma 디자인 보기" />
     </a>
     <a href="https://drive.google.com/file/d/1iMXjC9siGv7LFRNboSyivDUH-Sn21_1n/view?usp=sharing">
@@ -30,10 +32,6 @@
   </p>
 
 </div>
-
-<!--
-시연 영상이 준비되면 회색 Demo 배지를 실제 영상 링크가 연결된 YouTube 배지로 교체하세요.
--->
 
 ---
 
@@ -61,7 +59,7 @@
 GIF는 10~20초, 가로 800~1000px, 10MB 이하를 권장합니다.
 
 <div align="center">
-  <a href="시연영상_URL">
+  <a href="https://drive.google.com/drive/folders/1F65Rh5YUqCbFHEgi-qxDVzAodirGyBCO?hl=ko">
     <img src="docs/images/demo.gif" alt="따IT! 서비스 시연" width="760" />
   </a>
 </div>
@@ -247,12 +245,14 @@ flutterteam03/
 
 따IT!은 4명의 팀원이 기능별 책임 영역을 나누고, 공통 설계와 코드 리뷰를 함께 진행한 팀 프로젝트입니다.
 
-| 팀원 | 담당 영역 | 주요 구현 내용 |
-| --- | --- | --- |
-| `김예림` | `홈 메뉴` `자격증 일정` `알림` | `주요 구현 내용 추가 예정` |
-| `소채연` | `로그인&회원가입` `앱 아이콘&스플래쉬` `AI 메뉴` | `주요 구현 내용 추가 예정` |
-| `이다빈` | `스터디 그룹` `커뮤니티` | `주요 구현 내용 추가 예정` |
-| `최제현` | `마이페이지` `관리자 기능` | `주요 구현 내용 추가 예정` |
+| 팀원 | 담당 영역 | 시연 영상 |
+| --- | --- | :---: |
+| `김예림` | `홈 메뉴` `자격증 일정` `알림` | <a href="https://drive.google.com/drive/folders/1m2frPmgbaouDsG2ABZ5fJ9AgszCZE8Fr?hl=ko"><img src="https://img.shields.io/badge/영상_보기-Google_Drive-4285F4?style=flat-square&logo=googledrive&logoColor=white" alt="김예림 시연 영상" /></a> |
+| `소채연` | `로그인&회원가입` `앱 아이콘&스플래쉬` `AI 메뉴` | <a href="https://drive.google.com/drive/folders/1_-dfa653z5gkDQJZoZ6d_MLZX1re9mIq?hl=ko"><img src="https://img.shields.io/badge/영상_보기-Google_Drive-4285F4?style=flat-square&logo=googledrive&logoColor=white" alt="소채연 시연 영상" /></a> |
+| `이다빈` | `스터디 그룹` `커뮤니티` | <a href="https://drive.google.com/drive/folders/1ABPneF-QxvyawTBykwNKm6TDzBpsyoKw?hl=ko"><img src="https://img.shields.io/badge/영상_보기-Google_Drive-4285F4?style=flat-square&logo=googledrive&logoColor=white" alt="이다빈 시연 영상" /></a> |
+| `최제현` | `마이페이지` `관리자 기능` | <a href="https://drive.google.com/drive/folders/1MNPZYJkkvv9V4-xjfmH1CGvxkbZMKVxq?hl=ko"><img src="https://img.shields.io/badge/영상_보기-Google_Drive-4285F4?style=flat-square&logo=googledrive&logoColor=white" alt="최제현 시연 영상" /></a> |
+
+<!-- 각 팀원의 시연영상_URL을 실제 공유 링크로 교체하세요. -->
 
 ## 팀과 협업
 
@@ -266,8 +266,8 @@ flutterteam03/
 
 <div align="center">
 
-  <a href="시연영상_URL">
-    <img src="https://img.shields.io/badge/Demo_Video-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="시연 영상" />
+  <a href="https://drive.google.com/drive/folders/1F65Rh5YUqCbFHEgi-qxDVzAodirGyBCO?hl=ko">
+    <img src="https://img.shields.io/badge/Demo_Video-Google_Drive-4285F4?style=for-the-badge&logo=googledrive&logoColor=white" alt="Google Drive 시연 영상" />
   </a>
   <a href="https://www.figma.com/design/fmxdXLPLkhEudn8sVQtDxO/%ED%94%8C%EB%9F%AC%ED%84%B0-%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8-3%ED%8C%80?node-id=262-186&t=thBqZZE9BvEMhFBU-1">
     <img src="https://img.shields.io/badge/Figma-Design_File-F24E1E?style=for-the-badge&logo=figma&logoColor=white" alt="Figma 디자인" />
@@ -280,10 +280,6 @@ flutterteam03/
   </a>
 
 </div>
-
-<!--
-시연 영상이 준비되면 시연영상_URL을 실제 공유 링크로 교체하세요.
--->
 
 ---
 
