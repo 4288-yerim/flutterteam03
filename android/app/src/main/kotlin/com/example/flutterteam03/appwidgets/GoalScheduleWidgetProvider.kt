@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
 import com.example.flutterteam03.R
-import es.antonborri.home_widget.HomeWidgetPlugin
 import es.antonborri.home_widget.HomeWidgetProvider
 
 class GoalScheduleWidgetProvider : HomeWidgetProvider() {
@@ -19,6 +18,26 @@ class GoalScheduleWidgetProvider : HomeWidgetProvider() {
             val views = RemoteViews(
                 context.packageName,
                 R.layout.widget_goal_schedule,
+            )
+
+            views.setOnClickPendingIntent(
+                R.id.goal_schedule_widget_root,
+                null,
+            )
+            views.setPendingIntentTemplate(
+                R.id.goal_schedule_list,
+                null,
+            )
+
+            val rawItems = widgetData.getString(
+                "goal_schedule_items",
+                "[]",
+            )
+            val scheduleItems = parseJsonArray(rawItems)
+
+            views.setTextViewText(
+                R.id.goal_schedule_count,
+                "${scheduleItems.size}개",
             )
 
             val serviceIntent = Intent(
@@ -40,10 +59,7 @@ class GoalScheduleWidgetProvider : HomeWidgetProvider() {
                 serviceIntent,
             )
 
-            val rawItems = HomeWidgetPlugin
-                .getData(context)
-                .getString("goal_schedule_items", "[]")
-            val isEmpty = parseJsonArray(rawItems).isEmpty()
+            val isEmpty = scheduleItems.isEmpty()
 
             views.setViewVisibility(
                 R.id.goal_schedule_empty,

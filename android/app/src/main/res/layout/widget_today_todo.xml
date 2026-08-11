@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp"
+    android:padding="14dp"
     android:background="@drawable/widget_background">
 
     <LinearLayout
@@ -15,43 +15,53 @@
         android:orientation="horizontal">
 
         <TextView
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:background="@drawable/widget_header_icon_background"
+            android:gravity="center"
+            android:text="✓"
+            android:textColor="#E96387"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
             android:layout_weight="1"
-            android:text="오늘의 할 일"
-            android:textColor="#302C2E"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="오늘의 할 일"
+                android:textColor="#302C2E"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:text="하나씩 완료하며 오늘을 채워보세요"
+                android:textColor="#968D90"
+                android:textSize="10sp" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/today_todo_count"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="26dp"
+            android:background="@drawable/widget_count_badge_background"
+            android:gravity="center"
+            android:minWidth="48dp"
+            android:paddingStart="9dp"
+            android:paddingEnd="9dp"
             android:text="0 / 0"
-            android:textColor="#817B7D"
-            android:textSize="13sp"
+            android:textColor="#D95679"
+            android:textSize="11sp"
             android:textStyle="bold" />
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/today_todo_progress_text"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="진행률 0%"
-        android:textColor="#817B7D"
-        android:textSize="12sp"
-        android:textStyle="bold" />
-
-    <ProgressBar
-        android:id="@+id/today_todo_progress_bar"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="match_parent"
-        android:layout_height="7dp"
-        android:layout_marginTop="6dp"
-        android:max="100"
-        android:progress="0"
-        android:progressDrawable="@drawable/widget_progress" />
 
     <TextView
         android:id="@+id/today_todo_empty"
@@ -59,9 +69,10 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:gravity="center"
-        android:text="오늘 계획된 학습이 없습니다."
+        android:text="오늘 계획된 학습이 없어요.\n가벼운 할 일부터 추가해 보세요."
+        android:textAlignment="center"
         android:textColor="#817B7D"
-        android:textSize="13sp" />
+        android:textSize="12sp" />
 
     <ListView
         android:id="@+id/today_todo_list"

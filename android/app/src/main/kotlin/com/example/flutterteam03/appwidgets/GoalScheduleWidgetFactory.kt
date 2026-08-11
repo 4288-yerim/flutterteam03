@@ -53,8 +53,20 @@ class GoalScheduleWidgetFactory(
             "targetRound",
         )
         val targetExamType = item.optString(
-            "targetExamType",
+            "targetExamTypeCode",
+            item.optString("targetExamType"),
         )
+        val savedTargetExamTypeLabel = item
+            .optString("targetExamTypeLabel")
+            .trim()
+        val targetExamTypeLabel = savedTargetExamTypeLabel.ifBlank {
+            when (targetExamType.trim().uppercase()) {
+                "WRITTEN" -> "필기"
+                "PRACTICAL" -> "실기/면접"
+                "INTEGRATED" -> "통합"
+                else -> targetExamType
+            }
+        }
         val targetExamDateRaw = item.optString(
             "targetExamDate",
         )
@@ -102,7 +114,7 @@ class GoalScheduleWidgetFactory(
             setTextViewText(
                 R.id.goal_exam_info,
                 listOf(
-                    targetExamType,
+                    targetExamTypeLabel,
                     formattedDate,
                 ).filter { it.isNotBlank() }
                     .joinToString(" · "),
