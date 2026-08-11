@@ -247,10 +247,10 @@ flutterteam03/
 
 | 팀원 | 담당 영역 | 시연 영상 |
 | --- | --- | :---: |
-| `김예림` | `홈 메뉴` `자격증 일정` `알림` | <a href="김예림_시연영상_URL"><img src="https://img.shields.io/badge/영상_보기-Google_Drive-4285F4?style=flat-square&logo=googledrive&logoColor=white" alt="김예림 시연 영상" /></a> |
-| `소채연` | `로그인&회원가입` `앱 아이콘&스플래쉬` `AI 메뉴` | <a href="소채연_시연영상_URL"><img src="https://img.shields.io/badge/영상_보기-Google_Drive-4285F4?style=flat-square&logo=googledrive&logoColor=white" alt="소채연 시연 영상" /></a> |
-| `이다빈` | `스터디 그룹` `커뮤니티` | <a href="이다빈_시연영상_URL"><img src="https://img.shields.io/badge/영상_보기-Google_Drive-4285F4?style=flat-square&logo=googledrive&logoColor=white" alt="이다빈 시연 영상" /></a> |
-| `최제현` | `마이페이지` `관리자 기능` | <a href="최제현_시연영상_URL"><img src="https://img.shields.io/badge/영상_보기-Google_Drive-4285F4?style=flat-square&logo=googledrive&logoColor=white" alt="최제현 시연 영상" /></a> |
+| `김예림` | `홈 메뉴` `자격증 일정` `알림` | <a href="https://drive.google.com/drive/folders/1m2frPmgbaouDsG2ABZ5fJ9AgszCZE8Fr?hl=ko"><img src="https://img.shields.io/badge/영상_보기-Google_Drive-4285F4?style=flat-square&logo=googledrive&logoColor=white" alt="김예림 시연 영상" /></a> |
+| `소채연` | `로그인&회원가입` `앱 아이콘&스플래쉬` `AI 메뉴` | <a href="https://drive.google.com/drive/folders/1_-dfa653z5gkDQJZoZ6d_MLZX1re9mIq?hl=ko"><img src="https://img.shields.io/badge/영상_보기-Google_Drive-4285F4?style=flat-square&logo=googledrive&logoColor=white" alt="소채연 시연 영상" /></a> |
+| `이다빈` | `스터디 그룹` `커뮤니티` | <a href="https://drive.google.com/drive/folders/1ABPneF-QxvyawTBykwNKm6TDzBpsyoKw?hl=ko"><img src="https://img.shields.io/badge/영상_보기-Google_Drive-4285F4?style=flat-square&logo=googledrive&logoColor=white" alt="이다빈 시연 영상" /></a> |
+| `최제현` | `마이페이지` `관리자 기능` | <a href="https://drive.google.com/drive/folders/1MNPZYJkkvv9V4-xjfmH1CGvxkbZMKVxq?hl=ko"><img src="https://img.shields.io/badge/영상_보기-Google_Drive-4285F4?style=flat-square&logo=googledrive&logoColor=white" alt="최제현 시연 영상" /></a> |
 
 <!-- 각 팀원의 시연영상_URL을 실제 공유 링크로 교체하세요. -->
 
