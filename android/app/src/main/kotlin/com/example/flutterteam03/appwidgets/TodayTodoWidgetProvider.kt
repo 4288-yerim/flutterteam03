@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
 import com.example.flutterteam03.R
-import es.antonborri.home_widget.HomeWidgetPlugin
 import es.antonborri.home_widget.HomeWidgetProvider
 
 class TodayTodoWidgetProvider : HomeWidgetProvider() {
@@ -22,32 +21,24 @@ class TodayTodoWidgetProvider : HomeWidgetProvider() {
                 R.layout.widget_today_todo,
             )
 
-            val completedCount = widgetData.getInt(
-                "today_todo_completed_count",
-                0,
+            views.setOnClickPendingIntent(
+                R.id.today_todo_widget_root,
+                null,
             )
-            val totalCount = widgetData.getInt(
-                "today_todo_total_count",
-                0,
+
+            val rawItems = widgetData.getString(
+                "today_todo_items",
+                "[]",
             )
-            val progressPercent = widgetData.getInt(
-                "today_todo_progress_percent",
-                0,
-            ).coerceIn(0, 100)
+            val todoItems = parseJsonArray(rawItems)
+            val completedCount = todoItems.count {
+                it.optBoolean("isCompleted", false)
+            }
+            val totalCount = todoItems.size
 
             views.setTextViewText(
                 R.id.today_todo_count,
                 "$completedCount / $totalCount",
-            )
-            views.setTextViewText(
-                R.id.today_todo_progress_text,
-                "진행률 $progressPercent%",
-            )
-            views.setProgressBar(
-                R.id.today_todo_progress_bar,
-                100,
-                progressPercent,
-                false,
             )
 
             val serviceIntent = Intent(
@@ -92,10 +83,7 @@ class TodayTodoWidgetProvider : HomeWidgetProvider() {
                 clickTemplate,
             )
 
-            val rawItems = HomeWidgetPlugin
-                .getData(context)
-                .getString("today_todo_items", "[]")
-            val isEmpty = parseJsonArray(rawItems).isEmpty()
+            val isEmpty = todoItems.isEmpty()
 
             views.setViewVisibility(
                 R.id.today_todo_empty,
