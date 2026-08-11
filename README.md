@@ -24,7 +24,7 @@
     <a href="https://www.figma.com/design/fmxdXLPLkhEudn8sVQtDxO/%ED%94%8C%EB%9F%AC%ED%84%B0-%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8-3%ED%8C%80?node-id=262-186&amp;t=thBqZZE9BvEMhFBU-1">
       <img src="https://img.shields.io/badge/Figma-View_Design-F24E1E?style=for-the-badge&logo=figma&logoColor=white" alt="Figma 디자인 보기" />
     </a>
-    <a href="https://drive.google.com/file/d/1et_FkBPH1QEsAARjh_2dJzeL0mkHHQvm/view?usp=drive_link">
+    <a href="https://drive.google.com/file/d/1iMXjC9siGv7LFRNboSyivDUH-Sn21_1n/view?usp=sharing">
       <img src="https://img.shields.io/badge/PPT-View_Presentation-B7472A?style=for-the-badge&logo=microsoftpowerpoint&logoColor=white" alt="프로젝트 발표 자료 보기" />
     </a>
   </p>
