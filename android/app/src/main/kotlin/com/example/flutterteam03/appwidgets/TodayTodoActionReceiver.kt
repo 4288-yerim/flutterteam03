@@ -31,13 +31,16 @@ class TodayTodoActionReceiver : BroadcastReceiver() {
         }
 
         // 1. 위젯 로컬 상태를 먼저 즉시 변경
-        val newStatus = toggleLocalTodo(
+        val toggleResult = toggleLocalTodo(
             context = context,
             todoId = todoId,
-        )
+        ) ?: return
 
         // 2. 변경된 로컬 상태로 위젯 즉시 갱신
-        refreshWidget(context)
+        refreshWidget(
+            context = context,
+            toggleResult = toggleResult,
+        )
 
         // 3. Firestore 저장은 Flutter 백그라운드에서 처리
         val callbackIntent =
@@ -46,7 +49,11 @@ class TodayTodoActionReceiver : BroadcastReceiver() {
                 Uri.parse(
                     "ddait://today-todo/toggle" +
                             "?todoId=${Uri.encode(todoId)}" +
-                            "&status=$newStatus",
+                            "&sourceDocumentId=${Uri.encode(toggleResult.sourceDocumentId)}" +
+                            (toggleResult.aiStepIndex?.let {
+                                "&aiStepIndex=$it"
+                            } ?: "") +
+                            "&status=${toggleResult.newStatus}",
                 ),
             )
 
@@ -56,7 +63,7 @@ class TodayTodoActionReceiver : BroadcastReceiver() {
     private fun toggleLocalTodo(
         context: Context,
         todoId: String,
-    ): Boolean {
+    ): TodoToggleResult? {
         val preferences = HomeWidgetPlugin.getData(context)
 
         val rawItems = preferences.getString(
@@ -73,7 +80,7 @@ class TodayTodoActionReceiver : BroadcastReceiver() {
         val updatedArray = JSONArray()
 
         var completedCount = 0
-        var changedStatus = false
+        var toggleResult: TodoToggleResult? = null
 
         for (index in 0 until originalArray.length()) {
             val originalItem =
@@ -91,14 +98,40 @@ class TodayTodoActionReceiver : BroadcastReceiver() {
             )
 
             if (itemId == todoId) {
+                if (updatedItem.optBoolean("isLoading", false)) {
+                    return null
+                }
+
                 isCompleted = !isCompleted
 
                 updatedItem.put(
                     "isCompleted",
                     isCompleted,
                 )
+                updatedItem.put(
+                    "isLoading",
+                    true,
+                )
 
-                changedStatus = isCompleted
+                val sourceDocumentId = updatedItem
+                    .optString("sourceDocumentId", todoId)
+                    .ifBlank { todoId }
+                val aiStepIndex = if (
+                    updatedItem.has("aiStepIndex") &&
+                    !updatedItem.isNull("aiStepIndex")
+                ) {
+                    updatedItem.optInt("aiStepIndex")
+                } else {
+                    null
+                }
+
+                toggleResult = TodoToggleResult(
+                    sourceDocumentId = sourceDocumentId,
+                    aiStepIndex = aiStepIndex,
+                    newStatus = isCompleted,
+                    completedCount = 0,
+                    totalCount = 0,
+                )
             }
 
             if (isCompleted) {
@@ -109,6 +142,11 @@ class TodayTodoActionReceiver : BroadcastReceiver() {
         }
 
         val totalCount = updatedArray.length()
+
+        toggleResult = toggleResult?.copy(
+            completedCount = completedCount,
+            totalCount = totalCount,
+        )
 
         val progressPercent =
             if (totalCount == 0) {
@@ -136,12 +174,23 @@ class TodayTodoActionReceiver : BroadcastReceiver() {
                 KEY_PROGRESS_PERCENT,
                 progressPercent,
             )
-            .apply()
+            .commit()
 
-        return changedStatus
+        return toggleResult
     }
 
-    private fun refreshWidget(context: Context) {
+    private data class TodoToggleResult(
+        val sourceDocumentId: String,
+        val aiStepIndex: Int?,
+        val newStatus: Boolean,
+        val completedCount: Int,
+        val totalCount: Int,
+    )
+
+    private fun refreshWidget(
+        context: Context,
+        toggleResult: TodoToggleResult,
+    ) {
         val appWidgetManager =
             AppWidgetManager.getInstance(context)
 
@@ -157,18 +206,24 @@ class TodayTodoActionReceiver : BroadcastReceiver() {
             return
         }
 
-        // 목록 행 다시 읽기
+        val partialViews = android.widget.RemoteViews(
+            context.packageName,
+            com.example.flutterteam03.R.layout.widget_today_todo,
+        ).apply {
+            setTextViewText(
+                com.example.flutterteam03.R.id.today_todo_count,
+                "${toggleResult.completedCount} / ${toggleResult.totalCount}",
+            )
+        }
+
+        appWidgetManager.partiallyUpdateAppWidget(
+            appWidgetIds,
+            partialViews,
+        )
+
         appWidgetManager.notifyAppWidgetViewDataChanged(
             appWidgetIds,
             com.example.flutterteam03.R.id.today_todo_list,
-        )
-
-        // 상단 완료 개수와 진행률도 다시 표시
-        TodayTodoWidgetProvider().onUpdate(
-            context,
-            appWidgetManager,
-            appWidgetIds,
-            HomeWidgetPlugin.getData(context),
         )
     }
 

@@ -5,16 +5,63 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp"
+    android:padding="14dp"
     android:background="@drawable/widget_background">
 
-    <TextView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="목표 자격증 일정"
-        android:textColor="#302C2E"
-        android:textSize="18sp"
-        android:textStyle="bold" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:background="@drawable/widget_header_icon_background"
+            android:gravity="center"
+            android:text="D"
+            android:textColor="#E96387"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="목표 자격증 일정"
+                android:textColor="#302C2E"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:text="시험일까지 남은 일정을 확인하세요"
+                android:textColor="#968D90"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/goal_schedule_count"
+            android:layout_width="wrap_content"
+            android:layout_height="26dp"
+            android:background="@drawable/widget_count_badge_background"
+            android:gravity="center"
+            android:minWidth="48dp"
+            android:paddingStart="9dp"
+            android:paddingEnd="9dp"
+            android:text="0개"
+            android:textColor="#D95679"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/goal_schedule_empty"
@@ -22,15 +69,16 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:gravity="center"
-        android:text="등록된 목표 자격증이 없습니다."
+        android:text="목표 일정을 등록하면\n시험일까지 한눈에 확인할 수 있어요."
+        android:textAlignment="center"
         android:textColor="#817B7D"
-        android:textSize="13sp" />
+        android:textSize="12sp" />
 
     <ListView
         android:id="@+id/goal_schedule_list"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="12dp"
         android:layout_weight="1"
         android:divider="@android:color/transparent"
         android:dividerHeight="8dp"

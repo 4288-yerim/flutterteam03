@@ -47,6 +47,10 @@ class TodayTodoWidgetFactory(
             "isCompleted",
             false,
         )
+        val isLoading = item.optBoolean(
+            "isLoading",
+            false,
+        )
         val planType = item.optString("planType")
 
         return RemoteViews(
@@ -56,6 +60,16 @@ class TodayTodoWidgetFactory(
             setTextViewText(
                 R.id.todo_status,
                 if (isCompleted) "✓" else "○",
+            )
+            setViewVisibility(
+                R.id.todo_status,
+                if (isLoading) android.view.View.GONE
+                else android.view.View.VISIBLE,
+            )
+            setViewVisibility(
+                R.id.todo_loading,
+                if (isLoading) android.view.View.VISIBLE
+                else android.view.View.GONE,
             )
             setTextColor(
                 R.id.todo_status,
@@ -98,7 +112,12 @@ class TodayTodoWidgetFactory(
         }
     }
 
-    override fun getLoadingView(): RemoteViews? = null
+    override fun getLoadingView(): RemoteViews {
+        return RemoteViews(
+            context.packageName,
+            R.layout.widget_today_todo_loading,
+        )
+    }
 
     override fun getViewTypeCount(): Int = 1
 

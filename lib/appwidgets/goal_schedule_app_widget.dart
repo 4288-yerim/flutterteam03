@@ -7,8 +7,7 @@ import '../home/services/home_service.dart';
 class GoalScheduleAppWidget {
   GoalScheduleAppWidget._();
 
-  static const String androidProviderName =
-      'GoalScheduleWidgetProvider';
+  static const String androidProviderName = 'GoalScheduleWidgetProvider';
 
   static const String qualifiedAndroidProviderName =
       'com.example.flutterteam03.appwidgets.'
@@ -18,33 +17,31 @@ class GoalScheduleAppWidget {
   static const String _updatedAtKey = 'goal_schedule_updated_at';
 
   static Future<void> sync() async {
-    final List<HomeGoal> goals =
-        await HomeService().watchActiveGoals().first;
+    final List<HomeGoal> goals = await HomeService().watchActiveGoals().first;
 
-    final List<Map<String, dynamic>> items = goals
-        .map(
-          (goal) => <String, dynamic>{
-            'id': goal.id,
-            'certificateId': goal.certificateId,
-            'certificateName': goal.certificateName,
-            'qualificationLabel': goal.qualificationLabel,
-            'targetRound': goal.targetRound,
-            'targetExamType': goal.targetExamType,
-            'targetExamDate': goal.targetExamDate.toIso8601String(),
-            'targetPassAnnouncementDate':
-                goal.targetPassAnnouncementDate?.toIso8601String(),
-            'targetPassAnnouncementEndDate':
-                goal.targetPassAnnouncementEndDate?.toIso8601String(),
-            'isMainGoal': goal.isMainGoal,
-          },
-        )
-        .toList();
+    final List<Map<String, dynamic>> items = goals.map((goal) {
+      final String examTypeLabel = _examTypeLabel(goal);
+
+      return <String, dynamic>{
+        'id': goal.id,
+        'certificateId': goal.certificateId,
+        'certificateName': goal.certificateName,
+        'qualificationLabel': goal.qualificationLabel,
+        'targetRound': goal.targetRound,
+        'targetExamType': examTypeLabel,
+        'targetExamTypeCode': goal.targetExamType,
+        'targetExamTypeLabel': examTypeLabel,
+        'targetExamDate': goal.targetExamDate.toIso8601String(),
+        'targetPassAnnouncementDate': goal.targetPassAnnouncementDate
+            ?.toIso8601String(),
+        'targetPassAnnouncementEndDate': goal.targetPassAnnouncementEndDate
+            ?.toIso8601String(),
+        'isMainGoal': goal.isMainGoal,
+      };
+    }).toList();
 
     await Future.wait<void>([
-      HomeWidget.saveWidgetData<String>(
-        _itemsKey,
-        jsonEncode(items),
-      ),
+      HomeWidget.saveWidgetData<String>(_itemsKey, jsonEncode(items)),
       HomeWidget.saveWidgetData<String>(
         _updatedAtKey,
         DateTime.now().toIso8601String(),
@@ -72,5 +69,14 @@ class GoalScheduleAppWidget {
       androidName: androidProviderName,
       qualifiedAndroidName: qualifiedAndroidProviderName, // 추가
     );
+  }
+
+  static String _examTypeLabel(HomeGoal goal) {
+    return switch (goal.targetExamType) {
+      'WRITTEN' => '필기',
+      'PRACTICAL' => '실기/면접',
+      'INTEGRATED' => '통합',
+      _ => goal.examTypeLabel,
+    };
   }
 }

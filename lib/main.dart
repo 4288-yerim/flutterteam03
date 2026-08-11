@@ -32,6 +32,7 @@ Future<void> main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   ThemeModeService.instance.startAuthSync();
+  AppWidgetSync.startAuthSync();
 
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
@@ -53,7 +54,7 @@ Future<void> main() async {
   await KakaoSdk.init(nativeAppKey: dotenv.env['KAKAO_NATIVE_APP_KEY']!);
 
   await NaverLoginSDK.initialize(
-    urlScheme: 'naver' + dotenv.env['NAVER_CLIENT_ID']!,
+    urlScheme: 'naver${dotenv.env['NAVER_CLIENT_ID']!}',
     clientId: dotenv.env['NAVER_CLIENT_ID']!,
     clientSecret: dotenv.env['NAVER_CLIENT_SECRET']!,
     clientName: '따iT',
