@@ -39,7 +39,7 @@
 
 자격증을 준비할 때는 시험 정보 검색, 일정 확인, 학습 계획 수립, 공부 기록, 스터디 활동을 서로 다른 서비스에서 관리해야 합니다.
 
-**따IT!** 은 흩어진 준비 과정을 하나의 애플리케이션으로 연결해 사용자가 목표를 정하고 꾸준히 학습할 수 있도록 돕습니다.
+**따IT** 은 흩어진 준비 과정을 하나의 애플리케이션으로 연결해 사용자가 목표를 정하고 꾸준히 학습할 수 있도록 돕습니다.
 
 자격증 정보와 시험 일정을 제공하고, AI를 활용해 개인별 학습 계획·자료 요약·문제 생성을 지원합니다.
 
@@ -47,23 +47,12 @@
 
 | 구분 | 내용 |
 | --- | --- |
-| 프로젝트명 | 따iT! |
-| 개발 기간 | 2026.07.13 ~ 2026.08.10 |
+| 프로젝트명 | 따iT |
+| 개발 기간 | 2026.07.01 ~ 2026.08.10 |
 | 개발 형태 | 팀 프로젝트 |
 | 팀 구성 | 총 4명 |
 | 지원 플랫폼 | Android |
 | 주요 기술 | <img src="https://img.shields.io/badge/Flutter-02569B?style=flat-square&logo=flutter&logoColor=white" alt="Flutter" /> <img src="https://img.shields.io/badge/Firebase-DD2C00?style=flat-square&logo=firebase&logoColor=white" alt="Firebase" /> <img src="https://img.shields.io/badge/Cloud_Functions-FFCA28?style=flat-square&logo=firebase&logoColor=black" alt="Firebase Cloud Functions" /> <img src="https://img.shields.io/badge/Gemini-8E75B2?style=flat-square&logo=googlegemini&logoColor=white" alt="Google Gemini" /> <img src="https://img.shields.io/badge/TensorFlow_Lite-FF6F00?style=flat-square&logo=tensorflow&logoColor=white" alt="TensorFlow Lite" /> |
-
-<!--
-대표 시연 GIF가 준비되면 아래 주석을 해제하세요.
-GIF는 10~20초, 가로 800~1000px, 10MB 이하를 권장합니다.
-
-<div align="center">
-  <a href="https://drive.google.com/drive/folders/1F65Rh5YUqCbFHEgi-qxDVzAodirGyBCO?hl=ko">
-    <img src="docs/images/demo.gif" alt="따IT! 서비스 시연" width="760" />
-  </a>
-</div>
--->
 
 ## 주요 기능
 
@@ -102,19 +91,6 @@ GIF는 10~20초, 가로 800~1000px, 10MB 이하를 권장합니다.
 - 회원, 자격증, 스터디, 커뮤니티 콘텐츠를 관리할 수 있습니다.
 - 신고·문의·탈퇴 요청을 확인하고 처리할 수 있습니다.
 - 공지 작성, 알림 발송, 서비스 통계를 위한 관리자 화면을 제공합니다.
-
-<!--
-스크린샷을 docs/images에 넣은 뒤 아래 예시를 실제 파일명으로 교체하세요.
-
-| 자격증 탐색 | AI 학습 | 실시간 스터디 |
-| :---: | :---: | :---: |
-| <img src="docs/images/certificate.png" width="240" alt="자격증 탐색 화면" /> | <img src="docs/images/ai-study.png" width="240" alt="AI 학습 화면" /> | <img src="docs/images/study.png" width="240" alt="스터디 화면" /> |
-| 자격증 정보와 시험 일정 조회 | 개인화 학습 계획과 합격 분석 | 공부시간과 목표를 함께 관리 |
-
-| 홈 | 커뮤니티 | 마이페이지 |
-| :---: | :---: | :---: |
-| <img src="docs/images/home.png" width="240" alt="홈 화면" /> | <img src="docs/images/community.png" width="240" alt="커뮤니티 화면" /> | <img src="docs/images/mypage.png" width="240" alt="마이페이지 화면" /> |
--->
 
 ## 기술적 구현
 
@@ -243,7 +219,7 @@ flutterteam03/
 
 ## 팀 구성 및 역할
 
-따IT!은 4명의 팀원이 기능별 책임 영역을 나누고, 공통 설계와 코드 리뷰를 함께 진행한 팀 프로젝트입니다.
+따IT은 4명의 팀원이 기능별 책임 영역을 나누고, 공통 설계와 코드 리뷰를 함께 진행한 팀 프로젝트입니다.
 
 | 팀원 | 담당 영역 | 시연 영상 |
 | --- | --- | :---: |
@@ -251,8 +227,6 @@ flutterteam03/
 | `소채연` | `로그인&회원가입` `앱 아이콘&스플래쉬` `AI 메뉴` | <a href="https://drive.google.com/drive/folders/1_-dfa653z5gkDQJZoZ6d_MLZX1re9mIq?hl=ko"><img src="https://img.shields.io/badge/영상_보기-Google_Drive-4285F4?style=flat-square&logo=googledrive&logoColor=white" alt="소채연 시연 영상" /></a> |
 | `이다빈` | `스터디 그룹` `커뮤니티` | <a href="https://drive.google.com/drive/folders/1ABPneF-QxvyawTBykwNKm6TDzBpsyoKw?hl=ko"><img src="https://img.shields.io/badge/영상_보기-Google_Drive-4285F4?style=flat-square&logo=googledrive&logoColor=white" alt="이다빈 시연 영상" /></a> |
 | `최제현` | `마이페이지` `관리자 기능` | <a href="https://drive.google.com/drive/folders/1MNPZYJkkvv9V4-xjfmH1CGvxkbZMKVxq?hl=ko"><img src="https://img.shields.io/badge/영상_보기-Google_Drive-4285F4?style=flat-square&logo=googledrive&logoColor=white" alt="최제현 시연 영상" /></a> |
-
-<!-- 각 팀원의 시연영상_URL을 실제 공유 링크로 교체하세요. -->
 
 ## 팀과 협업
 
